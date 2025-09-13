@@ -51,6 +51,9 @@
       }
     },
     "sensor": {
+      "active_driver": {
+        "name": "Active driver"
+      },
       "charging_status": {
         "state": {
           "unavailable": "Unavailable",
