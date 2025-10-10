@@ -96,6 +96,11 @@ DRIVE_MODE_MAP = {
 SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
     "R1": (
         RivianSensorEntityDescription(
+            key="active_driver",
+            translation_key="active_driver",
+            field="activeDriverName",
+        ),
+        RivianSensorEntityDescription(
             key="altitude",
             field="gnssAltitude",
             name="Altitude",

@@ -82,6 +82,7 @@ Note: If you are having issues with pairing your vehicle, we recommend investing
 | Name                                                | Domain         | Description                            |
 | --------------------------------------------------- | -------------- | -------------------------------------- |
 | 12V Battery Health                                  | Sensor         |                                        |
+| Active driver                                       | Sensor         | The name of the active driver.         |
 | Altitude                                            | Sensor         |                                        |
 | Battery Capactiy                                    | Sensor         |                                        |
 | Battery State of Charge                             | Sensor         |                                        |
