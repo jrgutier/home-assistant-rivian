@@ -35,25 +35,19 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
             icon="mdi:weather-night",
             name="Wake",
             available=lambda coordinator: coordinator.get("powerState") == "sleep",
-            press_fn=lambda coordinator: coordinator.send_vehicle_command(
-                command=VehicleCommand.WAKE_VEHICLE
-            ),
+            command=VehicleCommand.WAKE_VEHICLE,
         ),
     ),
     "SIDE_BIN_NXT_ACT": (
         RivianButtonEntityDescription(
             key="open_gear_tunnel_left",
             name="Open Gear Tunnel Left",
-            press_fn=lambda coordinator: coordinator.send_vehicle_command(
-                command=VehicleCommand.RELEASE_LEFT_SIDE_BIN
-            ),
+            command=VehicleCommand.RELEASE_LEFT_SIDE_BIN,
         ),
         RivianButtonEntityDescription(
             key="open_gear_tunnel_right",
             name="Open Gear Tunnel Right",
-            press_fn=lambda coordinator: coordinator.send_vehicle_command(
-                command=VehicleCommand.RELEASE_RIGHT_SIDE_BIN
-            ),
+            command=VehicleCommand.RELEASE_RIGHT_SIDE_BIN,
         ),
     ),
     "TAILGATE_CMD": (
@@ -62,9 +56,7 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
             name="Drop Tailgate",
             available=lambda coordinator: coordinator.get("closureTailgateClosed")
             != "open",
-            press_fn=lambda coordinator: coordinator.send_vehicle_command(
-                command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE
-            ),
+            command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
         ),
     ),
 }
@@ -111,7 +103,19 @@ class RivianButtonEntity(RivianVehicleControlEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Press the button."""
-        await self.entity_description.press_fn(self.coordinator)
+        if self.entity_description.command:
+            # Use new command state tracking
+            await self._execute_command(
+                self.entity_description.command,
+                self.entity_description.command_params,
+            )
+        elif self.entity_description.press_fn:
+            # Legacy support for press_fn
+            await self.entity_description.press_fn(self.coordinator)
+        else:
+            _LOGGER.error(
+                "Button %s has neither command nor press_fn defined", self.entity_id
+            )
 
 
 class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):

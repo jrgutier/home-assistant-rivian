@@ -27,12 +27,8 @@ LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
         is_locked=lambda coordinator: not any(
             coordinator.get(key) == "unlocked" for key in LOCK_STATE_ENTITIES
         ),
-        lock=lambda coordinator: coordinator.send_vehicle_command(
-            command=VehicleCommand.LOCK_ALL_CLOSURES_FEEDBACK
-        ),
-        unlock=lambda coordinator: coordinator.send_vehicle_command(
-            command=VehicleCommand.UNLOCK_ALL_CLOSURES
-        ),
+        command_lock=VehicleCommand.LOCK_ALL_CLOSURES_FEEDBACK,
+        command_unlock=VehicleCommand.UNLOCK_ALL_CLOSURES,
     ),
 )
 
@@ -66,8 +62,28 @@ class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the lock."""
-        return await self.entity_description.lock(self.coordinator)
+        if self.entity_description.command_lock:
+            await self._execute_command(
+                self.entity_description.command_lock,
+                self.entity_description.command_lock_params,
+            )
+        elif self.entity_description.lock:
+            await self.entity_description.lock(self.coordinator)
+        else:
+            _LOGGER.error(
+                "Lock %s has neither command_lock nor lock defined", self.entity_id
+            )
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Unlock the lock."""
-        await self.entity_description.unlock(self.coordinator)
+        if self.entity_description.command_unlock:
+            await self._execute_command(
+                self.entity_description.command_unlock,
+                self.entity_description.command_unlock_params,
+            )
+        elif self.entity_description.unlock:
+            await self.entity_description.unlock(self.coordinator)
+        else:
+            _LOGGER.error(
+                "Lock %s has neither command_unlock nor unlock defined", self.entity_id
+            )

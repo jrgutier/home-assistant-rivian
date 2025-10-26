@@ -1,0 +1,53 @@
+{
+  // Python settings
+  "python.defaultInterpreterPath": "/usr/local/bin/python",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.typeCheckingMode": "basic",
+
+  // Debugger settings to prevent disconnections
+  "debug.onTaskErrors": "showErrors",
+  "debug.showBreakpointsInOverviewRuler": true,
+  "debug.terminal.clearBeforeReusing": false,
+  "debug.focusWindowOnBreak": false,
+  "debug.internalConsoleOptions": "neverOpen",
+
+  // Editor settings
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+
+  // Files settings
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/*/**": true,
+    "**/.hg/store/**": true,
+    "**/config/.storage/**": false,
+    "**/config/home-assistant.log": false
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true
+  },
+
+  // Python formatting
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+
+  // Ruff settings
+  "ruff.enable": true,
+  "ruff.organizeImports": true,
+  "ruff.fixAll": true,
+
+  // Home Assistant specific
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/helpers/config_validation.py": "configuration.yaml"
+  }
+}

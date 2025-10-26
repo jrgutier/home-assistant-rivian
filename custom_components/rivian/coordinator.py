@@ -27,7 +27,6 @@ from .const import (
     ATTR_COORDINATOR,
     ATTR_USER,
     ATTR_VEHICLE,
-    CHARGING_API_FIELDS,
     DOMAIN,
     INVALID_SENSOR_STATES,
     VEHICLE_STATE_API_FIELDS,
@@ -140,18 +139,102 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """Initialize the coordinator."""
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.vehicle_id = vehicle_id
+        self._initial = asyncio.Event()
+        self._unsub_handler: Coroutine[None, None, None] | None = None
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        """Get the latest data from Rivian."""
+        if not self.data or not self.last_update_success:
+            await self._unsubscribe()
+            self._unsub_handler = await self.api.subscribe_for_charging_session(
+                vehicle_id=self.vehicle_id,
+                callback=self._process_new_data,
+            )
+
+            try:
+                await asyncio.wait_for(self._initial.wait(), 5)
+            except asyncio.TimeoutError:
+                # Subscription established but no initial data received
+                # This is normal when vehicle is not charging
+                _LOGGER.debug("No initial charging data received (likely not charging)")
+                self._initial.set()
+                if not self.data:
+                    self.data = {}
+
+        return self.data
 
     async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
-        return await self.api.get_live_charging_session(
-            vin=self.vehicle_id, properties=CHARGING_API_FIELDS
-        )
+        raise NotImplementedError("Polling charging data no longer allowed")
 
-    def adjust_update_interval(self, is_plugged_in: bool) -> None:
-        """Adjust update interval based on plugged in status."""
-        self._set_update_interval(
-            self._plugged_interval if is_plugged_in else self._unplugged_interval
-        )
+    async def async_shutdown(self) -> None:
+        """Shutdown coordinator."""
+        await self._unsubscribe()
+        return await super().async_shutdown()
+
+    @callback
+    def _process_new_data(self, data: dict[str, Any]) -> None:
+        """Process new charging data from subscription."""
+        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+            _LOGGER.error("Received unknown charging subscription update: %s", data)
+            self._error_count += 1
+            if not self._initial.is_set() or self._error_count > 5:
+                task = self._unsubscribe()
+                self.config_entry.async_create_task(self.hass, task, eager_start=True)
+            return
+
+        charging_data = pdata.get("chargingSession", {})
+
+        # Handle case where chargingSession is a list (e.g., empty list when not charging)
+        if isinstance(charging_data, list):
+            if not charging_data:
+                # Empty list means no active charging session
+                _LOGGER.debug("No active charging session")
+                self.async_set_updated_data({})
+                self._error_count = 0
+                self._initial.set()
+                return
+            # If it's a non-empty list, take the first item
+            charging_data = charging_data[0]
+
+        # Merge chartData and liveData into flat structure matching current API
+        processed_data = self._process_charging_data(charging_data)
+        self.async_set_updated_data(processed_data)
+        self._error_count = 0
+        self._initial.set()
+
+    def _process_charging_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Process charging session data into expected format.
+
+        Subscription returns nested chartData/liveData, but sensors expect flat structure.
+        """
+        live_data = data.get("liveData", {})
+        chart_data = data.get("chartData", {})
+
+        # Handle case where liveData or chartData might be lists
+        if isinstance(live_data, list):
+            live_data = live_data[0] if live_data else {}
+        if isinstance(chart_data, list):
+            chart_data = chart_data[0] if chart_data else {}
+
+        # Merge both structures, preferring liveData
+        return {
+            **chart_data,
+            **live_data,
+        }
+
+    async def _unsubscribe(self, close_monitor: bool = False):
+        """Unsubscribe from charging session updates."""
+        if unsub := self._unsub_handler:
+            await unsub()
+            self._unsub_handler = None
+            self._initial.clear()
+
+    # def adjust_update_interval(self, is_plugged_in: bool) -> None:
+    #     """Adjust update interval based on plugged in status."""
+    #     self._set_update_interval(
+    #         self._plugged_interval if is_plugged_in else self._unplugged_interval
+    #     )
 
 
 class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
@@ -269,7 +352,12 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         )
         self._initial = asyncio.Event()
         self._unsub_handler: Coroutine[None, None, None] | None = None
+        self._connection_unsub_handler: Coroutine[None, None, None] | None = None
+        self._is_online: bool = False
+        self._last_sync: str | None = None
         self._awake = asyncio.Event()
+        self._command_state_subscriptions: dict[str, Coroutine[None, None, None]] = {}
+        self._command_states: dict[str, dict[str, Any]] = {}
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
@@ -279,6 +367,14 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 vehicle_id=self.vehicle_id,
                 properties=VEHICLE_STATE_API_FIELDS,
                 callback=self._process_new_data,
+            )
+
+            # Also subscribe to cloud connection for online/offline status
+            self._connection_unsub_handler = (
+                await self.api.subscribe_for_cloud_connection(
+                    vehicle_id=self.vehicle_id,
+                    callback=self._process_cloud_connection_data,
+                )
             )
 
             try:
@@ -293,6 +389,10 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         raise NotImplementedError("Polling VehicleState no longer allowed")
 
     async def async_shutdown(self) -> None:
+        # Unsubscribe from all active command state subscriptions
+        for command_id in list(self._command_state_subscriptions.keys()):
+            await self._unsubscribe_command_state(command_id)
+
         await self._unsubscribe(True)
         return await super().async_shutdown()
 
@@ -327,10 +427,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self._awake.clear()
             else:
                 self._awake.set()
-        if charger_status := items.get("chargerStatus"):
-            self.charging_coordinator.adjust_update_interval(
-                is_plugged_in=charger_status.get("value") != "chrgr_sts_not_connected"
-            )
 
         if not (prev_items := (self.data or {})):
             return items
@@ -346,12 +442,45 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         return new_data
 
+    @callback
+    def _process_cloud_connection_data(self, data: dict[str, Any]) -> None:
+        """Process cloud connection updates."""
+        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+            _LOGGER.error("Received unknown cloud connection update: %s", data)
+            return
+
+        connection_data = pdata.get("vehicleCloudConnection", {})
+        self._is_online = connection_data.get("isOnline", False)
+        self._last_sync = connection_data.get("lastSync")
+
+        _LOGGER.debug(
+            "Vehicle %s cloud connection: online=%s, lastSync=%s",
+            self.vehicle_id,
+            self._is_online,
+            self._last_sync,
+        )
+
+    def is_online(self) -> bool:
+        """Return whether vehicle is online."""
+        return self._is_online
+
+    def last_sync(self) -> str | None:
+        """Return last sync timestamp."""
+        return self._last_sync
+
     async def _unsubscribe(self, close_monitor: bool = False):
         """Unsubscribe."""
+        # Unsubscribe from vehicle state
         if unsub := self._unsub_handler:
             await unsub()
             self._unsub_handler = None
             self._initial.clear()
+
+        # Unsubscribe from cloud connection
+        if connection_unsub := self._connection_unsub_handler:
+            await connection_unsub()
+            self._connection_unsub_handler = None
+
         if close_monitor and (monitor := self.api._ws_monitor):
             await monitor.close()
 
@@ -361,10 +490,116 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             return entity.get("value")
         return None
 
+    @callback
+    def _process_command_state(self, command_id: str, data: dict[str, Any]) -> None:
+        """Process command state updates."""
+        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+            _LOGGER.error("Received unknown command state update: %s", data)
+            return
+
+        cmd_state = pdata.get("vehicleCommandState", {})
+        state = cmd_state.get("state")
+
+        if state is None:
+            _LOGGER.warning(
+                "Received command state update for %s with missing or null state: %s",
+                command_id,
+                cmd_state,
+            )
+            # Unsubscribe from this malformed subscription
+            asyncio.create_task(self._unsubscribe_command_state(command_id))
+            return
+
+        _LOGGER.debug(
+            "Command %s state update: %s",
+            command_id,
+            cmd_state,
+        )
+
+        # Store command state
+        self._command_states[command_id] = {
+            "command": cmd_state.get("command"),
+            "state": state,
+            "responseCode": cmd_state.get("responseCode"),
+            "statusCode": cmd_state.get("statusCode"),
+            "createdAt": cmd_state.get("createdAt"),
+        }
+
+        # Keep only last 10 command states
+        if len(self._command_states) > 10:
+            oldest_key = next(iter(self._command_states))
+            self._command_states.pop(oldest_key)
+
+        # Fire events based on state
+        event_data = {
+            "vehicle_id": self.vehicle_id,
+            "command_id": command_id,
+            "command": cmd_state.get("command"),
+            "state": state,
+            "response_code": cmd_state.get("responseCode"),
+            "status_code": cmd_state.get("statusCode"),
+        }
+
+        if state == "COMPLETED_SUCCESS":
+            from .const import EVENT_COMMAND_SUCCESS
+
+            self.hass.bus.fire(EVENT_COMMAND_SUCCESS, event_data)
+            # Unsubscribe from this command
+            asyncio.create_task(self._unsubscribe_command_state(command_id))
+        elif state in ["COMPLETED_ERROR", "FAILED"]:
+            from .const import EVENT_COMMAND_FAILED
+
+            self.hass.bus.fire(EVENT_COMMAND_FAILED, event_data)
+            # Unsubscribe from this command
+            asyncio.create_task(self._unsubscribe_command_state(command_id))
+
+    async def _subscribe_to_command_state(self, command_id: str) -> None:
+        """Subscribe to command state updates."""
+        if command_id in self._command_state_subscriptions:
+            _LOGGER.debug("Already subscribed to command %s", command_id)
+            return
+
+        try:
+            unsubscribe = await self.api.subscribe_for_command_state(
+                command_id=command_id,
+                callback=lambda data: self._process_command_state(command_id, data),
+            )
+            if unsubscribe:
+                self._command_state_subscriptions[command_id] = unsubscribe
+                _LOGGER.debug("Subscribed to command %s state updates", command_id)
+
+                # Auto-unsubscribe after 60 seconds to prevent memory leaks
+                async def _auto_unsubscribe():
+                    await asyncio.sleep(60)
+                    await self._unsubscribe_command_state(command_id)
+
+                asyncio.create_task(_auto_unsubscribe())
+        except Exception as ex:
+            _LOGGER.error("Failed to subscribe to command %s state: %s", command_id, ex)
+
+    async def _unsubscribe_command_state(self, command_id: str) -> None:
+        """Unsubscribe from command state updates."""
+        if unsub := self._command_state_subscriptions.pop(command_id, None):
+            try:
+                await unsub()
+                _LOGGER.debug("Unsubscribed from command %s state updates", command_id)
+            except Exception as ex:
+                _LOGGER.error("Error unsubscribing from command %s: %s", command_id, ex)
+
+    def get_command_state(self, command_id: str) -> dict[str, Any] | None:
+        """Get the state of a specific command."""
+        return self._command_states.get(command_id)
+
     async def send_vehicle_command(
         self, command: VehicleCommand, params: dict[str, Any] | None = None
-    ) -> None:
-        """Send a command to the vehicle."""
+    ) -> str | None:
+        """Send a command to the vehicle.
+
+        Returns:
+            Command ID if successful, None otherwise
+        """
+        _LOGGER.debug("Sending command %s with params: %s", command, params)
+
         if self.get("powerState") == "sleep" and command != VehicleCommand.WAKE_VEHICLE:
             await self.send_vehicle_command(VehicleCommand.WAKE_VEHICLE)
             try:
@@ -379,7 +614,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             self.config_entry.options.get("public_key")
         )
 
-        if response := await self.api.send_vehicle_command(
+        command_id = await self.api.send_vehicle_command(
             command=command,
             vehicle_id=self.vehicle_id,
             phone_id=phone_info[0],
@@ -387,8 +622,27 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             vehicle_key=vehicle["public_key"],
             private_key=self.config_entry.options.get("private_key"),
             params=params,
-        ):
-            _LOGGER.debug("%s response was: %s", command, response)
+        )
+
+        if command_id:
+            _LOGGER.debug("%s command sent with ID: %s", command, command_id)
+
+            # Fire initiated event
+            from .const import EVENT_COMMAND_INITIATED
+
+            self.hass.bus.fire(
+                EVENT_COMMAND_INITIATED,
+                {
+                    "vehicle_id": self.vehicle_id,
+                    "command": command.value,
+                    "command_id": command_id,
+                },
+            )
+
+            # Subscribe to command state updates
+            await self._subscribe_to_command_state(command_id)
+
+        return command_id
 
 
 class VehicleImageCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):

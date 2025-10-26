@@ -77,9 +77,25 @@ class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
 class RivianVehicleControlEntity(RivianVehicleEntity):
     """Base class for Rivian vehicle control entities."""
 
+    def __init__(
+        self,
+        coordinator: VehicleCoordinator,
+        config_entry: ConfigEntry,
+        description: EntityDescription,
+        vehicle: dict[str, Any],
+    ) -> None:
+        """Construct a Rivian vehicle control entity."""
+        super().__init__(coordinator, config_entry, description, vehicle)
+        self._command_in_progress: str | None = None
+        self._current_command_id: str | None = None
+        self._last_command_status: dict[str, Any] = {}
+
     @property
     def available(self) -> bool:
         """Return the availability of the entity."""
+        # Check cloud connection first
+        if not self.coordinator.is_online():
+            return False
         if not (super().available and self._get_value("gearStatus") == "park"):
             return False
         if _fn := getattr(self.entity_description, "available", None):
@@ -93,6 +109,97 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                     return True
             return False
         return True
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return entity specific state attributes."""
+        attrs = {}
+        if self._command_in_progress:
+            attrs["current_command"] = self._command_in_progress
+        if self._last_command_status:
+            attrs.update(
+                {
+                    "last_command": self._last_command_status.get("command"),
+                    "last_command_state": self._last_command_status.get("state"),
+                    "last_command_time": self._last_command_status.get("timestamp"),
+                }
+            )
+        return attrs
+
+    async def _execute_command(
+        self, command, params: dict[str, Any] | None = None, timeout: int = 30
+    ) -> dict[str, Any] | None:
+        """Execute a vehicle command with state tracking.
+
+        Args:
+            command: The VehicleCommand to execute
+            params: Optional command parameters
+            timeout: Timeout in seconds to wait for command completion
+
+        Returns:
+            Command state dict if successful, None otherwise
+        """
+        import asyncio
+        from homeassistant.util import dt as dt_util
+
+        # Set executing state
+        self._command_in_progress = command.value
+        self.async_write_ha_state()
+
+        try:
+            # Send command and get ID
+            command_id = await self.coordinator.send_vehicle_command(command, params)
+
+            if not command_id:
+                _LOGGER.error(
+                    "Failed to send command %s, no command ID returned", command
+                )
+                return None
+
+            self._current_command_id = command_id
+
+            # Wait for command completion with timeout
+            start_time = asyncio.get_event_loop().time()
+            while (asyncio.get_event_loop().time() - start_time) < timeout:
+                # Check command state
+                if cmd_state := self.coordinator.get_command_state(command_id):
+                    state = cmd_state.get("state")
+                    if state in ["COMPLETED_SUCCESS", "COMPLETED_ERROR", "FAILED"]:
+                        # Command completed
+                        self._last_command_status = {
+                            "command": command.value,
+                            "state": state,
+                            "timestamp": dt_util.utcnow().isoformat(),
+                            "response_code": cmd_state.get("responseCode"),
+                            "status_code": cmd_state.get("statusCode"),
+                        }
+                        return cmd_state
+
+                # Wait a bit before checking again
+                await asyncio.sleep(0.5)
+
+            # Timeout reached
+            _LOGGER.warning(
+                "Command %s (ID: %s) timed out after %s seconds",
+                command,
+                command_id,
+                timeout,
+            )
+            self._last_command_status = {
+                "command": command.value,
+                "state": "TIMEOUT",
+                "timestamp": dt_util.utcnow().isoformat(),
+            }
+            return None
+
+        except Exception as ex:
+            _LOGGER.error("Error executing command %s: %s", command, ex)
+            return None
+        finally:
+            # Clear executing state
+            self._command_in_progress = None
+            self._current_command_id = None
+            self.async_write_ha_state()
 
     def _handle_driver_update(self) -> None:
         """Handle driver update."""

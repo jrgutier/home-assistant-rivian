@@ -8,10 +8,41 @@
       "request": "launch",
       "module": "homeassistant",
       "justMyCode": false,
-      "args": ["--debug", "-c", "config"]
+      "args": ["--debug", "-c", "config"],
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "subProcess": true
     },
     {
-      // Example of attaching to local debug server
+      // Attach to the running Home Assistant debugpy server
+      "name": "Python: Attach to HA",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "0.0.0.0",
+        "port": 5678
+      },
+      "justMyCode": false,
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/custom_components/rivian",
+          "remoteRoot": "${workspaceFolder}/custom_components/rivian"
+        },
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "${workspaceFolder}"
+        }
+      ],
+      "logToFile": true,
+      "debugOptions": [
+        "RedirectOutput",
+        "ShowReturnValue"
+      ]
+    },
+    {
+      // Example of attaching to local debug server (alternative)
       "name": "Python: Attach Local",
       "type": "debugpy",
       "request": "attach",
@@ -25,7 +56,8 @@
           "localRoot": "${workspaceFolder}",
           "remoteRoot": "."
         }
-      ]
+      ],
+      "logToFile": true
     },
     {
       // Example of attaching to my production server
@@ -41,7 +73,8 @@
           "localRoot": "${workspaceFolder}",
           "remoteRoot": "/usr/src/homeassistant"
         }
-      ]
+      ],
+      "logToFile": true
     }
   ]
 }

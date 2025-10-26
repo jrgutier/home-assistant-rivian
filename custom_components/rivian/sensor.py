@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Final
 
@@ -164,17 +164,15 @@ class RivianChargingSensorEntity(RivianChargingEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of the sensor, if any."""
-        if self.entity_description.field == "currentPrice":
-            return self.coordinator.data.get(
-                "currentCurrency", self.hass.config.currency
-            )
+        if self.entity_description.field == "price":
+            return self.coordinator.data.get("currency", self.hass.config.currency)
         return super().native_unit_of_measurement
 
 
 CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     RivianSensorEntityDescription(
         key="charging_cost",
-        field="currentPrice",
+        field="price",
         name="Charging Cost",
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.TOTAL,
@@ -208,7 +206,7 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     ),
     RivianSensorEntityDescription(
         key="charging_speed",
-        field="power",
+        field="powerKW",
         name="Charging Speed",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
@@ -219,7 +217,11 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         field="startTime",
         name="Charging Start Time",
         device_class=SensorDeviceClass.TIMESTAMP,
-        value_lambda=lambda val: datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)
+        value_lambda=lambda val: (
+            datetime.fromtimestamp(val / 1000, tz=timezone.utc)
+            if isinstance(val, int)
+            else datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)
+        )
         if val
         else val,
     ),
@@ -230,6 +232,29 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    RivianSensorEntityDescription(
+        key="charging_time_remaining",
+        field="timeRemaining",
+        name="Charging Time Remaining",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        icon="mdi:timer-sand",
+    ),
+    RivianSensorEntityDescription(
+        key="charging_state",
+        field="vehicleChargerState",
+        name="Charging State",
+        icon="mdi:ev-station",
+    ),
+    RivianSensorEntityDescription(
+        key="charging_is_free",
+        field="isFreeSession",
+        name="Charging Is Free",
+        icon="mdi:cash-off",
+        device_class=SensorDeviceClass.ENUM,
+        options=["true", "false"],
+        value_lambda=lambda val: str(val).lower() if val is not None else None,
     ),
 )
 

@@ -26,10 +26,8 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         icon="mdi:alarm-light",
         name="Alarm",
         is_on=lambda coor: coor.get("alarmSoundStatus") == "true",
-        turn_off=lambda coor: coor.send_vehicle_command(
-            command=VehicleCommand.PANIC_OFF
-        ),
-        turn_on=lambda coor: coor.send_vehicle_command(command=VehicleCommand.PANIC_ON),
+        command_off=VehicleCommand.PANIC_OFF,
+        command_on=VehicleCommand.PANIC_ON,
     ),
     RivianSwitchEntityDescription(
         key="charging_enabled",
@@ -39,36 +37,39 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         or coor.get("chargerState") == "charging_active",
         is_on=lambda coor: coor.get("chargerState")
         in ("charging_active", "charging_connecting"),
-        turn_off=lambda coor: coor.send_vehicle_command(
-            command=VehicleCommand.STOP_CHARGING
-        ),
-        turn_on=lambda coor: coor.send_vehicle_command(
-            command=VehicleCommand.START_CHARGING
-        ),
+        command_off=VehicleCommand.STOP_CHARGING,
+        command_on=VehicleCommand.START_CHARGING,
     ),
     RivianSwitchEntityDescription(
         key="gear_guard_video",
         icon="mdi:cctv",
         name="Gear Guard Video",
         is_on=lambda coor: coor.get("gearGuardVideoStatus") != "Disabled",
-        turn_off=lambda coor: coor.send_vehicle_command(
-            command=VehicleCommand.DISABLE_GEAR_GUARD_VIDEO
-        ),
-        turn_on=lambda coor: coor.send_vehicle_command(
-            command=VehicleCommand.ENABLE_GEAR_GUARD_VIDEO
-        ),
+        command_off=VehicleCommand.DISABLE_GEAR_GUARD_VIDEO,
+        command_on=VehicleCommand.ENABLE_GEAR_GUARD_VIDEO,
     ),
     RivianSwitchEntityDescription(
         key="steering_wheel_heat",
         icon="mdi:steering",
         name="Steering Wheel Heat",
         is_on=lambda coor: coor.get("steeringWheelHeat") != "Off",
-        turn_off=lambda coor: coor.send_vehicle_command(
-            command=VehicleCommand.CABIN_HVAC_STEERING_HEAT, params={"level": 0}
-        ),
-        turn_on=lambda coor: coor.send_vehicle_command(
-            command=VehicleCommand.CABIN_HVAC_STEERING_HEAT, params={"level": 1}
-        ),
+        command_off=VehicleCommand.CABIN_HVAC_STEERING_HEAT,
+        command_off_params={"level": 0},
+        command_on=VehicleCommand.CABIN_HVAC_STEERING_HEAT,
+        command_on_params={"level": 1},
+    ),
+    # NOTE: Climate Hold requires Rivian software 2025.38+ and rivian-python-client
+    # with CLIMATE_HOLD_ON/CLIMATE_HOLD_OFF commands. If these commands are not available
+    # in the installed rivian-python-client version, this switch will fail to operate.
+    # State fields (cabinHoldStatus, cabinHoldNotification) are confirmed in GraphQL subscription.
+    # Duration is controlled by the vehicle firmware and cannot be set via the mobile app API.
+    RivianSwitchEntityDescription(
+        key="cabin_climate_hold",
+        icon="mdi:hvac",
+        name="Cabin Climate Hold",
+        is_on=lambda coor: coor.get("cabinHoldStatus") in ("on", "ON", "On"),
+        command_off=VehicleCommand.CLIMATE_HOLD_OFF,
+        command_on=VehicleCommand.CLIMATE_HOLD_ON,
     ),
 )
 
@@ -111,8 +112,28 @@ class RivianSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
-        return await self.entity_description.turn_off(self.coordinator)
+        if self.entity_description.command_off:
+            await self._execute_command(
+                self.entity_description.command_off,
+                self.entity_description.command_off_params,
+            )
+        elif self.entity_description.turn_off:
+            await self.entity_description.turn_off(self.coordinator)
+        else:
+            _LOGGER.error(
+                "Switch %s has neither command_off nor turn_off defined", self.entity_id
+            )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
-        await self.entity_description.turn_on(self.coordinator)
+        if self.entity_description.command_on:
+            await self._execute_command(
+                self.entity_description.command_on,
+                self.entity_description.command_on_params,
+            )
+        elif self.entity_description.turn_on:
+            await self.entity_description.turn_on(self.coordinator)
+        else:
+            _LOGGER.error(
+                "Switch %s has neither command_on nor turn_on defined", self.entity_id
+            )

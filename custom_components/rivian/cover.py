@@ -37,12 +37,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             device_class=CoverDeviceClass.WINDOW,
             name="Windows",
             is_closed=lambda coor: not any(coor.get(key) == "open" for key in WINDOWS),
-            close_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.CLOSE_ALL_WINDOWS
-            ),
-            open_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.OPEN_ALL_WINDOWS
-            ),
+            command_close=VehicleCommand.CLOSE_ALL_WINDOWS,
+            command_open=VehicleCommand.OPEN_ALL_WINDOWS,
         ),
     ),
     "CHARG_PORT_DOOR_COMMAND": (
@@ -51,12 +47,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             device_class=CoverDeviceClass.DOOR,
             translation_key="charge_port",
             is_closed=lambda coor: coor.get("chargePortState") != "open",
-            close_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.CLOSE_CHARGE_PORT_DOOR
-            ),
-            open_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.OPEN_CHARGE_PORT_DOOR
-            ),
+            command_close=VehicleCommand.CLOSE_CHARGE_PORT_DOOR,
+            command_open=VehicleCommand.OPEN_CHARGE_PORT_DOOR,
         ),
     ),
     "LIFTGATE_CMD": (
@@ -65,12 +57,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             device_class=CoverDeviceClass.DOOR,
             name="Liftgate",
             is_closed=lambda coor: coor.get("closureLiftgateClosed") != "open",
-            close_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.CLOSE_LIFTGATE
-            ),
-            open_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE
-            ),
+            command_close=VehicleCommand.CLOSE_LIFTGATE,
+            command_open=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
         ),
     ),
     "FRUNK_NXT_ACT": (
@@ -79,12 +67,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             device_class=CoverDeviceClass.DOOR,
             name="Front Trunk",
             is_closed=lambda coor: coor.get("closureFrunkClosed") != "open",
-            close_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.CLOSE_FRUNK
-            ),
-            open_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.OPEN_FRUNK
-            ),
+            command_close=VehicleCommand.CLOSE_FRUNK,
+            command_open=VehicleCommand.OPEN_FRUNK,
         ),
     ),
     "TONNEAU_CMD": (
@@ -93,12 +77,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             device_class=CoverDeviceClass.DOOR,
             name="Tonneau",
             is_closed=lambda coor: coor.get("closureTonneauClosed") != "open",
-            close_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.CLOSE_TONNEAU_COVER
-            ),
-            open_cover=lambda coor: coor.send_vehicle_command(
-                command=VehicleCommand.OPEN_TONNEAU_COVER
-            ),
+            command_close=VehicleCommand.CLOSE_TONNEAU_COVER,
+            command_open=VehicleCommand.OPEN_TONNEAU_COVER,
         ),
     ),
 }
@@ -136,8 +116,30 @@ class RivianCoverEntity(RivianVehicleControlEntity, CoverEntity):
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
-        return await self.entity_description.close_cover(self.coordinator)
+        if self.entity_description.command_close:
+            await self._execute_command(
+                self.entity_description.command_close,
+                self.entity_description.command_close_params,
+            )
+        elif self.entity_description.close_cover:
+            await self.entity_description.close_cover(self.coordinator)
+        else:
+            _LOGGER.error(
+                "Cover %s has neither command_close nor close_cover defined",
+                self.entity_id,
+            )
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
-        await self.entity_description.open_cover(self.coordinator)
+        if self.entity_description.command_open:
+            await self._execute_command(
+                self.entity_description.command_open,
+                self.entity_description.command_open_params,
+            )
+        elif self.entity_description.open_cover:
+            await self.entity_description.open_cover(self.coordinator)
+        else:
+            _LOGGER.error(
+                "Cover %s has neither command_open nor open_cover defined",
+                self.entity_id,
+            )

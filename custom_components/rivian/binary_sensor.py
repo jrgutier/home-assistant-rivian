@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -32,6 +34,14 @@ async def async_setup_entry(
         if model in vehicle["model"]
         for description in descriptions
     ]
+
+    # Add cloud connection binary sensor for each vehicle
+    entities.extend(
+        [
+            RivianCloudConnectionBinarySensor(coordinators[vehicle_id], entry, vehicle)
+            for vehicle_id, vehicle in vehicles.items()
+        ]
+    )
 
     async_add_entities(entities)
 
@@ -63,7 +73,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
         return super().available
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         """Return true if sensor is on."""
         fields = self.entity_description.field
         if self._aggregate:
@@ -75,7 +85,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             values = [values] if isinstance(values, str) else values
             result = val in values
             return result if not self.entity_description.negate else not result
-        return STATE_UNAVAILABLE
+        return None
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
@@ -85,7 +95,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
         try:
             entity = self.coordinator.data[self.entity_description.field]
             if entity is None:
-                return "Binary Sensor Unavailable"
+                return None
             return {
                 "value": entity["value"],
                 "last_update": entity["timeStamp"],
@@ -93,3 +103,36 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             }
         except KeyError:
             return None
+
+
+class RivianCloudConnectionBinarySensor(RivianVehicleEntity, BinarySensorEntity):
+    """Binary sensor for vehicle cloud connection status."""
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(
+        self,
+        coordinator: VehicleCoordinator,
+        config_entry: ConfigEntry,
+        vehicle: dict[str, Any],
+    ) -> None:
+        """Create a Rivian cloud connection binary sensor."""
+        from homeassistant.helpers.entity import EntityDescription
+
+        description = EntityDescription(
+            key="cloud_connected",
+            name="Cloud Connected",
+        )
+        super().__init__(coordinator, config_entry, description, vehicle)
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if vehicle is connected to cloud."""
+        return self.coordinator.is_online()
+
+    @property
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        """Return the state attributes."""
+        return {
+            "last_sync": self.coordinator.last_sync(),
+        }

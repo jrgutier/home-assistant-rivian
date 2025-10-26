@@ -7,6 +7,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from rivian import VehicleCommand
+
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription
 from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.components.cover import CoverEntityDescription
@@ -44,7 +46,9 @@ class RivianButtonEntityDescription(
 ):
     """Rivian button entity description."""
 
-    press_fn: Callable[[VehicleCoordinator], Awaitable[None]]
+    command: VehicleCommand | None = None
+    command_params: dict[str, Any] | None = None
+    press_fn: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
 
 
 @dataclass(kw_only=True)
@@ -52,8 +56,12 @@ class RivianCoverEntityDescription(CoverEntityDescription):
     """Rivian cover entity description."""
 
     is_closed: Callable[[VehicleCoordinator], bool]
-    close_cover: Callable[[VehicleCoordinator], Awaitable[None]]
-    open_cover: Callable[[VehicleCoordinator], Awaitable[None]]
+    command_open: VehicleCommand | None = None
+    command_open_params: dict[str, Any] | None = None
+    command_close: VehicleCommand | None = None
+    command_close_params: dict[str, Any] | None = None
+    close_cover: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
+    open_cover: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
 
 
 @dataclass(kw_only=True)
@@ -61,8 +69,12 @@ class RivianLockEntityDescription(LockEntityDescription):
     """Rivian lock entity description."""
 
     is_locked: Callable[[VehicleCoordinator], bool]
-    lock: Callable[[VehicleCoordinator], Awaitable[None]]
-    unlock: Callable[[VehicleCoordinator], Awaitable[None]]
+    command_lock: VehicleCommand | None = None
+    command_lock_params: dict[str, Any] | None = None
+    command_unlock: VehicleCommand | None = None
+    command_unlock_params: dict[str, Any] | None = None
+    lock: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
+    unlock: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
 
 
 @dataclass(kw_only=True)
@@ -97,8 +109,12 @@ class RivianSwitchEntityDescription(
     """Rivian switch entity description."""
 
     is_on: Callable[[VehicleCoordinator], bool]
-    turn_off: Callable[[VehicleCoordinator], Awaitable[None]]
-    turn_on: Callable[[VehicleCoordinator], Awaitable[None]]
+    command_on: VehicleCommand | None = None
+    command_on_params: dict[str, Any] | None = None
+    command_off: VehicleCommand | None = None
+    command_off_params: dict[str, Any] | None = None
+    turn_off: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
+    turn_on: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
 
 
 @dataclass(kw_only=True)

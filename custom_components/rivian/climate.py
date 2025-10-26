@@ -96,10 +96,10 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.HEAT:
-            return await self.coordinator.send_vehicle_command(
+            return await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 1}
             )
-        await self.coordinator.send_vehicle_command(
+        await self._execute_command(
             command=VehicleCommand.VEHICLE_CABIN_PRECONDITION_DISABLE
             if hvac_mode == HVACMode.OFF
             else VehicleCommand.VEHICLE_CABIN_PRECONDITION_ENABLE
@@ -108,7 +108,7 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         if preset_mode == DEFROST_DEFOG:
-            return await self.coordinator.send_vehicle_command(
+            return await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 1}
             )
         await self.async_set_temperature(
@@ -121,15 +121,15 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
             return
         if self.preset_mode == DEFROST_DEFOG:
             # need to turn off defrost/defog before we can adjust
-            await self.coordinator.send_vehicle_command(
+            await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 0}
             )
         if self.hvac_mode == HVACMode.OFF:
             # must turn on preconditioning to adjust temperature
-            await self.coordinator.send_vehicle_command(
+            await self._execute_command(
                 command=VehicleCommand.VEHICLE_CABIN_PRECONDITION_ENABLE
             )
-        await self.coordinator.send_vehicle_command(
+        await self._execute_command(
             command=VehicleCommand.CABIN_PRECONDITIONING_SET_TEMP,
             params={"HVAC_set_temp": temperature},
         )
