@@ -9,7 +9,6 @@ from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Generic, TypeVar
 
-from aiohttp import ClientResponse
 from rivian import Rivian, VehicleCommand
 from rivian.exceptions import (
     RivianApiException,
@@ -79,19 +78,16 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
     async def _async_update_data(self) -> T:
         """Get the latest data from Rivian."""
         try:
-            resp = await self._fetch_data()
-            if resp.status == 200:
-                data = await resp.json()
-                _LOGGER.debug(
-                    "[%s] %s",
-                    self.__class__.__name__.replace("Coordinator", ""),
-                    redact(data),
-                )
-                if self._error_count:
-                    self._error_count = 0
-                    self._set_update_interval()
-                return data["data"][self.key]
-            resp.raise_for_status()
+            data = await self._fetch_data()
+            _LOGGER.debug(
+                "[%s] %s",
+                self.__class__.__name__.replace("Coordinator", ""),
+                redact(data),
+            )
+            if self._error_count:
+                self._error_count = 0
+                self._set_update_interval()
+            return data
 
         except RivianExpiredTokenError:
             _LOGGER.info("Rivian token expired, refreshing")
@@ -116,7 +112,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
         raise UpdateFailed("Error communicating with API")
 
     @abstractmethod
-    async def _fetch_data(self) -> ClientResponse:
+    async def _fetch_data(self) -> T:
         """Fetch the data."""
         raise NotImplementedError
 
@@ -163,7 +159,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         return self.data
 
-    async def _fetch_data(self) -> ClientResponse:
+    async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
         raise NotImplementedError("Polling charging data no longer allowed")
 
@@ -254,7 +250,7 @@ class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.vehicle_id = vehicle_id
 
-    async def _fetch_data(self) -> ClientResponse:
+    async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
         return await self.api.get_drivers_and_keys(vehicle_id=self.vehicle_id)
 
@@ -289,7 +285,7 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.include_phones = include_phones
 
-    async def _fetch_data(self) -> ClientResponse:
+    async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
         return await self.api.get_user_information(self.include_phones)
 
@@ -384,7 +380,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         return self.data
 
-    async def _fetch_data(self) -> ClientResponse:
+    async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
         raise NotImplementedError("Polling VehicleState no longer allowed")
 
@@ -645,7 +641,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         return command_id
 
 
-class VehicleImageCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
+class VehicleImageCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
     """Vehicle image data update coordinator for Rivian."""
 
     key = "getVehicleMobileImages"
@@ -663,13 +659,14 @@ class VehicleImageCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.version = version
 
-    async def _fetch_data(self) -> ClientResponse:
+    async def _fetch_data(self) -> list[dict[str, Any]]:
         """Fetch the data."""
         data = await self.api.get_vehicle_images(
             resolution="@3x", vehicle_version=self.version
         )
         self._last_updated = datetime.now(timezone.utc)
-        return data
+        # Extract just the vehicle images list
+        return data.get(self.key, [])
 
 
 class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
@@ -677,6 +674,6 @@ class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
 
     key = "getRegisteredWallboxes"
 
-    async def _fetch_data(self) -> ClientResponse:
+    async def _fetch_data(self) -> list[dict[str, Any]]:
         """Fetch the data."""
         return await self.api.get_registered_wallboxes()
