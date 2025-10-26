@@ -242,12 +242,6 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:timer-sand",
     ),
     RivianSensorEntityDescription(
-        key="charging_state",
-        field="vehicleChargerState",
-        name="Charging State",
-        icon="mdi:ev-station",
-    ),
-    RivianSensorEntityDescription(
         key="charging_is_free",
         field="isFreeSession",
         name="Charging Is Free",

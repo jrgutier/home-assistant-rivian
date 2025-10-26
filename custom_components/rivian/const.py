@@ -98,7 +98,7 @@ DRIVE_MODE_MAP = {
 }
 
 GEAR_STATUS_MAP = {
-    "parked": "Park",
+    "park": "Park",
     "drive": "Drive",
     "neutral": "Neutral",
     "reverse": "Reverse",
@@ -136,14 +136,14 @@ def _charger_status_transform(value: str) -> str:
     """Transform charger status API values to enum names.
 
     Examples:
-        chrgr_sts_not_connected -> Charger Status Not Connected
-        chrgr_sts_connected_no_chrg -> Charger Status Connected No Chrg
+        chrgr_sts_not_connected -> Not Connected
+        chrgr_sts_connected_no_chrg -> Connected No Chrg
     """
     if not value:
-        return "Charger Status NA"
+        return "NA"
     # Handle the chrgr_sts_ prefix
     if value.startswith("chrgr_sts_"):
-        value = value.replace("chrgr_sts_", "charger_status_")
+        value = value.replace("chrgr_sts_", "")
     return _to_title_case(value)
 
 
@@ -400,14 +400,14 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             icon="mdi:ev-plug-type2",
             device_class=SensorDeviceClass.ENUM,
             options=[
-                "Charger Status NA",
-                "Charger Status Not Connected",
-                "Charger Status Connected No Chrg",
-                "Charger Status Connected Charging",
-                "Charger Status Evse Exit",
-                "Charger Status User Exit",
-                "Charger Status Eoc Met",
-                "Charger Status Fault",
+                "NA",
+                "Not Connected",
+                "Connected No Chrg",
+                "Connected Charging",
+                "Evse Exit",
+                "User Exit",
+                "Eoc Met",
+                "Fault",
             ],
             value_lambda=lambda v: _charger_status_transform(v),
         ),
@@ -1433,6 +1433,5 @@ CHARGING_API_FIELDS: Final[set[str]] = {
     "timeElapsed",
     "timeRemaining",
     "totalChargedEnergy",
-    "vehicleChargerState",
     "isFreeSession",
 }
