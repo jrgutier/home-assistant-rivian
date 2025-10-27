@@ -208,7 +208,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="battery_limit",
             field="batteryLimit",
-            name="Battery State of Charge Limit",
+            name="Charge Limit",
             icon="mdi:battery-charging-80",
             native_unit_of_measurement=PERCENTAGE,
         ),
@@ -414,7 +414,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="distance_to_empty",
             field="distanceToEmpty",
-            name="Estimated Vehicle Range",
+            name="Range",
             icon="mdi:map-marker-distance",
             device_class=SensorDeviceClass.DISTANCE,
             native_unit_of_measurement=UnitOfLength.KILOMETERS,
@@ -500,7 +500,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_available_version",
             field="otaAvailableVersion",
-            name="Software OTA - Available Version",
+            name="OTA Available Version",
             icon="mdi:package",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -508,7 +508,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_available_version_git_hash",
             field="otaAvailableVersionGitHash",
-            name="Software OTA - Available Version Git Hash",
+            name="OTA Available Version Git Hash",
             icon="mdi:source-commit",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -516,7 +516,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_available_version_number",
             field="otaAvailableVersionNumber",
-            name="Software OTA - Available Version Number",
+            name="OTA Available Version Number",
             icon="mdi:numeric",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -524,7 +524,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_available_version_week",
             field="otaAvailableVersionWeek",
-            name="Software OTA - Available Version Week",
+            name="OTA Available Version Week",
             icon="mdi:calendar-week",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -532,7 +532,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_available_version_year",
             field="otaAvailableVersionYear",
-            name="Software OTA - Available Version Year",
+            name="OTA Available Version Year",
             icon="mdi:calendar",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -540,7 +540,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_current_status",
             field="otaCurrentStatus",
-            name="Software OTA - Status Current",
+            name="OTA Status Current",
             icon="mdi:package",
             entity_category=EntityCategory.DIAGNOSTIC,
             value_lambda=lambda v: v.replace("_", " ").title(),
@@ -548,7 +548,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_current_version",
             field="otaCurrentVersion",
-            name="Software OTA - Current Version",
+            name="OTA Current Version",
             icon="mdi:package",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -556,7 +556,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_current_version_git_hash",
             field="otaCurrentVersionGitHash",
-            name="Software OTA - Current Version Git Hash",
+            name="OTA Current Version Git Hash",
             icon="mdi:source-commit",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -564,7 +564,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_current_version_number",
             field="otaCurrentVersionNumber",
-            name="Software OTA - Current Version Number",
+            name="OTA Current Version Number",
             icon="mdi:numeric",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -572,7 +572,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_current_version_week",
             field="otaCurrentVersionWeek",
-            name="Software OTA - Current Version Week",
+            name="OTA Current Version Week",
             icon="mdi:calendar-week",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -580,7 +580,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_current_version_year",
             field="otaCurrentVersionYear",
-            name="Software OTA - Current Version Year",
+            name="OTA Current Version Year",
             icon="mdi:calendar",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -588,7 +588,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_download_progress",
             field="otaDownloadProgress",
-            name="Software OTA - Download Progress",
+            name="OTA Download Progress",
             icon="mdi:progress-download",
             entity_category=EntityCategory.DIAGNOSTIC,
             native_unit_of_measurement=PERCENTAGE,
@@ -596,7 +596,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_install_duration",
             field="otaInstallDuration",
-            name="Software OTA - Install Duration",
+            name="OTA Install Duration",
             icon="mdi:wrench-clock",
             device_class=SensorDeviceClass.DURATION,
             entity_category=EntityCategory.DIAGNOSTIC,
@@ -605,7 +605,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_install_progress",
             field="otaInstallProgress",
-            name="Software OTA - Install Progress",
+            name="OTA Install Progress",
             icon="mdi:progress-clock",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
@@ -614,7 +614,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_install_ready",
             field="otaInstallReady",
-            name="Software OTA - Install Ready",
+            name="OTA Install Ready",
             icon="mdi:progress-check",
             entity_category=EntityCategory.DIAGNOSTIC,
             value_lambda=lambda v: v.replace("_", " ").title().replace("Ota", "OTA"),
@@ -622,7 +622,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_install_time",
             field="otaInstallTime",
-            name="Software OTA - Install Time",
+            name="OTA Install Time",
             icon="mdi:clock",
             device_class=SensorDeviceClass.DURATION,
             entity_category=EntityCategory.DIAGNOSTIC,
@@ -631,14 +631,14 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="ota_install_type",
             field="otaInstallType",
-            name="Software OTA - Install Type",
+            name="OTA Install Type",
             icon="mdi:package",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
         RivianSensorEntityDescription(
             key="ota_status",
             field="otaStatus",
-            name="Software OTA - Status",
+            name="OTA Status",
             icon="mdi:package",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -663,14 +663,14 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="pet_mode_temperature_status",
             field="petModeTemperatureStatus",
-            name="Pet Mode Temperature Status",
+            name="Pet Comfort Temperature Status",
             icon="mdi:dog-side",
             value_lambda=lambda v: v.replace("_", " ").title(),
         ),
         RivianSensorEntityDescription(
             key="pet_mode_status",
             field="petModeStatus",
-            name="Pet Mode Status",
+            name="Pet Comfort Status",
             icon="mdi:dog-side",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -874,7 +874,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="twelve_volt_battery_health",
             field="twelveVoltBatteryHealth",
-            name="12V Battery Health",
+            name="12V Battery",
             icon="mdi:car-battery",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
@@ -1017,7 +1017,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="frunk_next_action",
             field="closureFrunkNextAction",
-            name="Frunk Next Action",
+            name="Hood Next Action",
             icon="mdi:car-door",
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
@@ -1064,7 +1064,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="side_bin_next_action_left",
             field="closureSideBinLeftNextAction",
-            name="Gear Tunnel Left Next Action",
+            name="Left Gear Tunnel Next Action",
             icon="mdi:toolbox",
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
@@ -1083,7 +1083,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="side_bin_next_action_right",
             field="closureSideBinRightNextAction",
-            name="Gear Tunnel Right Next Action",
+            name="Right Gear Tunnel Next Action",
             icon="mdi:toolbox",
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
@@ -1142,21 +1142,21 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
         RivianBinarySensorEntityDescription(
             key="charge_port",
             field="chargePortState",
-            name="Charge Port",
+            name="Charge Port Door",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="closure_frunk_closed",
             field="closureFrunkClosed",
-            name="Front Trunk",
+            name="Hood",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="closure_frunk_locked",
             field="closureFrunkLocked",
-            name="Front Trunk Lock",
+            name="Hood Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
@@ -1333,42 +1333,42 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
         RivianBinarySensorEntityDescription(
             key="closure_side_bin_left_closed",
             field="closureSideBinLeftClosed",
-            name="Gear Tunnel Left",
+            name="Left Gear Tunnel",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="closure_side_bin_left_locked",
             field="closureSideBinLeftLocked",
-            name="Gear Tunnel Left Lock",
+            name="Left Gear Tunnel Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
         RivianBinarySensorEntityDescription(
             key="closure_side_bin_right_closed",
             field="closureSideBinRightClosed",
-            name="Gear Tunnel Right",
+            name="Right Gear Tunnel",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="closure_side_bin_right_locked",
             field="closureSideBinRightLocked",
-            name="Gear Tunnel Right Lock",
+            name="Right Gear Tunnel Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
         RivianBinarySensorEntityDescription(
             key="closure_tonneau_closed",
             field="closureTonneauClosed",
-            name="Tonneau",
+            name="Tonneau Cover",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="closure_tonneau_locked",
             field="closureTonneauLocked",
-            name="Tonneau Lock",
+            name="Tonneau Cover Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
