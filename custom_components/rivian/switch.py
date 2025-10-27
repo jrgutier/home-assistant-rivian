@@ -51,7 +51,7 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     RivianSwitchEntityDescription(
         key="steering_wheel_heat",
         icon="mdi:steering",
-        name="Steering Wheel Heat",
+        name="Steering Wheel Heating",
         is_on=lambda coor: coor.get("steeringWheelHeat") != "Off",
         command_off=VehicleCommand.CABIN_HVAC_STEERING_HEAT,
         command_off_params={"level": 0},
@@ -66,7 +66,7 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     RivianSwitchEntityDescription(
         key="cabin_climate_hold",
         icon="mdi:hvac",
-        name="Cabin Climate Hold",
+        name="Climate Hold",
         is_on=lambda coor: coor.get("cabinHoldStatus") in ("on", "ON", "On"),
         command_off=VehicleCommand.CLIMATE_HOLD_OFF,
         command_on=VehicleCommand.CLIMATE_HOLD_ON,

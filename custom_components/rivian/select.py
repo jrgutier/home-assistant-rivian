@@ -66,7 +66,7 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
     RivianSelectEntityDescription(
         key="seat_rear_left_heat",
         icon="mdi:car-seat-heater",
-        name="Seat Rear Left Heat",
+        name="Rear Left Seat Heating",
         options=LEVELS,
         field="seatRearLeftHeat",
         select=lambda coordinator, option: coordinator.send_vehicle_command(
@@ -77,7 +77,7 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
     RivianSelectEntityDescription(
         key="seat_rear_right_heat",
         icon="mdi:car-seat-heater",
-        name="Seat Rear Right Heat",
+        name="Rear Right Seat Heating",
         options=LEVELS,
         field="seatRearRightHeat",
         select=lambda coordinator, option: coordinator.send_vehicle_command(

@@ -53,7 +53,7 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
     "TAILGATE_CMD": (
         RivianButtonEntityDescription(
             key="drop_tailgate",
-            name="Drop Tailgate",
+            name="Drop tailgate",
             available=lambda coordinator: coordinator.get("closureTailgateClosed")
             != "open",
             command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
