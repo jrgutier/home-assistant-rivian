@@ -91,14 +91,14 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
 FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
     {
         "key": "seat_front_left",
-        "name": "Seat Front Left",
+        "name": "Seat Front Left Climate",
         "heat_field": "seatFrontLeftHeat",
         "cool_field": "seatFrontLeftVent",
         "is_left": True,
     },
     {
         "key": "seat_front_right",
-        "name": "Seat Front Right",
+        "name": "Seat Front Right Climate",
         "heat_field": "seatFrontRightHeat",
         "cool_field": "seatFrontRightVent",
         "is_left": False,
