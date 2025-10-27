@@ -72,7 +72,7 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
         RivianCoverEntityDescription(
             key="charge_port",
             device_class=CoverDeviceClass.DOOR,
-            translation_key="charge_port",
+            name="Charge Port Door",
             is_closed=lambda coor: coor.get("chargePortState") != "open",
             command_close=VehicleCommand.CLOSE_CHARGE_PORT_DOOR,
             command_open=VehicleCommand.OPEN_CHARGE_PORT_DOOR,
