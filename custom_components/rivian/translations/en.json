@@ -47,19 +47,19 @@
   },
   "entity": {
     "sensor": {
-      "active_driver": {
+      "active_driver_name": {
         "name": "Active driver"
       },
-      "altitude": {
+      "gnss_altitude": {
         "name": "Altitude"
       },
       "alarm_sound_status": {
         "name": "Gear Guard Alarm Status"
       },
-      "battery_thermal_status": {
+      "battery_hv_thermal_event": {
         "name": "Battery Thermal Status"
       },
-      "battery_thermal_runaway_propagation": {
+      "battery_hv_thermal_event_propagation": {
         "name": "Battery Thermal Runaway Propagation"
       },
       "battery_level": {
@@ -71,19 +71,19 @@
       "battery_capacity": {
         "name": "Battery Capacity"
       },
-      "bearing": {
+      "gnss_bearing": {
         "name": "Bearing"
       },
       "brake_fluid_low": {
         "name": "Brake Fluid Level Low"
       },
-      "driver_temperature": {
+      "cabin_climate_driver_temperature": {
         "name": "Cabin Climate Setpoint"
       },
       "defrost_defog_status": {
         "name": "Defrost/Defog Status"
       },
-      "cabin_temperature": {
+      "cabin_climate_interior_temperature": {
         "name": "Cabin Interior Temperature"
       },
       "cabin_preconditioning_type": {
@@ -212,7 +212,7 @@
       "service_mode": {
         "name": "Service Mode"
       },
-      "speed": {
+      "gnss_speed": {
         "name": "Speed"
       },
       "time_to_end_of_charge": {
@@ -275,25 +275,25 @@
       "seat_rear_right_heat": {
         "name": "Rear Right Seat Heating"
       },
-      "limited_acceleration_cold": {
+      "limited_accel_cold": {
         "name": "Limited Acceleration (Cold)"
       },
-      "limited_regen_braking_cold": {
+      "limited_regen_cold": {
         "name": "Limited Regenerative Braking (Cold)"
       },
-      "bluetooth_front_fascia_hardware_failure_status": {
+      "btm_ff_hardware_failure_status": {
         "name": "Bluetooth Module Failure Status Fascia Front"
       },
-      "bluetooth_rear_fascia_hardware_failure_status": {
+      "btm_rf_hardware_failure_status": {
         "name": "Bluetooth Module Failure Status Fascia Rear"
       },
-      "bluetooth_instrument_controls_hardware_failure_status": {
+      "btm_ic_hardware_failure_status": {
         "name": "Bluetooth Module Failure Status Instrument Controls"
       },
-      "bluetooth_right_front_door_hardware_failure_status": {
+      "btm_rfd_hardware_failure_status": {
         "name": "Bluetooth Module Failure Status Door Front Right"
       },
-      "bluetooth_left_front_door_hardware_failure_status": {
+      "btm_lfd_hardware_failure_status": {
         "name": "Bluetooth Module Failure Status Door Front Left"
       },
       "wifi_signal": {
@@ -302,16 +302,16 @@
       "closure_charge_port_door_next_action": {
         "name": "Charge Port Door Next Action"
       },
-      "frunk_next_action": {
+      "closure_frunk_next_action": {
         "name": "Hood Next Action"
       },
-      "tailgate_next_action": {
+      "closure_tailgate_next_action": {
         "name": "Tailgate Next Action"
       },
-      "side_bin_next_action_left": {
+      "closure_side_bin_left_next_action": {
         "name": "Left Gear Tunnel Next Action"
       },
-      "side_bin_next_action_right": {
+      "closure_side_bin_right_next_action": {
         "name": "Right Gear Tunnel Next Action"
       },
       "seat_third_row_left_heat": {
@@ -320,7 +320,7 @@
       "seat_third_row_right_heat": {
         "name": "Third Row Right Seat Heating"
       },
-      "liftgate_next_action": {
+      "closure_liftgate_next_action": {
         "name": "Liftgate Next Action"
       },
       "charging_cost": {
@@ -386,7 +386,7 @@
       }
     },
     "binary_sensor": {
-      "charge_port": {
+      "charge_port_state": {
         "name": "Charge Port Door"
       },
       "closure_frunk_closed": {
@@ -549,7 +549,7 @@
       }
     },
     "number": {
-      "charge_limit": {
+      "battery_limit": {
         "name": "Charge Limit"
       }
     },
@@ -560,11 +560,11 @@
       "seat_rear_right_heat": {
         "name": "Rear Right Seat Heating"
       },
-      "seat_front_left": {
-        "name": "Seat Front Left Climate"
+      "seat_front_left_heat_vent": {
+        "name": "Front Left Seat Climate"
       },
-      "seat_front_right": {
-        "name": "Seat Front Right Climate"
+      "seat_front_right_heat_vent": {
+        "name": "Front Right Seat Climate"
       }
     },
     "climate": {

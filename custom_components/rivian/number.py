@@ -23,8 +23,8 @@ _LOGGER = logging.getLogger(__name__)
 
 NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
     RivianNumberEntityDescription(
-        key="charge_limit",
-        translation_key="charge_limit",
+        key="battery_limit",
+        translation_key="battery_limit",
         device_class=NumberDeviceClass.BATTERY,
         icon="mdi:battery-charging-70",
         native_min_value=50,

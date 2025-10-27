@@ -90,15 +90,15 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
 # Front seat combined heat/cool entities use a custom entity class
 FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
     {
-        "key": "seat_front_left",
-        "translation_key": "seat_front_left",
+        "key": "seat_front_left_heat_vent",
+        "translation_key": "seat_front_left_heat_vent",
         "heat_field": "seatFrontLeftHeat",
         "cool_field": "seatFrontLeftVent",
         "is_left": True,
     },
     {
-        "key": "seat_front_right",
-        "translation_key": "seat_front_right",
+        "key": "seat_front_right_heat_vent",
+        "translation_key": "seat_front_right_heat_vent",
         "heat_field": "seatFrontRightHeat",
         "cool_field": "seatFrontRightVent",
         "is_left": False,
