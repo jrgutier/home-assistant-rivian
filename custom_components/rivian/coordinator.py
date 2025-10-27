@@ -678,7 +678,7 @@ class VehicleImageCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]])
             data = await resp.json()
             self._last_updated = datetime.now(timezone.utc)
             # Extract just the vehicle images list
-            return data.get(self.key, [])
+            return data["data"][self.key]
         resp.raise_for_status()
         return []
 
