@@ -239,7 +239,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="driver_temperature",
             field="cabinClimateDriverTemperature",
-            name="Driver Temperature",
+            name="Cabin Climate Setpoint",
             device_class=SensorDeviceClass.TEMPERATURE,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             suggested_display_precision=1,
@@ -262,7 +262,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="cabin_temperature",
             field="cabinClimateInteriorTemperature",
-            name="Cabin Temperature",
+            name="Cabin Interior Temperature",
             device_class=SensorDeviceClass.TEMPERATURE,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             state_class=SensorStateClass.MEASUREMENT,
