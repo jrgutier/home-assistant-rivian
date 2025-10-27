@@ -306,7 +306,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_front_left_heat",
             field="seatFrontLeftHeat",
-            name="Heated Seat Front Left Level",
+            name="Front Left Seat Heating",
             icon="mdi:car-seat-heater",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -320,7 +320,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_front_left_vent",
             field="seatFrontLeftVent",
-            name="Ventilated Seat Front Left Level",
+            name="Front Left Seat Ventilation",
             icon="mdi:car-seat-cooler",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -334,7 +334,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_front_right_heat",
             field="seatFrontRightHeat",
-            name="Heated Seat Front Right Level",
+            name="Front Right Seat Heating",
             icon="mdi:car-seat-heater",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -348,7 +348,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_front_right_vent",
             field="seatFrontRightVent",
-            name="Ventilated Seat Front Right Level",
+            name="Front Right Seat Ventilation",
             icon="mdi:car-seat-cooler",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -751,7 +751,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="tire_pressure_front_left",
             field="tirePressureFrontLeft",
-            name="Tire Pressure Front Left",
+            name="Front Left Tire Pressure",
             icon="mdi:tire",
             device_class=SensorDeviceClass.PRESSURE,
             native_unit_of_measurement=UnitOfPressure.BAR,
@@ -760,7 +760,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="tire_pressure_front_right",
             field="tirePressureFrontRight",
-            name="Tire Pressure Front Right",
+            name="Front Right Tire Pressure",
             icon="mdi:tire",
             device_class=SensorDeviceClass.PRESSURE,
             native_unit_of_measurement=UnitOfPressure.BAR,
@@ -769,7 +769,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="tire_pressure_rear_left",
             field="tirePressureRearLeft",
-            name="Tire Pressure Rear Left",
+            name="Rear Left Tire Pressure",
             icon="mdi:tire",
             device_class=SensorDeviceClass.PRESSURE,
             native_unit_of_measurement=UnitOfPressure.BAR,
@@ -778,7 +778,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="tire_pressure_rear_right",
             field="tirePressureRearRight",
-            name="Tire Pressure Rear Right",
+            name="Rear Right Tire Pressure",
             icon="mdi:tire",
             device_class=SensorDeviceClass.PRESSURE,
             native_unit_of_measurement=UnitOfPressure.BAR,
@@ -787,25 +787,25 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="tire_pressure_status_front_left",
             field="tirePressureStatusFrontLeft",
-            name="Tire Pressure Front Left Status",
+            name="Front Left Tire Pressure Status",
             icon="mdi:tire",
         ),
         RivianSensorEntityDescription(
             key="tire_pressure_status_front_right",
             field="tirePressureStatusFrontRight",
-            name="Tire Pressure Front Right Status",
+            name="Front Right Tire Pressure Status",
             icon="mdi:tire",
         ),
         RivianSensorEntityDescription(
             key="tire_pressure_status_rear_left",
             field="tirePressureStatusRearLeft",
-            name="Tire Pressure Rear Left Status",
+            name="Rear Left Tire Pressure Status",
             icon="mdi:tire",
         ),
         RivianSensorEntityDescription(
             key="tire_pressure_status_rear_right",
             field="tirePressureStatusRearRight",
-            name="Tire Pressure Rear Right Status",
+            name="Rear Right Tire Pressure Status",
             icon="mdi:tire",
         ),
         RivianSensorEntityDescription(
@@ -822,28 +822,28 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="window_front_left_calibrated",
             field="windowFrontLeftCalibrated",
-            name="Window Calibration Front Left State",
+            name="Front Left Window Calibration",
             icon="mdi:window-closed",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
         RivianSensorEntityDescription(
             key="window_front_right_calibrated",
             field="windowFrontRightCalibrated",
-            name="Window Calibration Front Right State",
+            name="Front Right Window Calibration",
             icon="mdi:window-closed",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
         RivianSensorEntityDescription(
             key="window_rear_left_calibrated",
             field="windowRearLeftCalibrated",
-            name="Window Calibration Rear Left State",
+            name="Rear Left Window Calibration",
             icon="mdi:window-closed",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
         RivianSensorEntityDescription(
             key="window_rear_right_calibrated",
             field="windowRearRightCalibrated",
-            name="Window Calibration Rear Right State",
+            name="Rear Right Window Calibration",
             icon="mdi:window-closed",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
@@ -894,7 +894,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="steering_wheel_heat",
             field="steeringWheelHeat",
-            name="Heated Steering Wheel Level",
+            name="Steering Wheel Heating",
             icon="mdi:steering",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -908,7 +908,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_rear_left_heat",
             field="seatRearLeftHeat",
-            name="Heated Seat Rear Left Level",
+            name="Rear Left Seat Heating",
             icon="mdi:car-seat-heater",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -922,7 +922,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_rear_right_heat",
             field="seatRearRightHeat",
-            name="Heated Seat Rear Right Level",
+            name="Rear Right Seat Heating",
             icon="mdi:car-seat-heater",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -1104,7 +1104,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_third_row_left_heat",
             field="seatThirdRowLeftHeat",
-            name="Heated Seat 3rd Row Left Level",
+            name="Third Row Left Seat Heating",
             icon="mdi:car-seat-heater",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -1118,7 +1118,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         RivianSensorEntityDescription(
             key="seat_third_row_right_heat",
             field="seatThirdRowRightHeat",
-            name="Heated Seat 3rd Row Right Level",
+            name="Third Row Right Seat Heating",
             icon="mdi:car-seat-heater",
             device_class=SensorDeviceClass.ENUM,
             options=[
@@ -1177,56 +1177,56 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
         RivianBinarySensorEntityDescription(
             key="door_front_left_closed",
             field="doorFrontLeftClosed",
-            name="Door Front Left",
+            name="Front Left Door",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="door_front_left_locked",
             field="doorFrontLeftLocked",
-            name="Door Front Left Lock",
+            name="Front Left Door Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
         RivianBinarySensorEntityDescription(
             key="door_front_right_closed",
             field="doorFrontRightClosed",
-            name="Door Front Right",
+            name="Front Right Door",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="door_front_right_locked",
             field="doorFrontRightLocked",
-            name="Door Front Right Lock",
+            name="Front Right Door Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
         RivianBinarySensorEntityDescription(
             key="door_rear_left_closed",
             field="doorRearLeftClosed",
-            name="Door Rear Left",
+            name="Rear Left Door",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="door_rear_left_locked",
             field="doorRearLeftLocked",
-            name="Door Rear Left Lock",
+            name="Rear Left Door Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
         RivianBinarySensorEntityDescription(
             key="door_rear_right_closed",
             field="doorRearRightClosed",
-            name="Door Rear Right",
+            name="Rear Right Door",
             device_class=BinarySensorDeviceClass.DOOR,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="door_rear_right_locked",
             field="doorRearRightLocked",
-            name="Door Rear Right Lock",
+            name="Rear Right Door Lock",
             device_class=BinarySensorDeviceClass.LOCK,
             on_value="unlocked",
         ),
@@ -1240,56 +1240,56 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
         RivianBinarySensorEntityDescription(
             key="tire_pressure_status_valid_front_left",
             field="tirePressureStatusValidFrontLeft",
-            name="Tire Pressure Front Left Validity",
+            name="Front Left Tire Pressure Validity",
             device_class=BinarySensorDeviceClass.PROBLEM,
             on_value="invalid",
         ),
         RivianBinarySensorEntityDescription(
             key="tire_pressure_status_valid_front_right",
             field="tirePressureStatusValidFrontRight",
-            name="Tire Pressure Front Right Validity",
+            name="Front Right Tire Pressure Validity",
             device_class=BinarySensorDeviceClass.PROBLEM,
             on_value="invalid",
         ),
         RivianBinarySensorEntityDescription(
             key="tire_pressure_status_valid_rear_left",
             field="tirePressureStatusValidRearLeft",
-            name="Tire Pressure Rear Left Validity",
+            name="Rear Left Tire Pressure Validity",
             device_class=BinarySensorDeviceClass.PROBLEM,
             on_value="invalid",
         ),
         RivianBinarySensorEntityDescription(
             key="tire_pressure_status_valid_rear_right",
             field="tirePressureStatusValidRearRight",
-            name="Tire Pressure Rear Right Validity",
+            name="Rear Right Tire Pressure Validity",
             device_class=BinarySensorDeviceClass.PROBLEM,
             on_value="invalid",
         ),
         RivianBinarySensorEntityDescription(
             key="window_front_left_closed",
             field="windowFrontLeftClosed",
-            name="Window Front Left",
+            name="Front Left Window",
             device_class=BinarySensorDeviceClass.WINDOW,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="window_front_right_closed",
             field="windowFrontRightClosed",
-            name="Window Front Right",
+            name="Front Right Window",
             device_class=BinarySensorDeviceClass.WINDOW,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="window_rear_left_closed",
             field="windowRearLeftClosed",
-            name="Window Rear Left",
+            name="Rear Left Window",
             device_class=BinarySensorDeviceClass.WINDOW,
             on_value="open",
         ),
         RivianBinarySensorEntityDescription(
             key="window_rear_right_closed",
             field="windowRearRightClosed",
-            name="Window Rear Right",
+            name="Rear Right Window",
             device_class=BinarySensorDeviceClass.WINDOW,
             on_value="open",
         ),
