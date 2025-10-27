@@ -20,6 +20,12 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianCoverEntityDescription
 from .entity import RivianVehicleControlEntity
+from .next_action_states import (
+    ChargePortDoorNextActionState,
+    FrunkNextActionState,
+    LiftgateNextActionState,
+    WindowsNextActionState,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,6 +35,27 @@ WINDOWS: Final[tuple[str, ...]] = (
     "windowRearLeftClosed",
     "windowRearRightClosed",
 )
+
+# Map cover keys to their next action state field names and enum classes
+NEXT_ACTION_MAPPING: Final[
+    dict[
+        str,
+        tuple[
+            str,
+            type[
+                FrunkNextActionState
+                | LiftgateNextActionState
+                | ChargePortDoorNextActionState
+                | WindowsNextActionState
+            ],
+        ],
+    ]
+] = {
+    "frunk": ("closureFrunkNextAction", FrunkNextActionState),
+    "liftgate": ("closureLiftgateNextAction", LiftgateNextActionState),
+    "charge_port": ("closureChargePortDoorNextAction", ChargePortDoorNextActionState),
+    "windows": ("windowsNextAction", WindowsNextActionState),
+}
 
 COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     None: (
@@ -109,10 +136,96 @@ class RivianCoverEntity(RivianVehicleControlEntity, CoverEntity):
     entity_description: RivianCoverEntityDescription
     _attr_supported_features = CoverEntityFeature.CLOSE | CoverEntityFeature.OPEN
 
+    def _get_next_action_state(
+        self,
+    ) -> (
+        FrunkNextActionState
+        | LiftgateNextActionState
+        | ChargePortDoorNextActionState
+        | WindowsNextActionState
+        | None
+    ):
+        """Get the next action state enum for this cover."""
+        if self.entity_description.key not in NEXT_ACTION_MAPPING:
+            return None
+
+        field_name, enum_class = NEXT_ACTION_MAPPING[self.entity_description.key]
+        value = self.coordinator.get(field_name)
+
+        if not value:
+            return None
+
+        return enum_class.from_api_value(value)
+
     @property
     def is_closed(self) -> bool:
         """Return if the cover is closed or not."""
+        # Try to use next action state first for more accurate status
+        next_action = self._get_next_action_state()
+        if next_action and hasattr(next_action, "is_closed"):
+            return next_action.is_closed()
+
+        # Fall back to the original method
         return self.entity_description.is_closed(self.coordinator)
+
+    @property
+    def is_opening(self) -> bool:
+        """Return if the cover is opening."""
+        next_action = self._get_next_action_state()
+        if next_action and hasattr(next_action, "is_opening"):
+            return next_action.is_opening()
+        return False
+
+    @property
+    def is_closing(self) -> bool:
+        """Return if the cover is closing."""
+        next_action = self._get_next_action_state()
+        if next_action and hasattr(next_action, "is_closing"):
+            return next_action.is_closing()
+        return False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional state attributes."""
+        attrs = super().extra_state_attributes or {}
+
+        next_action = self._get_next_action_state()
+        if next_action:
+            # Add the raw next action state value
+            attrs["next_action"] = next_action.value.replace("_", " ").title()
+
+            # Add specific condition flags
+            if hasattr(next_action, "is_faulted") and next_action.is_faulted():
+                attrs["faulted"] = True
+
+            if hasattr(next_action, "is_obstructed") and next_action.is_obstructed():
+                attrs["obstructed"] = True
+
+            if (
+                hasattr(next_action, "has_trailer_detected")
+                and next_action.has_trailer_detected()
+            ):
+                attrs["trailer_detected"] = True
+
+            if (
+                hasattr(next_action, "has_obstacle_detected")
+                and next_action.has_obstacle_detected()
+            ):
+                attrs["obstacle_detected"] = True
+
+            if (
+                hasattr(next_action, "needs_calibration")
+                and next_action.needs_calibration()
+            ):
+                attrs["needs_calibration"] = True
+
+            if (
+                hasattr(next_action, "needs_vehicle_angle_confirmation")
+                and next_action.needs_vehicle_angle_confirmation()
+            ):
+                attrs["vehicle_angle_confirmation_needed"] = True
+
+        return attrs
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
