@@ -172,15 +172,15 @@ class RivianChargingSensorEntity(RivianChargingEntity, SensorEntity):
 CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     RivianSensorEntityDescription(
         key="charging_cost",
+        translation_key="charging_cost",
         field="price",
-        name="Charging Cost",
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.TOTAL,
     ),
     RivianSensorEntityDescription(
         key="charging_energy_delivered",
+        translation_key="charging_energy_delivered",
         field="totalChargedEnergy",
-        name="Charging Energy Delivered",
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL,
@@ -188,8 +188,8 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     ),
     RivianSensorEntityDescription(
         key="charging_range_added",
+        translation_key="charging_range_added",
         field="rangeAddedThisSession",
-        name="Charging Range Added",
         device_class=SensorDeviceClass.DISTANCE,
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -197,8 +197,8 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     ),
     RivianSensorEntityDescription(
         key="charging_rate",
+        translation_key="charging_rate",
         field="kilometersChargedPerHour",
-        name="Charging Rate",
         device_class=SensorDeviceClass.SPEED,
         native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
         state_class=SensorStateClass.MEASUREMENT,
@@ -206,16 +206,16 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     ),
     RivianSensorEntityDescription(
         key="charging_speed",
+        translation_key="charging_speed",
         field="powerKW",
-        name="Charging Speed",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     RivianSensorEntityDescription(
         key="charging_start_time",
+        translation_key="charging_start_time",
         field="startTime",
-        name="Charging Start Time",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_lambda=lambda val: (
             datetime.fromtimestamp(val / 1000, tz=timezone.utc)
@@ -227,24 +227,24 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     ),
     RivianSensorEntityDescription(
         key="charging_time_elapsed",
+        translation_key="charging_time_elapsed",
         field="timeElapsed",
-        name="Charging Time Elapsed",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
     RivianSensorEntityDescription(
         key="charging_time_remaining",
+        translation_key="charging_time_remaining",
         field="timeRemaining",
-        name="Charging Time Remaining",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.MINUTES,
         icon="mdi:timer-sand",
     ),
     RivianSensorEntityDescription(
         key="charging_is_free",
+        translation_key="charging_is_free",
         field="isFreeSession",
-        name="Charging Is Free",
         icon="mdi:cash-off",
         device_class=SensorDeviceClass.ENUM,
         options=["true", "false"],
@@ -270,17 +270,16 @@ class RivianWallboxSensorEntity(RivianWallboxEntity, SensorEntity):
 WALLBOX_SENSORS = (
     RivianWallboxSensorEntityDescription(
         key="charging_status",
+        translation_key="charging_status",
         field="chargingStatus",
-        name="Charging status",
         icon="mdi:ev-plug-type1",
         device_class=SensorDeviceClass.ENUM,
         options=["unavailable", "available", "disconnected", "plugged_in", "charging"],
-        translation_key="charging_status",
     ),
     RivianWallboxSensorEntityDescription(
         key="amperage",
+        translation_key="amperage",
         field="currentAmps",
-        name="Amperage",
         device_class=SensorDeviceClass.CURRENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
@@ -288,8 +287,8 @@ WALLBOX_SENSORS = (
     ),
     RivianWallboxSensorEntityDescription(
         key="amperage_maximum",
+        translation_key="amperage_maximum",
         field="maxAmps",
-        name="Amperage maximum",
         device_class=SensorDeviceClass.CURRENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
@@ -297,8 +296,8 @@ WALLBOX_SENSORS = (
     ),
     RivianWallboxSensorEntityDescription(
         key="power",
+        translation_key="power",
         field="power",
-        name="Power",
         device_class=SensorDeviceClass.POWER,
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfPower.WATT,
@@ -308,8 +307,8 @@ WALLBOX_SENSORS = (
     ),
     RivianWallboxSensorEntityDescription(
         key="power_maximum",
+        translation_key="power_maximum",
         field="maxPower",
-        name="Power maximum",
         device_class=SensorDeviceClass.POWER,
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfPower.WATT,
@@ -319,8 +318,8 @@ WALLBOX_SENSORS = (
     ),
     RivianWallboxSensorEntityDescription(
         key="voltage",
+        translation_key="voltage",
         field="currentVoltage",
-        name="Voltage",
         device_class=SensorDeviceClass.VOLTAGE,
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
@@ -328,8 +327,8 @@ WALLBOX_SENSORS = (
     ),
     RivianWallboxSensorEntityDescription(
         key="voltage_maximum",
+        translation_key="voltage_maximum",
         field="maxVoltage",
-        name="Voltage maximum",
         device_class=SensorDeviceClass.VOLTAGE,
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
@@ -340,8 +339,8 @@ WALLBOX_SENSORS = (
 DRIVER_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     RivianSensorEntityDescription(
         key="drivers",
+        translation_key="drivers",
         icon="mdi:account-multiple",
-        name="Drivers",
         field="invitedUsers",
         value_lambda=lambda data: len(
             [user for user in (data or []) if user["__typename"] == "ProvisionedUser"]
@@ -349,8 +348,8 @@ DRIVER_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     ),
     RivianSensorEntityDescription(
         key="keys",
+        translation_key="keys",
         icon="mdi:car-key",
-        name="Keys",
         field="invitedUsers",
         value_lambda=lambda data: len(
             [

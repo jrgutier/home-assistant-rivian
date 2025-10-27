@@ -28,7 +28,7 @@ READY_FOR_INSTALL = ("Ready_To_Install", "Scheduled_To_Install")
 
 UPDATE_DESCRIPTION = UpdateEntityDescription(
     key="software_ota",
-    name="Software",
+    translation_key="software_ota",
     device_class=UpdateDeviceClass.FIRMWARE,
     entity_category=EntityCategory.DIAGNOSTIC,
 )

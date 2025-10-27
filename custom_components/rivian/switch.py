@@ -23,16 +23,16 @@ _LOGGER = logging.getLogger(__name__)
 SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     RivianSwitchEntityDescription(
         key="alarm",
+        translation_key="alarm",
         icon="mdi:alarm-light",
-        name="Alarm",
         is_on=lambda coor: coor.get("alarmSoundStatus") == "true",
         command_off=VehicleCommand.PANIC_OFF,
         command_on=VehicleCommand.PANIC_ON,
     ),
     RivianSwitchEntityDescription(
         key="charging_enabled",
+        translation_key="charging_enabled",
         icon="mdi:lightning-bolt",
-        name="Charging Enabled",
         available=lambda coor: coor.get("remoteChargingAvailable") == 1
         or coor.get("chargerState") == "charging_active",
         is_on=lambda coor: coor.get("chargerState")
@@ -42,16 +42,16 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     ),
     RivianSwitchEntityDescription(
         key="gear_guard_video",
+        translation_key="gear_guard_video",
         icon="mdi:cctv",
-        name="Gear Guard Video",
         is_on=lambda coor: coor.get("gearGuardVideoStatus") != "Disabled",
         command_off=VehicleCommand.DISABLE_GEAR_GUARD_VIDEO,
         command_on=VehicleCommand.ENABLE_GEAR_GUARD_VIDEO,
     ),
     RivianSwitchEntityDescription(
         key="steering_wheel_heat",
+        translation_key="steering_wheel_heat",
         icon="mdi:steering",
-        name="Steering Wheel Heating",
         is_on=lambda coor: coor.get("steeringWheelHeat") != "Off",
         command_off=VehicleCommand.CABIN_HVAC_STEERING_HEAT,
         command_off_params={"level": 0},
@@ -65,8 +65,8 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     # Duration is controlled by the vehicle firmware and cannot be set via the mobile app API.
     RivianSwitchEntityDescription(
         key="cabin_climate_hold",
+        translation_key="cabin_climate_hold",
         icon="mdi:hvac",
-        name="Climate Hold",
         is_on=lambda coor: coor.get("cabinHoldStatus") in ("on", "ON", "On"),
         command_off=VehicleCommand.CLIMATE_HOLD_OFF,
         command_on=VehicleCommand.CLIMATE_HOLD_ON,

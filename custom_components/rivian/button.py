@@ -32,8 +32,8 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
     None: (
         RivianButtonEntityDescription(
             key="wake",
+            translation_key="wake",
             icon="mdi:weather-night",
-            name="Wake",
             available=lambda coordinator: coordinator.get("powerState") == "sleep",
             command=VehicleCommand.WAKE_VEHICLE,
         ),
@@ -41,19 +41,19 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
     "SIDE_BIN_NXT_ACT": (
         RivianButtonEntityDescription(
             key="open_gear_tunnel_left",
-            name="Open Gear Tunnel Left",
+            translation_key="open_gear_tunnel_left",
             command=VehicleCommand.RELEASE_LEFT_SIDE_BIN,
         ),
         RivianButtonEntityDescription(
             key="open_gear_tunnel_right",
-            name="Open Gear Tunnel Right",
+            translation_key="open_gear_tunnel_right",
             command=VehicleCommand.RELEASE_RIGHT_SIDE_BIN,
         ),
     ),
     "TAILGATE_CMD": (
         RivianButtonEntityDescription(
             key="drop_tailgate",
-            name="Drop Tailgate",
+            translation_key="drop_tailgate",
             available=lambda coordinator: coordinator.get("closureTailgateClosed")
             != "open",
             command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
@@ -82,7 +82,7 @@ async def async_setup_entry(
         RivianPairPhoneButtonEntity(
             coordinators[vehicle_id],
             entry,
-            ButtonEntityDescription(key="pair", name="Pair"),
+            ButtonEntityDescription(key="pair", translation_key="pair"),
             vehicle,
         )
         for vehicle_id, vehicle in vehicles.items()

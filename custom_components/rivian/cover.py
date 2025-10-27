@@ -61,8 +61,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     None: (
         RivianCoverEntityDescription(
             key="windows",
+            translation_key="windows",
             device_class=CoverDeviceClass.WINDOW,
-            name="Windows",
             is_closed=lambda coor: not any(coor.get(key) == "open" for key in WINDOWS),
             command_close=VehicleCommand.CLOSE_ALL_WINDOWS,
             command_open=VehicleCommand.OPEN_ALL_WINDOWS,
@@ -71,8 +71,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     "CHARG_PORT_DOOR_COMMAND": (
         RivianCoverEntityDescription(
             key="charge_port",
+            translation_key="charge_port",
             device_class=CoverDeviceClass.DOOR,
-            name="Charge Port Door",
             is_closed=lambda coor: coor.get("chargePortState") != "open",
             command_close=VehicleCommand.CLOSE_CHARGE_PORT_DOOR,
             command_open=VehicleCommand.OPEN_CHARGE_PORT_DOOR,
@@ -81,8 +81,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     "LIFTGATE_CMD": (
         RivianCoverEntityDescription(
             key="liftgate",
+            translation_key="liftgate",
             device_class=CoverDeviceClass.DOOR,
-            name="Liftgate",
             is_closed=lambda coor: coor.get("closureLiftgateClosed") != "open",
             command_close=VehicleCommand.CLOSE_LIFTGATE,
             command_open=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
@@ -91,8 +91,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     "FRUNK_NXT_ACT": (
         RivianCoverEntityDescription(
             key="frunk",
+            translation_key="frunk",
             device_class=CoverDeviceClass.DOOR,
-            name="Hood",
             is_closed=lambda coor: coor.get("closureFrunkClosed") != "open",
             command_close=VehicleCommand.CLOSE_FRUNK,
             command_open=VehicleCommand.OPEN_FRUNK,
@@ -101,8 +101,8 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     "TONNEAU_CMD": (
         RivianCoverEntityDescription(
             key="tonneau",
+            translation_key="tonneau",
             device_class=CoverDeviceClass.DOOR,
-            name="Tonneau Cover",
             is_closed=lambda coor: coor.get("closureTonneauClosed") != "open",
             command_close=VehicleCommand.CLOSE_TONNEAU_COVER,
             command_open=VehicleCommand.OPEN_TONNEAU_COVER,

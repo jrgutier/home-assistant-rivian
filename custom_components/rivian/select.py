@@ -65,8 +65,8 @@ def get_seat_command_and_level(
 SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
     RivianSelectEntityDescription(
         key="seat_rear_left_heat",
+        translation_key="seat_rear_left_heat",
         icon="mdi:car-seat-heater",
-        name="Rear Left Seat Heating",
         options=LEVELS,
         field="seatRearLeftHeat",
         select=lambda coordinator, option: coordinator.send_vehicle_command(
@@ -76,8 +76,8 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
     ),
     RivianSelectEntityDescription(
         key="seat_rear_right_heat",
+        translation_key="seat_rear_right_heat",
         icon="mdi:car-seat-heater",
-        name="Rear Right Seat Heating",
         options=LEVELS,
         field="seatRearRightHeat",
         select=lambda coordinator, option: coordinator.send_vehicle_command(
@@ -91,14 +91,14 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
 FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
     {
         "key": "seat_front_left",
-        "name": "Seat Front Left Climate",
+        "translation_key": "seat_front_left",
         "heat_field": "seatFrontLeftHeat",
         "cool_field": "seatFrontLeftVent",
         "is_left": True,
     },
     {
         "key": "seat_front_right",
-        "name": "Seat Front Right Climate",
+        "translation_key": "seat_front_right",
         "heat_field": "seatFrontRightHeat",
         "cool_field": "seatFrontRightVent",
         "is_left": False,
@@ -181,7 +181,7 @@ class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
         # Create a minimal entity description for the parent class
         description = SelectEntityDescription(
             key=seat_config["key"],
-            name=seat_config["name"],
+            translation_key=seat_config.get("translation_key"),
         )
 
         super().__init__(coordinator, entry, description, vehicle)
