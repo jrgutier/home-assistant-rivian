@@ -124,6 +124,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     _unplugged_interval = 15 * 60  # 15 minutes
     _plugged_interval = 30  # 30 seconds
     _update_interval_seconds = _unplugged_interval  # 15 minutes
+    _watchdog_timeout = 5 * 60  # 5 minutes
 
     def __init__(
         self,
@@ -137,6 +138,8 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self.vehicle_id = vehicle_id
         self._initial = asyncio.Event()
         self._unsub_handler: Coroutine[None, None, None] | None = None
+        self._last_update_time: datetime | None = None
+        self._watchdog_task: asyncio.Task | None = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
@@ -165,6 +168,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     async def async_shutdown(self) -> None:
         """Shutdown coordinator."""
+        self._stop_watchdog()
         await self._unsubscribe()
         return await super().async_shutdown()
 
@@ -189,6 +193,8 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self.async_set_updated_data({})
                 self._error_count = 0
                 self._initial.set()
+                # Update watchdog timestamp even for empty session
+                self._last_update_time = datetime.now(timezone.utc)
                 return
             # If it's a non-empty list, take the first item
             charging_data = charging_data[0]
@@ -198,6 +204,9 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self.async_set_updated_data(processed_data)
         self._error_count = 0
         self._initial.set()
+
+        # Update watchdog timestamp
+        self._last_update_time = datetime.now(timezone.utc)
 
     def _process_charging_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Process charging session data into expected format.
@@ -225,6 +234,55 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             await unsub()
             self._unsub_handler = None
             self._initial.clear()
+
+    def _start_watchdog(self) -> None:
+        """Start the subscription watchdog."""
+        if self._watchdog_task and not self._watchdog_task.done():
+            return  # Watchdog already running
+
+        async def _watchdog_loop():
+            """Monitor subscription health and restart if stale."""
+            while True:
+                await asyncio.sleep(60)  # Check every minute
+
+                if not self._last_update_time:
+                    continue
+
+                time_since_update = (
+                    datetime.now(timezone.utc) - self._last_update_time
+                ).total_seconds()
+
+                # Restart subscription if stale
+                if time_since_update > self._watchdog_timeout:
+                    _LOGGER.warning(
+                        "Charging subscription for vehicle %s stale, no updates for %.1f minutes. Restarting subscription...",
+                        self.vehicle_id,
+                        time_since_update / 60,
+                    )
+                    await self._unsubscribe()
+                    task = self.async_request_refresh()
+                    self.config_entry.async_create_task(
+                        self.hass, task, eager_start=True
+                    )
+
+        self._watchdog_task = self.config_entry.async_create_task(
+            self.hass, _watchdog_loop(), eager_start=True
+        )
+        _LOGGER.debug("Started charging watchdog for vehicle %s", self.vehicle_id)
+
+    def _stop_watchdog(self) -> None:
+        """Stop the subscription watchdog."""
+        if self._watchdog_task and not self._watchdog_task.done():
+            self._watchdog_task.cancel()
+            self._watchdog_task = None
+            _LOGGER.debug("Stopped charging watchdog for vehicle %s", self.vehicle_id)
+
+    def toggle_watchdog(self, enabled: bool) -> None:
+        """Enable or disable the watchdog based on charging state."""
+        if enabled:
+            self._start_watchdog()
+        else:
+            self._stop_watchdog()
 
     # def adjust_update_interval(self, is_plugged_in: bool) -> None:
     #     """Adjust update interval based on plugged in status."""
@@ -339,6 +397,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     key = "vehicleState"
     _update_interval_seconds = 15 * 60  # 15 minutes
+    _watchdog_timeout = 5 * 60  # 5 minutes
 
     def __init__(
         self,
@@ -364,6 +423,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._awake = asyncio.Event()
         self._command_state_subscriptions: dict[str, Coroutine[None, None, None]] = {}
         self._command_states: dict[str, dict[str, Any]] = {}
+        self._last_update_time: datetime | None = None
+        self._watchdog_task: asyncio.Task | None = None
+        self._prev_charger_state: str | None = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
@@ -388,13 +450,71 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             except asyncio.TimeoutError as err:
                 raise UpdateFailed from err
 
+            # Start watchdog after successful subscription
+            self._start_watchdog()
+
         return self.data
 
     async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
         raise NotImplementedError("Polling VehicleState no longer allowed")
 
+    def _start_watchdog(self) -> None:
+        """Start the subscription watchdog."""
+        if self._watchdog_task and not self._watchdog_task.done():
+            return  # Watchdog already running
+
+        async def _watchdog_loop():
+            """Monitor subscription health and restart if stale."""
+            while True:
+                await asyncio.sleep(60)  # Check every minute
+
+                if not self._last_update_time:
+                    continue
+
+                time_since_update = (
+                    datetime.now(timezone.utc) - self._last_update_time
+                ).total_seconds()
+
+                # Skip if vehicle is sleeping (no updates expected)
+                power_state = self.get("powerState")
+                if power_state == "sleep":
+                    _LOGGER.debug(
+                        "Vehicle %s is sleeping, skipping watchdog check",
+                        self.vehicle_id,
+                    )
+                    continue
+
+                # Restart subscription if stale
+                if time_since_update > self._watchdog_timeout:
+                    _LOGGER.warning(
+                        "Vehicle %s subscription stale, no updates for %.1f minutes (powerState: %s). Restarting subscription...",
+                        self.vehicle_id,
+                        time_since_update / 60,
+                        power_state,
+                    )
+                    await self._unsubscribe()
+                    task = self.async_request_refresh()
+                    self.config_entry.async_create_task(
+                        self.hass, task, eager_start=True
+                    )
+
+        self._watchdog_task = self.config_entry.async_create_task(
+            self.hass, _watchdog_loop(), eager_start=True
+        )
+        _LOGGER.debug("Started watchdog for vehicle %s", self.vehicle_id)
+
+    def _stop_watchdog(self) -> None:
+        """Stop the subscription watchdog."""
+        if self._watchdog_task and not self._watchdog_task.done():
+            self._watchdog_task.cancel()
+            self._watchdog_task = None
+            _LOGGER.debug("Stopped watchdog for vehicle %s", self.vehicle_id)
+
     async def async_shutdown(self) -> None:
+        # Stop watchdog
+        self._stop_watchdog()
+
         # Unsubscribe from all active command state subscriptions
         for command_id in list(self._command_state_subscriptions.keys()):
             await self._unsubscribe_command_state(command_id)
@@ -417,6 +537,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._error_count = 0
         self._initial.set()
 
+        # Update watchdog timestamp
+        self._last_update_time = datetime.now(timezone.utc)
+
     def _build_vehicle_info_dict(self, vijson: dict[str, Any]) -> dict[str, Any]:
         """Take the json output of vehicle_info and build a dictionary."""
         items = {
@@ -433,6 +556,27 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self._awake.clear()
             else:
                 self._awake.set()
+
+        # Monitor chargerState changes to enable/disable charging watchdog
+        if charger_state_data := items.get("chargerState"):
+            charger_state = charger_state_data.get("value")
+            if charger_state != self._prev_charger_state:
+                self._prev_charger_state = charger_state
+                # Enable watchdog when charger is connected (any charging state)
+                # Disable when not connected (None, "chg_station_disconnected", etc.)
+                is_connected = charger_state in (
+                    "charging_active",
+                    "charging_connecting",
+                    "chg_station_connected",
+                    "chg_complete",
+                )
+                _LOGGER.debug(
+                    "Vehicle %s chargerState changed to %s, charging watchdog: %s",
+                    self.vehicle_id,
+                    charger_state,
+                    "enabled" if is_connected else "disabled",
+                )
+                self.charging_coordinator.toggle_watchdog(is_connected)
 
         if not (prev_items := (self.data or {})):
             return items
