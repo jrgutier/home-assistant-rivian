@@ -140,17 +140,58 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._unsub_handler: Coroutine[None, None, None] | None = None
         self._last_update_time: datetime | None = None
         self._watchdog_task: asyncio.Task | None = None
+        self._subscription_start_time: datetime | None = None
+        self._subscription_count = 0  # Track number of resubscriptions
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
         if not self.data or not self.last_update_success or not self._unsub_handler:
+            # Debug: Log why we're (re)subscribing
+            reasons = []
+            if not self.data:
+                reasons.append("no data")
+            if not self.last_update_success:
+                reasons.append("last update failed")
+            if not self._unsub_handler:
+                reasons.append("no active subscription")
+
+            # Track subscription lifecycle
+            if self._subscription_start_time:
+                duration = (
+                    datetime.now(timezone.utc) - self._subscription_start_time
+                ).total_seconds()
+                _LOGGER.debug(
+                    "Charging subscription for vehicle %s ended after %.1f minutes. Reasons: %s",
+                    self.vehicle_id,
+                    duration / 60,
+                    ", ".join(reasons),
+                )
+
             await self._unsubscribe()
+            self._subscription_count += 1
+            self._subscription_start_time = datetime.now(timezone.utc)
+
+            _LOGGER.debug(
+                "Creating charging subscription #%d for vehicle %s. WebSocket monitor state: %s",
+                self._subscription_count,
+                self.vehicle_id,
+                "active"
+                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                else "inactive/closed",
+            )
+
             self._unsub_handler = await self.api.subscribe_for_charging_session(
                 vehicle_id=self.vehicle_id,
                 callback=self._process_new_data,
             )
             # Reset watchdog timer on resubscription
             self._last_update_time = datetime.now(timezone.utc)
+
+            _LOGGER.debug(
+                "Charging subscription #%d created for vehicle %s",
+                self._subscription_count,
+                self.vehicle_id,
+            )
 
             try:
                 await asyncio.wait_for(self._initial.wait(), 5)
@@ -177,10 +218,36 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _process_new_data(self, data: dict[str, Any]) -> None:
         """Process new charging data from subscription."""
+        # Debug: Track time between updates
+        now = datetime.now(timezone.utc)
+        time_since_last = None
+        if self._last_update_time:
+            time_since_last = (now - self._last_update_time).total_seconds()
+            if time_since_last > 60:  # Log if gap > 1 minute
+                _LOGGER.debug(
+                    "Charging data update gap for vehicle %s: %.1f minutes",
+                    self.vehicle_id,
+                    time_since_last / 60,
+                )
+
         if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
-            _LOGGER.error("Received unknown charging subscription update: %s", data)
+            _LOGGER.error(
+                "Received unknown charging subscription update: %s. WebSocket state: %s, subscription age: %.1f min",
+                data,
+                "active"
+                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                else "inactive/closed",
+                (now - self._subscription_start_time).total_seconds() / 60
+                if self._subscription_start_time
+                else 0,
+            )
             self._error_count += 1
             if not self._initial.is_set() or self._error_count > 5:
+                _LOGGER.warning(
+                    "Too many errors (%d) on charging subscription for vehicle %s, unsubscribing",
+                    self._error_count,
+                    self.vehicle_id,
+                )
                 task = self._unsubscribe()
                 self.config_entry.async_create_task(self.hass, task, eager_start=True)
             return
@@ -233,6 +300,17 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     async def _unsubscribe(self, close_monitor: bool = False):
         """Unsubscribe from charging session updates."""
         if unsub := self._unsub_handler:
+            _LOGGER.debug(
+                "Unsubscribing from charging subscription #%d for vehicle %s (active for %.1f min)",
+                self._subscription_count,
+                self.vehicle_id,
+                (
+                    datetime.now(timezone.utc) - self._subscription_start_time
+                ).total_seconds()
+                / 60
+                if self._subscription_start_time
+                else 0,
+            )
             await unsub()
             self._unsub_handler = None
             self._initial.clear()
@@ -256,10 +334,24 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
                 # Restart subscription if stale
                 if time_since_update > self._watchdog_timeout:
+                    subscription_age = (
+                        (
+                            datetime.now(timezone.utc) - self._subscription_start_time
+                        ).total_seconds()
+                        / 60
+                        if self._subscription_start_time
+                        else 0
+                    )
                     _LOGGER.warning(
-                        "Charging subscription for vehicle %s stale, no updates for %.1f minutes. Restarting subscription...",
+                        "Charging subscription for vehicle %s stale, no updates for %.1f minutes. "
+                        "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting...",
                         self.vehicle_id,
                         time_since_update / 60,
+                        self._subscription_count,
+                        subscription_age,
+                        "active"
+                        if self.api._ws_monitor and not self.api._ws_monitor._closed
+                        else "inactive/closed",
                     )
                     await self._unsubscribe()
                     task = self.async_request_refresh()
@@ -418,11 +510,46 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._last_update_time: datetime | None = None
         self._watchdog_task: asyncio.Task | None = None
         self._prev_charger_state: str | None = None
+        self._subscription_start_time: datetime | None = None
+        self._subscription_count = 0  # Track number of resubscriptions
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
         if not self.data or not self.last_update_success or not self._unsub_handler:
+            # Debug: Log why we're (re)subscribing
+            reasons = []
+            if not self.data:
+                reasons.append("no data")
+            if not self.last_update_success:
+                reasons.append("last update failed")
+            if not self._unsub_handler:
+                reasons.append("no active subscription")
+
+            # Track subscription lifecycle
+            if self._subscription_start_time:
+                duration = (
+                    datetime.now(timezone.utc) - self._subscription_start_time
+                ).total_seconds()
+                _LOGGER.debug(
+                    "Vehicle %s subscription ended after %.1f minutes. Reasons: %s",
+                    self.vehicle_id,
+                    duration / 60,
+                    ", ".join(reasons),
+                )
+
             await self._unsubscribe()
+            self._subscription_count += 1
+            self._subscription_start_time = datetime.now(timezone.utc)
+
+            _LOGGER.debug(
+                "Creating vehicle subscription #%d for vehicle %s. WebSocket monitor state: %s",
+                self._subscription_count,
+                self.vehicle_id,
+                "active"
+                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                else "inactive/closed",
+            )
+
             self._unsub_handler = await self.api.subscribe_for_vehicle_updates(
                 vehicle_id=self.vehicle_id,
                 properties=VEHICLE_STATE_API_FIELDS,
@@ -439,6 +566,12 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
             # Reset watchdog timer on resubscription
             self._last_update_time = datetime.now(timezone.utc)
+
+            _LOGGER.debug(
+                "Vehicle subscription #%d created for vehicle %s",
+                self._subscription_count,
+                self.vehicle_id,
+            )
 
             try:
                 await asyncio.wait_for(self._initial.wait(), 1)
@@ -482,11 +615,26 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
                 # Restart subscription if stale
                 if time_since_update > self._watchdog_timeout:
+                    subscription_age = (
+                        (
+                            datetime.now(timezone.utc) - self._subscription_start_time
+                        ).total_seconds()
+                        / 60
+                        if self._subscription_start_time
+                        else 0
+                    )
                     _LOGGER.warning(
-                        "Vehicle %s subscription stale, no updates for %.1f minutes (powerState: %s). Restarting subscription...",
+                        "Vehicle %s subscription stale, no updates for %.1f minutes (powerState: %s). "
+                        "Subscription #%d age: %.1f min, WebSocket state: %s, online: %s. Restarting...",
                         self.vehicle_id,
                         time_since_update / 60,
                         power_state,
+                        self._subscription_count,
+                        subscription_age,
+                        "active"
+                        if self.api._ws_monitor and not self.api._ws_monitor._closed
+                        else "inactive/closed",
+                        self._is_online,
                     )
                     await self._unsubscribe()
                     task = self.async_request_refresh()
@@ -520,10 +668,37 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _process_new_data(self, data: dict[str, Any]) -> None:
         """Process new data."""
+        # Debug: Track time between updates
+        now = datetime.now(timezone.utc)
+        time_since_last = None
+        if self._last_update_time:
+            time_since_last = (now - self._last_update_time).total_seconds()
+            if time_since_last > 60:  # Log if gap > 1 minute
+                _LOGGER.debug(
+                    "Vehicle %s data update gap: %.1f minutes (powerState: %s)",
+                    self.vehicle_id,
+                    time_since_last / 60,
+                    self.get("powerState") or "unknown",
+                )
+
         if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
-            _LOGGER.error("Received an unknown subscription update: %s", data)
+            _LOGGER.error(
+                "Received an unknown subscription update: %s. WebSocket state: %s, subscription age: %.1f min",
+                data,
+                "active"
+                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                else "inactive/closed",
+                (now - self._subscription_start_time).total_seconds() / 60
+                if self._subscription_start_time
+                else 0,
+            )
             self._error_count += 1
             if not self._initial.is_set() or self._error_count > 5:
+                _LOGGER.warning(
+                    "Too many errors (%d) on vehicle %s subscription, unsubscribing",
+                    self._error_count,
+                    self.vehicle_id,
+                )
                 task = self._unsubscribe()
                 self.config_entry.async_create_task(self.hass, task, eager_start=True)
             return
@@ -595,15 +770,33 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             return
 
         connection_data = pdata.get("vehicleCloudConnection", {})
+        prev_online = self._is_online
         self._is_online = connection_data.get("isOnline", False)
         self._last_sync = connection_data.get("lastSync")
 
-        _LOGGER.debug(
-            "Vehicle %s cloud connection: online=%s, lastSync=%s",
-            self.vehicle_id,
-            self._is_online,
-            self._last_sync,
-        )
+        # Debug: Log state changes (online/offline transitions)
+        if prev_online != self._is_online:
+            _LOGGER.info(
+                "Vehicle %s cloud connection state changed: %s -> %s (lastSync=%s, subscription #%d age: %.1f min)",
+                self.vehicle_id,
+                "online" if prev_online else "offline",
+                "online" if self._is_online else "offline",
+                self._last_sync,
+                self._subscription_count,
+                (
+                    datetime.now(timezone.utc) - self._subscription_start_time
+                ).total_seconds()
+                / 60
+                if self._subscription_start_time
+                else 0,
+            )
+        else:
+            _LOGGER.debug(
+                "Vehicle %s cloud connection: online=%s, lastSync=%s",
+                self.vehicle_id,
+                self._is_online,
+                self._last_sync,
+            )
 
     def is_online(self) -> bool:
         """Return whether vehicle is online."""
@@ -617,16 +810,36 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """Unsubscribe."""
         # Unsubscribe from vehicle state
         if unsub := self._unsub_handler:
+            _LOGGER.debug(
+                "Unsubscribing from vehicle subscription #%d for vehicle %s (active for %.1f min)",
+                self._subscription_count,
+                self.vehicle_id,
+                (
+                    datetime.now(timezone.utc) - self._subscription_start_time
+                ).total_seconds()
+                / 60
+                if self._subscription_start_time
+                else 0,
+            )
             await unsub()
             self._unsub_handler = None
             self._initial.clear()
 
         # Unsubscribe from cloud connection
         if connection_unsub := self._connection_unsub_handler:
+            _LOGGER.debug(
+                "Unsubscribing from cloud connection subscription for vehicle %s",
+                self.vehicle_id,
+            )
             await connection_unsub()
             self._connection_unsub_handler = None
 
         if close_monitor and (monitor := self.api._ws_monitor):
+            _LOGGER.info(
+                "Closing WebSocket monitor for vehicle %s (close_monitor=%s)",
+                self.vehicle_id,
+                close_monitor,
+            )
             await monitor.close()
 
     def get(self, key: str) -> Any | None:
