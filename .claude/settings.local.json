@@ -10,7 +10,11 @@
       "Task",
       "WebFetch",
       "WebSearch",
-      "SlashCommand"
+      "SlashCommand",
+      "mcp__hass-mcp__system_overview",
+      "mcp__hass-mcp__search_entities_tool",
+      "mcp__hass-mcp__get_error_log",
+      "mcp__hass-mcp__list_entities"
     ],
     "deny": [],
     "ask": []

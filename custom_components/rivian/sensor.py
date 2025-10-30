@@ -343,7 +343,7 @@ DRIVER_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:account-multiple",
         field="invitedUsers",
         value_lambda=lambda data: len(
-            [user for user in (data or []) if user["__typename"] == "ProvisionedUser"]
+            [user for user in (data or []) if "devices" in user]
         ),
     ),
     RivianSensorEntityDescription(
@@ -355,7 +355,7 @@ DRIVER_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             [
                 keys
                 for user in (data or [])
-                if user["__typename"] == "ProvisionedUser"
+                if "devices" in user
                 for keys in user.get("devices", [])
             ]
         ),
@@ -401,9 +401,9 @@ class RivianDriverSensorEntity(RivianEntity[DriverKeyCoordinator], SensorEntity)
                     [
                         keys
                         for user in (self.coordinator.data.get(field) or [])
-                        if user["__typename"] == "ProvisionedUser"
+                        if "devices" in user
                         for keys in user.get("devices", [])
-                        if keys[key]
+                        if keys.get(key)
                     ]
                 )
 

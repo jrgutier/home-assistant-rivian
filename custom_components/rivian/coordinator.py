@@ -310,12 +310,7 @@ class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
-        resp = await self.api.get_drivers_and_keys(vehicle_id=self.vehicle_id)
-        if resp.status == 200:
-            data = await resp.json()
-            return data["data"]["getVehicle"]
-        resp.raise_for_status()
-        return {}
+        return await self.api.get_drivers_and_keys(vehicle_id=self.vehicle_id)
 
     def get_device_details(self, identity_id: str) -> dict[str, Any] | None:
         """Get the details of a device."""
@@ -324,10 +319,10 @@ class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         return next(
             (
                 device
-                for user in self.data.get("invitedUsers")
-                if user["__typename"] == "ProvisionedUser"
-                for device in user["devices"]
-                if device["mappedIdentityId"] == identity_id
+                for user in self.data.get("invitedUsers", [])
+                if "devices" in user  # Only provisioned users have devices
+                for device in user.get("devices", [])
+                if device.get("mappedIdentityId") == identity_id
             ),
             None,
         )
@@ -350,12 +345,7 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
-        resp = await self.api.get_user_information(self.include_phones)
-        if resp.status == 200:
-            data = await resp.json()
-            return data["data"][self.key]
-        resp.raise_for_status()
-        return {}
+        return await self.api.get_user_information(self.include_phones)
 
     def get_enrolled_phone_data(
         self, public_key: str
@@ -815,16 +805,12 @@ class VehicleImageCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]])
 
     async def _fetch_data(self) -> list[dict[str, Any]]:
         """Fetch the data."""
-        resp = await self.api.get_vehicle_images(
+        data = await self.api.get_vehicle_images(
             resolution="@3x", vehicle_version=self.version
         )
-        if resp.status == 200:
-            data = await resp.json()
-            self._last_updated = datetime.now(timezone.utc)
-            # Extract just the vehicle images list
-            return data["data"][self.key]
-        resp.raise_for_status()
-        return []
+        self._last_updated = datetime.now(timezone.utc)
+        # Extract just the vehicle images list
+        return data.get(self.key, [])
 
 
 class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
@@ -834,9 +820,4 @@ class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
 
     async def _fetch_data(self) -> list[dict[str, Any]]:
         """Fetch the data."""
-        resp = await self.api.get_registered_wallboxes()
-        if resp.status == 200:
-            data = await resp.json()
-            return data["data"][self.key]
-        resp.raise_for_status()
-        return []
+        return await self.api.get_registered_wallboxes()
