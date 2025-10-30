@@ -176,7 +176,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self._subscription_count,
                 self.vehicle_id,
                 "active"
-                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                if self.api._ws_monitor and self.api._ws_monitor.connected
                 else "inactive/closed",
             )
 
@@ -235,7 +235,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "Received unknown charging subscription update: %s. WebSocket state: %s, subscription age: %.1f min",
                 data,
                 "active"
-                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                if self.api._ws_monitor and self.api._ws_monitor.connected
                 else "inactive/closed",
                 (now - self._subscription_start_time).total_seconds() / 60
                 if self._subscription_start_time
@@ -350,7 +350,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                         self._subscription_count,
                         subscription_age,
                         "active"
-                        if self.api._ws_monitor and not self.api._ws_monitor._closed
+                        if self.api._ws_monitor and self.api._ws_monitor.connected
                         else "inactive/closed",
                     )
                     await self._unsubscribe()
@@ -546,7 +546,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self._subscription_count,
                 self.vehicle_id,
                 "active"
-                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                if self.api._ws_monitor and self.api._ws_monitor.connected
                 else "inactive/closed",
             )
 
@@ -632,7 +632,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                         self._subscription_count,
                         subscription_age,
                         "active"
-                        if self.api._ws_monitor and not self.api._ws_monitor._closed
+                        if self.api._ws_monitor and self.api._ws_monitor.connected
                         else "inactive/closed",
                         self._is_online,
                     )
@@ -686,7 +686,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "Received an unknown subscription update: %s. WebSocket state: %s, subscription age: %.1f min",
                 data,
                 "active"
-                if self.api._ws_monitor and not self.api._ws_monitor._closed
+                if self.api._ws_monitor and self.api._ws_monitor.connected
                 else "inactive/closed",
                 (now - self._subscription_start_time).total_seconds() / 60
                 if self._subscription_start_time
