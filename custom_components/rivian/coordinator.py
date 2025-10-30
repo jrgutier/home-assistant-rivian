@@ -143,12 +143,14 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
-        if not self.data or not self.last_update_success:
+        if not self.data or not self.last_update_success or not self._unsub_handler:
             await self._unsubscribe()
             self._unsub_handler = await self.api.subscribe_for_charging_session(
                 vehicle_id=self.vehicle_id,
                 callback=self._process_new_data,
             )
+            # Reset watchdog timer on resubscription
+            self._last_update_time = datetime.now(timezone.utc)
 
             try:
                 await asyncio.wait_for(self._initial.wait(), 5)
@@ -419,7 +421,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
-        if not self.data or not self.last_update_success:
+        if not self.data or not self.last_update_success or not self._unsub_handler:
             await self._unsubscribe()
             self._unsub_handler = await self.api.subscribe_for_vehicle_updates(
                 vehicle_id=self.vehicle_id,
@@ -434,6 +436,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     callback=self._process_cloud_connection_data,
                 )
             )
+
+            # Reset watchdog timer on resubscription
+            self._last_update_time = datetime.now(timezone.utc)
 
             try:
                 await asyncio.wait_for(self._initial.wait(), 1)
