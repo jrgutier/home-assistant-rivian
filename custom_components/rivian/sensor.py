@@ -118,7 +118,7 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
         if self.device_class == SensorDeviceClass.ENUM and rval not in self.options:
             _LOGGER.error(
                 "Sensor %s provides state value '%s', which is not in the list of known options. Please consider opening an issue at https://github.com/bretterer/home-assistant-rivian/issues with the following info: 'field: \"%s\" / value: \"%s\"'",
-                self.name,
+                self.entity_id or self.unique_id,
                 rval,
                 self.entity_description.field,
                 val,

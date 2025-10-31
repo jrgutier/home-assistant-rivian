@@ -1,0 +1,837 @@
+title: Rivian
+views:
+  - theme: Backend-selected
+    title: Overview
+    path: rivian
+    icon: mdi:car-electric
+    cards:
+      # Main Vehicle Display
+      - type: vertical-stack
+        cards:
+          # Vehicle Image with Status Overlay - Not Charging
+          - type: conditional
+            conditions:
+              - entity: sensor.r1t_charger_status
+                state_not: 'connected'
+            card:
+              type: picture-elements
+              image_entity: image.r1t_side_dark
+              card_mod:
+                style: |
+                  ha-card {
+                    border-radius: 20px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                  }
+              elements:
+                # Top Row - Status Icons (3 items with better spacing)
+                - type: state-icon
+                  entity: binary_sensor.r1t_locked_state
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 6%
+                    left: 20%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: binary_sensor.r1t_locked_state
+                  style:
+                    top: 15%
+                    left: 20%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 12px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: binary_sensor.r1t_closure_state
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 6%
+                    left: 50%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: binary_sensor.r1t_closure_state
+                  style:
+                    top: 15%
+                    left: 50%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 12px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_power_state
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 6%
+                    left: 80%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: sensor.r1t_power_state
+                  style:
+                    top: 15%
+                    left: 80%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 12px
+                    white-space: nowrap
+
+                # Bottom Row - Vehicle Stats (4 items with better spacing)
+                - type: state-icon
+                  entity: sensor.r1t_battery_state_of_charge
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 11%
+                    left: 12%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(136, 241, 255, 0.6))
+                - type: state-label
+                  entity: sensor.r1t_battery_state_of_charge
+                  style:
+                    bottom: 3%
+                    left: 12%
+                    color: '#88F1FF'
+                    font-weight: 800
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8), 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_gear_selector
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 11%
+                    left: 37%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: sensor.r1t_gear_selector
+                  style:
+                    bottom: 3%
+                    left: 37%
+                    color: white
+                    font-weight: 800
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_drive_mode
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 11%
+                    left: 62%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: sensor.r1t_drive_mode
+                  style:
+                    bottom: 3%
+                    left: 62%
+                    color: white
+                    font-weight: 800
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_range
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 11%
+                    left: 88%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(136, 241, 255, 0.6))
+                - type: state-label
+                  entity: sensor.r1t_range
+                  style:
+                    bottom: 3%
+                    left: 88%
+                    color: '#88F1FF'
+                    font-weight: 800
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8), 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    white-space: nowrap
+
+          # Charging View
+          - type: conditional
+            conditions:
+              - entity: sensor.r1t_charger_status
+                state: 'connected'
+            card:
+              type: picture-elements
+              image_entity: image.r1t_side_charging_dark
+              card_mod:
+                style: |
+                  ha-card {
+                    border-radius: 20px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 20px rgba(136, 241, 255, 0.3);
+                    animation: charging-glow 3s ease-in-out infinite;
+                  }
+                  @keyframes charging-glow {
+                    0%, 100% { box-shadow: 0 8px 32px rgba(136, 241, 255, 0.3); }
+                    50% { box-shadow: 0 12px 48px rgba(136, 241, 255, 0.6); }
+                  }
+              elements:
+                # Charging Stats Top Row (3 items with better spacing)
+                - type: state-icon
+                  entity: sensor.r1t_charge_limit
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 6%
+                    left: 20%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(136, 241, 255, 0.6))
+                - type: state-label
+                  entity: sensor.r1t_charge_limit
+                  suffix: ' limit'
+                  style:
+                    top: 15%
+                    left: 20%
+                    color: '#88F1FF'
+                    font-weight: 700
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8), 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 12px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_charging_time_remaining
+                  icon: mdi:clock-end
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 6%
+                    left: 50%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: sensor.r1t_charging_time_remaining
+                  suffix: ' left'
+                  style:
+                    top: 15%
+                    left: 50%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 12px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_charging_cost
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 6%
+                    left: 80%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: sensor.r1t_charging_cost
+                  style:
+                    top: 15%
+                    left: 80%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 12px
+                    white-space: nowrap
+
+                # Charging Active Animation - Battery Icon
+                - type: conditional
+                  conditions:
+                    - entity: sensor.r1t_charging_state
+                      state: 'charging'
+                  elements:
+                    - type: state-icon
+                      entity: sensor.r1t_battery_state_of_charge
+                      icon: mdi:battery-charging
+                      tap_action:
+                        action: more-info
+                      card_mod:
+                        style: |
+                          :host {
+                            bottom: 11%;
+                            left: 12%;
+                            transform: scale(1.5);
+                            filter: drop-shadow(0 3px 12px rgba(136, 241, 255, 0.9));
+                            animation: charging-pulse 2s ease-in-out infinite;
+                            color: #88F1FF !important;
+                          }
+                          @keyframes charging-pulse {
+                            0%, 100% {
+                              opacity: 1;
+                              transform: scale(1.5);
+                              filter: drop-shadow(0 0 10px rgba(136, 241, 255, 0.8));
+                            }
+                            50% {
+                              opacity: 0.8;
+                              transform: scale(1.6);
+                              filter: drop-shadow(0 0 20px rgba(136, 241, 255, 1));
+                            }
+                          }
+
+                # Not charging - static battery icon
+                - type: conditional
+                  conditions:
+                    - entity: sensor.r1t_charging_state
+                      state_not: 'charging'
+                  elements:
+                    - type: state-icon
+                      entity: sensor.r1t_battery_state_of_charge
+                      tap_action:
+                        action: more-info
+                      style:
+                        bottom: 11%
+                        left: 12%
+                        transform: scale(1.5)
+                        filter: drop-shadow(0 3px 6px rgba(136, 241, 255, 0.6))
+
+                # Charging Stats Bottom Row (4 items with better spacing)
+                - type: state-label
+                  entity: sensor.r1t_battery_state_of_charge
+                  style:
+                    bottom: 3%
+                    left: 12%
+                    color: '#88F1FF'
+                    font-weight: 800
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8), 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 14px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_charging_speed
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 11%
+                    left: 37%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: sensor.r1t_charging_speed
+                  style:
+                    bottom: 3%
+                    left: 37%
+                    color: white
+                    font-weight: 800
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_charging_rate
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 11%
+                    left: 62%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6))
+                - type: state-label
+                  entity: sensor.r1t_charging_rate
+                  style:
+                    bottom: 3%
+                    left: 62%
+                    color: white
+                    font-weight: 800
+                    text-shadow: 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    white-space: nowrap
+
+                - type: state-icon
+                  entity: sensor.r1t_charging_range_added
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 11%
+                    left: 88%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(136, 241, 255, 0.6))
+                - type: state-label
+                  entity: sensor.r1t_charging_range_added
+                  style:
+                    bottom: 3%
+                    left: 88%
+                    color: '#88F1FF'
+                    font-weight: 800
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8), 0 3px 6px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    white-space: nowrap
+
+          # Climate Control Card
+          - type: custom:stack-in-card
+            mode: vertical
+            card_mod:
+              style: |
+                ha-card {
+                  border-radius: 20px;
+                  background: linear-gradient(135deg, rgba(30,30,30,1) 0%, rgba(50,50,50,1) 100%);
+                  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                }
+            cards:
+              - type: custom:mushroom-title-card
+                title: Climate Control
+                subtitle: Cabin Temperature & HVAC
+              - type: thermostat
+                entity: climate.r1t_cabin_climate
+                features:
+                  - type: climate-hvac-modes
+                    hvac_modes:
+                      - 'off'
+                      - heat_cool
+                      - heat
+
+          # Quick Stats Grid
+          - type: grid
+            columns: 4
+            square: false
+            cards:
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_battery_state_of_charge
+                name: Battery
+                icon_color: green
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: rgba(var(--rgb-primary-color), 0.05);
+                    }
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_range
+                name: Range
+                icon_color: blue
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: rgba(var(--rgb-primary-color), 0.05);
+                    }
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_odometer
+                name: Odometer
+                icon_color: grey
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: rgba(var(--rgb-primary-color), 0.05);
+                    }
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_speed
+                name: Speed
+                icon_color: orange
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: rgba(var(--rgb-primary-color), 0.05);
+                    }
+
+      # Controls Section
+      - type: custom:stack-in-card
+        mode: vertical
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+        cards:
+          - type: custom:mushroom-title-card
+            title: Quick Controls
+            subtitle: Essential Functions
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: custom:mushroom-lock-card
+                entity: lock.r1t_closures
+                name: Lock
+                icon: mdi:lock
+                fill_container: false
+              - type: custom:mushroom-entity-card
+                entity: button.r1t_wake
+                name: Wake
+                icon: mdi:sleep-off
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_wake
+              - type: custom:mushroom-entity-card
+                entity: switch.r1t_alarm
+                name: Alarm
+                icon: mdi:alarm-light
+                tap_action:
+                  action: toggle
+              - type: custom:mushroom-entity-card
+                entity: switch.r1t_climate_hold
+                name: Climate Hold
+                icon: mdi:fan-auto
+                tap_action:
+                  action: toggle
+
+      # Charging Controls
+      - type: custom:stack-in-card
+        mode: vertical
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+        cards:
+          - type: custom:mushroom-title-card
+            title: Charging
+            subtitle: Battery & Power
+          - type: custom:mushroom-entity-card
+            entity: cover.r1t_charge_port_door
+            name: Charge Port
+            icon: mdi:ev-plug-type1
+            tap_action:
+              action: more-info
+          - type: custom:mushroom-entity-card
+            entity: switch.r1t_charging_enabled
+            name: Charging
+            icon: mdi:battery-charging
+            tap_action:
+              action: toggle
+          - type: entities
+            entities:
+              - entity: number.r1t_charge_limit
+                name: Charge Limit
+            card_mod:
+              style: |
+                ha-card {
+                  box-shadow: none;
+                  border: none;
+                }
+
+      # Access Controls
+      - type: custom:stack-in-card
+        mode: vertical
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+        cards:
+          - type: custom:mushroom-title-card
+            title: Access
+            subtitle: Doors & Storage
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: custom:mushroom-cover-card
+                entity: cover.r1t_hood
+                name: Hood
+                icon: mdi:car-door
+              - type: custom:mushroom-cover-card
+                entity: cover.r1t_windows
+                name: Windows
+                icon: mdi:window-open-variant
+              - type: custom:mushroom-entity-card
+                entity: binary_sensor.r1t_left_gear_tunnel
+                name: Left Gear Tunnel
+                icon: mdi:package-variant
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_open_gear_tunnel_left
+              - type: custom:mushroom-entity-card
+                entity: binary_sensor.r1t_right_gear_tunnel
+                name: Right Gear Tunnel
+                icon: mdi:package-variant
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_open_gear_tunnel_right
+              - type: custom:mushroom-entity-card
+                entity: binary_sensor.r1t_tailgate
+                name: Tailgate
+                icon: mdi:tailgate
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_drop_tailgate
+
+      # Seat Climate
+      - type: custom:stack-in-card
+        mode: vertical
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+        cards:
+          - type: custom:mushroom-title-card
+            title: Seat Climate
+            subtitle: Heating & Cooling
+          - type: entities
+            entities:
+              - entity: select.r1t_front_left_seat_climate
+                name: Driver Seat
+              - entity: select.r1t_front_right_seat_climate
+                name: Passenger Seat
+              - entity: select.r1t_rear_left_seat_heating
+                name: Rear Left
+              - entity: select.r1t_rear_right_seat_heating
+                name: Rear Right
+              - entity: switch.r1t_steering_wheel_heating
+                name: Steering Wheel
+            card_mod:
+              style: |
+                ha-card {
+                  box-shadow: none;
+                  border: none;
+                }
+
+  # Tire Monitoring Tab
+  - theme: Backend-selected
+    title: Tires
+    path: tires
+    icon: mdi:tire
+    cards:
+      - type: custom:stack-in-card
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+        cards:
+          - type: custom:mushroom-title-card
+            title: Tire Pressure Monitoring
+            subtitle: Real-time PSI readings
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_front_left_tire_pressure
+                name: Front Left
+                icon: mdi:car-tire-alert
+                icon_color: >
+                  {% set pressure = states(entity) | float %}
+                  {% if pressure < 35 %} red
+                  {% elif pressure < 38 %} orange
+                  {% else %} green
+                  {% endif %}
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_front_right_tire_pressure
+                name: Front Right
+                icon: mdi:car-tire-alert
+                icon_color: >
+                  {% set pressure = states(entity) | float %}
+                  {% if pressure < 35 %} red
+                  {% elif pressure < 38 %} orange
+                  {% else %} green
+                  {% endif %}
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_rear_left_tire_pressure
+                name: Rear Left
+                icon: mdi:car-tire-alert
+                icon_color: >
+                  {% set pressure = states(entity) | float %}
+                  {% if pressure < 35 %} red
+                  {% elif pressure < 38 %} orange
+                  {% else %} green
+                  {% endif %}
+              - type: custom:mushroom-entity-card
+                entity: sensor.r1t_rear_right_tire_pressure
+                name: Rear Right
+                icon: mdi:car-tire-alert
+                icon_color: >
+                  {% set pressure = states(entity) | float %}
+                  {% if pressure < 35 %} red
+                  {% elif pressure < 38 %} orange
+                  {% else %} green
+                  {% endif %}
+      - type: history-graph
+        entities:
+          - entity: sensor.r1t_front_left_tire_pressure
+          - entity: sensor.r1t_front_right_tire_pressure
+          - entity: sensor.r1t_rear_left_tire_pressure
+          - entity: sensor.r1t_rear_right_tire_pressure
+        hours_to_show: 24
+        title: 24 Hour Pressure History
+      - chart_type: line
+        period: day
+        type: statistics-graph
+        entities:
+          - sensor.r1t_front_left_tire_pressure
+          - sensor.r1t_rear_left_tire_pressure
+          - sensor.r1t_front_right_tire_pressure
+          - sensor.r1t_rear_right_tire_pressure
+        stat_types:
+          - mean
+          - min
+          - max
+        title: 30 Day Statistics
+        days_to_show: 30
+
+  # OTA Updates Tab
+  - theme: Backend-selected
+    title: Software
+    path: ota
+    icon: mdi:cloud-download
+    cards:
+      - type: custom:stack-in-card
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+        cards:
+          - type: custom:mushroom-title-card
+            title: Software Updates
+            subtitle: OTA Management
+          - type: custom:mushroom-update-card
+            entity: update.r1t_software
+            name: R1T Software
+            show_buttons_control: true
+          - type: gauge
+            entity: sensor.r1t_ota_download_progress
+            min: 0
+            max: 100
+            name: Download Progress
+            needle: true
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(var(--rgb-primary-color), 0.05);
+                  border-radius: 15px;
+                }
+          - type: entities
+            entities:
+              - entity: sensor.r1t_ota_status_current
+                name: Current Status
+              - entity: sensor.r1t_ota_status
+                name: Update Status
+            card_mod:
+              style: |
+                ha-card {
+                  box-shadow: none;
+                  border: none;
+                }
+      - type: history-graph
+        entities:
+          - entity: sensor.r1t_ota_status_current
+          - entity: sensor.r1t_ota_status
+        hours_to_show: 168
+        title: Update History (7 days)
+
+  # Location Tab
+  - theme: Backend-selected
+    icon: mdi:map-marker-radius
+    title: Location
+    path: location
+    cards:
+      - type: map
+        entities:
+          - entity: device_tracker.r1t_location
+        dark_mode: true
+        hours_to_show: 24
+        title: R1T Location (24h)
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              overflow: hidden;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+      - type: grid
+        columns: 2
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: device_tracker.r1t_location
+            name: Current Location
+            icon: mdi:map-marker
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.r1t_speed
+            name: Current Speed
+            icon: mdi:speedometer
+            icon_color: orange
+
+  # History Tab
+  - theme: Backend-selected
+    title: History
+    path: history
+    icon: mdi:chart-timeline-variant
+    cards:
+      - type: custom:stack-in-card
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+        cards:
+          - type: custom:mushroom-title-card
+            title: Vehicle History
+            subtitle: Recent Activity
+          - type: custom:auto-entities
+            card:
+              type: logbook
+              title: Activity Log
+              hours_to_show: 24
+            filter:
+              include:
+                - area: cars
+      - type: history-graph
+        entities:
+          - entity: sensor.r1t_drive_mode
+          - entity: sensor.r1t_gear_selector
+          - entity: device_tracker.r1t_location
+          - entity: binary_sensor.r1t_locked_state
+          - entity: binary_sensor.r1t_closure_state
+          - entity: sensor.r1t_cabin_climate_preconditioning_status
+          - entity: sensor.r1t_power_state
+          - entity: sensor.r1t_battery_state_of_charge
+          - entity: sensor.r1t_speed
+        title: Essential Metrics (12h)
+        hours_to_show: 12
+      - type: history-graph
+        entities:
+          - entity: sensor.r1t_charging_state
+          - entity: sensor.r1t_charging_speed
+          - entity: sensor.r1t_charge_limit
+          - entity: sensor.r1t_battery_state_of_charge
+        title: Charging History (24h)
+        hours_to_show: 24

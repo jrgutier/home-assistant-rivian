@@ -241,6 +241,138 @@ class TestVehicleCoordinatorWatchdog:
         # Cleanup
         mock_vehicle_coordinator._stop_watchdog()
 
+    async def test_backend_504_error_triggers_restart(
+        self,
+        hass: HomeAssistant,
+        mock_vehicle_coordinator: VehicleCoordinator,
+    ) -> None:
+        """Test that 504 backend errors trigger immediate subscription restart."""
+        # Set initial state
+        mock_vehicle_coordinator.data = {"powerState": {"value": "go"}}
+        mock_vehicle_coordinator._unsub_handler = AsyncMock()
+        mock_vehicle_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_vehicle_coordinator._subscription_count = 1
+
+        # Mock the API's WebSocket monitor
+        mock_vehicle_coordinator.api._ws_monitor = MagicMock()
+        mock_vehicle_coordinator.api._ws_monitor.connected = True
+
+        # Create 504 error message matching Rivian backend format
+        error_data = {
+            "type": "error",
+            "payload": [
+                {
+                    "message": "Status unaccounted for 504",
+                    "extensions": {
+                        "rest": {
+                            "body": "<html>...</html>",
+                            "method": "POST",
+                            "status": 504,
+                            "url": "https://cesium.vcs.goriv.co/v2/vehicle/latest",
+                        },
+                        "reason": "INVALID_REST_RESPONSE",
+                        "code": "INTERNAL_SERVER_ERROR",
+                    },
+                }
+            ],
+        }
+
+        # Mock methods to verify they're called
+        with (
+            patch.object(mock_vehicle_coordinator, "_unsubscribe") as mock_unsub,
+            patch.object(
+                mock_vehicle_coordinator, "async_request_refresh"
+            ) as mock_refresh,
+        ):
+            # Process the error
+            mock_vehicle_coordinator._process_new_data(error_data)
+
+            # Verify restart was triggered
+            mock_unsub.assert_called_once()
+            mock_refresh.assert_called_once()
+
+    async def test_backend_502_error_triggers_restart(
+        self,
+        hass: HomeAssistant,
+        mock_vehicle_coordinator: VehicleCoordinator,
+    ) -> None:
+        """Test that 502 backend errors trigger immediate subscription restart."""
+        # Set initial state
+        mock_vehicle_coordinator.data = {"powerState": {"value": "go"}}
+        mock_vehicle_coordinator._unsub_handler = AsyncMock()
+        mock_vehicle_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_vehicle_coordinator._subscription_count = 1
+        mock_vehicle_coordinator.api._ws_monitor = MagicMock()
+        mock_vehicle_coordinator.api._ws_monitor.connected = True
+
+        # Create 502 error message
+        error_data = {
+            "type": "error",
+            "payload": [
+                {
+                    "message": "Status unaccounted for 502",
+                    "extensions": {
+                        "rest": {"status": 502},
+                    },
+                }
+            ],
+        }
+
+        # Mock methods to verify they're called
+        with (
+            patch.object(mock_vehicle_coordinator, "_unsubscribe") as mock_unsub,
+            patch.object(
+                mock_vehicle_coordinator, "async_request_refresh"
+            ) as mock_refresh,
+        ):
+            # Process the error
+            mock_vehicle_coordinator._process_new_data(error_data)
+
+            # Verify restart was triggered
+            mock_unsub.assert_called_once()
+            mock_refresh.assert_called_once()
+
+    async def test_non_critical_backend_error_no_restart(
+        self,
+        hass: HomeAssistant,
+        mock_vehicle_coordinator: VehicleCoordinator,
+    ) -> None:
+        """Test that non-502/504 errors don't trigger immediate restart."""
+        # Set initial state
+        mock_vehicle_coordinator.data = {"powerState": {"value": "go"}}
+        mock_vehicle_coordinator._unsub_handler = AsyncMock()
+        mock_vehicle_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_vehicle_coordinator._subscription_count = 1
+        mock_vehicle_coordinator.api._ws_monitor = MagicMock()
+        mock_vehicle_coordinator.api._ws_monitor.connected = True
+
+        # Create 400 error message (not critical)
+        error_data = {
+            "type": "error",
+            "payload": [
+                {
+                    "message": "Bad request",
+                    "extensions": {
+                        "rest": {"status": 400},
+                    },
+                }
+            ],
+        }
+
+        # Mock methods to verify they're NOT called for non-critical errors
+        with (
+            patch.object(mock_vehicle_coordinator, "_unsubscribe") as mock_unsub,
+            patch.object(
+                mock_vehicle_coordinator, "async_request_refresh"
+            ) as mock_refresh,
+        ):
+            # Process the error
+            mock_vehicle_coordinator._process_new_data(error_data)
+
+            # Verify restart was NOT triggered
+            mock_unsub.assert_not_called()
+            mock_refresh.assert_not_called()
+
 
 class TestChargingCoordinatorWatchdog:
     """Test ChargingCoordinator watchdog functionality."""
@@ -330,6 +462,153 @@ class TestChargingCoordinatorWatchdog:
             mock_charging_coordinator._watchdog_task is None
             or mock_charging_coordinator._watchdog_task.cancelled()
         )
+
+    async def test_charging_backend_504_error_triggers_restart(
+        self,
+        hass: HomeAssistant,
+        mock_charging_coordinator: ChargingCoordinator,
+    ) -> None:
+        """Test that 504 backend errors trigger immediate charging subscription restart."""
+        # Set initial state
+        mock_charging_coordinator.data = {}
+        mock_charging_coordinator._unsub_handler = AsyncMock()
+        mock_charging_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_charging_coordinator._subscription_count = 1
+
+        # Mock the API's WebSocket monitor
+        mock_charging_coordinator.api._ws_monitor = MagicMock()
+        mock_charging_coordinator.api._ws_monitor.connected = True
+
+        # Create 504 error message matching Rivian backend format
+        error_data = {
+            "type": "error",
+            "payload": [
+                {
+                    "message": "Status unaccounted for 504",
+                    "extensions": {
+                        "rest": {
+                            "status": 504,
+                            "url": "https://cesium.vcs.goriv.co/v2/vehicle/latest",
+                        },
+                    },
+                }
+            ],
+        }
+
+        # Mock methods to verify they're called
+        with (
+            patch.object(mock_charging_coordinator, "_unsubscribe") as mock_unsub,
+            patch.object(
+                mock_charging_coordinator, "async_request_refresh"
+            ) as mock_refresh,
+        ):
+            # Process the error
+            mock_charging_coordinator._process_new_data(error_data)
+
+            # Verify restart was triggered
+            mock_unsub.assert_called_once()
+            mock_refresh.assert_called_once()
+
+    async def test_charging_non_critical_backend_error_no_restart(
+        self,
+        hass: HomeAssistant,
+        mock_charging_coordinator: ChargingCoordinator,
+    ) -> None:
+        """Test that non-502/504 charging errors don't trigger immediate restart."""
+        # Set initial state
+        mock_charging_coordinator.data = {}
+        mock_charging_coordinator._unsub_handler = AsyncMock()
+        mock_charging_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_charging_coordinator._subscription_count = 1
+        mock_charging_coordinator.api._ws_monitor = MagicMock()
+        mock_charging_coordinator.api._ws_monitor.connected = True
+
+        # Create 400 error message (not critical)
+        error_data = {
+            "type": "error",
+            "payload": [
+                {
+                    "message": "Bad request",
+                    "extensions": {
+                        "rest": {"status": 400},
+                    },
+                }
+            ],
+        }
+
+        # Mock methods to verify they're NOT called for non-critical errors
+        with (
+            patch.object(mock_charging_coordinator, "_unsubscribe") as mock_unsub,
+            patch.object(
+                mock_charging_coordinator, "async_request_refresh"
+            ) as mock_refresh,
+        ):
+            # Process the error
+            mock_charging_coordinator._process_new_data(error_data)
+
+            # Verify restart was NOT triggered
+            mock_unsub.assert_not_called()
+            mock_refresh.assert_not_called()
+
+    async def test_charging_subscription_enabled_when_charging_starts(
+        self,
+        hass: HomeAssistant,
+        mock_charging_coordinator: ChargingCoordinator,
+    ) -> None:
+        """Test that charging subscription is enabled when charging starts."""
+        # Initially disabled (not charging)
+        mock_charging_coordinator._subscription_enabled = False
+        mock_charging_coordinator._unsub_handler = None
+
+        # Mock async_request_refresh
+        with patch.object(
+            mock_charging_coordinator, "async_request_refresh"
+        ) as mock_refresh:
+            # Enable subscription (charging starts)
+            await mock_charging_coordinator.toggle_subscription(True)
+
+            # Verify subscription was enabled
+            assert mock_charging_coordinator._subscription_enabled is True
+            mock_refresh.assert_called_once()
+
+    async def test_charging_subscription_disabled_when_charging_stops(
+        self,
+        hass: HomeAssistant,
+        mock_charging_coordinator: ChargingCoordinator,
+    ) -> None:
+        """Test that charging subscription is disabled when charging stops."""
+        # Initially enabled (charging)
+        mock_charging_coordinator._subscription_enabled = True
+        mock_unsub_handler = AsyncMock()
+        mock_charging_coordinator._unsub_handler = mock_unsub_handler
+
+        # Disable subscription (charging stops)
+        await mock_charging_coordinator.toggle_subscription(False)
+
+        # Verify subscription was disabled
+        assert mock_charging_coordinator._subscription_enabled is False
+        # Unsubscribe should have been called
+        mock_unsub_handler.assert_called_once()
+        # Handler should be cleared after unsubscribe
+        assert mock_charging_coordinator._unsub_handler is None
+
+    async def test_charging_subscription_not_created_when_disabled(
+        self,
+        hass: HomeAssistant,
+        mock_charging_coordinator: ChargingCoordinator,
+    ) -> None:
+        """Test that subscription is not created when disabled (not charging)."""
+        # Disable subscription
+        mock_charging_coordinator._subscription_enabled = False
+        mock_charging_coordinator.data = None
+
+        # Try to update data
+        result = await mock_charging_coordinator._async_update_data()
+
+        # Should return empty dict without creating subscription
+        assert result == {}
+        # API method should not have been called
+        mock_charging_coordinator.api.subscribe_for_charging_session.assert_not_called()
 
 
 class TestChargerStateIntegration:

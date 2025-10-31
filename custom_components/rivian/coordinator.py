@@ -111,6 +111,25 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
             return self.data
         raise UpdateFailed("Error communicating with API")
 
+    def get(self, key: str, default: Any | None = None) -> Any | None:
+        """Get a data value by key, supporting dot notation for nested keys."""
+        if not self.data:
+            return default
+
+        # Support nested key access with dot notation
+        keys = key.split(".")
+        value = self.data
+
+        for k in keys:
+            if isinstance(value, dict):
+                value = value.get(k)
+                if value is None:
+                    return default
+            else:
+                return default
+
+        return value if value is not None else default
+
     @abstractmethod
     async def _fetch_data(self) -> T:
         """Fetch the data."""
@@ -142,9 +161,18 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._watchdog_task: asyncio.Task | None = None
         self._subscription_start_time: datetime | None = None
         self._subscription_count = 0  # Track number of resubscriptions
+        self._subscription_enabled = True  # Track if subscription should be active
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
+        # Don't create subscription if it's intentionally disabled (not charging)
+        if not self._subscription_enabled:
+            _LOGGER.debug(
+                "Charging subscription disabled for vehicle %s (not charging)",
+                self.vehicle_id,
+            )
+            return self.data or {}
+
         if not self.data or not self.last_update_success or not self._unsub_handler:
             # Debug: Log why we're (re)subscribing
             reasons = []
@@ -229,6 +257,44 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     self.vehicle_id,
                     time_since_last / 60,
                 )
+
+        # Check for GraphQL error messages from Rivian backend
+        if data.get("type") == "error":
+            error_payload = data.get("payload", [])
+            if isinstance(error_payload, list) and error_payload:
+                error_info = error_payload[0]
+                error_message = error_info.get("message", "Unknown error")
+                extensions = error_info.get("extensions", {})
+                rest_info = extensions.get("rest", {})
+                status_code = rest_info.get("status")
+
+                _LOGGER.warning(
+                    "Charging subscription for vehicle %s received backend error: %s (HTTP %s). "
+                    "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription...",
+                    self.vehicle_id,
+                    error_message,
+                    status_code or "unknown",
+                    self._subscription_count,
+                    (now - self._subscription_start_time).total_seconds() / 60
+                    if self._subscription_start_time
+                    else 0,
+                    "active"
+                    if self.api._ws_monitor and self.api._ws_monitor.connected
+                    else "inactive/closed",
+                )
+
+                # Immediately restart subscription on backend errors (504, 502, etc.)
+                if status_code in (502, 504):
+                    task = self._unsubscribe()
+                    self.config_entry.async_create_task(
+                        self.hass, task, eager_start=True
+                    )
+                    # Request refresh to resubscribe
+                    refresh_task = self.async_request_refresh()
+                    self.config_entry.async_create_task(
+                        self.hass, refresh_task, eager_start=True
+                    )
+                return
 
         if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
             _LOGGER.error(
@@ -377,6 +443,30 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             self._start_watchdog()
         else:
             self._stop_watchdog()
+
+    async def toggle_subscription(self, enabled: bool) -> None:
+        """Enable or disable the charging subscription based on charging state.
+
+        This manages the subscription lifecycle to reduce bandwidth when not charging.
+        """
+        if enabled and not self._subscription_enabled:
+            # Start subscription when charging begins
+            _LOGGER.info(
+                "Enabling charging subscription for vehicle %s (charger connected)",
+                self.vehicle_id,
+            )
+            self._subscription_enabled = True
+            # Trigger a refresh which will create the subscription
+            await self.async_request_refresh()
+        elif not enabled and self._subscription_enabled:
+            # Stop subscription when charging ends
+            _LOGGER.info(
+                "Disabling charging subscription for vehicle %s (charger disconnected)",
+                self.vehicle_id,
+            )
+            self._subscription_enabled = False
+            if self._unsub_handler:
+                await self._unsubscribe()
 
     # def adjust_update_interval(self, is_plugged_in: bool) -> None:
     #     """Adjust update interval based on plugged in status."""
@@ -681,6 +771,46 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     self.get("powerState") or "unknown",
                 )
 
+        # Check for GraphQL error messages from Rivian backend
+        if data.get("type") == "error":
+            error_payload = data.get("payload", [])
+            if isinstance(error_payload, list) and error_payload:
+                error_info = error_payload[0]
+                error_message = error_info.get("message", "Unknown error")
+                extensions = error_info.get("extensions", {})
+                rest_info = extensions.get("rest", {})
+                status_code = rest_info.get("status")
+
+                _LOGGER.warning(
+                    "Vehicle %s subscription received backend error: %s (HTTP %s). "
+                    "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription...",
+                    self.vehicle_id,
+                    error_message,
+                    status_code or "unknown",
+                    self._subscription_count,
+                    (now - self._subscription_start_time).total_seconds() / 60
+                    if self._subscription_start_time
+                    else 0,
+                    "active"
+                    if self.api._ws_monitor and self.api._ws_monitor.connected
+                    else "inactive/closed",
+                )
+
+                # Immediately restart subscription on backend errors (504, 502, etc.)
+                # These indicate Rivian's backend is having issues and the subscription
+                # won't recover on its own
+                if status_code in (502, 504):
+                    task = self._unsubscribe()
+                    self.config_entry.async_create_task(
+                        self.hass, task, eager_start=True
+                    )
+                    # Request refresh to resubscribe
+                    refresh_task = self.async_request_refresh()
+                    self.config_entry.async_create_task(
+                        self.hass, refresh_task, eager_start=True
+                    )
+                return
+
         if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
             _LOGGER.error(
                 "Received an unknown subscription update: %s. WebSocket state: %s, subscription age: %.1f min",
@@ -741,12 +871,16 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     "chg_complete",
                 )
                 _LOGGER.debug(
-                    "Vehicle %s chargerState changed to %s, charging watchdog: %s",
+                    "Vehicle %s chargerState changed to %s, charging subscription: %s",
                     self.vehicle_id,
                     charger_state,
                     "enabled" if is_connected else "disabled",
                 )
+                # Toggle both watchdog and subscription based on charging state
                 self.charging_coordinator.toggle_watchdog(is_connected)
+                # Schedule subscription toggle as a task (it's async)
+                task = self.charging_coordinator.toggle_subscription(is_connected)
+                self.config_entry.async_create_task(self.hass, task, eager_start=True)
 
         if not (prev_items := (self.data or {})):
             return items

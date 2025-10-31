@@ -1,0 +1,671 @@
+title: Rivian
+views:
+  - theme: Backend-selected
+    title: Overview
+    path: rivian
+    icon: mdi:car-electric
+    cards:
+      # Main Vehicle Display (70% width)
+      - type: vertical-stack
+        cards:
+          # Vehicle Image with Enhanced Status Overlay - Not Charging
+          - type: conditional
+            conditions:
+              - entity: sensor.r1t_charger_status
+                state_not: 'connected'
+            card:
+              type: picture-elements
+              image_entity: image.r1t_side_dark
+              card_mod:
+                style: |
+                  ha-card {
+                    border-radius: 20px;
+                    overflow: hidden;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                    transition: all 0.3s ease;
+                  }
+                  ha-card:hover {
+                    box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+                    transform: translateY(-2px);
+                  }
+              elements:
+                # Top gradient overlay
+                - type: image
+                  image: data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOnJnYigwLDAsMCk7c3RvcC1vcGFjaXR5OjAuOCIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6cmdiKDAsMCwwKTtzdG9wLW9wYWNpdHk6MCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=
+                  style:
+                    top: 0
+                    left: 0
+                    width: 100%
+                    height: 25%
+
+                # Top Status Icons with enhanced styling
+                - type: state-icon
+                  entity: device_tracker.r1t_location
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 8%
+                    left: 12%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7))
+                    transition: all 0.3s ease
+                - type: state-label
+                  entity: device_tracker.r1t_location
+                  style:
+                    top: 17%
+                    left: 12%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    letter-spacing: 0.5px
+
+                - type: state-icon
+                  entity: binary_sensor.r1t_locked_state
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 8%
+                    left: 33%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7))
+                - type: state-label
+                  entity: binary_sensor.r1t_locked_state
+                  style:
+                    top: 17%
+                    left: 33%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    letter-spacing: 0.5px
+
+                - type: state-icon
+                  entity: binary_sensor.r1t_closure_state
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 8%
+                    left: 54%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7))
+                - type: state-label
+                  entity: binary_sensor.r1t_closure_state
+                  style:
+                    top: 17%
+                    left: 54%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    letter-spacing: 0.5px
+
+                - type: state-icon
+                  entity: sensor.r1t_power_state
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 8%
+                    left: 75%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7))
+                - type: state-label
+                  entity: sensor.r1t_power_state
+                  style:
+                    top: 17%
+                    left: 75%
+                    color: white
+                    font-weight: 700
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 13px
+                    letter-spacing: 0.5px
+
+                # Bottom gradient overlay
+                - type: image
+                  image: data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAlIiB5MT0iMTAwJSIgeDI9IjAlIiB5Mj0iMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOnJnYigwLDAsMCk7c3RvcC1vcGFjaXR5OjAuOCIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6cmdiKDAsMCwwKTtzdG9wLW9wYWNpdHk6MCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=
+                  style:
+                    bottom: 0
+                    left: 0
+                    width: 100%
+                    height: 25%
+
+                # Bottom Stats Row with enhanced styling
+                - type: state-icon
+                  entity: sensor.r1t_battery_state_of_charge
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 13%
+                    left: 10%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 8px rgba(136, 241, 255, 0.6))
+                - type: state-label
+                  entity: sensor.r1t_battery_state_of_charge
+                  style:
+                    bottom: 5%
+                    left: 10%
+                    color: '#88F1FF'
+                    font-weight: 800
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8), 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 15px
+                    letter-spacing: 0.5px
+
+                - type: state-icon
+                  entity: sensor.r1t_gear_selector
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 13%
+                    left: 27%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7))
+                - type: state-label
+                  entity: sensor.r1t_gear_selector
+                  style:
+                    bottom: 5%
+                    left: 27%
+                    color: white
+                    font-weight: 800
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 15px
+                    letter-spacing: 0.5px
+
+                - type: state-icon
+                  entity: sensor.r1t_drive_mode
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 13%
+                    left: 46%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7))
+                - type: state-label
+                  entity: sensor.r1t_drive_mode
+                  style:
+                    bottom: 5%
+                    left: 46%
+                    color: white
+                    font-weight: 800
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 15px
+                    letter-spacing: 0.5px
+
+                - type: state-icon
+                  entity: binary_sensor.r1t_in_use_state
+                  state_color: true
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 13%
+                    left: 68%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7))
+                - type: state-label
+                  entity: binary_sensor.r1t_in_use_state
+                  style:
+                    bottom: 5%
+                    left: 68%
+                    color: white
+                    font-weight: 800
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 15px
+                    letter-spacing: 0.5px
+
+                - type: state-icon
+                  entity: sensor.r1t_range
+                  tap_action:
+                    action: more-info
+                  style:
+                    bottom: 13%
+                    left: 88%
+                    transform: scale(1.5)
+                    filter: drop-shadow(0 3px 8px rgba(136, 241, 255, 0.6))
+                - type: state-label
+                  entity: sensor.r1t_range
+                  style:
+                    bottom: 5%
+                    left: 88%
+                    color: '#88F1FF'
+                    font-weight: 800
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8), 0 2px 8px rgba(0,0,0,0.9)
+                    font-size: 15px
+                    letter-spacing: 0.5px
+
+          # Charging View with animated effects
+          - type: conditional
+            conditions:
+              - entity: sensor.r1t_charger_status
+                state: 'connected'
+            card:
+              type: picture-elements
+              image_entity: image.r1t_side_charging_dark
+              card_mod:
+                style: |
+                  ha-card {
+                    border-radius: 20px;
+                    overflow: hidden;
+                    box-shadow: 0 8px 32px rgba(136, 241, 255, 0.4);
+                    animation: charging-glow 3s ease-in-out infinite;
+                  }
+                  @keyframes charging-glow {
+                    0%, 100% { box-shadow: 0 8px 32px rgba(136, 241, 255, 0.3); }
+                    50% { box-shadow: 0 12px 48px rgba(136, 241, 255, 0.6); }
+                  }
+              elements:
+                # Charging status top row (similar structure to above)
+                - type: state-icon
+                  entity: sensor.r1t_charge_limit
+                  tap_action:
+                    action: more-info
+                  style:
+                    top: 8%
+                    left: 12%
+                    transform: scale(1.4)
+                    filter: drop-shadow(0 3px 8px rgba(136, 241, 255, 0.6))
+                - type: state-label
+                  entity: sensor.r1t_charge_limit
+                  suffix: ' limit'
+                  style:
+                    top: 17%
+                    left: 12%
+                    color: '#88F1FF'
+                    font-weight: 700
+                    text-shadow: 0 0 10px rgba(136, 241, 255, 0.8)
+
+                # Animated charging battery icon when actively charging
+                - type: conditional
+                  conditions:
+                    - entity: sensor.r1t_charging_state
+                      state: 'charging'
+                  elements:
+                    - type: state-icon
+                      entity: sensor.r1t_battery_state_of_charge
+                      icon: mdi:battery-charging
+                      tap_action:
+                        action: more-info
+                      card_mod:
+                        style: |
+                          :host {
+                            bottom: 13%;
+                            left: 8%;
+                            transform: scale(1.6);
+                            filter: drop-shadow(0 0 12px rgba(136, 241, 255, 0.9));
+                            animation: pulse-charging 2s ease-in-out infinite;
+                            color: #88F1FF !important;
+                          }
+                          @keyframes pulse-charging {
+                            0%, 100% {
+                              opacity: 1;
+                              transform: scale(1.6);
+                              filter: drop-shadow(0 0 8px rgba(136, 241, 255, 0.7));
+                            }
+                            50% {
+                              opacity: 0.8;
+                              transform: scale(1.7);
+                              filter: drop-shadow(0 0 16px rgba(136, 241, 255, 1));
+                            }
+                          }
+
+          # Quick Stats Cards with enhanced styling
+          - type: grid
+            columns: 4
+            square: false
+            cards:
+              - type: button
+                entity: sensor.r1t_battery_state_of_charge
+                name: Battery
+                show_state: true
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: linear-gradient(135deg, rgba(0, 200, 83, 0.1) 0%, rgba(0, 100, 40, 0.1) 100%);
+                      border: 2px solid rgba(0, 200, 83, 0.2);
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: translateY(-4px);
+                      box-shadow: 0 8px 24px rgba(0, 200, 83, 0.3);
+                    }
+              - type: button
+                entity: sensor.r1t_range
+                name: Range
+                show_state: true
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(13, 71, 161, 0.1) 100%);
+                      border: 2px solid rgba(33, 150, 243, 0.2);
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: translateY(-4px);
+                      box-shadow: 0 8px 24px rgba(33, 150, 243, 0.3);
+                    }
+              - type: button
+                entity: sensor.r1t_odometer
+                name: Odometer
+                show_state: true
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: linear-gradient(135deg, rgba(158, 158, 158, 0.1) 0%, rgba(97, 97, 97, 0.1) 100%);
+                      border: 2px solid rgba(158, 158, 158, 0.2);
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: translateY(-4px);
+                      box-shadow: 0 8px 24px rgba(158, 158, 158, 0.3);
+                    }
+              - type: button
+                entity: sensor.r1t_speed
+                name: Speed
+                show_state: true
+                tap_action:
+                  action: more-info
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 15px;
+                      background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(230, 81, 0, 0.1) 100%);
+                      border: 2px solid rgba(255, 152, 0, 0.2);
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: translateY(-4px);
+                      box-shadow: 0 8px 24px rgba(255, 152, 0, 0.3);
+                    }
+
+          # Climate Control with enhanced styling
+          - type: thermostat
+            entity: climate.r1t_cabin_climate
+            features:
+              - type: climate-hvac-modes
+                hvac_modes:
+                  - 'off'
+                  - heat_cool
+                  - heat
+            card_mod:
+              style: |
+                ha-card {
+                  border-radius: 20px;
+                  background: linear-gradient(135deg, rgba(3, 169, 244, 0.05) 0%, rgba(2, 136, 209, 0.05) 100%);
+                  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                  border: 2px solid rgba(3, 169, 244, 0.1);
+                }
+
+      # Controls Section
+      - type: vertical-stack
+        cards:
+          # Essential Controls Header
+          - type: markdown
+            content: |
+              # 🎛️ Quick Controls
+              Essential vehicle functions
+            card_mod:
+              style: |
+                ha-card {
+                  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(13, 71, 161, 0.1) 100%);
+                  border-radius: 15px;
+                  padding: 8px;
+                  text-align: center;
+                  font-weight: 600;
+                }
+
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: button
+                entity: lock.r1t_closures
+                name: Lock/Unlock
+                show_state: true
+                tap_action:
+                  action: toggle
+                icon: mdi:lock
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 12px;
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: scale(1.05);
+                      box-shadow: 0 6px 20px rgba(var(--rgb-primary-color), 0.3);
+                    }
+              - type: button
+                entity: button.r1t_wake
+                name: Wake Vehicle
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_wake
+                icon: mdi:sleep-off
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 12px;
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: scale(1.05);
+                      box-shadow: 0 6px 20px rgba(var(--rgb-primary-color), 0.3);
+                    }
+              - type: button
+                entity: switch.r1t_alarm
+                name: Alarm
+                show_state: true
+                tap_action:
+                  action: toggle
+                icon: mdi:alarm-light
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 12px;
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: scale(1.05);
+                      box-shadow: 0 6px 20px rgba(var(--rgb-accent-color), 0.3);
+                    }
+              - type: button
+                entity: switch.r1t_climate_hold
+                name: Climate Hold
+                show_state: true
+                tap_action:
+                  action: toggle
+                icon: mdi:fan-auto
+                card_mod:
+                  style: |
+                    ha-card {
+                      border-radius: 12px;
+                      transition: all 0.3s ease;
+                    }
+                    ha-card:hover {
+                      transform: scale(1.05);
+                      box-shadow: 0 6px 20px rgba(var(--rgb-info-color), 0.3);
+                    }
+
+          # Charging Controls
+          - type: markdown
+            content: |
+              # ⚡ Charging
+              Battery & power management
+            card_mod:
+              style: |
+                ha-card {
+                  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(56, 142, 60, 0.1) 100%);
+                  border-radius: 15px;
+                  padding: 8px;
+                  text-align: center;
+                  font-weight: 600;
+                }
+
+          - type: entities
+            entities:
+              - entity: cover.r1t_charge_port_door
+                name: Charge Port Door
+              - entity: switch.r1t_charging_enabled
+                name: Charging Enabled
+              - entity: number.r1t_charge_limit
+                name: Charge Limit
+            card_mod:
+              style: |
+                ha-card {
+                  border-radius: 15px;
+                  background: rgba(76, 175, 80, 0.03);
+                  border: 2px solid rgba(76, 175, 80, 0.1);
+                }
+
+          # Access Controls
+          - type: markdown
+            content: |
+              # 🚪 Access
+              Doors, storage & compartments
+            card_mod:
+              style: |
+                ha-card {
+                  background: linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, rgba(123, 31, 162, 0.1) 100%);
+                  border-radius: 15px;
+                  padding: 8px;
+                  text-align: center;
+                  font-weight: 600;
+                }
+
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: button
+                entity: cover.r1t_hood
+                name: Hood
+                show_state: true
+                tap_action:
+                  action: more-info
+                icon: mdi:car-door
+              - type: button
+                entity: cover.r1t_windows
+                name: Windows
+                show_state: true
+                tap_action:
+                  action: more-info
+                icon: mdi:window-open-variant
+              - type: button
+                entity: binary_sensor.r1t_left_gear_tunnel
+                name: Left Gear Tunnel
+                show_state: true
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_open_gear_tunnel_left
+                icon: mdi:package-variant
+              - type: button
+                entity: binary_sensor.r1t_right_gear_tunnel
+                name: Right Gear Tunnel
+                show_state: true
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_open_gear_tunnel_right
+                icon: mdi:package-variant
+              - type: button
+                entity: binary_sensor.r1t_tailgate
+                name: Tailgate
+                show_state: true
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.r1t_drop_tailgate
+                icon: mdi:tailgate
+
+          # Seat Climate
+          - type: markdown
+            content: |
+              # 🪑 Seat Climate
+              Heating & cooling controls
+            card_mod:
+              style: |
+                ha-card {
+                  background: linear-gradient(135deg, rgba(255, 87, 34, 0.1) 0%, rgba(230, 74, 25, 0.1) 100%);
+                  border-radius: 15px;
+                  padding: 8px;
+                  text-align: center;
+                  font-weight: 600;
+                }
+
+          - type: entities
+            entities:
+              - entity: select.r1t_front_left_seat_climate
+                name: Driver Seat
+              - entity: select.r1t_front_right_seat_climate
+                name: Passenger Seat
+              - entity: select.r1t_rear_left_seat_heating
+                name: Rear Left
+              - entity: select.r1t_rear_right_seat_heating
+                name: Rear Right
+              - entity: switch.r1t_steering_wheel_heating
+                name: Steering Wheel
+            card_mod:
+              style: |
+                ha-card {
+                  border-radius: 15px;
+                  background: rgba(255, 87, 34, 0.03);
+                  border: 2px solid rgba(255, 87, 34, 0.1);
+                }
+
+  # Additional tabs remain similar with enhanced styling...
+  - theme: Backend-selected
+    title: Location
+    path: location
+    icon: mdi:map-marker
+    cards:
+      - type: map
+        entities:
+          - entity: device_tracker.r1t_location
+        dark_mode: true
+        hours_to_show: 24
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              overflow: hidden;
+              box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            }
+
+  - theme: Backend-selected
+    title: History
+    path: history
+    icon: mdi:chart-timeline-variant
+    cards:
+      - type: history-graph
+        entities:
+          - sensor.r1t_battery_state_of_charge
+          - sensor.r1t_range
+          - sensor.r1t_power_state
+          - sensor.r1t_charging_state
+        hours_to_show: 24
+        title: 24 Hour Overview
+        card_mod:
+          style: |
+            ha-card {
+              border-radius: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            }
