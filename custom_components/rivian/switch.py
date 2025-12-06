@@ -81,6 +81,7 @@ PARALLAX_SWITCHES: Final[tuple[RivianParallaxSwitchEntityDescription, ...]] = (
         key="halloween_enabled",
         translation_key="halloween_enabled",
         icon="mdi:halloween",
+        is_on=lambda coor: coor.parallax_coordinator.get("halloween.enabled", False),
         turn_on_method="set_halloween_settings",
         turn_on_kwargs={"enabled": True},
         turn_off_method="set_halloween_settings",
@@ -90,6 +91,9 @@ PARALLAX_SWITCHES: Final[tuple[RivianParallaxSwitchEntityDescription, ...]] = (
         key="cabin_ventilation",
         translation_key="cabin_ventilation",
         icon="mdi:fan",
+        is_on=lambda coor: coor.parallax_coordinator.get(
+            "cabin_ventilation.enabled", False
+        ),
         turn_on_method="set_cabin_ventilation",
         turn_on_kwargs={"enabled": True},
         turn_off_method="set_cabin_ventilation",
@@ -99,6 +103,9 @@ PARALLAX_SWITCHES: Final[tuple[RivianParallaxSwitchEntityDescription, ...]] = (
         key="gear_guard_video_consent",
         translation_key="gear_guard_video_consent",
         icon="mdi:cctv",
+        is_on=lambda coor: coor.parallax_coordinator.get(
+            "gear_guard_consents.video_enabled", False
+        ),
         turn_on_method="set_gear_guard_consents",
         turn_on_kwargs={
             "video_enabled": True,
@@ -118,6 +125,9 @@ PARALLAX_SWITCHES: Final[tuple[RivianParallaxSwitchEntityDescription, ...]] = (
         key="passive_entry",
         translation_key="passive_entry",
         icon="mdi:key-wireless",
+        is_on=lambda coor: coor.parallax_coordinator.get(
+            "passive_entry_setting.enabled", False
+        ),
         turn_on_method="set_passive_entry_settings",
         turn_on_kwargs={"enabled": True},
         turn_off_method="set_passive_entry_settings",
@@ -206,7 +216,12 @@ class RivianParallaxSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
     """Representation of a Rivian Parallax switch entity."""
 
     entity_description: RivianParallaxSwitchEntityDescription
-    _attr_assumed_state = True
+
+    @property
+    def assumed_state(self) -> bool:
+        """Return True if entity has no state feedback (write-only)."""
+        # Not assumed state if is_on callback is defined
+        return self.entity_description.is_on is None
 
     @property
     def is_on(self) -> bool | None:

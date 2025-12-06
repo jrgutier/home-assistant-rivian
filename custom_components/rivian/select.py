@@ -93,7 +93,7 @@ PARALLAX_SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
         translation_key="halloween_mode",
         icon="mdi:halloween",
         options=["SPOOKY", "FESTIVE"],
-        field="",  # Write-only, no state field
+        field="parallax.halloween.animation_mode",
         select=lambda coordinator, option: coordinator.send_parallax_command(
             "set_halloween_settings", enabled=True, animation_mode=option
         ),
@@ -103,7 +103,7 @@ PARALLAX_SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
         translation_key="cabin_ventilation_mode",
         icon="mdi:fan",
         options=["AUTO", "MANUAL"],
-        field="",  # Write-only
+        field="parallax.cabin_ventilation.mode",
         select=lambda coordinator, option: coordinator.send_parallax_command(
             "set_cabin_ventilation", enabled=True, mode=option
         ),
@@ -181,6 +181,17 @@ class RivianSelectEntity(RivianVehicleControlEntity, SelectEntity):
     """Representation of a Rivian select entity."""
 
     entity_description: RivianSelectEntityDescription
+
+    def _get_value(self, key: str) -> Any | None:
+        """Get a data value from the coordinator.
+
+        Routes parallax.* keys to ParallaxCoordinator.
+        """
+        if key.startswith("parallax."):
+            # Route to ParallaxCoordinator (remove "parallax." prefix)
+            parallax_key = key[9:]
+            return self.coordinator.parallax_coordinator.get(parallax_key)
+        return self.coordinator.get(key)
 
     @property
     def current_option(self) -> str | None:

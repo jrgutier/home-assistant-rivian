@@ -47,6 +47,7 @@ def mock_rivian_client() -> Generator[MagicMock, None, None]:
         client.subscribe_for_vehicle_updates = AsyncMock()
         client.subscribe_for_cloud_connection = AsyncMock()
         client.subscribe_for_charging_session = AsyncMock()
+        client.subscribe_for_parallax_messages = AsyncMock()
         client.close = AsyncMock()
         mock_client.return_value = client
         yield client
@@ -190,6 +191,10 @@ def mock_vehicle_coordinator_with_parallax() -> MagicMock:
             "identity_id": "test_identity_id",
         }
     )
+
+    # Mock parallax_coordinator
+    coordinator.parallax_coordinator = MagicMock()
+    coordinator.parallax_coordinator.get = MagicMock(return_value=None)
 
     # Implement send_parallax_command to use real pattern (calls API method)
     async def _send_parallax_command(method_name: str, **kwargs):

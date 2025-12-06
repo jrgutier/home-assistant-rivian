@@ -221,13 +221,13 @@ class TestHalloweenSwitch:
             enabled=False,
         )
 
-    async def test_halloween_switch_assumed_state(
+    async def test_halloween_switch_not_assumed_state_when_is_on_defined(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
         mock_vehicle_coordinator_with_parallax,
     ) -> None:
-        """Test Halloween switch has assumed_state=True (write-only)."""
+        """Test Halloween switch is NOT assumed_state when is_on is defined."""
         from custom_components.rivian.switch import (
             PARALLAX_SWITCHES,
             RivianParallaxSwitchEntity,
@@ -254,8 +254,8 @@ class TestHalloweenSwitch:
             },
         )
 
-        # Assert that _attr_assumed_state = True
-        assert entity._attr_assumed_state is True
+        # Assert that assumed_state is False when is_on is defined
+        assert entity.assumed_state is False
 
 
 class TestHalloweenSelect:
@@ -278,7 +278,7 @@ class TestHalloweenSelect:
         assert halloween_desc.translation_key == "halloween_mode"
         assert halloween_desc.icon == "mdi:halloween"
         assert halloween_desc.options == ["SPOOKY", "FESTIVE"]
-        assert halloween_desc.field == ""  # Write-only
+        assert halloween_desc.field == "parallax.halloween.animation_mode"
 
     async def test_halloween_mode_select_calls_api(
         self,
@@ -330,7 +330,7 @@ class TestHalloweenNumber:
         assert halloween_desc.native_min_value == 0
         assert halloween_desc.native_max_value == 100
         assert halloween_desc.native_step == 10
-        assert halloween_desc.field == ""  # Write-only
+        assert halloween_desc.field == "parallax.halloween.brightness"
 
     async def test_halloween_brightness_set_calls_api(
         self,

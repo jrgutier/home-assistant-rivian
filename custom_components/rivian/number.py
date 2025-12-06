@@ -45,7 +45,7 @@ PARALLAX_NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
         native_max_value=100,
         native_step=10,
         native_unit_of_measurement=PERCENTAGE,
-        field="",  # Write-only, no state field
+        field="parallax.halloween.brightness",
         set_fn=lambda coordinator, value: coordinator.send_parallax_command(
             "set_halloween_settings", enabled=True, brightness=int(value)
         ),
@@ -58,7 +58,7 @@ PARALLAX_NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
         native_max_value=100,
         native_step=25,
         native_unit_of_measurement=PERCENTAGE,
-        field="",  # Write-only
+        field="parallax.cabin_ventilation.windows_open_percent",
         set_fn=lambda coordinator, value: coordinator.send_parallax_command(
             "set_cabin_ventilation", enabled=True, windows_open_percent=int(value)
         ),
@@ -71,7 +71,7 @@ PARALLAX_NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
         native_max_value=100,
         native_step=25,
         native_unit_of_measurement=PERCENTAGE,
-        field="",  # Write-only
+        field="parallax.cabin_ventilation.sunroof_open_percent",
         set_fn=lambda coordinator, value: coordinator.send_parallax_command(
             "set_cabin_ventilation", enabled=True, sunroof_open_percent=int(value)
         ),
@@ -84,7 +84,7 @@ PARALLAX_NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
         native_max_value=60,
         native_step=1,
         native_unit_of_measurement="min",
-        field="",  # Write-only
+        field="parallax.cabin_ventilation.duration_minutes",
         set_fn=lambda coordinator, value: coordinator.send_parallax_command(
             "set_cabin_ventilation", enabled=True, duration_minutes=int(value)
         ),
@@ -97,7 +97,7 @@ PARALLAX_NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
         native_max_value=10.0,
         native_step=0.5,
         native_unit_of_measurement=UnitOfLength.METERS,
-        field="",  # Write-only
+        field="parallax.passive_entry_setting.approach_distance_meters",
         set_fn=lambda coordinator, value: coordinator.send_parallax_command(
             "set_passive_entry_settings",
             enabled=True,
@@ -137,6 +137,17 @@ class RivianNumberEntity(RivianVehicleControlEntity, NumberEntity):
     """Representation of a Rivian number entity."""
 
     entity_description: RivianNumberEntityDescription
+
+    def _get_value(self, key: str) -> Any | None:
+        """Get a data value from the coordinator.
+
+        Routes parallax.* keys to ParallaxCoordinator.
+        """
+        if key.startswith("parallax."):
+            # Route to ParallaxCoordinator (remove "parallax." prefix)
+            parallax_key = key[9:]
+            return self.coordinator.parallax_coordinator.get(parallax_key)
+        return self.coordinator.get(key)
 
     @property
     def native_value(self) -> str | None:
