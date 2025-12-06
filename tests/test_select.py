@@ -549,8 +549,11 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should have created 4 select entities (2 rear + 2 front)
-    assert len(entities_added) == 4
+    # Should have created 6 select entities (2 rear + 2 front + 2 PARALLAX_SELECTS)
+    # - seat_rear_left_heat, seat_rear_right_heat
+    # - seat_front_left_heat_vent, seat_front_right_heat_vent
+    # - halloween_mode, cabin_ventilation_mode
+    assert len(entities_added) == 6
 
 
 @pytest.mark.asyncio

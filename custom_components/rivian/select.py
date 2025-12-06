@@ -87,6 +87,29 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
     ),
 )
 
+PARALLAX_SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
+    RivianSelectEntityDescription(
+        key="halloween_mode",
+        translation_key="halloween_mode",
+        icon="mdi:halloween",
+        options=["SPOOKY", "FESTIVE"],
+        field="",  # Write-only, no state field
+        select=lambda coordinator, option: coordinator.send_parallax_command(
+            "set_halloween_settings", enabled=True, animation_mode=option
+        ),
+    ),
+    RivianSelectEntityDescription(
+        key="cabin_ventilation_mode",
+        translation_key="cabin_ventilation_mode",
+        icon="mdi:fan",
+        options=["AUTO", "MANUAL"],
+        field="",  # Write-only
+        select=lambda coordinator, option: coordinator.send_parallax_command(
+            "set_cabin_ventilation", enabled=True, mode=option
+        ),
+    ),
+)
+
 # Front seat combined heat/cool entities use a custom entity class
 FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
     {
@@ -138,6 +161,16 @@ async def async_setup_entry(
             for vehicle_id, vehicle in vehicles.items()
             if vehicle.get("phone_identity_id")
             for seat_config in FRONT_SEAT_SELECTS
+        ]
+    )
+
+    # Add Parallax select entities (require pairing)
+    entities.extend(
+        [
+            RivianSelectEntity(coordinators[vehicle_id], entry, description, vehicle)
+            for vehicle_id, vehicle in vehicles.items()
+            if vehicle.get("phone_identity_id")
+            for description in PARALLAX_SELECTS
         ]
     )
 

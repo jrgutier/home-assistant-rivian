@@ -1,0 +1,107 @@
+name: Pre-Release Build
+
+on:
+  push:
+    branches:
+      - dev
+      - dev-*
+  workflow_dispatch:
+
+jobs:
+  build_and_release:
+    name: Build and create pre-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get current version from manifest
+        id: current_version
+        run: |
+          VERSION=$(jq -r '.version' custom_components/rivian/manifest.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Calculate next pre-release version
+        id: next_version
+        run: |
+          CURRENT="${{ steps.current_version.outputs.version }}"
+
+          # Extract base version and beta number
+          # Pattern: X.Y.Z-betaN or X.Y.Z
+          if [[ "$CURRENT" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-beta([0-9]+)$ ]]; then
+            BASE="${BASH_REMATCH[1]}"
+            BETA_NUM="${BASH_REMATCH[2]}"
+            NEXT_BETA=$((BETA_NUM + 1))
+            NEXT_VERSION="${BASE}-beta${NEXT_BETA}"
+          elif [[ "$CURRENT" =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            # No beta suffix, start at beta1
+            BASE="${BASH_REMATCH[1]}"
+            NEXT_VERSION="${BASE}-beta1"
+          else
+            echo "Error: Unable to parse version: $CURRENT"
+            exit 1
+          fi
+
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT_VERSION"
+
+      - name: Update version in files
+        run: |
+          NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
+
+          # Update manifest.json
+          jq --arg v "$NEXT_VERSION" '.version = $v' custom_components/rivian/manifest.json > tmp.json
+          mv tmp.json custom_components/rivian/manifest.json
+
+          # Update const.py if VERSION is defined
+          if grep -q "^VERSION = " custom_components/rivian/const.py 2>/dev/null; then
+            sed -i "s/^VERSION = .*/VERSION = \"$NEXT_VERSION\"/" custom_components/rivian/const.py
+          fi
+
+          echo "Updated to version: $NEXT_VERSION"
+          cat custom_components/rivian/manifest.json
+
+      - name: Create zip package
+        run: |
+          cd custom_components/rivian
+          zip -r ../../rivian.zip ./
+          cd ../..
+          ls -la rivian.zip
+
+      - name: Create or update pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.next_version.outputs.next_version }}
+          name: "Pre-release ${{ steps.next_version.outputs.next_version }}"
+          body: |
+            ## Pre-release Build
+
+            **Version:** ${{ steps.next_version.outputs.next_version }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+
+            ⚠️ This is an automated pre-release build. Use at your own risk.
+
+            ### Installation via HACS
+            1. Add this repository as a custom repository in HACS
+            2. Install the Rivian integration
+            3. Restart Home Assistant
+          files: rivian.zip
+          prerelease: true
+          generate_release_notes: true
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add custom_components/rivian/manifest.json
+          if [ -f custom_components/rivian/const.py ]; then
+            git add custom_components/rivian/const.py
+          fi
+          git commit -m "chore: bump version to ${{ steps.next_version.outputs.next_version }} [skip ci]" || echo "No changes to commit"
+          git push || echo "Push skipped (likely no changes)"

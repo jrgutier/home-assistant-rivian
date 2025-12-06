@@ -14,7 +14,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
-from .data_classes import RivianSwitchEntityDescription
+from .data_classes import (
+    RivianParallaxSwitchEntityDescription,
+    RivianSwitchEntityDescription,
+)
 from .entity import RivianVehicleControlEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,6 +76,55 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     ),
 )
 
+PARALLAX_SWITCHES: Final[tuple[RivianParallaxSwitchEntityDescription, ...]] = (
+    RivianParallaxSwitchEntityDescription(
+        key="halloween_enabled",
+        translation_key="halloween_enabled",
+        icon="mdi:halloween",
+        turn_on_method="set_halloween_settings",
+        turn_on_kwargs={"enabled": True},
+        turn_off_method="set_halloween_settings",
+        turn_off_kwargs={"enabled": False},
+    ),
+    RivianParallaxSwitchEntityDescription(
+        key="cabin_ventilation",
+        translation_key="cabin_ventilation",
+        icon="mdi:fan",
+        turn_on_method="set_cabin_ventilation",
+        turn_on_kwargs={"enabled": True},
+        turn_off_method="set_cabin_ventilation",
+        turn_off_kwargs={"enabled": False},
+    ),
+    RivianParallaxSwitchEntityDescription(
+        key="gear_guard_video_consent",
+        translation_key="gear_guard_video_consent",
+        icon="mdi:cctv",
+        turn_on_method="set_gear_guard_consents",
+        turn_on_kwargs={
+            "video_enabled": True,
+            "audio_enabled": True,
+            "cloud_storage_enabled": True,
+            "local_storage_enabled": True,
+        },
+        turn_off_method="set_gear_guard_consents",
+        turn_off_kwargs={
+            "video_enabled": False,
+            "audio_enabled": False,
+            "cloud_storage_enabled": False,
+            "local_storage_enabled": False,
+        },
+    ),
+    RivianParallaxSwitchEntityDescription(
+        key="passive_entry",
+        translation_key="passive_entry",
+        icon="mdi:key-wireless",
+        turn_on_method="set_passive_entry_settings",
+        turn_on_kwargs={"enabled": True},
+        turn_off_method="set_passive_entry_settings",
+        turn_off_kwargs={"enabled": False},
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -88,7 +140,18 @@ async def async_setup_entry(
         if vehicle.get("phone_identity_id")
         for description in SWITCHES
     ]
-    async_add_entities(entities)
+
+    # Add Parallax switches (require pairing)
+    parallax_entities = [
+        RivianParallaxSwitchEntity(
+            coordinators[vehicle_id], entry, description, vehicle
+        )
+        for vehicle_id, vehicle in vehicles.items()
+        if vehicle.get("phone_identity_id")
+        for description in PARALLAX_SWITCHES
+    ]
+
+    async_add_entities(entities + parallax_entities)
 
 
 class RivianSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
@@ -137,3 +200,40 @@ class RivianSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
             _LOGGER.error(
                 "Switch %s has neither command_on nor turn_on defined", self.entity_id
             )
+
+
+class RivianParallaxSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
+    """Representation of a Rivian Parallax switch entity."""
+
+    entity_description: RivianParallaxSwitchEntityDescription
+    _attr_assumed_state = True
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True if entity is on."""
+        if self.entity_description.is_on:
+            return self.entity_description.is_on(self.coordinator)
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return the availability of the entity."""
+        return super().available and (
+            _fn(self.coordinator)
+            if (_fn := self.entity_description.available)
+            else True
+        )
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the entity off."""
+        await self.coordinator.send_parallax_command(
+            self.entity_description.turn_off_method,
+            **self.entity_description.turn_off_kwargs,
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the entity on."""
+        await self.coordinator.send_parallax_command(
+            self.entity_description.turn_on_method,
+            **self.entity_description.turn_on_kwargs,
+        )

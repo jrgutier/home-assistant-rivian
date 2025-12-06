@@ -24,7 +24,11 @@ sys.modules["rivian"] = mock_rivian
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianSwitchEntityDescription
-from custom_components.rivian.switch import RivianSwitchEntity, async_setup_entry
+from custom_components.rivian.switch import (
+    RivianParallaxSwitchEntity,
+    RivianSwitchEntity,
+    async_setup_entry,
+)
 
 
 class TestRivianSwitchEntity:
@@ -478,9 +482,14 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should have created multiple switch entities (5 defined in SWITCHES)
-    assert len(entities_added) == 5
-    assert all(isinstance(e, RivianSwitchEntity) for e in entities_added)
+    # Should have created 9 switch entities (5 SWITCHES + 4 PARALLAX_SWITCHES)
+    # SWITCHES: alarm, charging_enabled, gear_guard_video, steering_wheel_heat, cabin_climate_hold
+    # PARALLAX_SWITCHES: halloween_enabled, cabin_ventilation, gear_guard_video_consent, passive_entry
+    assert len(entities_added) == 9
+    assert all(
+        isinstance(e, (RivianSwitchEntity, RivianParallaxSwitchEntity))
+        for e in entities_added
+    )
 
 
 @pytest.mark.asyncio

@@ -270,8 +270,11 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should have created one number entity (battery_limit)
-    assert len(entities_added) == 1
+    # Should have created 6 number entities (1 NUMBERS + 5 PARALLAX_NUMBERS)
+    # - battery_limit
+    # - halloween_brightness, cabin_ventilation_windows, cabin_ventilation_sunroof,
+    #   cabin_ventilation_duration, passive_entry_distance
+    assert len(entities_added) == 6
     assert isinstance(entities_added[0], RivianNumberEntity)
 
 

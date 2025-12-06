@@ -1136,6 +1136,31 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         return command_id
 
+    async def send_parallax_command(
+        self, method_name: str, **kwargs: Any
+    ) -> dict[str, Any]:
+        """Send a Parallax command to the vehicle.
+
+        Parallax commands use the cloud-based protocol and don't require HMAC signing,
+        but do require phone pairing for authorization.
+
+        Args:
+            method_name: The API method name (e.g., "set_halloween_settings")
+            **kwargs: Parameters to pass to the API method
+
+        Returns:
+            dict with success status and response payload
+        """
+        _LOGGER.debug(
+            "Sending Parallax command %s with kwargs: %s", method_name, kwargs
+        )
+
+        # Get the API method by name
+        method = getattr(self.api, method_name)
+
+        # Call the method with vehicle_id and any additional kwargs
+        return await method(vehicle_id=self.vehicle_id, **kwargs)
+
 
 class VehicleImageCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
     """Vehicle image data update coordinator for Rivian."""

@@ -157,3 +157,65 @@ async def setup_integration(
     """Set up the integration for testing."""
     mock_config_entry.add_to_hass(hass)
     return mock_config_entry
+
+
+@pytest.fixture
+def mock_vehicle_coordinator_with_parallax() -> MagicMock:
+    """Return a mocked VehicleCoordinator with Parallax/Halloween support (paired vehicle).
+
+    This fixture creates a mock coordinator where send_parallax_command() uses
+    the real implementation pattern: it gets the method from api and calls it
+    with vehicle_id plus any additional kwargs.
+    """
+    coordinator = MagicMock()
+    coordinator.vehicle_id = "test_vehicle_id_123"
+    coordinator.vehicle_name = "Test R1T"
+    coordinator.vin = "TEST123456789"
+    coordinator.data = {
+        "powerState": {"value": "go", "timeStamp": "2024-01-01T00:00:00Z"},
+        "gearStatus": {"value": "park", "timeStamp": "2024-01-01T00:00:00Z"},
+    }
+
+    # Mock API with parallax methods
+    coordinator.api = MagicMock()
+    coordinator.api.set_halloween_settings = AsyncMock(
+        return_value={"success": True, "sequenceNumber": 1, "payload": ""}
+    )
+
+    # Mock pairing data (vehicle is paired for Parallax controls)
+    coordinator.get_pairing_data = MagicMock(
+        return_value={
+            "vas_id": "test_vas_id",
+            "vehicle_public_key": "test_vehicle_public_key",
+            "identity_id": "test_identity_id",
+        }
+    )
+
+    # Implement send_parallax_command to use real pattern (calls API method)
+    async def _send_parallax_command(method_name: str, **kwargs):
+        method = getattr(coordinator.api, method_name)
+        return await method(vehicle_id=coordinator.vehicle_id, **kwargs)
+
+    coordinator.send_parallax_command = _send_parallax_command
+
+    return coordinator
+
+
+@pytest.fixture
+def mock_vehicle_coordinator_without_pairing() -> MagicMock:
+    """Return a mocked VehicleCoordinator without pairing (no Parallax support)."""
+    coordinator = MagicMock()
+    coordinator.vehicle_id = "test_vehicle_id_123"
+    coordinator.vehicle_name = "Test R1T"
+    coordinator.vin = "TEST123456789"
+    coordinator.data = {
+        "powerState": {"value": "go", "timeStamp": "2024-01-01T00:00:00Z"},
+    }
+
+    # Mock API
+    coordinator.api = MagicMock()
+
+    # No pairing data (vehicle is not paired)
+    coordinator.get_pairing_data = MagicMock(return_value=None)
+
+    return coordinator
