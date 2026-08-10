@@ -24,8 +24,8 @@ LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
     RivianLockEntityDescription(
         key="closures",
         name="Closures",
-        is_locked=lambda coordinator: not any(
-            coordinator.get(key) == "unlocked" for key in LOCK_STATE_ENTITIES
+        is_locked=lambda coordinator: (
+            not any(coordinator.get(key) == "unlocked" for key in LOCK_STATE_ENTITIES)
         ),
         lock=lambda coordinator: coordinator.send_vehicle_command(
             command=VehicleCommand.LOCK_ALL_CLOSURES_FEEDBACK

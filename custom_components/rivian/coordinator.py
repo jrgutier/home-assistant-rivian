@@ -38,7 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T", bound=dict[str, Any] | list[dict[str, Any]])
 
 
-class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
+class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
     """Data update coordinator for the Rivian integration."""
 
     key: str
@@ -106,7 +106,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
             raise ConfigEntryAuthFailed from err
         except RivianApiException as ex:
             _LOGGER.error("Rivian api exception: %s", ex, exc_info=1)
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             _LOGGER.error(
                 "Unknown Exception while updating Rivian data: %s", ex, exc_info=1
             )

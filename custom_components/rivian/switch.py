@@ -35,10 +35,13 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         key="charging_enabled",
         icon="mdi:lightning-bolt",
         name="Charging Enabled",
-        available=lambda coor: coor.get("remoteChargingAvailable") == 1
-        or coor.get("chargerState") == "charging_active",
-        is_on=lambda coor: coor.get("chargerState")
-        in ("charging_active", "charging_connecting"),
+        available=lambda coor: (
+            coor.get("remoteChargingAvailable") == 1
+            or coor.get("chargerState") == "charging_active"
+        ),
+        is_on=lambda coor: (
+            coor.get("chargerState") in ("charging_active", "charging_connecting")
+        ),
         turn_off=lambda coor: coor.send_vehicle_command(
             command=VehicleCommand.STOP_CHARGING
         ),

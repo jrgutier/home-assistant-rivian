@@ -139,7 +139,7 @@ async def validate_vehicle_control(
                 )
                 await api.close()
                 raise SchemaFlowError("phone_limit") from err
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:  # noqa: BLE001
                 _LOGGER.error("Unable to enable control for %s: %s", vehicle_name, ex)
             if not success:
                 user_input[CONF_VEHICLE_CONTROL] = [
@@ -155,7 +155,7 @@ async def validate_vehicle_control(
                 identity_id = vehicle_identity[vehicle_id]
                 if not (success := await api.disenroll_phone(identity_id=identity_id)):
                     _LOGGER.warning("Unable to disable control for %s", vehicle_name)
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:  # noqa: BLE001
                 _LOGGER.error("Unable to disable control for %s: %s", vehicle_name, ex)
             # should we do something else if unable to disenroll?
 
@@ -239,7 +239,7 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
                     reason = error["extensions"]["reason"]
                     msg = f"{error['message']}: {reason}"
                     show_otp = reason == "INVALID_OTP_TOKEN"
-                except Exception:  # pylint: disable=broad-except
+                except Exception:  # noqa: BLE001
                     msg = str(err)
                 _LOGGER.error(msg)
                 self._errors["base"] = msg

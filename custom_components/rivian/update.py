@@ -141,7 +141,7 @@ class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
                 url = details["url"]
             else:
                 url = data["currentOTAUpdateDetails"]["url"]
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa: BLE001
             url = self._rivian_software_url
         return f"[Read release announcement]({url})"
 

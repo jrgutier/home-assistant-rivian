@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 from typing import Any, Final
 
@@ -219,9 +219,11 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         field="startTime",
         name="Charging Start Time",
         device_class=SensorDeviceClass.TIMESTAMP,
-        value_lambda=lambda val: datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)
-        if val
-        else val,
+        value_lambda=lambda val: (
+            datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT).astimezone(UTC)
+            if val
+            else val
+        ),
     ),
     RivianSensorEntityDescription(
         key="charging_time_elapsed",
