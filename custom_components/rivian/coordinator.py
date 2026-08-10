@@ -37,6 +37,11 @@ from .helpers import redact
 _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T", bound=dict[str, Any] | list[dict[str, Any]])
 
+# Maximum time to wait for the first vehicle state to arrive after subscribing.
+# The first `_process_new_data` callback has been observed ~27s after the
+# subscription is established, so this needs meaningful headroom.
+INITIAL_UPDATE_TIMEOUT = 60
+
 
 class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
     """Data update coordinator for the Rivian integration."""
@@ -282,9 +287,12 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
 
             try:
-                await asyncio.wait_for(self._initial.wait(), 1)
+                await asyncio.wait_for(self._initial.wait(), INITIAL_UPDATE_TIMEOUT)
             except asyncio.TimeoutError as err:
-                raise UpdateFailed from err
+                raise UpdateFailed(
+                    "Timed out waiting for initial vehicle data after "
+                    f"{INITIAL_UPDATE_TIMEOUT}s"
+                ) from err
 
         return self.data
 
