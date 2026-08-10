@@ -92,5 +92,5 @@ class RivianDeviceEntity(RivianVehicleEntity, TrackerEntity):
             if entity["timeStamp"] != self._tracker_data["timeStamp"]:
                 self._tracker_data = entity
                 self.async_write_ha_state()
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._tracker_data = entity

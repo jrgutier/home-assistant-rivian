@@ -60,8 +60,9 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
         RivianButtonEntityDescription(
             key="drop_tailgate",
             name="Drop Tailgate",
-            available=lambda coordinator: coordinator.get("closureTailgateClosed")
-            != "open",
+            available=lambda coordinator: (
+                coordinator.get("closureTailgateClosed") != "open"
+            ),
             press_fn=lambda coordinator: coordinator.send_vehicle_command(
                 command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE
             ),
@@ -160,7 +161,7 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                     service_info.device,
                     str(UUID(vehicle["vas_id"])) in service_info.service_uuids,
                 )
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:  # noqa: BLE001
                 _LOGGER.error(
                     "%s not found%s",
                     rivian_ble.DEVICE_LOCAL_NAME,
