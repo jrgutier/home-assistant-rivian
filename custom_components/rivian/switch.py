@@ -15,7 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSwitchEntityDescription
-from .entity import RivianVehicleControlEntity
+from .entity import RivianVehicleControlEntity, RivianVehicleEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,6 +75,14 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     ),
 )
 
+CHARGING_SCHEDULE_ENABLED_SWITCH = RivianSwitchEntityDescription(
+    key="charging_schedule_enabled",
+    translation_key="charging_schedule_enabled",
+    is_on=lambda c: c.charging_schedule.get("enabled", True),
+    turn_off=lambda c: c.update_charging_schedule_data({"enabled": False}),
+    turn_on=lambda c: c.update_charging_schedule_data({"enabled": True}),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -90,7 +98,38 @@ async def async_setup_entry(
         if vehicle.get("phone_identity_id")
         for description in SWITCHES
     ]
+    for vehicle_id, vehicle in vehicles.items():
+        coord = coordinators[vehicle_id]
+        entities.append(
+            RivianChargingScheduleEnabledEntity(
+                coord, entry, CHARGING_SCHEDULE_ENABLED_SWITCH, vehicle
+            )
+        )
     async_add_entities(entities)
+
+
+class RivianChargingScheduleEnabledEntity(RivianVehicleEntity, SwitchEntity):
+    """Charging Schedule Enabled Entity."""
+
+    entity_description: RivianSwitchEntityDescription
+
+    @property
+    def available(self) -> bool:
+        """Return availability."""
+        return self._available
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if entity is on."""
+        return self.entity_description.is_on(self.coordinator)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the entity on."""
+        await self.entity_description.turn_on(self.coordinator)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the entity off."""
+        await self.entity_description.turn_off(self.coordinator)
 
 
 class RivianSwitchEntity(RivianVehicleControlEntity, SwitchEntity):

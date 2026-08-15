@@ -14,6 +14,7 @@ from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.select import SelectEntityDescription
 from homeassistant.components.sensor import SensorEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
+from homeassistant.components.time import TimeEntityDescription
 from homeassistant.helpers.entity import EntityDescription
 
 if TYPE_CHECKING:
@@ -110,3 +111,11 @@ class RivianWallboxSensorEntityDescription(SensorEntityDescription):
     """A class that describes Rivian wallbox sensor entities."""
 
     field: str
+
+
+@dataclass(kw_only=True)
+class RivianTimeEntityDescription(TimeEntityDescription):
+    """Rivian time entity description."""
+
+    value_fn: Callable[[VehicleCoordinator], Any]
+    set_fn: Callable[[VehicleCoordinator, Any], Awaitable[None]]

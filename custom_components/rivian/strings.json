@@ -51,9 +51,21 @@
         "name": "Charge port door"
       }
     },
+    "number": {
+      "charging_schedule_amperage": {
+        "name": "Charging schedule amperage"
+      }
+    },
     "sensor": {
       "active_driver": {
         "name": "Active driver"
+      },
+      "charging_schedule_days": {
+        "name": "Charging schedule days",
+        "state": {
+          "daily": "Daily",
+          "weekdays": "Weekdays"
+        }
       },
       "charging_status": {
         "state": {
@@ -63,6 +75,19 @@
           "plugged_in": "Plugged in",
           "charging": "Charging"
         }
+      }
+    },
+    "switch": {
+      "charging_schedule_enabled": {
+        "name": "Charging schedule enabled"
+      }
+    },
+    "time": {
+      "charging_schedule_start": {
+        "name": "Charging schedule start"
+      },
+      "charging_schedule_end": {
+        "name": "Charging schedule end"
       }
     }
   },
