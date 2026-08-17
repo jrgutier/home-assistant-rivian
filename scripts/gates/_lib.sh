@@ -58,7 +58,13 @@ absent() {
   local hits
   # `|| true`: grep exits 1 on zero matches, which under `set -e` + `pipefail`
   # would abort the gate on the success case.
-  hits=$( { grep -rnE -- "$ere" "$dir" || true; } | wc -l | tr -d ' ')
+  # -I skips binary files and --exclude-dir skips caches: stale __pycache__ .pyc
+  # files still hold old docstrings and were reported as live source matches,
+  # failing a gate whose source tree was actually clean. (Only under bash's
+  # /usr/bin/grep -- the interactive zsh here uses ugrep, which skips binaries by
+  # default, so this reproduced in CI-shaped runs and not by hand.)
+  hits=$( { grep -rnE -I --exclude-dir=__pycache__ --exclude-dir=.git \
+              -- "$ere" "$dir" || true; } | wc -l | tr -d ' ')
   if [ "$hits" -eq 0 ]; then ok "$desc"; else bad "$desc  ($hits matches)"; fi
 }
 
