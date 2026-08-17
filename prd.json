@@ -104,18 +104,6 @@
       "gate": "scripts/gates/s05.sh"
     },
     {
-      "id": "s02b",
-      "phase": "2.5",
-      "deps": [
-        "s05"
-      ],
-      "mode": "auto",
-      "passes": false,
-      "title": "Repo-wide ruff cleanup (deferred until after the merges)",
-      "detail": "custom_components/ has 25 pre-existing ruff errors and 5 unformatted files. Deliberately NOT fixed in s02: the s03/s05 merges rewrite much of that code, so cleaning first only manufactures conflicts. .github/workflows/test.yaml currently lints tests/ as blocking and custom_components/ with continue-on-error: true. This story fixes the 25 errors, formats the 5 files, and REMOVES the continue-on-error so lint is blocking repo-wide. Do not touch the workflow's 'on:' block.",
-      "gate": "scripts/gates/s02b.sh"
-    },
-    {
       "id": "s06a",
       "phase": "2.5-2.8",
       "deps": [

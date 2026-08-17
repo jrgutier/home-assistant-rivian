@@ -22,8 +22,13 @@ contains  "client ci.yaml triggers on vendor-client" 'vendor-client' "$CI"
 # before collecting. Assert the flags and the dependency agree instead.
 # strip comments first — an explanatory comment mentioning --cov is not a flag
 if grep -v '^\s*#' "$CI" | grep -q -- '--cov'; then
-  if grep -q 'pytest-cov' "$CLIENT/pyproject.toml" && grep -qE '^name = "pytest-cov"' "$CLIENT/poetry.lock"; then
-    ok "client ci.yaml uses --cov and pytest-cov is declared + locked"
+  # Lock file depends on the build backend: poetry.lock before the uv migration,
+  # uv.lock after. Check whichever exists rather than hardcoding one.
+  LOCK=""
+  [ -f "$CLIENT/uv.lock" ] && LOCK="$CLIENT/uv.lock"
+  [ -z "$LOCK" ] && [ -f "$CLIENT/poetry.lock" ] && LOCK="$CLIENT/poetry.lock"
+  if grep -q 'pytest-cov' "$CLIENT/pyproject.toml" && [ -n "$LOCK" ] && grep -qE '^name = "pytest-cov"' "$LOCK"; then
+    ok "client ci.yaml uses --cov, pytest-cov declared + locked in $(basename "$LOCK")"
   else
     bad "client ci.yaml uses --cov but pytest-cov is not declared/locked (pytest would exit 4)"
   fi
@@ -47,13 +52,11 @@ fi
 # The checks the workflow runs, run here.
 PY="${PYTEST:-$HA/venv/bin/pytest}"
 RUFF="$HA/venv/bin/python -m ruff"
-# Blocking scope is tests/ only. custom_components/ has 25 pre-existing ruff errors
-# and 5 unformatted files; s02b cleans them AFTER the merges, so the loop does not
-# lint code that s03/s05 are about to rewrite.
-try "ruff check passes (tests/)"        env -C "$HA" $RUFF check tests/
-try "ruff format --check passes (tests/)" env -C "$HA" $RUFF format --check tests/
-n=$( { env -C "$HA" $RUFF check custom_components/ 2>/dev/null | grep -cE '^\s*--> ' || true; } )
-note "custom_components/ ruff errors outstanding: $n (deferred to s02b, informational)"
+# Blocking repo-wide. The "25 pre-existing errors" that once justified deferring
+# custom_components/ were an unpinned-ruff artifact; the tree is clean under the
+# pinned version, so there is no debt and no deferral.
+try "ruff check passes (repo-wide)"        env -C "$HA" $RUFF check .
+try "ruff format --check passes (repo-wide)" env -C "$HA" $RUFF format --check .
 if [ -x "$PY" ]; then
   try "pytest passes with the coverage floor" env -C "$HA" "$PY" -q
 else

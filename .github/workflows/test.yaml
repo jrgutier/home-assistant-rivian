@@ -40,21 +40,14 @@ jobs:
           uv venv --python 3.13 .venv
           VIRTUAL_ENV=$PWD/.venv uv pip install -r requirements_test.txt
 
-      # Blocking on tests/ only, for now. custom_components/ carries 25 pre-existing
-      # ruff errors and 5 unformatted files, and the two upstream merges (s03/s05)
-      # are about to rewrite much of it — cleaning it now would only manufacture
-      # merge conflicts. Story s02b does the repo-wide pass after s05, and flips
-      # the informational step below to blocking.
-      - name: Lint (tests — blocking)
+      # Blocking repo-wide. An earlier revision deferred custom_components/ over
+      # "25 pre-existing errors" — those were an artifact of an unpinned ruff
+      # resolving 0.16.3. Under the pinned version the tree is clean, so there is
+      # no debt to defer.
+      - name: Lint
         run: |
-          .venv/bin/python -m ruff check tests/
-          .venv/bin/python -m ruff format --check tests/
-
-      - name: Lint (custom_components — informational until s02b)
-        continue-on-error: true
-        run: |
-          .venv/bin/python -m ruff check custom_components/
-          .venv/bin/python -m ruff format --check custom_components/
+          .venv/bin/python -m ruff check .
+          .venv/bin/python -m ruff format --check .
 
       # pytest.ini carries --cov-fail-under, which ratchets upward only.
       - name: Test

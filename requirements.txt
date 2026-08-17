@@ -11,4 +11,8 @@ rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client
 colorlog
 pip>=21.0
 pre-commit
-ruff>=0.3.0
+# Pinned to the .pre-commit-config.yaml rev so CI, the hook and local runs apply
+# the SAME rule set. Unpinned this resolved ruff 0.16.3, whose newer rules reported
+# 25 errors and 5 unformatted files in custom_components/ -- all of which are clean
+# under the pinned version. That is CI failing on a tool upgrade nobody made.
+ruff>=0.14.2,<0.15
