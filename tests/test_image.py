@@ -1,12 +1,9 @@
 """Tests for Rivian image platform."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
 
 from custom_components.rivian.const import (
     ATTR_COORDINATOR,
@@ -23,12 +20,16 @@ from custom_components.rivian.coordinator import (
     VehicleImageCoordinator,
 )
 from custom_components.rivian.image import RivianVehicleImageEntity, async_setup_entry
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
 
 
 @pytest.mark.asyncio
 async def test_async_setup_entry_cel_style(
     hass: HomeAssistant,
     mock_config_entry: ConfigEntry,
+    monkeypatch,
 ) -> None:
     """Test image platform setup with CEL style."""
     user_coordinator = MagicMock(spec=UserCoordinator)
@@ -53,8 +54,11 @@ async def test_async_setup_entry_cel_style(
     }
 
     # Mock config entry options
-    type(mock_config_entry).options = PropertyMock(
-        return_value={CONF_VEHICLE_IMAGE_STYLE: IMAGE_STYLE_CEL}
+    monkeypatch.setattr(
+        type(mock_config_entry),
+        "options",
+        PropertyMock(return_value={CONF_VEHICLE_IMAGE_STYLE: IMAGE_STYLE_CEL}),
+        raising=False,
     )
 
     # Mock VehicleImageCoordinator
@@ -103,6 +107,7 @@ async def test_async_setup_entry_cel_style(
 async def test_async_setup_entry_photo_style(
     hass: HomeAssistant,
     mock_config_entry: ConfigEntry,
+    monkeypatch,
 ) -> None:
     """Test image platform setup with photo style."""
     user_coordinator = MagicMock(spec=UserCoordinator)
@@ -127,8 +132,11 @@ async def test_async_setup_entry_photo_style(
     }
 
     # Mock config entry options
-    type(mock_config_entry).options = PropertyMock(
-        return_value={CONF_VEHICLE_IMAGE_STYLE: IMAGE_STYLE_PHOTO}
+    monkeypatch.setattr(
+        type(mock_config_entry),
+        "options",
+        PropertyMock(return_value={CONF_VEHICLE_IMAGE_STYLE: IMAGE_STYLE_PHOTO}),
+        raising=False,
     )
 
     # Mock VehicleImageCoordinator
@@ -166,6 +174,7 @@ async def test_async_setup_entry_photo_style(
 async def test_async_setup_entry_none_style(
     hass: HomeAssistant,
     mock_config_entry: ConfigEntry,
+    monkeypatch,
 ) -> None:
     """Test image platform setup with NONE style (disabled)."""
     user_coordinator = MagicMock(spec=UserCoordinator)
@@ -190,8 +199,11 @@ async def test_async_setup_entry_none_style(
     }
 
     # Mock config entry options
-    type(mock_config_entry).options = PropertyMock(
-        return_value={CONF_VEHICLE_IMAGE_STYLE: IMAGE_STYLE_NONE}
+    monkeypatch.setattr(
+        type(mock_config_entry),
+        "options",
+        PropertyMock(return_value={CONF_VEHICLE_IMAGE_STYLE: IMAGE_STYLE_NONE}),
+        raising=False,
     )
 
     entities_added = []
@@ -267,7 +279,7 @@ class TestRivianVehicleImageEntity:
         """Test image_last_updated property."""
         coordinator = MagicMock(spec=VehicleImageCoordinator)
         coordinator.hass = hass
-        last_updated = datetime(2024, 1, 15, 12, 0, 0)
+        last_updated = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
         coordinator._last_updated = last_updated
 
         data = {

@@ -3,8 +3,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 from custom_components.rivian.const import (
     ATTR_COORDINATOR,
@@ -21,6 +19,8 @@ from custom_components.rivian.coordinator import (
     WallboxCoordinator,
 )
 from custom_components.rivian.diagnostics import async_get_config_entry_diagnostics
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 @pytest.mark.asyncio

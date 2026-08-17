@@ -1,24 +1,17 @@
 """Tests for Rivian number platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.components.number import NumberDeviceClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
-from homeassistant.core import HomeAssistant
-
-# Mock VehicleCommand before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.CHARGING_LIMITS = "CHARGING_LIMITS"
-sys.modules["rivian"] = mock_rivian
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianNumberEntityDescription
 from custom_components.rivian.number import RivianNumberEntity, async_setup_entry
+from homeassistant.components.number import NumberDeviceClass
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianNumberEntity:

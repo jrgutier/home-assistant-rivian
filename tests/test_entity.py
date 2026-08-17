@@ -3,9 +3,6 @@
 from unittest.mock import MagicMock, PropertyMock
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityDescription
 
 from custom_components.rivian.button import RivianButtonEntity
 from custom_components.rivian.const import DOMAIN
@@ -20,6 +17,9 @@ from custom_components.rivian.entity import (
     RivianVehicleEntity,
     RivianWallboxEntity,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityDescription
 
 
 @pytest.fixture
@@ -628,6 +628,7 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        monkeypatch,
     ) -> None:
         """Test available returns False when vehicle is outside all zones."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -646,8 +647,11 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
         }
 
         # Mock config entry with zone option
-        type(mock_config_entry).options = PropertyMock(
-            return_value={"zone": ["zone.home"]}
+        monkeypatch.setattr(
+            type(mock_config_entry),
+            "options",
+            PropertyMock(return_value={"zone": ["zone.home"]}),
+            raising=False,
         )
 
         # Create zone state

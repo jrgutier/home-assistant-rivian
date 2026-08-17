@@ -3,9 +3,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from homeassistant.components.device_tracker import SourceType
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
@@ -14,6 +11,9 @@ from custom_components.rivian.device_tracker import (
     RivianDeviceEntity,
     async_setup_entry,
 )
+from homeassistant.components.device_tracker import SourceType
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianDeviceEntity:

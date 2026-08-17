@@ -3,8 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 from custom_components.rivian.const import ATTR_API, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.notify import (
@@ -12,6 +10,8 @@ from custom_components.rivian.notify import (
     async_setup_entry,
     async_unload_entry,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 @pytest.mark.asyncio

@@ -1,14 +1,9 @@
 """Tests for base coordinator functionality."""
 
-import sys
 from datetime import timedelta
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.update_coordinator import UpdateFailed
 from rivian.exceptions import (
     RivianApiException,
     RivianApiRateLimitError,
@@ -16,18 +11,11 @@ from rivian.exceptions import (
     RivianUnauthenticated,
 )
 
-# Mock exceptions before importing coordinators
-mock_rivian_exceptions = Mock()
-mock_rivian_exceptions.RivianApiException = RivianApiException
-mock_rivian_exceptions.RivianApiRateLimitError = RivianApiRateLimitError
-mock_rivian_exceptions.RivianExpiredTokenError = RivianExpiredTokenError
-mock_rivian_exceptions.RivianUnauthenticated = RivianUnauthenticated
-sys.modules["rivian.exceptions"] = mock_rivian_exceptions
-
-from custom_components.rivian.coordinator import (
-    UserCoordinator,
-    WallboxCoordinator,
-)
+from custom_components.rivian.coordinator import UserCoordinator, WallboxCoordinator
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
 class TestRivianDataUpdateCoordinatorBase:

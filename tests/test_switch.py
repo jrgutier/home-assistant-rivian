@@ -1,25 +1,8 @@
 """Tests for Rivian switch platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-
-# Mock VehicleCommand before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.PANIC_ON = "PANIC_ON"
-mock_rivian.VehicleCommand.PANIC_OFF = "PANIC_OFF"
-mock_rivian.VehicleCommand.START_CHARGING = "START_CHARGING"
-mock_rivian.VehicleCommand.STOP_CHARGING = "STOP_CHARGING"
-mock_rivian.VehicleCommand.ENABLE_GEAR_GUARD_VIDEO = "ENABLE_GEAR_GUARD_VIDEO"
-mock_rivian.VehicleCommand.DISABLE_GEAR_GUARD_VIDEO = "DISABLE_GEAR_GUARD_VIDEO"
-mock_rivian.VehicleCommand.CABIN_HVAC_STEERING_HEAT = "CABIN_HVAC_STEERING_HEAT"
-mock_rivian.VehicleCommand.CLIMATE_HOLD_ON = "CLIMATE_HOLD_ON"
-mock_rivian.VehicleCommand.CLIMATE_HOLD_OFF = "CLIMATE_HOLD_OFF"
-sys.modules["rivian"] = mock_rivian
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
@@ -29,6 +12,8 @@ from custom_components.rivian.switch import (
     RivianSwitchEntity,
     async_setup_entry,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianSwitchEntity:

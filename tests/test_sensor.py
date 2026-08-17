@@ -3,14 +3,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    STATE_UNAVAILABLE,
-    UnitOfElectricCurrent,
-    UnitOfPower,
-)
-from homeassistant.core import HomeAssistant
 
 from custom_components.rivian.const import (
     ATTR_COORDINATOR,
@@ -32,6 +24,10 @@ from custom_components.rivian.sensor import (
     RivianWallboxSensorEntity,
     async_setup_entry,
 )
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import STATE_UNAVAILABLE, UnitOfElectricCurrent, UnitOfPower
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianSensorEntity:
@@ -736,9 +732,8 @@ class TestRivianSensorEntityEdgeCases:
             "model": "R1T",
         }
 
-        from homeassistant.components.sensor import SensorDeviceClass
-
         from custom_components.rivian.data_classes import RivianSensorEntityDescription
+        from homeassistant.components.sensor import SensorDeviceClass
 
         description = RivianSensorEntityDescription(
             key="test_enum",

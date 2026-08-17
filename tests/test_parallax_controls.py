@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -370,9 +371,9 @@ class TestHalloweenEntitiesIntegration:
         mock_vehicle_coordinator_with_parallax,
     ) -> None:
         """Test all Halloween entity descriptions are defined correctly."""
-        from custom_components.rivian.switch import PARALLAX_SWITCHES
-        from custom_components.rivian.select import PARALLAX_SELECTS
         from custom_components.rivian.number import PARALLAX_NUMBERS
+        from custom_components.rivian.select import PARALLAX_SELECTS
+        from custom_components.rivian.switch import PARALLAX_SWITCHES
 
         # Verify Halloween switch exists
         halloween_switch = next(

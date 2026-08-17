@@ -3,10 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.device_registry import DeviceEntry
 
 from custom_components.rivian import (
     async_remove_config_entry_device,
@@ -23,6 +19,10 @@ from custom_components.rivian.const import (
     ATTR_WALLBOX,
     DOMAIN,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.device_registry import DeviceEntry
 
 
 @pytest.fixture
@@ -69,6 +69,10 @@ def mock_vehicle_coordinator():
     coordinator.charging_coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.drivers_coordinator = MagicMock()
     coordinator.drivers_coordinator.async_config_entry_first_refresh = AsyncMock()
+    # Added in f3e62e3 alongside ParallaxCoordinator; the fixture was never updated,
+    # so __init__.py:110 awaited a plain MagicMock.
+    coordinator.parallax_coordinator = MagicMock()
+    coordinator.parallax_coordinator.async_config_entry_first_refresh = AsyncMock()
     return coordinator
 
 

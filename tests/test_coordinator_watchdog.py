@@ -5,13 +5,10 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+from custom_components.rivian.coordinator import ChargingCoordinator, VehicleCoordinator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-
-from custom_components.rivian.coordinator import (
-    ChargingCoordinator,
-    VehicleCoordinator,
-)
 
 
 @pytest.fixture

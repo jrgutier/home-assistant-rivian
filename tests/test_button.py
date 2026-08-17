@@ -1,50 +1,24 @@
 """Tests for Rivian button platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.components.button import ButtonEntityDescription
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, HomeAssistantError
-
-# Store real VehicleCommand before mocking
 from rivian import VehicleCommand as _RealVehicleCommand
-
-# Mock bluetooth and related components
-mock_bluetooth = Mock()
-mock_bluetooth.async_process_advertisements = AsyncMock()
-mock_bluetooth.BluetoothScanningMode = Mock()
-mock_bluetooth.BluetoothScanningMode.ACTIVE = "active"
-sys.modules["homeassistant.components.bluetooth"] = mock_bluetooth
-sys.modules["home_assistant_bluetooth"] = Mock()
-sys.modules["bleak"] = Mock()
-
-# Mock rivian modules
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = _RealVehicleCommand
-mock_rivian_ble = Mock()
-mock_rivian_ble.DEVICE_LOCAL_NAME = "Rivian Phone Key"
-mock_rivian_ble.pair_phone = AsyncMock(return_value=True)
-mock_rivian_ble.set_bluez_pairable = AsyncMock(return_value=True)
-sys.modules["rivian"] = mock_rivian
-sys.modules["rivian.ble"] = mock_rivian_ble
 
 from custom_components.rivian.button import (
     RivianButtonEntity,
     RivianPairPhoneButtonEntity,
     async_setup_entry,
 )
-from custom_components.rivian.const import (
-    ATTR_COORDINATOR,
-    ATTR_VEHICLE,
-    DOMAIN,
-)
+from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import (
     DriverKeyCoordinator,
     VehicleCoordinator,
 )
 from custom_components.rivian.data_classes import RivianButtonEntityDescription
+from homeassistant.components.button import ButtonEntityDescription
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, HomeAssistantError
 
 
 @pytest.mark.asyncio

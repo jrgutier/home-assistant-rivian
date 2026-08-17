@@ -1,31 +1,16 @@
 """Tests for Rivian update platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.components.update import UpdateEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-
-# Store real exception before mocking
-from rivian.exceptions import RivianBadRequestError as _RealRivianBadRequestError
-
-# Mock VehicleCommand and exceptions before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.OTA_INSTALL_NOW_ACKNOWLEDGE = "OTA_INSTALL_NOW_ACKNOWLEDGE"
-mock_rivian.exceptions = Mock()
-mock_rivian.exceptions.RivianBadRequestError = _RealRivianBadRequestError
-sys.modules["rivian"] = mock_rivian
-sys.modules["rivian.exceptions"] = mock_rivian.exceptions
+from rivian.exceptions import RivianBadRequestError
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.update import RivianUpdateEntity, async_setup_entry
-
-# Use the real exception for tests
-RivianBadRequestError = _RealRivianBadRequestError
+from homeassistant.components.update import UpdateEntityFeature
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianUpdateEntity:
