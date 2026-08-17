@@ -9,3 +9,21 @@ pytest-timeout>=2.1.0
 
 # Mocking
 freezegun>=1.2.0
+
+# Pulled in by homeassistant.components.bluetooth, which tests/test_button.py imports.
+# Absent from HA's own metadata, so without these the bluetooth import fails and
+# test_button.py errors at collection. Installed rather than mocked — the previous
+# workaround was a module-level sys.modules stub that leaked across the whole session.
+aiousbwatcher
+pyserial
+
+# Pinned because `pip install -r` does NOT apply HA's package_constraints.txt the way
+# Home Assistant does at runtime, so an unconstrained resolve lands outside what HA
+# can actually run:
+#   pycares 5.x dropped ares_query_a_result, which aiodns==3.5.0 still calls
+#   habluetooth 6.x needs a bleak API that bleak==1.0.1 does not expose
+# Keep these aligned with homeassistant/package_constraints.txt when HA is bumped.
+pycares<5
+habluetooth==5.6.4
+bleak-retry-connector==4.4.3
+dbus-fast==2.44.3
