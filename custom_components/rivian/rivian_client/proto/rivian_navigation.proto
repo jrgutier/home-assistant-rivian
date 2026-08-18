@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package rivian;
+
+import "google/protobuf/timestamp.proto";
+import "rivian_base.proto";
+
+// Trip progress (real-time navigation progress)
+// Based on Android app protobuf C23478y (p1143yj/C23478y.java)
+// RVM: navigation.navigation_service.trip_progress
+message TripProgress {
+  google.protobuf.Timestamp leg_eta_utc = 1;   // ETA for current leg (UTC)
+  google.protobuf.Timestamp trip_eta_utc = 2;  // ETA for entire trip (UTC)
+  int32 next_stop_index = 3;                   // Index of next stop in route
+}
+
+// Note: TripInfo has complex nested structures from the APK.
+// Based on C23476w with nested types for origin, route, preferences, etc.
+// For now, providing a simplified version. Full implementation would require
+// additional message definitions for:
+// - Origin/Destination (C23465l)
+// - Route (C23471r)
+// - Preferences (C23469p)
+// - FasterRoute (C23463j)
+
+// Trip waypoint/location
+message TripWaypoint {
+  Location location = 1;              // Geographic location
+  string name = 2;                    // Display name
+  string address = 3;                 // Full address
+}
+
+// Trip route summary
+message TripRoute {
+  repeated TripWaypoint waypoints = 1;  // List of waypoints
+  int32 distance_meters = 2;            // Total distance (meters)
+  int32 duration_seconds = 3;           // Estimated duration (seconds)
+  float initial_soc = 4;                // Starting battery SOC (%)
+  float final_soc = 5;                  // Expected final SOC (%)
+}
+
+// Trip preferences
+message TripPreferences {
+  bool avoid_highways = 1;       // Avoid highways
+  bool avoid_tolls = 2;          // Avoid toll roads
+  bool avoid_ferries = 3;        // Avoid ferries
+  bool fastest_route = 4;        // Prefer fastest route
+  bool most_efficient = 5;       // Prefer most energy-efficient route
+}
+
+// Alternative faster route information
+message FasterRouteInfo {
+  int32 time_savings_seconds = 1;      // Time saved vs current route (seconds)
+  int32 distance_difference_meters = 2; // Distance difference (meters)
+  TripRoute route = 3;                 // Alternative route details
+}
+
+// Complete trip information
+// Based on Android app protobuf C23476w (p1143yj/C23476w.java)
+// RVM: navigation.navigation_service.trip_info
+//
+// Note: This is a simplified version. The actual APK has more complex
+// nested structures. Expand as needed based on actual API responses.
+message TripInfo {
+  string id = 1;                                    // Unique trip ID
+  TripWaypoint origin = 2;                          // Starting location
+  TripRoute route = 3;                              // Route details
+  TripPreferences preferences = 4;                  // Route preferences
+  double initial_soc_percentage = 5;                // Starting SOC (0-100)
+  google.protobuf.Timestamp departure_time = 6;     // Planned departure time
+  FasterRouteInfo faster_route = 7;                 // Alternative faster route (if available)
+}

@@ -9,6 +9,12 @@ pytest-timeout>=2.1.0
 
 # Mocking
 freezegun>=1.2.0
+# Used by the vendored client's own tests, moved here in s07.
+aresponses>=3.0,<4.0
+# manifest.json declares bleak, so the test environment must have it too --
+# without it the vendored BLE modules are 353 statements at 0% and their tests
+# silently skip, which reads as coverage debt rather than an absent dependency.
+bleak>=0.21
 
 # Pulled in by homeassistant.components.bluetooth, which tests/test_button.py imports.
 # Absent from HA's own metadata, so without these the bluetooth import fails and

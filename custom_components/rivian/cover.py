@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from rivian import VehicleCommand
-
 from homeassistant.components.cover import (
     CoverDeviceClass,
     CoverEntity,
@@ -26,6 +24,7 @@ from .next_action_states import (
     LiftgateNextActionState,
     WindowsNextActionState,
 )
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 

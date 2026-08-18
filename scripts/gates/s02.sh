@@ -59,7 +59,11 @@ RUFF="uvx ruff@latest"   # NOT pinned by choice (s05 review): the gate must run
 try "ruff check passes (repo-wide)"        env -C "$HA" $RUFF check .
 try "ruff format --check passes (repo-wide)" env -C "$HA" $RUFF format --check .
 if [ -x "$PY" ]; then
-  try "pytest passes with the coverage floor" env -C "$HA" "$PY" -q
+  try "pytest passes" env -C "$HA" "$PY" -q
+  # The single --cov-fail-under was replaced in S7: the same measurement now
+  # covers our code and the vendored client, which have different obligations.
+  try "both coverage floors hold" \
+    bash -c "cd '$HA' && .venv/bin/python scripts/check_coverage.py"
 else
   bad "pytest not found at $PY"
 fi

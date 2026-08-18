@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from rivian import VehicleCommand
-
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,6 +14,7 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSwitchEntityDescription
 from .entity import RivianVehicleControlEntity, RivianVehicleEntity
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 

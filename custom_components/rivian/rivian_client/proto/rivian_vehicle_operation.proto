@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package rivian;
+
+import "google/protobuf/timestamp.proto";
+
+// Vehicle operation request wrapper for sendVehicleOperation mutation
+// Based on MITM analysis of Rivian iOS app
+message VehicleOperationRequest {
+  // Phone information
+  message PhoneInfo {
+    int32 version = 1;      // Protocol version (always 1)
+    bytes phone_id = 2;     // 16-byte phone identifier: uuid.UUID(vasPhoneId).bytes
+  }
+
+  // Request metadata
+  message Metadata {
+    PhoneInfo phone_info = 1;
+    string request_id = 2;  // UUID string (e.g., "17-48c080c8-...")
+  }
+
+  // Operation details
+  message Operation {
+    string rvm_type = 1;                         // RVM type (e.g., "comfort.cabin.climate_hold_setting")
+    int32 operation_type = 2;                    // Operation type (1 = SET, 0 = GET?)
+    bytes operation_id = 3;                      // 16-byte UUID for this operation
+    bytes payload = 4;                           // Serialized protobuf payload (RVM-specific)
+    google.protobuf.Timestamp timestamp = 5;     // Operation timestamp
+  }
+
+  Metadata metadata = 1;
+  Operation operation = 2;
+}
+
+// Response from sendVehicleOperation mutation
+message SendVehicleOperationSuccess {
+  bool success = 1;
+}

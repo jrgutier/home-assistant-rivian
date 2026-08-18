@@ -10,15 +10,6 @@ import logging
 import time
 from typing import Any, Generic, TypeVar
 
-from rivian import Rivian, VehicleCommand
-from rivian.exceptions import (
-    RivianApiException,
-    RivianApiRateLimitError,
-    RivianExpiredTokenError,
-    RivianUnauthenticated,
-)
-from rivian.parallax import CHARGING_RVMS, PARALLAX_RVMS, decode_parallax_message
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -35,6 +26,18 @@ from .const import (
     VEHICLE_STATE_API_FIELDS,
 )
 from .helpers import redact
+from .rivian_client import Rivian, VehicleCommand
+from .rivian_client.exceptions import (
+    RivianApiException,
+    RivianApiRateLimitError,
+    RivianExpiredTokenError,
+    RivianUnauthenticated,
+)
+from .rivian_client.parallax import (
+    CHARGING_RVMS,
+    PARALLAX_RVMS,
+    decode_parallax_message,
+)
 
 _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T", bound=dict[str, Any] | list[dict[str, Any]])

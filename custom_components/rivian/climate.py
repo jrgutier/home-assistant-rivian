@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from rivian import VehicleCommand
-
 from homeassistant.components.climate import (
     PRECISION_WHOLE,
     ClimateEntity,
@@ -22,6 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .entity import RivianVehicleControlEntity
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 

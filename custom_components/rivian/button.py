@@ -5,13 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 from uuid import UUID
 
-from bleak import BLEDevice
 from home_assistant_bluetooth import BluetoothServiceInfoBleak
-from rivian import VehicleCommand
-import rivian.ble as rivian_ble
 
 from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import BluetoothScanningMode
@@ -24,6 +21,14 @@ from .const import ATTR_COORDINATOR, ATTR_USER, ATTR_VEHICLE, DOMAIN
 from .coordinator import UserCoordinator, VehicleCoordinator
 from .data_classes import RivianButtonEntityDescription
 from .entity import RivianVehicleControlEntity
+from .rivian_client import VehicleCommand
+
+if TYPE_CHECKING:
+    # Annotation-only. bleak is NOT part of Home Assistant's Requires-Dist -- it
+    # belongs to the bluetooth integration -- so a runtime import here would take
+    # the whole button platform down, including the pairing button, on any system
+    # where bleak is absent.
+    from bleak import BLEDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -132,6 +137,18 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
             )
 
         self._pairing = True
+
+        # Imported here, not at module scope: rivian_client.ble re-raises when
+        # bleak is missing, which would otherwise break the import of this whole
+        # platform rather than just this one button.
+        try:
+            from .rivian_client import ble as rivian_ble
+        except ImportError as err:
+            self._pairing = False
+            raise HomeAssistantError(
+                "Bluetooth support is unavailable: the 'bleak' library could not be "
+                "imported. Phone pairing requires it."
+            ) from err
 
         entry_data = self.hass.data[DOMAIN][self._config_entry.entry_id]
         vehicle = entry_data[ATTR_VEHICLE][self.coordinator.vehicle_id]

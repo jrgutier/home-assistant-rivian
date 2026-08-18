@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package rivian;
+
+import "google/protobuf/timestamp.proto";
+
+// Single wheel information
+message Wheel {
+  int32 wheel_package = 1;                                    // Wheel package type code
+  int32 tire_odometer_mileage_meters = 2;                    // Tire mileage (meters)
+  int32 saved_tire_odometer_mileage_delta_meters = 3;        // Saved delta (meters)
+  int32 odometer_at_last_rotation_meters = 4;                // Odometer at rotation (meters)
+  int32 saved_odometer_at_last_rotation_delta_meters = 5;    // Saved rotation delta (meters)
+  int32 rotation_reminder_interval_meters = 6;               // Rotation interval (meters)
+  bool is_installed = 7;                                      // Whether wheel is installed
+  google.protobuf.Timestamp timestamp = 8;                   // Last update timestamp
+  int32 tires = 9;                                           // Tire type code
+  int32 current_odometer_meters = 10;                        // Current vehicle odometer (meters)
+}
+
+// Vehicle wheels configuration
+// Based on Android app protobuf C1736f (p119Ej/C1736f.java)
+// RVM: vehicle.wheels.vehicle_wheels
+message VehicleWheels {
+  repeated Wheel wheels_list = 1;  // List of all wheels (typically 4-5 including spare)
+}
+
+// Geofence location for OTA scheduling
+message OtaGeofence {
+  string location = 1;  // Location identifier
+}
+
+// Daily repeating schedule
+message OtaRepeatsDaily {
+  int32 starts_at_min = 1;      // Start time in minutes since midnight (0-1439)
+  OtaGeofence geofence = 2;     // Optional geofence restriction
+}
+
+// Single occurrence schedule
+message OtaSingleOccurrence {
+  google.protobuf.Timestamp starts_at_utc = 1;  // Specific UTC timestamp
+}
+
+// Single OTA schedule entry
+message OtaSchedule {
+  string id = 1;                      // Unique schedule ID
+  bool is_enabled = 2;                // Whether schedule is active
+
+  // Occurrence type (oneof)
+  oneof occurrence {
+    OtaRepeatsDaily repeats_daily = 3;         // Daily repeating schedule
+    OtaSingleOccurrence single_occurrence = 4;  // One-time schedule
+  }
+}
+
+// OTA schedule configuration
+// Based on Android app protobuf C22291i (p1096wj/C22291i.java)
+// RVM: ota.user_schedule.ota_config
+message OtaConfig {
+  repeated OtaSchedule schedules = 1;           // List of configured schedules
+  google.protobuf.Timestamp timestamp = 2;      // Configuration timestamp
+}
+
+// Wrapper messages for Halloween settings (Google protobuf wrappers pattern)
+message BoolValue {
+  bool value = 1;
+}
+
+message Int32Value {
+  int32 value = 1;
+}
+
+message StringValue {
+  string value = 1;
+}
+
+// Halloween costume theme
+message HalloweenCostumeTheme {
+  string theme_name = 1;  // Theme identifier
+}
+
+// Halloween celebration settings
+// Based on Android app protobuf C21876n (p1072vj/C21876n.java)
+// RVM: holiday_celebration.mobile_vehicle_settings.halloween_celebration_settings
+//
+// Note: Many fields use wrapper messages to distinguish between unset and default values
+message HalloweenCelebrationSettings {
+  HalloweenCostumeTheme costume_theme = 1;              // Selected costume theme
+  Int32Value celebration_sound_volume = 2;              // Sound volume (0-100)
+  BoolValue music_enabled = 3;                          // Whether music is enabled
+  StringValue music_type = 4;                           // Music type/genre
+  StringValue sound_effect = 5;                         // Interior sound effect
+  int32 exterior_sound_effect = 6;                      // Exterior sound effect code
+  BoolValue exterior_sounds_muted = 7;                  // Mute exterior sounds
+  BoolValue light_show_enabled = 8;                     // Enable light show
+  BoolValue interior_overhead_lights_enabled = 9;       // Interior overhead lights
+  BoolValue exterior_light_show_enabled = 10;           // Exterior light show
+  StringValue lights_color = 11;                        // Light color scheme
+  StringValue car_costume_availability = 12;            // Costume availability status
+  bool motion_light_sound_enabled = 13;                 // Motion-triggered lights/sounds
+}

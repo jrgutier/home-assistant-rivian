@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from rivian import VehicleCommand
-from rivian.exceptions import RivianBadRequestError
-
 from homeassistant.components.update import (
     UpdateDeviceClass,
     UpdateEntity,
@@ -22,6 +19,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .entity import RivianVehicleEntity
+from .rivian_client import VehicleCommand
+from .rivian_client.exceptions import RivianBadRequestError
 
 INSTALLING_STATUS = ("Install_Countdown", "Awaiting_Install", "Installing")
 READY_FOR_INSTALL = ("Ready_To_Install", "Scheduled_To_Install")

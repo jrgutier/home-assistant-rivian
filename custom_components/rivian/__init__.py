@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from rivian import Rivian
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -31,6 +29,7 @@ from .const import (
 )
 from .coordinator import UserCoordinator, VehicleCoordinator, WallboxCoordinator
 from .helpers import get_rivian_api_from_entry
+from .rivian_client import Rivian
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [

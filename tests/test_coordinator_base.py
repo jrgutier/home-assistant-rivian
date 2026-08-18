@@ -4,14 +4,14 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from rivian.exceptions import (
+
+from custom_components.rivian.coordinator import UserCoordinator, WallboxCoordinator
+from custom_components.rivian.rivian_client.exceptions import (
     RivianApiException,
     RivianApiRateLimitError,
     RivianExpiredTokenError,
     RivianUnauthenticated,
 )
-
-from custom_components.rivian.coordinator import UserCoordinator, WallboxCoordinator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed

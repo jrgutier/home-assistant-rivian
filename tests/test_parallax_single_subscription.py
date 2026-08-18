@@ -15,9 +15,9 @@ Two defects are pinned here, both of which shipped at some point:
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from rivian.parallax import CHARGING_RVMS, PARALLAX_RVMS
 
 from custom_components.rivian.coordinator import VehicleCoordinator
+from custom_components.rivian.rivian_client.parallax import CHARGING_RVMS, PARALLAX_RVMS
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 

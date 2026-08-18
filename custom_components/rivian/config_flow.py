@@ -5,9 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from rivian import Rivian
-from rivian.exceptions import RivianPhoneLimitReachedError, RivianUnauthenticated
-from rivian.utils import generate_key_pair
 import voluptuous as vol
 
 from homeassistant.components.zone import DOMAIN as ZONE_DOMAIN
@@ -48,6 +45,12 @@ from .const import (
 )
 from .coordinator import UserCoordinator
 from .helpers import get_rivian_api_from_entry
+from .rivian_client import Rivian
+from .rivian_client.exceptions import (
+    RivianPhoneLimitReachedError,
+    RivianUnauthenticated,
+)
+from .rivian_client.utils import generate_key_pair
 
 _LOGGER = logging.getLogger(__name__)
 

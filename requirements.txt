@@ -1,11 +1,7 @@
 # Home Assistant
 homeassistant>=2025.1.0
-numpy
-python-dateutil
-PyTurboJPEG
 
 # Integration
-rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@1000a240999f747637daa43a3aa66660bf42f193
 
 # Development
 colorlog

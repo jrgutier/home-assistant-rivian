@@ -189,8 +189,6 @@ class TestParallaxDiagnostics:
     ) -> None:
         from unittest.mock import AsyncMock, MagicMock
 
-        from rivian.parallax import CHARGING_RVMS, PARALLAX_RVMS
-
         from custom_components.rivian.const import (
             ATTR_COORDINATOR,
             ATTR_USER,
@@ -200,6 +198,10 @@ class TestParallaxDiagnostics:
         )
         from custom_components.rivian.diagnostics import (
             async_get_config_entry_diagnostics,
+        )
+        from custom_components.rivian.rivian_client.parallax import (
+            CHARGING_RVMS,
+            PARALLAX_RVMS,
         )
 
         vehicle = MagicMock()

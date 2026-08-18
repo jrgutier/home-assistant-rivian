@@ -3,10 +3,10 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from rivian.exceptions import RivianBadRequestError
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
+from custom_components.rivian.rivian_client.exceptions import RivianBadRequestError
 from custom_components.rivian.update import RivianUpdateEntity, async_setup_entry
 from homeassistant.components.update import UpdateEntityFeature
 from homeassistant.config_entries import ConfigEntry

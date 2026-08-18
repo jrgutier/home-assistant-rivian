@@ -507,3 +507,63 @@ Also fixed 8 self-inflicted RuntimeWarnings: my fixture returned a real coroutin
 from a mocked async_request_refresh that nothing ever awaited.
 
 1025 tests, coverage 83.12%, eleven gates green.
+
+## 2026-08-18 — s07: the client is vendored
+
+28 modules now live at custom_components/rivian/rivian_client/, byte-identical to
+the client repo apart from __init__.py's version line. The manifest declares
+["bleak>=0.21", "protobuf>=6.31,<7"] and requirements.txt no longer references the
+client at all -- no git URL, no source build inside HA.
+
+### A shipping blocker only this step could expose
+Generated *_pb2 modules call ValidateProtobufRuntimeVersion and refuse to load
+when gencode is NEWER than the runtime. The client's bound was protobuf<7, its dev
+env resolved 6.33.6, and regen baked gencode 6.33.5 in. HA pins protobuf==6.32.0,
+so all eight modules raised VersionError inside HA and took the integration down.
+Capped at <6.33; regenerated gencode is 6.31.1.
+The client's CI regen check could NOT have caught this -- it compares the committed
+output against what that repo's own toolchain produces, and both sides were 6.33.
+Only importing under Home Assistant's constraint exposes it.
+
+### Three silent failures the move created, all caught
+1. `python_files = test_*.py` meant ble_gen2_test.py, rivian_test.py and
+   utils_test.py collected ZERO tests after the move. They ran in the client repo
+   and stopped running here without a word. Renamed; +29 tests.
+2. Tests importing `rivian.exceptions` while production raised
+   `...rivian_client.exceptions` -- DIFFERENT CLASSES, so `except` no longer
+   matched and errors fell through to UpdateFailed. Uninstalling the standalone
+   package turned every missed rewrite into a loud ImportError, which is exactly
+   what pre-mortem S1 said to do.
+3. `patch.dict(sys.modules, ...)` alone could not hide a submodule: once anything
+   imports it, Python binds it as a package ATTRIBUTE and `from pkg import name`
+   never consults sys.modules. The test passed alone and failed in a full run.
+   Fixed by also deleting the attribute.
+
+### A mistake worth recording
+I ran `ruff check --fix` repo-wide and it rewrote 23 vendored files in one pass,
+including protoc-generated *_pb2 output. That is precisely the permanent
+divergence vendoring exists to eliminate, and it would break the client's regen
+diff check. Restored byte-for-byte and added
+`extend-exclude = ["custom_components/rivian/rivian_client"]` so it cannot recur.
+The --no-deslop guardrail says the same thing about ai-slop-cleaner; the principle
+is broader than that one tool.
+
+### Coverage is now two floors
+Vendoring put ~2,590 client statements into the same measurement as ours.
+Integration code is at 83.23% -- ABOVE the old 78 floor and above the 78.86%
+pre-vendoring baseline -- while the client sits at 59.88%. A single
+--cov-fail-under cannot express two populations with different obligations, so
+scripts/check_coverage.py enforces both, and both ratchet upward only.
+Owner decision: integration pinned at 83, client gated separately.
+
+ble.py went 0% -> 61% with 14 tests, by owner decision: it is the pairing path
+every HMAC-signed vehicle command depends on. Mutation-verified (forcing Gen 1
+detection, and swallowing the detection failure, each fail tests).
+
+### Gate defects fixed
+s07's import check used the SYSTEM python3, which has neither HA nor aiohttp -- it
+would have reported all 28 modules broken for environment reasons. s07 also read a
+coverage.json that an earlier gate's subset run had left at 38%; it now
+regenerates coverage itself rather than trusting an artifact it did not produce.
+
+1184 tests, twelve gates green.

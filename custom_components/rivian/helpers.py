@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from rivian import Rivian
-
 from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_LATITUDE, CONF_LONGITUDE
@@ -13,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_USER_SESSION_TOKEN
+from .rivian_client import Rivian
 
 TO_REDACT = {
     # The three token constants are imported above and were NOT listed here.

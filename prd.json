@@ -136,9 +136,9 @@
         "s06b"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Vendor the client into custom_components/rivian/rivian_client/",
-      "detail": "One mechanical commit, done AFTER both merges so upstream's 12 files of top-level 'rivian' imports merge against matching lines rather than applying silently into renamed code. Rewrite every import to relative form. manifest.json: requirements [bleak>=0.21, protobuf>=6.31,<7] (protobuf is interim, S10 removes it), loggers [custom_components.rivian], iot_class cloud_push. Guard the BLE imports: button.py:11 under TYPE_CHECKING, button.py:14 lazy inside the press handler.",
+      "detail": "One mechanical commit, done AFTER both merges so upstream's 12 files of top-level 'rivian' imports merge against matching lines rather than applying silently into renamed code. Rewrite every import to relative form. manifest.json: requirements [bleak>=0.21, protobuf>=6.31,<7] (protobuf is interim, S10 removes it), loggers [custom_components.rivian], iot_class cloud_push. Guard the BLE imports: button.py:11 under TYPE_CHECKING, button.py:14 lazy inside the press handler. DONE 2026-08-18. 28 modules vendored, all importing individually under the declared requirements. Client tests moved to tests/client/. Coverage split into two floors (integration 83%, vendored client 59%) because --cov-fail-under is a single global number.",
       "gate": "scripts/gates/s07.sh"
     },
     {

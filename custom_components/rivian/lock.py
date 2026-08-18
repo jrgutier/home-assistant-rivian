@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from rivian import VehicleCommand
-
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,6 +14,7 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN, LOCK_STATE_ENTITIES
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianLockEntityDescription
 from .entity import RivianVehicleControlEntity
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 

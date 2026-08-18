@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from rivian import Rivian
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
@@ -14,20 +13,9 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ATTR_API, ATTR_VEHICLE, DOMAIN
+from .rivian_client import Rivian
 
 _LOGGER = logging.getLogger(__name__)
-
-# Debug: Log rivian library info
-try:
-    import rivian
-
-    _LOGGER.warning(
-        "Rivian library location: %s | Has send_location_to_vehicle: %s",
-        rivian.__file__,
-        hasattr(Rivian, "send_location_to_vehicle"),
-    )
-except Exception as err:  # noqa: BLE001 -- module-level debug introspection; must never break import
-    _LOGGER.error("Could not inspect rivian library: %s", err)
 
 # Service schema for navigation service
 NAVIGATION_SERVICE_SCHEMA = vol.Schema(

@@ -10,14 +10,14 @@
   "config_flow": true,
   "documentation": "https://github.com/bretterer/home-assistant-rivian",
   "integration_type": "hub",
-  "iot_class": "cloud_polling",
+  "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/bretterer/home-assistant-rivian/issues",
   "loggers": [
-    "custom_components.rivian",
-    "rivian"
+    "custom_components.rivian"
   ],
   "requirements": [
-    "rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@1000a240999f747637daa43a3aa66660bf42f193"
+    "bleak>=0.21",
+    "protobuf>=6.31,<7"
   ],
   "version": "1.5.4-beta1"
 }

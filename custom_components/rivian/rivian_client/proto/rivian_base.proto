@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package rivian;
+
+import "google/protobuf/timestamp.proto";
+
+// Time of day representation (hour and minute)
+message TimeOfDay {
+  int32 hour = 1;    // Hour of day (0-23)
+  int32 minute = 2;  // Minute of hour (0-59)
+}
+
+// Money representation (replaces SessionCost)
+// Based on Google Money type used in Android app (p789h9.C15295b)
+message Money {
+  string currency_code = 1;  // ISO 4217 currency code (e.g., "USD", "EUR")
+  int64 units = 2;           // Whole units of the amount (e.g., dollars)
+  int32 nanos = 3;           // Fractional units (nano units, e.g., cents * 10000000)
+}
+
+// Location representation for geofencing and charging schedules
+message Location {
+  double latitude = 1;   // Latitude in degrees (-90 to 90)
+  double longitude = 2;  // Longitude in degrees (-180 to 180)
+}

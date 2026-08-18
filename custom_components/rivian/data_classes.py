@@ -6,8 +6,6 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from rivian import VehicleCommand
-
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription
 from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.components.cover import CoverEntityDescription
@@ -18,6 +16,8 @@ from homeassistant.components.sensor import SensorEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.components.time import TimeEntityDescription
 from homeassistant.helpers.entity import EntityDescription
+
+from .rivian_client import VehicleCommand
 
 if TYPE_CHECKING:
     from .coordinator import VehicleCoordinator

@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package rivian;
+
+// Geofence type enum
+enum GeofenceType {
+  GEOFENCE_TYPE_UNRECOGNIZED = 0;
+  GEOFENCE_TYPE_HOME = 1;
+  GEOFENCE_TYPE_WORK = 2;
+  GEOFENCE_TYPE_CUSTOM = 3;
+}
+
+// Single geofence definition
+message Geofence {
+  GeofenceType type = 1;  // Type of geofence
+  string name = 2;        // Display name
+}
+
+// Favorite geofences list
+// Based on Android app protobuf C20772b (tj/C20772b.java)
+// RVM: geofence.geofence_service.favoriteGeofences
+message FavoriteGeofences {
+  repeated Geofence favorites = 1;  // List of favorite geofences
+}
+
+// GearGuard user consent status enum
+enum GearGuardConsentStatus {
+  GEAR_GUARD_CONSENT_UNRECOGNIZED = 0;
+  GEAR_GUARD_CONSENTED = 1;
+  GEAR_GUARD_NOT_CONSENTED = 2;
+  GEAR_GUARD_NOT_APPLICABLE = 3;
+  GEAR_GUARD_UNKNOWN = 4;
+}
+
+// GearGuard streaming consent
+// Based on Android app protobuf C20102g (sj/C20102g.java)
+// RVM: gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent
+message GearGuardStreamingInVehicleConsent {
+  GearGuardConsentStatus user_consent = 1;  // User consent status
+}
+
+// GearGuard daily limit status enum
+enum GearGuardDailyLimitStatus {
+  GEAR_GUARD_DAILY_LIMIT_UNRECOGNIZED = 0;
+  GEAR_GUARD_DAILY_LIMIT_UNDEFINED = 1;
+  GEAR_GUARD_DAILY_LIMIT_NOT_HIT = 2;
+  GEAR_GUARD_DAILY_LIMIT_HIT = 3;
+}
+
+// GearGuard daily streaming limit
+// Based on Android app protobuf C20097b (sj/C20097b.java)
+// RVM: gearguard_streaming.privacy.gearguard_streaming_daily_limit
+message GearGuardStreamingDailyLimit {
+  GearGuardDailyLimitStatus daily_limit = 1;     // Daily limit status
+  int64 next_reset_time_unix_sec = 2;            // When limit resets (Unix seconds)
+}
+
+// Passive entry setting
+// Based on Android app protobuf C18913s (p979qj/C18913s.java)
+// RVM: vehicle_access.passive_entry.passive_entry
+message PassiveEntrySetting {
+  int32 hold_time_duration_seconds = 1;  // Duration for passive entry hold (seconds)
+}
+
+// CCC (Car Connectivity Consortium) passive permission status enum
+enum CccPassivePermissionStatus {
+  CCC_PASSIVE_PERMISSION_STATUS_UNRECOGNIZED = 0;
+  CCC_PASSIVE_PERMISSION_STATUS_SNA = 1;         // Status Not Available
+  CCC_PASSIVE_PERMISSION_STATUS_ENABLED = 2;
+  CCC_PASSIVE_PERMISSION_STATUS_DISABLED = 3;
+}
+
+// Passive entry status
+// Based on Android app protobuf C1004f (p070Cj/C1004f.java)
+// RVM: vehicle_access.state.passive_entry
+message PassiveEntryStatus {
+  bool allow_passive_entry_via_bluetooth_while_in_ccc = 1;  // Allow BT entry in CCC mode
+  CccPassivePermissionStatus ccc_passive_permission_status = 2; // CCC permission status
+}

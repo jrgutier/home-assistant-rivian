@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from rivian.parallax import CHARGING_RVMS, PARALLAX_RVMS, RVM_DECODERS
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import ATTR_COORDINATOR, ATTR_USER, ATTR_VEHICLE, ATTR_WALLBOX, DOMAIN
 from .coordinator import UserCoordinator, VehicleCoordinator, WallboxCoordinator
 from .helpers import redact
+from .rivian_client.parallax import CHARGING_RVMS, PARALLAX_RVMS, RVM_DECODERS
 
 
 async def async_get_config_entry_diagnostics(

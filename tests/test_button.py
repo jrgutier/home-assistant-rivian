@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from rivian import VehicleCommand as _RealVehicleCommand
 
 from custom_components.rivian.button import (
     RivianButtonEntity,
@@ -16,6 +15,7 @@ from custom_components.rivian.coordinator import (
     VehicleCoordinator,
 )
 from custom_components.rivian.data_classes import RivianButtonEntityDescription
+from custom_components.rivian.rivian_client import VehicleCommand as _RealVehicleCommand
 from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, HomeAssistantError
@@ -351,3 +351,105 @@ class TestRivianPairPhoneButtonEntity:
 
         # Should return None (method is intentionally blank)
         assert result is None
+
+
+class TestPairButtonWithoutBleak:
+    """bleak is not part of Home Assistant's Requires-Dist -- it belongs to the
+    bluetooth integration -- so it can genuinely be absent.
+
+    The import therefore lives inside the press handler, not at module scope:
+    rivian_client.ble re-raises on a missing bleak, which at module scope would
+    take down the WHOLE button platform, including this pairing button. Pressing
+    it must report the problem instead.
+    """
+
+    def _entity(self, hass: HomeAssistant, mock_config_entry: ConfigEntry):
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.hass = hass
+        coordinator.vehicle_id = "test_vehicle_123"
+        return RivianPairPhoneButtonEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=ButtonEntityDescription(key="pair", translation_key="pair"),
+            vehicle={
+                "id": "test_vehicle_123",
+                "vin": "TEST123456789",
+                "name": "Test R1T",
+                "model": "R1T",
+                "phone_identity_id": "test_phone_id",
+            },
+        )
+
+    @staticmethod
+    def _hide_ble(monkeypatch) -> None:
+        """Make `from .rivian_client import ble` raise ImportError.
+
+        Patching sys.modules alone is not enough, and fails ONLY in a full run:
+        once any test has imported the submodule, Python binds it as an attribute
+        on the package, and `from pkg import name` resolves that attribute without
+        ever consulting sys.modules. tests/client/test_ble.py imports it at module
+        level, so the attribute has to go too. This was a genuinely
+        order-dependent test until it did.
+        """
+        import sys
+
+        import custom_components.rivian.rivian_client as pkg
+
+        monkeypatch.setitem(
+            sys.modules, "custom_components.rivian.rivian_client.ble", None
+        )
+        if hasattr(pkg, "ble"):
+            monkeypatch.delattr(pkg, "ble")
+
+    async def test_press_reports_a_clear_error_when_bleak_is_missing(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, monkeypatch
+    ) -> None:
+        entity = self._entity(hass, mock_config_entry)
+        self._hide_ble(monkeypatch)
+        with pytest.raises(HomeAssistantError, match="Bluetooth support"):
+            await entity.async_press()
+
+    async def test_a_failed_import_does_not_wedge_the_button(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, monkeypatch
+    ) -> None:
+        """_pairing must be released, or the button stays permanently 'in progress'
+        and the user can never retry after installing bleak."""
+        entity = self._entity(hass, mock_config_entry)
+        self._hide_ble(monkeypatch)
+        with pytest.raises(HomeAssistantError):
+            await entity.async_press()
+        assert entity._pairing is False
+
+    def test_the_platform_imports_bleak_only_for_type_checking(self) -> None:
+        """BLEDevice is used in one annotation, so it must live under
+        TYPE_CHECKING. A runtime import would take the platform down wherever
+        bleak is absent -- including the pairing button needed to fix that."""
+        import ast
+        import pathlib
+
+        tree = ast.parse(pathlib.Path("custom_components/rivian/button.py").read_text())
+        runtime, guarded = [], []
+        for node in tree.body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                runtime.append(node)
+            elif (
+                isinstance(node, ast.If)
+                and getattr(node.test, "id", "") == "TYPE_CHECKING"
+            ):
+                guarded.extend(
+                    n for n in node.body if isinstance(n, (ast.Import, ast.ImportFrom))
+                )
+
+        def modules(nodes):
+            out = set()
+            for n in nodes:
+                if isinstance(n, ast.ImportFrom) and n.module:
+                    out.add(n.module.split(".")[0])
+                elif isinstance(n, ast.Import):
+                    out.update(a.name.split(".")[0] for a in n.names)
+            return out
+
+        assert "bleak" not in modules(runtime), "bleak is imported at runtime"
+        assert "bleak" in modules(guarded), (
+            "the BLEDevice annotation import went missing"
+        )
