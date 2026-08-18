@@ -54,10 +54,20 @@ fi
 if [ -f "$HA/scripts/seed_config_entry.py" ]; then
   absent "seed script inlines no secret value" '(RIVIAN_[A-Z_]+ *= *["'"'"'][^"'"'"']{8,})' "$HA/scripts"
 fi
-if grep -qE '^/?\.env$' "$HA/.gitignore" && grep -qE '^/?config/$' "$HA/.gitignore"; then
-  ok ".env and config/ are both gitignored"
+if grep -qE '^/?\.env$' "$HA/.gitignore" \
+   && grep -qE '^/?config/$' "$HA/.gitignore" \
+   && grep -qE '^/?config-dev/$' "$HA/.gitignore"; then
+  ok ".env, config/ and config-dev/ are all gitignored"
 else
   bad "a seeded entry or .env could be committed"
+fi
+# The devcontainer must not boot against config/: it holds a recorder DB and a
+# .storage from an older HA, and the pinned version migrates both one-way.
+if grep -q 'config-dev' "$HA/.devcontainer/setup" \
+   && ! grep -qE '^\s*mkdir -p config$' "$HA/.devcontainer/setup"; then
+  ok "devcontainer uses config-dev/, leaving config/ untouched"
+else
+  bad "devcontainer still boots against config/ — that migration is one-way"
 fi
 
 # Positive assertion: the seeded shape actually constructs as a real HA

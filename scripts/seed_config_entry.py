@@ -15,11 +15,16 @@ What it writes, mirroring custom_components/rivian/config_flow.py:
 
 Secrets discipline. This script reads secrets and writes them to a gitignored
 path, and that is all it does with them: it never prints a value, never logs one,
-and the file it writes is chmod 600. Both ends are gitignored -- .env at
-.gitignore:123, config/ at :163 -- and the seeded entry must never be committed.
+and the file it writes is chmod 600. Both ends are gitignored, and the seeded entry
+must never be committed.
+
+It defaults to config-dev/, NOT config/. config/ holds a recorder database and a
+.storage written by an older Home Assistant; booting the pinned 2026.8.2 against it
+migrates both one-way. The devcontainer gets its own directory so that cannot
+happen by accident.
 
 Usage:
-    python scripts/seed_config_entry.py [--env .env] [--config config] [--force]
+    python scripts/seed_config_entry.py [--env .env] [--config config-dev] [--force]
 
 Idempotent: an existing rivian entry is replaced in place, keeping its entry_id
 so the device and entity registries stay attached to it. Entries for other
@@ -122,7 +127,7 @@ def build_entry(env: dict[str, str], entry_id: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", type=Path, default=Path(".env"))
-    parser.add_argument("--config", type=Path, default=Path("config"))
+    parser.add_argument("--config", type=Path, default=Path("config-dev"))
     parser.add_argument(
         "--force",
         action="store_true",

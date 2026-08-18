@@ -82,9 +82,10 @@ scripts/sync_upstream_client.sh <a>..<b>           # apply
 
 It fetches `bretterer/rivian-python-client` as the `client-upstream` remote
 **directly into this repo**. It deliberately does not use the sibling
-`rivian-python-client` checkout: that repo is a staging area at best and is slated
-for archival, and a process that only works on one laptop is not a process. Git is
-happy to carry the unrelated history alongside ours.
+`rivian-python-client` checkout: **`jrgutier/rivian-python-client` is being
+archived** (decision recorded 2026-08-18), so the vendored copy becomes the only
+source, and a process that depends on a laptop-local clone of an archived repo is
+not a process. Git is happy to carry the unrelated history alongside ours.
 
 Path mapping: upstream is `src/rivian/<f>`, we are
 `custom_components/rivian/rivian_client/<f>`, so `-p3 --directory=…`. `-p2` leaves
@@ -115,10 +116,17 @@ responses and both fail a naive forward `--check`.
    `pyproject.toml` on purpose: reformatting vendored code recreates the permanent
    divergence vendoring exists to remove.
 
-### Invariant worth keeping
+### Invariant worth keeping, until archival
 
-While `rivian-python-client` still exists, its `src/rivian/` and our
+Until `jrgutier/rivian-python-client` is archived, its `src/rivian/` and our
 `rivian_client/` are byte-identical except `__init__.py`, which carries the
 `vendored+<sha>` marker instead of importing the Hatchling-generated
-`__version__.py`. `scripts/gates/s14.sh` asserts this while the sibling repo is
-present, and skips when it is not, so archiving the repo does not fail the gate.
+`__version__.py`. `scripts/gates/s14.sh` asserts this while the sibling checkout is
+present and skips when it is not, so archiving does not turn the gate red -- the
+check simply goes dormant, which is the intended end state rather than an
+oversight.
+
+After archiving, `rivian_client/` is the only copy. The marker in its
+`__init__.py` becomes the sole record of which upstream commit it corresponds to,
+so keeping it current stops being bookkeeping and starts being the only way to
+answer "what are we based on".

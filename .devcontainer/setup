@@ -19,15 +19,19 @@ python3 -m pip install --requirement requirements_test.txt
 # Setup pre-commit hooks
 pre-commit install
 
-# Create config directory and symlink custom_components
-mkdir -p config
-if [ ! -L config/custom_components ]; then
-    ln -sf "$(pwd)/custom_components" config/custom_components
+# Create the container's HA config directory and symlink custom_components.
+#
+# config-dev/, not config/. config/ carries a recorder database and a .storage
+# written by an older Home Assistant, and booting the pinned version against it
+# migrates both one-way -- an unrecoverable side effect of opening the devcontainer.
+mkdir -p config-dev
+if [ ! -L config-dev/custom_components ]; then
+    ln -sf "$(pwd)/custom_components" config-dev/custom_components
 fi
 
 # Copy default configuration if not exists
-if [ ! -f config/configuration.yaml ]; then
-    cp .devcontainer/configuration.yaml config/configuration.yaml
+if [ ! -f config-dev/configuration.yaml ]; then
+    cp .devcontainer/configuration.yaml config-dev/configuration.yaml
 fi
 
 # Seed an authenticated Rivian entry so the container comes up ready to use.

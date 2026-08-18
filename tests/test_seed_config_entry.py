@@ -147,9 +147,14 @@ class TestItDoesNotLeak:
 
     def test_both_ends_are_gitignored(self) -> None:
         """A seeded entry that can be committed is worse than no seeder at all."""
-        ignored = (REPO / ".gitignore").read_text().splitlines()
-        assert any(line.strip() in {".env", "/.env"} for line in ignored)
-        assert any(line.strip() in {"config/", "/config/"} for line in ignored)
+        ignored = {
+            line.strip() for line in (REPO / ".gitignore").read_text().splitlines()
+        }
+        assert ignored & {".env", "/.env"}
+        # config-dev/ is where the seeder actually writes; config/ is the older HA
+        # config it deliberately avoids. Both must stay out of git.
+        assert ignored & {"config-dev/", "/config-dev/"}
+        assert ignored & {"config/", "/config/"}
 
 
 class TestRerunning:
