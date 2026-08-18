@@ -775,3 +775,77 @@ class TestChargerStateIntegration:
 
             # Should NOT have toggled since state is unchanged
             mock_toggle.assert_not_called()
+
+
+class TestTheWatchdogDoesNotBlockStartup:
+    """A never-ending loop must be a BACKGROUND task.
+
+    config_entry.async_create_task registers work that Home Assistant waits for
+    while finishing startup. _watchdog_loop is `while True`, so it never completes
+    and bootstrap blocks on it until it gives up:
+
+        WARNING [homeassistant.bootstrap] Setup timed out for bootstrap waiting on
+        {<Task pending name='None Rivian (Unofficial) rivian ...'
+          coro=<RivianDataUpdateCoordinator._start_watchdog.<locals>._watchdog_loop()
+          running at custom_components/rivian/coordinator.py:231>
+        INFO  Home Assistant initialized in 327.59s
+
+    Measured on the author's production instance after upgrading: five and a half
+    minutes of startup, every restart. async_create_background_task exists for
+    precisely this and is not awaited at startup.
+    """
+
+    def _coordinator(self, hass, entry):
+        from custom_components.rivian.coordinator import VehicleCoordinator
+
+        return VehicleCoordinator(
+            hass=hass, config_entry=entry, client=MagicMock(), vehicle_id="v1"
+        )
+
+    async def test_the_watchdog_is_a_background_task(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = self._coordinator(hass, mock_config_entry)
+        created: list[str] = []
+
+        def _bg(hass_, coro, name=None, eager_start=True):
+            created.append("background")
+            coro.close()
+            return MagicMock(done=lambda: False)
+
+        def _fg(hass_, coro, name=None, eager_start=True):
+            created.append("foreground")
+            if hasattr(coro, "close"):
+                coro.close()
+            return MagicMock(done=lambda: False)
+
+        with (
+            patch.object(mock_config_entry, "async_create_background_task", _bg),
+            patch.object(mock_config_entry, "async_create_task", _fg),
+        ):
+            coordinator._start_watchdog()
+
+        assert created == ["background"], (
+            "the watchdog loop never returns, so a foreground task makes Home "
+            "Assistant wait on it for the whole of startup"
+        )
+
+    async def test_it_is_still_cancellable(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Moving to a background task must not lose the handle _stop_watchdog
+        cancels -- otherwise the loop outlives an unloaded config entry."""
+        coordinator = self._coordinator(hass, mock_config_entry)
+        task = MagicMock()
+        task.done.return_value = False
+
+        with patch.object(
+            mock_config_entry, "async_create_background_task", return_value=task
+        ) as create:
+            coordinator._start_watchdog()
+        create.assert_called_once()
+        assert coordinator._watchdog_task is task
+
+        coordinator._stop_watchdog()
+        task.cancel.assert_called_once()
+        assert coordinator._watchdog_task is None

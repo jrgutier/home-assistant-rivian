@@ -69,12 +69,22 @@ async def test_the_rvm_list_is_deduped(coordinator, api) -> None:
 
 
 async def test_the_rvm_list_covers_both_sources(coordinator, api) -> None:
-    """Telemetry AND charging. Either list alone leaves entities unavailable."""
+    """Telemetry AND charging. Either list alone leaves entities unavailable.
+
+    Scoped to the topics we can decode: three of CHARGING_RVMS have no decoder and
+    are now filtered out, because subscribing to them only produced an "Unknown
+    Parallax RVM topic" warning on every push. The guard this test exists for --
+    that neither source is dropped wholesale -- is unchanged.
+    """
+    from custom_components.rivian.rivian_client.parallax import RVM_DECODERS
+
     await coordinator._async_update_data()
     rvms = set(api.subscribe_for_parallax_messages.await_args.kwargs["rvms"])
-    assert set(PARALLAX_RVMS) <= rvms
-    assert set(CHARGING_RVMS) <= rvms
-    assert rvms == set(PARALLAX_RVMS) | set(CHARGING_RVMS)
+    assert set(PARALLAX_RVMS) & set(RVM_DECODERS) <= rvms
+    assert set(CHARGING_RVMS) & set(RVM_DECODERS) <= rvms
+    assert rvms == (set(PARALLAX_RVMS) | set(CHARGING_RVMS)) & set(RVM_DECODERS)
+    # Charging telemetry specifically must survive the filter.
+    assert "charging.session.status" in rvms
     coordinator._stop_watchdog()
 
 
@@ -86,3 +96,48 @@ async def test_the_subscription_is_torn_down(coordinator, api) -> None:
     await coordinator._unsubscribe()
     unsub.assert_awaited()
     assert coordinator._unsub_parallax is None
+
+
+class TestWeOnlySubscribeToWhatWeCanDecode:
+    """Asking for a topic with no decoder buys nothing and costs a warning.
+
+    CHARGING_RVMS (upstream's list) names three topics that RVM_DECODERS does not
+    cover: charging.session.notification, .remote_command and .soc_slider. The
+    vehicle pushes them, decode_parallax_message returns None, and the client logs
+
+        WARNING Unknown Parallax RVM topic charging.session.soc_slider
+
+    for each, every push -- observed roughly every three minutes on a live
+    instance. The payload is discarded either way, so the subscription is pure
+    noise and bandwidth.
+
+    Filtered here rather than by editing CHARGING_RVMS, because that list is
+    upstream's and vendored; narrowing it locally would diverge a file we merge.
+    The intersection is also self-maintaining: adding a decoder subscribes its
+    topic automatically.
+    """
+
+    def test_every_subscribed_topic_has_a_decoder(self) -> None:
+        from custom_components.rivian.coordinator import SUBSCRIBED_RVMS
+        from custom_components.rivian.rivian_client.parallax import RVM_DECODERS
+
+        undecodable = sorted(set(SUBSCRIBED_RVMS) - set(RVM_DECODERS))
+        assert not undecodable, (
+            f"{undecodable} would be subscribed but cannot be decoded; each push "
+            "logs a warning and the payload is thrown away"
+        )
+
+    def test_it_still_covers_everything_we_can_decode(self) -> None:
+        """The filter must not silently shrink coverage -- that would trade log
+        noise for missing telemetry."""
+        from custom_components.rivian.coordinator import SUBSCRIBED_RVMS
+        from custom_components.rivian.rivian_client.parallax import (
+            CHARGING_RVMS,
+            PARALLAX_RVMS,
+            RVM_DECODERS,
+        )
+
+        wanted = {*PARALLAX_RVMS, *CHARGING_RVMS} & set(RVM_DECODERS)
+        assert set(SUBSCRIBED_RVMS) == wanted
+        assert len(SUBSCRIBED_RVMS) == len(set(SUBSCRIBED_RVMS)), "deduped"
+        assert SUBSCRIBED_RVMS == sorted(SUBSCRIBED_RVMS), "stable order"

@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 import logging
 import time
-from typing import Any, Generic, TypeVar
+from typing import Any, Final, Generic, TypeVar
 import uuid
 
 from aiohttp import ClientResponse
@@ -38,6 +38,7 @@ from .rivian_client.exceptions import (
 from .rivian_client.parallax import (
     CHARGING_RVMS,
     PARALLAX_RVMS,
+    RVM_DECODERS,
     decode_parallax_message,
 )
 
@@ -231,8 +232,15 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
                 await asyncio.sleep(self._watchdog_interval)
                 await self._watchdog_tick()
 
-        self._watchdog_task = self.config_entry.async_create_task(
-            self.hass, _watchdog_loop(), eager_start=True
+        # A BACKGROUND task, deliberately. config_entry.async_create_task registers
+        # work Home Assistant waits for while finishing startup, and _watchdog_loop
+        # is `while True` -- so it never completes and bootstrap blocks on it until
+        # it times out. Measured on a real instance: "Home Assistant initialized in
+        # 327.59s", every restart, with the bootstrap warning naming this coroutine.
+        self._watchdog_task = self.config_entry.async_create_background_task(
+            self.hass,
+            _watchdog_loop(),
+            name=f"rivian {type(self).__name__} watchdog {self.vehicle_id}",
         )
         _LOGGER.debug(
             "Started %s watchdog for vehicle %s", type(self).__name__, self.vehicle_id
@@ -279,6 +287,22 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
     async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
         raise NotImplementedError
+
+
+# The topics we subscribe to: everything in upstream's two lists that we can
+# actually decode.
+#
+# CHARGING_RVMS names three -- charging.session.notification, .remote_command and
+# .soc_slider -- that RVM_DECODERS does not cover. The vehicle pushes them, the
+# payload is discarded, and the client logs "Unknown Parallax RVM topic" for each,
+# roughly every three minutes on a live instance. Subscribing bought nothing.
+#
+# Filtered here rather than by narrowing CHARGING_RVMS, which is upstream's and
+# vendored: editing it would diverge a file we merge. The intersection is also
+# self-maintaining -- add a decoder and its topic is subscribed automatically.
+SUBSCRIBED_RVMS: Final[list[str]] = sorted(
+    {*PARALLAX_RVMS, *CHARGING_RVMS} & set(RVM_DECODERS)
+)
 
 
 class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
@@ -893,15 +917,15 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 callback=self._process_new_data,
             )
 
-            # Parallax. The RVM list is explicit and DEDUPED rather than rvms=None:
-            # PARALLAX_RVMS and CHARGING_RVMS overlap by five topics, so naive
-            # concatenation would ask for 25 subscriptions covering 20 topics and
-            # every duplicated message would be delivered and decoded twice.
+            # Parallax. The RVM list is explicit, DEDUPED and decodable rather than
+            # rvms=None: PARALLAX_RVMS and CHARGING_RVMS overlap by five topics, so
+            # naive concatenation would ask for 25 subscriptions covering 20 topics
+            # and deliver every duplicate twice.
             try:
                 self._unsub_parallax = await self.api.subscribe_for_parallax_messages(
                     vehicle_id=self.vehicle_id,
                     callback=self._process_parallax_data,
-                    rvms=sorted({*PARALLAX_RVMS, *CHARGING_RVMS}),
+                    rvms=SUBSCRIBED_RVMS,
                 )
             except RivianApiException:
                 # Deliberate policy, not a swallow: vehicle state still works
