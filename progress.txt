@@ -1,0 +1,59 @@
+
+## 2026-08-18 — s08a complete (3/4 fixtures), + a retracted diagnosis
+
+### The websocket was never broken
+Reported earlier as "the Parallax real-time path is dead on this account". FALSE.
+The live instance logs ~13,639 state changes/24h. What was actually happening:
+the gateway permits exactly ONE active subscription per user session token. HA held
+it; every local probe was the second connection, which the server accepts, never
+acks, and closes at TTL with 4420. A malformed token by contrast gets 4403 in 0.5s.
+Proven by disabling the HA entry: ack arrived immediately, twice.
+
+Also retracted: "the access token expired and nothing refreshes it". The client
+authenticates on session tokens only and never sends Authorization: Bearer
+(see `git show dev:src/rivian/rivian.py` ~line 181, and BEARER_TOKEN_TEST_RESULTS.md
+:49-50). A-Sess is _app_session_token, minted fresh by create_csrf_token -- NOT the
+OAuth access token. No refresh mechanism is needed or wanted.
+
+### Identifiers (cost real time -- record them)
+  vehicles[0].id                  01-XXXXXXXXX   -> vehicleState, parallaxMessages
+  vehicles[0].vas.vasVehicleId    36-char UUID
+  HA options vehicle_control[0]   32-char hex    -> HMAC commands
+  .env RIVIAN_VEHICLE_ID          32-char hex    -> matches NONE; "Invalid vehicle ID"
+phone_id = uuid.UUID(enrolledPhones[0].vas.vasPhoneId).bytes -> 16 bytes, and needs
+get_user_information(include_phones=True) -- the default query omits enrolledPhones
+entirely, which briefly looked like "no phone enrolled".
+
+### s08a
+Captured as sole subscriber (HA entry disabled ~75s per window, three windows):
+  climate_hold_status   8B  0802100118012200
+  climate_hold_setting  3B  08ac02  = hold_time_duration_seconds 300
+  vehicle_wheels       74B  two repeated submessages (34B, 36B)
+climate_hold_setting was empty until written. Captured by SETTING a 5-minute hold and
+reading it back, then clearing (duration_minutes=0); verified after as
+switch.r1t_climate_hold = off. This validates the plan's single server-verified WRITE
+end to end, and independently confirms 7200s == 08a038.
+
+ota_config: signed GET ACCEPTED (SendVehicleOperationSuccess) but returned 0 bytes in
+all three sessions -- no OTA schedule configured. Dropped under principle 3 rather
+than inventing a layout. s08b must not write decode_ota_config.
+
+### Gate
+scripts/gates/s08a.sh was VACUOUS -- existence-only via have_path, so four `touch`ed
+empty files passed. Rewritten to assert non-empty + valid protobuf wire format +
+byte-identical re-encode for climate_hold_setting. Fail-first validated:
+  empty files   -> 1 passed, 4 failed
+  garbage bytes -> 4 passed, 1 failed
+  real fixtures -> 5 passed, 0 failed
+
+### Still true and unfixed (see plans/parallax-websocket-auth.md, stories w01-w11)
+- rivian.py:772 (4-arg) and :773 (5-arg) put request headers AND body into the
+  exception; exceptions.py has no __init__, so str(exc) renders all args. The
+  PLAINTEXT PASSWORD reaches home-assistant.log via config_flow.py:265 on failed
+  login. Highest-severity finding in this whole effort. Present upstream unchanged.
+- Five subscribe_for_* plus five ws_monitor.py paths swallow failure into None.
+  This is precisely why a non-bug cost a day.
+- ws_monitor.py:146 only recognises "Unauthenticated"; :189 resets backoff on every
+  open, so 4401/4403 reconnect-loop forever. Close frames log at DEBUG (:215).
+- vendor-client is NOT pushed in either repo -> the s02 CI has NEVER run.
+- The HA repo venv is gone again; integration suite currently unrunnable locally.

@@ -146,9 +146,9 @@
       "phase": "4.0",
       "deps": [],
       "mode": "human",
-      "passes": false,
-      "title": "HUMAN: capture 4 RVM payload fixtures from the live vehicle",
-      "detail": "Data collection, not judgement \u2014 needs the real vehicle and the stored token. Capture one raw payload each for comfort.cabin.climate_hold_status, comfort.cabin.climate_hold_setting, vehicle.wheels.vehicle_wheels, ota.user_schedule.ota_config. All four are verified-working QUERIES today, so the existing query path suffices. Batch this into the s03 session \u2014 it has no dependencies and unblocks a nine-story autonomous run.",
+      "passes": true,
+      "title": "HUMAN: capture RVM payload fixtures from the live vehicle",
+      "detail": "DONE 2026-08-18. Captured 3 of 4: climate_hold_status (8B), climate_hold_setting (3B, 08ac02 = 300s), vehicle_wheels (74B). CORRECTION: the previous premise -- that all four are 'verified-working QUERIES today, so the existing query path suffices' -- was FALSE. sendVehicleOperation selects only {success} (rivian.py:866-870); the payload arrives ONLY on the parallaxMessages subscription. Capture also requires SOLE-SUBSCRIBER access: the gateway permits one active subscription per user session, so the HA config entry must be disabled for the duration. ota.user_schedule.ota_config returned a 0-byte payload to an accepted signed GET across three sessions -- no schedule is configured -- and is DROPPED under principle 3. See docs/development/RVM_FIXTURES.md.",
       "gate": "scripts/gates/s08a.sh"
     },
     {
@@ -161,7 +161,7 @@
       "mode": "auto",
       "passes": false,
       "title": "Write and register the 4 missing decoders",
-      "detail": "Upstream's RVM_DECODERS covers 14 telemetry topics and NONE of the four RVMs this plan ships. Without this, Phase 4 replaces one always-default switch with another. Write decode_* for each, register in RVM_DECODERS, assert each against its s08a fixture. If a fixture could not be captured, drop that entity under principle 3 and name it.",
+      "detail": "Upstream's RVM_DECODERS covers 14 telemetry topics and NONE of the RVMs this plan ships. Write decode_* for the THREE captured RVMs only -- climate_hold_status, climate_hold_setting, vehicle_wheels -- register in RVM_DECODERS, and assert each against its s08a fixture. Do NOT write decode_ota_config: no fixture exists, its layout would be imagined, and the entity is dropped (s09a). See docs/development/RVM_FIXTURES.md.",
       "gate": "scripts/gates/s08b.sh"
     },
     {
