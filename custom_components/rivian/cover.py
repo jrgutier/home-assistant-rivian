@@ -114,7 +114,7 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the sensor entities"""
+    """Set up the cover entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -131,7 +131,7 @@ async def async_setup_entry(
 
 
 class RivianCoverEntity(RivianVehicleControlEntity, CoverEntity):
-    """Representation of a Rivian sensor entity."""
+    """Representation of a Rivian cover entity."""
 
     entity_description: RivianCoverEntityDescription
     _attr_supported_features = CoverEntityFeature.CLOSE | CoverEntityFeature.OPEN

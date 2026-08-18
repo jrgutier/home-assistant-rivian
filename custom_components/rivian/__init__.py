@@ -47,6 +47,7 @@ PLATFORMS: list[Platform] = [
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
+    Platform.TIME,
     Platform.UPDATE,
 ]
 
@@ -64,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     client = get_rivian_api_from_entry(hass, entry)
     try:
         await client.create_csrf_token()
-    except Exception as err:  # pylint: disable=broad-except
+    except Exception as err:
         _LOGGER.error("Could not update Rivian Data: %s", err, exc_info=1)
         await client.close()
         raise ConfigEntryNotReady("Error communicating with API") from err
@@ -374,7 +375,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle removal of an entry."""
     if public_key := entry.options.get("public_key"):
-        client = client = get_rivian_api_from_entry(hass, entry)
+        client = get_rivian_api_from_entry(hass, entry)
         coordinator = UserCoordinator(
             hass=hass, config_entry=entry, client=client, include_phones=True
         )

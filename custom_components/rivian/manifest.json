@@ -17,7 +17,7 @@
     "rivian"
   ],
   "requirements": [
-    "rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@dev"
+    "rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@27dff74cb84027ba5600941bb9e7f895b390118d"
   ],
-  "version": "1.4.2-beta16"
+  "version": "1.5.4-beta1"
 }

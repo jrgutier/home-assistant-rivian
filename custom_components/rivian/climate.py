@@ -111,6 +111,7 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
             return await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 1}
             )
+            return
         await self.async_set_temperature(
             temperature={"LO": 0, "HI": 63.5}.get(preset_mode)
         )

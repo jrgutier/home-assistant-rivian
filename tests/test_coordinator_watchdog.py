@@ -24,6 +24,16 @@ def mock_vehicle_coordinator(
     mock_client.subscribe_for_cloud_connection = AsyncMock(
         return_value=AsyncMock()  # Mock unsubscribe handler
     )
+    # Upstream 1.5.3b5: VehicleCoordinator also subscribes to Parallax messages and
+    # prefetches the charging schedule on every update.
+    mock_client.subscribe_for_parallax_messages = AsyncMock(
+        return_value=AsyncMock()  # Mock unsubscribe handler
+    )
+    schedule_response = MagicMock()
+    schedule_response.json = AsyncMock(
+        return_value={"data": {"getVehicle": {"chargingSchedules": []}}}
+    )
+    mock_client.get_charging_schedules = AsyncMock(return_value=schedule_response)
 
     coordinator = VehicleCoordinator(
         hass=hass,

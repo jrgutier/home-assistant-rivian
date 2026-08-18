@@ -169,3 +169,6 @@ config/
 !.env.example
 !.env.sample
 *.env.bak*
+
+# OMC runtime state -- operational artifacts, never part of the integration.
+.omc/

@@ -8,6 +8,7 @@ from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAI
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianSwitchEntityDescription
 from custom_components.rivian.switch import (
+    RivianChargingScheduleEnabledEntity,
     RivianParallaxSwitchEntity,
     RivianSwitchEntity,
     async_setup_entry,
@@ -467,13 +468,26 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should have created 9 switch entities (5 SWITCHES + 4 PARALLAX_SWITCHES)
+    # 5 SWITCHES + 4 PARALLAX_SWITCHES + upstream 1.5.3b5's charging-schedule switch.
     # SWITCHES: alarm, charging_enabled, gear_guard_video, steering_wheel_heat, cabin_climate_hold
     # PARALLAX_SWITCHES: halloween_enabled, cabin_ventilation, gear_guard_video_consent, passive_entry
-    assert len(entities_added) == 9
+    assert len(entities_added) == 10
     assert all(
-        isinstance(e, (RivianSwitchEntity, RivianParallaxSwitchEntity))
+        isinstance(
+            e,
+            (
+                RivianSwitchEntity,
+                RivianParallaxSwitchEntity,
+                RivianChargingScheduleEnabledEntity,
+            ),
+        )
         for e in entities_added
+    )
+    # The charging-schedule switch is what upstream added; name it so this test
+    # fails if the merge ever drops it again rather than merely changing a count.
+    assert (
+        sum(isinstance(e, RivianChargingScheduleEnabledEntity) for e in entities_added)
+        == 1
     )
 
 
@@ -512,8 +526,11 @@ async def test_async_setup_entry_no_phone_identity(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should not have created any switch entities (no vehicle control)
-    assert len(entities_added) == 0
+    # Command switches all require pairing, so none of them appear. The
+    # charging-schedule switch does NOT: it drives a GraphQL mutation rather than
+    # an HMAC-signed vehicle command, so it is created without vehicle control.
+    assert len(entities_added) == 1
+    assert isinstance(entities_added[0], RivianChargingScheduleEnabledEntity)
 
 
 class TestRivianSwitchEntityErrorPaths:
@@ -592,3 +609,55 @@ class TestRivianSwitchEntityErrorPaths:
 
         # Should log error but not raise
         await entity.async_turn_on()
+
+
+class TestRivianChargingScheduleEnabledEntity:
+    """Upstream 1.5.3b5's charging-schedule switch.
+
+    It is deliberately NOT a vehicle-control entity: it drives a GraphQL mutation
+    rather than an HMAC-signed command, so it must work without phone pairing.
+    """
+
+    def _entity(self, mock_config_entry, enabled=True):
+        from custom_components.rivian.switch import CHARGING_SCHEDULE_ENABLED_SWITCH
+
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.charging_schedule = {"enabled": enabled}
+        coordinator.update_charging_schedule_data = AsyncMock()
+        vehicle = {"id": "v1", "vin": "V", "name": "R1T", "model": "R1T"}
+        return (
+            RivianChargingScheduleEnabledEntity(
+                coordinator,
+                mock_config_entry,
+                CHARGING_SCHEDULE_ENABLED_SWITCH,
+                vehicle,
+            ),
+            coordinator,
+        )
+
+    def test_is_on_reflects_the_schedule(self, mock_config_entry) -> None:
+        entity, _ = self._entity(mock_config_entry, enabled=True)
+        assert entity.is_on is True
+        entity, _ = self._entity(mock_config_entry, enabled=False)
+        assert entity.is_on is False
+
+    async def test_turn_on_writes_enabled_true(self, mock_config_entry) -> None:
+        entity, coordinator = self._entity(mock_config_entry, enabled=False)
+        await entity.async_turn_on()
+        coordinator.update_charging_schedule_data.assert_awaited_once_with(
+            {"enabled": True}
+        )
+
+    async def test_turn_off_writes_enabled_false(self, mock_config_entry) -> None:
+        entity, coordinator = self._entity(mock_config_entry, enabled=True)
+        await entity.async_turn_off()
+        coordinator.update_charging_schedule_data.assert_awaited_once_with(
+            {"enabled": False}
+        )
+
+    def test_available_tracks_the_coordinator(self, mock_config_entry) -> None:
+        entity, _ = self._entity(mock_config_entry)
+        entity._available = False
+        assert entity.available is False
+        entity._available = True
+        assert entity.available is True

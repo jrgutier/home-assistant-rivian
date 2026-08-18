@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
@@ -1449,15 +1449,47 @@ VEHICLE_STATE_SANS_TPMS_API_FIELDS: Final[set[str]] = VEHICLE_STATE_API_FIELDS ^
     "tirePressureRearRight",
 }
 
-CHARGING_API_FIELDS: Final[set[str]] = {
-    "currency",
-    "price",
-    "kilometersChargedPerHour",
-    "powerKW",
-    "rangeAddedThisSession",
-    "startTime",
-    "timeElapsed",
-    "timeRemaining",
-    "totalChargedEnergy",
-    "isFreeSession",
+CHARGING_STATE_KEYS: Final[frozenset[str]] = frozenset(
+    {
+        "currentCurrency",
+        "currentPrice",
+        "displayStatus",
+        "evseType",
+        "kilometersChargedPerHour",
+        "plugConnectionStatus",
+        "power",
+        "rangeAddedThisSession",
+        "startTime",
+        "timeElapsed",
+        "timeToEndOfCharge",
+        "totalChargedEnergy",
+    }
+)
+
+WEEK_DAYS_ORDERED: Final[tuple[str, ...]] = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+
+MINUTES_PER_DAY: Final[int] = 1440
+MINUTES_PER_HOUR: Final[int] = 60
+
+CHARGING_SCHEDULE_AMPERAGE_MINIMUM: Final[int] = 8
+CHARGING_SCHEDULE_AMPERAGE_MAXIMUM: Final[int] = 48
+CHARGING_SCHEDULE_AMPERAGE_STEP: Final[int] = 2
+
+DEFAULT_CHARGING_SCHEDULE_START: Final[int] = 1320  # 10:00 PM
+DEFAULT_CHARGING_SCHEDULE_DURATION: Final[int] = 480  # 8 hours
+DEFAULT_CHARGING_SCHEDULE_AMPERAGE: Final[int] = 48
+DEFAULT_CHARGING_SCHEDULE: Final[dict[str, Any]] = {
+    "startTime": DEFAULT_CHARGING_SCHEDULE_START,
+    "duration": DEFAULT_CHARGING_SCHEDULE_DURATION,
+    "amperage": DEFAULT_CHARGING_SCHEDULE_AMPERAGE,
+    "enabled": True,
+    "weekDays": list(WEEK_DAYS_ORDERED),
 }

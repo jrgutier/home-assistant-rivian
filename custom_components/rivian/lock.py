@@ -36,7 +36,7 @@ LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the sensor entities"""
+    """Set up the lock entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -51,7 +51,7 @@ async def async_setup_entry(
 
 
 class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
-    """Representation of a Rivian sensor entity."""
+    """Representation of a Rivian lock entity."""
 
     entity_description: RivianLockEntityDescription
 

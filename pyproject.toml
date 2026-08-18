@@ -1,5 +1,7 @@
 [tool.ruff.lint]
-ignore = []
+ignore = [
+    "RUF012", # Mutable class attributes should be annotated with typing.ClassVar
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E402"]
@@ -16,4 +18,7 @@ split-on-trailing-comma = false
 disable = [
     "abstract-method",
     "unexpected-keyword-arg",
+
+    # Handled by ruff
+    "broad-except", # BLE001
 ]

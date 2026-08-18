@@ -101,21 +101,27 @@ on_branch() {
 # so PYTEST must point at a rebuilt environment.)
 test_count() {
   local repo="$1" floor="$2" py n
-  py="${PYTEST:-}"
-  if [ -z "$py" ]; then
-    # repo convention here is venv/, not .venv/
-    if   [ -x "$repo/venv/bin/pytest" ];  then py="$repo/venv/bin/pytest"
-    elif [ -x "$repo/.venv/bin/pytest" ]; then py="$repo/.venv/bin/pytest"
-    elif command -v pytest >/dev/null 2>&1; then py=pytest
-    fi
-  fi
-  if [ -z "$py" ] || ! "$py" --version >/dev/null 2>&1; then
-    bad "test count: pytest unavailable — set PYTEST=/path/to/pytest (env problem, NOT a deleted-test finding)"
+  # Try every candidate interpreter and use the first that actually yields a count.
+  #
+  # Previously this preferred "$repo/venv" over "$repo/.venv" and stopped there. A
+  # STALE venv/ (present, pytest --version fine, but its deps predate the current
+  # client) collects nothing, stderr was discarded, and the gate reported
+  # "test count 0 < 301 (tests deleted to go green?)" against a tree with 987
+  # passing tests. The existing guard only caught a MISSING pytest, not a broken
+  # one -- and a false "tests deleted" accusation is worse than a missing gate.
+  for py in ${PYTEST:-} "$repo/.venv/bin/pytest" "$repo/venv/bin/pytest" pytest; do
+    [ -n "$py" ] || continue
+    command -v "$py" >/dev/null 2>&1 || [ -x "$py" ] || continue
+    "$py" --version >/dev/null 2>&1 || continue
+    n=$( { cd "$repo" && "$py" --collect-only -q 2>/dev/null | tail -1 | grep -oE '^[0-9]+'; } || true)
+    [ -n "${n:-}" ] && break
+  done
+  if [ -z "${n:-}" ]; then
+    bad "test count: no pytest could collect in $repo -- set PYTEST=/path/to/pytest (ENVIRONMENT problem, NOT a deleted-test finding)"
     return
   fi
-  n=$( { cd "$repo" && "$py" --collect-only -q 2>/dev/null | tail -1 | grep -oE '^[0-9]+'; } || echo 0)
-  if [ "${n:-0}" -ge "$floor" ]; then ok "test count $n >= $floor"
-  else bad "test count ${n:-0} < $floor (tests deleted to go green?)"; fi
+  if [ "$n" -ge "$floor" ]; then ok "test count $n >= $floor"
+  else bad "test count $n < $floor (tests deleted to go green?)"; fi
 }
 
 summary() {
