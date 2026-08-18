@@ -21,7 +21,7 @@ for this story existing.
 | Zero `TypeError` from `get()` | **0** |
 | Zero `KeyError` from any select | **0** |
 | Zero tracebacks / ERROR lines | **0** |
-| Climate hold switch round-trips | **not exercised — see below** |
+| Climate hold write round-trips | **0 → 300 → 0 s, reflected in ~3 s** |
 
 Topics decoded: `body.closures.states`, `body.locks.states`,
 `comfort.cabin.cabin_preconditioning_status`, `comfort.cabin.cabin_temperatures`,
@@ -31,13 +31,39 @@ Topics decoded: `body.closures.states`, `body.locks.states`,
 `energy.high_voltage.battery_state`, `vehicle.power.state`,
 `vehicle.wheels.vehicle_wheels`.
 
-## Not exercised: the climate hold write
+## The climate hold write
 
-The one server-verified Parallax **write** was not sent. Doing so actuates the
-owner's vehicle, and no approval was given for that specifically — running the
-acceptance read path is not consent to command the car. The write path is covered
-by the golden-bytes encoder tests and by `climate_hold_setting` decoding correctly
-here on the read side. **A human should run this one deliberately.**
+Exercised, with the owner's explicit approval and on their conditions: restore
+steady state afterwards, and abort if anyone is in the vehicle.
+
+**Occupancy gate before writing.** All six closures `closed`
+(`doorFrontLeft/Right`, `doorRearLeft/Right`, `closureFrunk`,
+`closureSideBinLeft`), `powerState: ready` — awake and parked, not `go`. Doors were
+re-checked throughout and never changed.
+
+**Round trip**, observed through the live Parallax subscription:
+
+| Step | `climateHoldDurationSeconds` |
+|---|---|
+| baseline | `0` |
+| `set_climate_hold(duration_minutes=5)` | `300` |
+| `set_climate_hold(duration_minutes=0)` | `0` |
+
+Both writes returned `SendVehicleOperationSuccess / success: true`, and the change
+was reflected back through the subscription in about three seconds — well inside
+the one-update threshold. 5 minutes encoding to exactly 300 seconds confirms the
+hand-rolled varint encoder that replaced protobuf in s10 against the real vehicle,
+which the golden-bytes tests could only assert against the old generated code.
+
+The 16-raw-byte `phone_id` (`uuid.UUID(vasPhoneId).bytes`, not the 36-character
+string) was resolved from the enrolled phone matching the configured public key —
+the detail most likely to be got wrong, now confirmed end to end.
+
+`climateHoldStatus` stayed `off` throughout, which is consistent: the write sets
+the hold *duration*; the hold itself does not become active merely because a
+duration is stored.
+
+**The vehicle was left exactly as found**: duration `0`, status `off`.
 
 ## Defects found, all fixed in this session
 

@@ -288,3 +288,27 @@ Not done: the climate hold write. It actuates the vehicle and needs its own
 approval; running the read path is not consent to command the car.
 
 All 20 stories now pass.
+
+## s13 — the climate hold write, exercised
+
+Owner approved actuating the vehicle on two conditions: restore steady state, and
+stop if anyone is in it. Both honoured.
+
+Occupancy gate before writing: all six closures closed, powerState `ready` (awake,
+parked, not `go`). Doors re-checked throughout and never changed.
+
+Round trip through the live subscription: baseline 0 -> write 5 minutes -> 300 ->
+write 0 -> 0. Both writes returned SendVehicleOperationSuccess and the change came
+back in about three seconds, well inside the one-update threshold. The vehicle was
+left exactly as found.
+
+Two things this proves that no offline test could. 5 minutes encodes to exactly 300
+seconds on the real vehicle, which validates the hand-rolled varint encoder that
+replaced protobuf in s10 -- the golden-bytes tests could only compare it against
+the generated code it replaced, not against what Rivian actually accepts. And the
+16-raw-byte phone_id (uuid.UUID(vasPhoneId).bytes, not the 36-character string)
+resolves and authorises correctly, which is the single detail most likely to be
+wrong in that path.
+
+climateHoldStatus stayed 'off' throughout, consistently: the write sets the hold
+duration, and storing a duration does not by itself start the hold.
