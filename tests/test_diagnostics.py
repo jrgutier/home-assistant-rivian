@@ -140,3 +140,36 @@ async def test_async_get_config_entry_diagnostics_multiple_vehicles(
     assert len(diagnostics["vehicle"]) == 2
     assert len(diagnostics["charging"]) == 2
     assert len(diagnostics["drivers"]) == 2
+
+
+class TestTokenRedaction:
+    """helpers.py imported the token constants without listing them in TO_REDACT.
+
+    Not a live leak -- diagnostics dumps coordinator data, never entry.data -- but
+    the import implied coverage that did not exist, and the payload is exactly the
+    thing users attach to bug reports.
+    """
+
+    def test_token_fields_are_redacted_wherever_they_appear(self) -> None:
+        from custom_components.rivian.const import (
+            CONF_ACCESS_TOKEN,
+            CONF_REFRESH_TOKEN,
+            CONF_USER_SESSION_TOKEN,
+        )
+        from custom_components.rivian.helpers import redact
+
+        secret = "SHOULD-NEVER-APPEAR-IN-DIAGNOSTICS"
+        payload = {
+            CONF_ACCESS_TOKEN: secret,
+            CONF_REFRESH_TOKEN: secret,
+            CONF_USER_SESSION_TOKEN: secret,
+            "nested": {CONF_ACCESS_TOKEN: secret},
+        }
+        assert secret not in str(redact(payload))
+
+    def test_non_sensitive_diagnostic_data_survives(self) -> None:
+        from custom_components.rivian.helpers import redact
+
+        assert redact({"chargerState": "charging_active"})["chargerState"] == (
+            "charging_active"
+        )

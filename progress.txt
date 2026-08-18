@@ -110,3 +110,46 @@ client repo. s07 removes the pin entirely by vendoring.
 - confirm the cover.py frunk decision: gated on FRUNK_NXT_ACT (ours) rather than
   unconditional (upstream) -- vehicles WITHOUT that feature now get no frunk cover
 - confirm the ruff 0.14.2 pin is still wanted over upstream's 0.16.2
+
+## 2026-08-18 — credential disclosure fixed (w03), outside the PRD chain
+
+The PRD is fully blocked: every remaining story (s06a..s14) is behind s06a, and
+s06a is behind the MANDATORY human review of s05. Rather than override that
+guardrail, took the highest-value unblocked work -- the credential disclosure,
+which is client-repo-local and needed before any release.
+
+### What leaked
+rivian.py:772 (4 args) and :773 (5 args) raise with the request HEADERS and BODY
+attached, and exceptions.py had no __init__, so str(args) rendered everything:
+  * A-Sess / U-Sess / Csrf-Token from headers
+  * the PLAINTEXT PASSWORD from the Login mutation body
+coordinator.py:97,103,106 and __init__.py:68 log with exc_info=1, and
+config_flow.py:265 logs the failed-login case -- so a mistyped password was
+written to home-assistant.log. Present in upstream unchanged.
+
+### Fix (client repo, 1aafd96)
+RivianApiException.__init__ redacts at construction. Shape-agnostic (walks every
+arg by key name at any depth) because the 5-arg fallback shifts headers/body by
+one and is used for every code absent from ERROR_CODE_CLASS_MAP -- a
+position-keyed fix would miss exactly the unclassified failures.
+Structure-preserving: args[1] stays navigable for config_flow.py:238.
+
+### Evidence
+TDD: 6 of 10 tests failed before the fix. Mutation-verified 3 ways --
+no-op redact() 6 fail; drop body key names 4 fail; key on position 1 fail (the
+5-arg case precisely). Verified end to end against the LIVE API: a real
+RivianUnauthenticated logged the way coordinator.py:97 logs it renders A-Sess and
+U-Sess as <redacted>, zero secrets in 2288 chars, diagnostic context intact.
+
+### TO_REDACT — corrected, and the earlier claim overstated
+helpers.py:15 imported the three token constants and TO_REDACT listed none.
+BUT this was NOT a live leak: async_get_config_entry_diagnostics dumps coordinator
+data only, never entry.data, so no token ever reached a diagnostics download.
+Added them as defence-in-depth and recorded the distinction rather than repeating
+the stronger claim.
+
+### Still open from the websocket/credential plan (parallax-websocket-auth.md)
+w04  per-site defence-in-depth at the 7 log sites  -- after s06a (touches coordinator.py)
+w05  five subscribe_for_* + five ws_monitor.py paths swallow failure into None
+w07  ws_monitor.py:146 only knows "Unauthenticated"; :189 resets backoff every open
+w11  commit guard / secret scan   (.env.bak already deleted + gitignored)

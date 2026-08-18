@@ -15,6 +15,15 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_USER_SESSION_TOKEN
 
 TO_REDACT = {
+    # The three token constants are imported above and were NOT listed here.
+    # Today that is latent rather than live: async_get_config_entry_diagnostics
+    # dumps coordinator data only, never entry.data, so no token reaches a
+    # diagnostics download. Listed anyway, because the day someone adds
+    # entry.data to that payload the omission becomes a credential leak, and the
+    # import already implied they were covered.
+    CONF_ACCESS_TOKEN,
+    CONF_REFRESH_TOKEN,
+    CONF_USER_SESSION_TOKEN,
     CONF_EMAIL,
     CONF_LATITUDE,
     CONF_LONGITUDE,
