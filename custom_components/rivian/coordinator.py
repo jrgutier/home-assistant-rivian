@@ -71,6 +71,11 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
             always_update=False,
         )
         self.api = client
+        # Watchdog state, shared by every coordinator that runs one.
+        self._watchdog_task: asyncio.Task | None = None
+        self._last_update_time: datetime | None = None
+        self._subscription_start_time: datetime | None = None
+        self._subscription_count = 0
 
     def _set_update_interval(self, seconds: float | None = None) -> None:
         """Set the update interval or calculate new one based on errors."""
@@ -121,6 +126,84 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         if self.data:
             return self.data
         raise UpdateFailed("Error communicating with API")
+
+    # --- subscription watchdog -------------------------------------------
+    #
+    # Lifted here from ChargingCoordinator and VehicleCoordinator, which carried
+    # near-identical ~50-line copies differing only in log wording and one skip
+    # rule. A tick is its own method so the logic can be driven directly in tests:
+    # the previous per-coordinator tests re-derived the trigger conditions in the
+    # test body and could not fail when the logic changed.
+
+    _watchdog_timeout = 5 * 60  # seconds without data before we resubscribe
+    _watchdog_interval = 60  # seconds between checks
+
+    def _watchdog_skip_reason(self) -> str | None:
+        """Return why this tick should be skipped, or None to proceed."""
+        return None
+
+    async def _watchdog_tick(self) -> bool:
+        """Run one health check. Returns True if the subscription was restarted."""
+        if not self._last_update_time:
+            # Nothing has arrived yet, so there is nothing to be stale relative
+            # to; restarting here would fight the initial subscription.
+            return False
+
+        if reason := self._watchdog_skip_reason():
+            _LOGGER.debug(
+                "Watchdog skipping check for vehicle %s: %s", self.vehicle_id, reason
+            )
+            return False
+
+        idle = (datetime.now(timezone.utc) - self._last_update_time).total_seconds()
+        if idle <= self._watchdog_timeout:
+            return False
+
+        age = (
+            (datetime.now(timezone.utc) - self._subscription_start_time).total_seconds()
+            / 60
+            if self._subscription_start_time
+            else 0
+        )
+        _LOGGER.warning(
+            "%s subscription for vehicle %s stale, no updates for %.1f minutes. "
+            "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting...",
+            type(self).__name__,
+            self.vehicle_id,
+            idle / 60,
+            self._subscription_count,
+            age,
+            "active"
+            if self.api._ws_monitor and self.api._ws_monitor.connected
+            else "inactive/closed",
+        )
+        await self._unsubscribe()
+        task = self.async_request_refresh()
+        self.config_entry.async_create_task(self.hass, task, eager_start=True)
+        return True
+
+    def _start_watchdog(self) -> None:
+        """Start the subscription watchdog, if it is not already running."""
+        if self._watchdog_task and not self._watchdog_task.done():
+            return
+
+        async def _watchdog_loop() -> None:
+            while True:
+                await asyncio.sleep(self._watchdog_interval)
+                await self._watchdog_tick()
+
+        self._watchdog_task = self.config_entry.async_create_task(
+            self.hass, _watchdog_loop(), eager_start=True
+        )
+        _LOGGER.debug(
+            "Started %s watchdog for vehicle %s", type(self).__name__, self.vehicle_id
+        )
+
+    def _stop_watchdog(self) -> None:
+        """Stop the subscription watchdog."""
+        if self._watchdog_task and not self._watchdog_task.done():
+            self._watchdog_task.cancel()
+        self._watchdog_task = None
 
     def get(self, key: str, default: Any | None = None) -> Any | None:
         """Get a data value by key, supporting dot notation for nested keys.
@@ -494,62 +577,6 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             self._unsub_handler = None
             self._initial.clear()
 
-    def _start_watchdog(self) -> None:
-        """Start the subscription watchdog."""
-        if self._watchdog_task and not self._watchdog_task.done():
-            return  # Watchdog already running
-
-        async def _watchdog_loop():
-            """Monitor subscription health and restart if stale."""
-            while True:
-                await asyncio.sleep(60)  # Check every minute
-
-                if not self._last_update_time:
-                    continue
-
-                time_since_update = (
-                    datetime.now(timezone.utc) - self._last_update_time
-                ).total_seconds()
-
-                # Restart subscription if stale
-                if time_since_update > self._watchdog_timeout:
-                    subscription_age = (
-                        (
-                            datetime.now(timezone.utc) - self._subscription_start_time
-                        ).total_seconds()
-                        / 60
-                        if self._subscription_start_time
-                        else 0
-                    )
-                    _LOGGER.warning(
-                        "Charging subscription for vehicle %s stale, no updates for %.1f minutes. "
-                        "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting...",
-                        self.vehicle_id,
-                        time_since_update / 60,
-                        self._subscription_count,
-                        subscription_age,
-                        "active"
-                        if self.api._ws_monitor and self.api._ws_monitor.connected
-                        else "inactive/closed",
-                    )
-                    await self._unsubscribe()
-                    task = self.async_request_refresh()
-                    self.config_entry.async_create_task(
-                        self.hass, task, eager_start=True
-                    )
-
-        self._watchdog_task = self.config_entry.async_create_task(
-            self.hass, _watchdog_loop(), eager_start=True
-        )
-        _LOGGER.debug("Started charging watchdog for vehicle %s", self.vehicle_id)
-
-    def _stop_watchdog(self) -> None:
-        """Stop the subscription watchdog."""
-        if self._watchdog_task and not self._watchdog_task.done():
-            self._watchdog_task.cancel()
-            self._watchdog_task = None
-            _LOGGER.debug("Stopped charging watchdog for vehicle %s", self.vehicle_id)
-
     def toggle_watchdog(self, enabled: bool) -> None:
         """Enable or disable the watchdog based on charging state."""
         if enabled:
@@ -685,6 +712,17 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     key = "vehicleState"
     _update_interval_seconds = 15 * 60  # 15 minutes
     _watchdog_timeout = 5 * 60  # 5 minutes
+
+    def _watchdog_skip_reason(self) -> str | None:
+        """A sleeping vehicle sends nothing, so silence is expected, not stale.
+
+        ChargingCoordinator deliberately has NO such rule: a charging session
+        continues while the vehicle sleeps, and skipping there would stop
+        watching an active charge.
+        """
+        if self.get("powerState") == "sleep":
+            return "vehicle is sleeping"
+        return None
 
     def __init__(
         self,
@@ -858,73 +896,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     async def _fetch_data(self) -> dict[str, Any]:
         """Fetch the data."""
         raise NotImplementedError("Polling VehicleState no longer allowed")
-
-    def _start_watchdog(self) -> None:
-        """Start the subscription watchdog."""
-        if self._watchdog_task and not self._watchdog_task.done():
-            return  # Watchdog already running
-
-        async def _watchdog_loop():
-            """Monitor subscription health and restart if stale."""
-            while True:
-                await asyncio.sleep(60)  # Check every minute
-
-                if not self._last_update_time:
-                    continue
-
-                time_since_update = (
-                    datetime.now(timezone.utc) - self._last_update_time
-                ).total_seconds()
-
-                # Skip if vehicle is sleeping (no updates expected)
-                power_state = self.get("powerState")
-                if power_state == "sleep":
-                    _LOGGER.debug(
-                        "Vehicle %s is sleeping, skipping watchdog check",
-                        self.vehicle_id,
-                    )
-                    continue
-
-                # Restart subscription if stale
-                if time_since_update > self._watchdog_timeout:
-                    subscription_age = (
-                        (
-                            datetime.now(timezone.utc) - self._subscription_start_time
-                        ).total_seconds()
-                        / 60
-                        if self._subscription_start_time
-                        else 0
-                    )
-                    _LOGGER.warning(
-                        "Vehicle %s subscription stale, no updates for %.1f minutes (powerState: %s). "
-                        "Subscription #%d age: %.1f min, WebSocket state: %s, online: %s. Restarting...",
-                        self.vehicle_id,
-                        time_since_update / 60,
-                        power_state,
-                        self._subscription_count,
-                        subscription_age,
-                        "active"
-                        if self.api._ws_monitor and self.api._ws_monitor.connected
-                        else "inactive/closed",
-                        self._is_online,
-                    )
-                    await self._unsubscribe()
-                    task = self.async_request_refresh()
-                    self.config_entry.async_create_task(
-                        self.hass, task, eager_start=True
-                    )
-
-        self._watchdog_task = self.config_entry.async_create_task(
-            self.hass, _watchdog_loop(), eager_start=True
-        )
-        _LOGGER.debug("Started watchdog for vehicle %s", self.vehicle_id)
-
-    def _stop_watchdog(self) -> None:
-        """Stop the subscription watchdog."""
-        if self._watchdog_task and not self._watchdog_task.done():
-            self._watchdog_task.cancel()
-            self._watchdog_task = None
-            _LOGGER.debug("Stopped watchdog for vehicle %s", self.vehicle_id)
 
     async def async_shutdown(self) -> None:
         # Stop watchdog

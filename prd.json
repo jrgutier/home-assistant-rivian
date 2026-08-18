@@ -123,9 +123,9 @@
         "s06a"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "De-duplicate the watchdog; extend diagnostics",
-      "detail": "The 502/504 + watchdog block is copy-pasted three times (~90 lines each). Write contract tests against the intended behaviour FIRST, then lift it into RivianDataUpdateCoordinator. Add Parallax data to diagnostics.py and extend redact()/TO_REDACT to the new fields.",
+      "detail": "The 502/504 + watchdog block is copy-pasted three times (~90 lines each). Write contract tests against the intended behaviour FIRST, then lift it into RivianDataUpdateCoordinator. Add Parallax data to diagnostics.py and extend redact()/TO_REDACT to the new fields. DONE 2026-08-18. Watchdog lifted into RivianDataUpdateCoordinator as _watchdog_tick/_start_watchdog/_stop_watchdog with a _watchdog_skip_reason hook; VehicleCoordinator overrides it for the sleep rule, ChargingCoordinator deliberately does not. Diagnostics gained parallax subscription state.",
       "gate": "scripts/gates/s06b.sh"
     },
     {

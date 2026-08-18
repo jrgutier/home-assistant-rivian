@@ -460,3 +460,50 @@ Same self-triggering-comment flaw s02 hit. The check now strips comments before
 grepping, and was fail-first validated against a real rvms=None.
 
 1010 tests, coverage 82.23%, ten gates green.
+
+## 2026-08-18 — s06b: watchdog de-duplicated, diagnostics extended
+
+### The watchdog now exists once
+Lifted into RivianDataUpdateCoordinator. Two near-identical ~50-line copies
+remained after s06a dissolved the third with ParallaxCoordinator; they differed
+only in log wording and ONE behavioural rule.
+
+That rule is preserved as an override, not a copied loop:
+  VehicleCoordinator._watchdog_skip_reason() -> "vehicle is sleeping"
+ChargingCoordinator deliberately has NO skip: a charging session continues while
+the vehicle sleeps, so the same rule would stop watching an active charge. That
+asymmetry is now stated in code and pinned by a test, rather than being an
+accident of which copy someone edited.
+
+### _watchdog_tick() is a seam, and the reason matters
+The existing test test_watchdog_logic_restarts_when_stale re-derived the trigger
+conditions in the test body -- asserting `time_since > timeout` and concluding
+"this validates that the watchdog WOULD restart". It cannot fail when the watchdog
+logic changes, which is the only thing it exists to protect. Extracting one tick
+makes the real logic drivable without waiting out the 60s loop OR patching
+asyncio.sleep globally (which broke wait_for session-wide earlier today).
+13 contract tests now exercise it, parametrised across both coordinators.
+
+### Diagnostics
+Parallax data already reaches the dump via the vehicle/charging coordinators, so
+the useful addition was the part that is otherwise invisible: whether the
+subscription is live, which topics were requested, and which are decodable.
+"Connected but receiving nothing" is a real state -- the gateway allows one
+subscription per user session -- and nothing in the dump showed it.
+
+Three existing diagnostics tests used MagicMock(spec=VehicleCoordinator), which
+exposes class attributes only, so the new instance attribute had to be set in the
+tests. Fixed there rather than making the production code defensive with getattr()
+about its own attribute.
+
+### Gate rewritten
+The old s06b gate only NOTED the watchdog reference count and asserted nothing --
+it would have passed against the triplicated code it was written to catch. Now
+asserts each piece is defined exactly once, that the skip override survives, and
+that the contract and diagnostics tests pass. Fail-first validated against a
+re-introduced duplicate.
+
+Also fixed 8 self-inflicted RuntimeWarnings: my fixture returned a real coroutine
+from a mocked async_request_refresh that nothing ever awaited.
+
+1025 tests, coverage 83.12%, eleven gates green.
