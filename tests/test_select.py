@@ -537,7 +537,9 @@ async def test_async_setup_entry(
     # - seat_rear_left_heat, seat_rear_right_heat
     # - seat_front_left_heat_vent, seat_front_right_heat_vent
     # - halloween_mode, cabin_ventilation_mode
-    assert len(entities_added) == 6
+    # The two PARALLAX_SELECTS were removed in s09a (their RVMs return
+    # INTERNAL_SERVER_ERROR); the four seat/steering selects remain.
+    assert len(entities_added) == 4
 
 
 @pytest.mark.asyncio

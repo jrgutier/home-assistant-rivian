@@ -170,7 +170,7 @@
         "s08b"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Prune unverified entities and builders",
       "detail": "Remove PARALLAX_SWITCHES, PARALLAX_NUMBERS, PARALLAX_SELECTS, the parallax.* prefix routing and the rivian.set_geofences service \u2014 all target RVMs that return INTERNAL_SERVER_ERROR. Delete their translation/icon keys and their tests. Then prune parallax.py from 21 build_* functions to the 4 backing verified RVMs, and prune RVMType to match. Incidentally fixes select.py:203's KeyError.",
       "gate": "scripts/gates/s09a.sh"

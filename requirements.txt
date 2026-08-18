@@ -5,7 +5,7 @@ python-dateutil
 PyTurboJPEG
 
 # Integration
-rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@b435e317f02198b252d9aa82a1f115dd586dfc96
+rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@1000a240999f747637daa43a3aa66660bf42f193
 
 # Development
 colorlog

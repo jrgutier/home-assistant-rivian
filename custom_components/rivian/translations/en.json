@@ -535,18 +535,6 @@
       "cabin_climate_hold": {
         "name": "Climate Hold"
       },
-      "halloween_enabled": {
-        "name": "Halloween Mode"
-      },
-      "cabin_ventilation": {
-        "name": "Cabin Ventilation"
-      },
-      "gear_guard_video_consent": {
-        "name": "Gear Guard Video Consent"
-      },
-      "passive_entry": {
-        "name": "Passive Entry"
-      },
       "charging_schedule_enabled": {
         "name": "Charging schedule enabled"
       }
@@ -577,21 +565,6 @@
       "battery_limit": {
         "name": "Charge Limit"
       },
-      "halloween_brightness": {
-        "name": "Halloween Brightness"
-      },
-      "cabin_ventilation_windows": {
-        "name": "Cabin Ventilation Window Opening"
-      },
-      "cabin_ventilation_sunroof": {
-        "name": "Cabin Ventilation Sunroof Opening"
-      },
-      "cabin_ventilation_duration": {
-        "name": "Cabin Ventilation Duration"
-      },
-      "passive_entry_distance": {
-        "name": "Passive Entry Approach Distance"
-      },
       "charging_schedule_amperage": {
         "name": "Charging schedule amperage"
       }
@@ -608,12 +581,6 @@
       },
       "seat_front_right_heat_vent": {
         "name": "Front Right Seat Climate"
-      },
-      "halloween_mode": {
-        "name": "Halloween Animation Mode"
-      },
-      "cabin_ventilation_mode": {
-        "name": "Cabin Ventilation Mode"
       }
     },
     "climate": {

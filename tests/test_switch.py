@@ -9,7 +9,6 @@ from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianSwitchEntityDescription
 from custom_components.rivian.switch import (
     RivianChargingScheduleEnabledEntity,
-    RivianParallaxSwitchEntity,
     RivianSwitchEntity,
     async_setup_entry,
 )
@@ -468,19 +467,12 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # 5 SWITCHES + 4 PARALLAX_SWITCHES + upstream 1.5.3b5's charging-schedule switch.
-    # SWITCHES: alarm, charging_enabled, gear_guard_video, steering_wheel_heat, cabin_climate_hold
-    # PARALLAX_SWITCHES: halloween_enabled, cabin_ventilation, gear_guard_video_consent, passive_entry
-    assert len(entities_added) == 10
+    # 5 SWITCHES + upstream 1.5.3b5's charging-schedule switch. The four
+    # PARALLAX_SWITCHES were removed in s09a: their RVMs all return
+    # INTERNAL_SERVER_ERROR, so they never worked.
+    assert len(entities_added) == 6
     assert all(
-        isinstance(
-            e,
-            (
-                RivianSwitchEntity,
-                RivianParallaxSwitchEntity,
-                RivianChargingScheduleEnabledEntity,
-            ),
-        )
+        isinstance(e, (RivianSwitchEntity, RivianChargingScheduleEnabledEntity))
         for e in entities_added
     )
     # The charging-schedule switch is what upstream added; name it so this test

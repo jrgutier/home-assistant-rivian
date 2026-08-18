@@ -118,19 +118,6 @@ class RivianSwitchEntityDescription(
 
 
 @dataclass(kw_only=True)
-class RivianParallaxSwitchEntityDescription(
-    SwitchEntityDescription, RivianVehicleControlAvailableMixin
-):
-    """Rivian Parallax switch entity description."""
-
-    is_on: Callable[[VehicleCoordinator], bool] | None = None  # Optional - write-only
-    turn_on_method: str
-    turn_on_kwargs: dict[str, Any]
-    turn_off_method: str
-    turn_off_kwargs: dict[str, Any]
-
-
-@dataclass(kw_only=True)
 class RivianTrackerEntityDescription(EntityDescription):
     """Rivian tracker entity Description."""
 

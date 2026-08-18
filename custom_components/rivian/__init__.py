@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 
 from rivian import Rivian
@@ -258,77 +257,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 f"Failed to set charging schedule: {err}"
             ) from err
 
-    async def set_geofences(call: ServiceCall) -> None:
-        """Handle set_geofences service call."""
-        # Get device from target
-        if not call.data.get("device_id"):
-            raise ServiceValidationError("No device specified")
-
-        device_id = call.data["device_id"]
-        coordinator, vehicle_id = await get_vehicle_coordinator_from_device(device_id)
-
-        # Parse fences JSON
-        fences_str = call.data.get("fences")
-        if not fences_str:
-            raise ServiceValidationError("fences parameter is required")
-
-        try:
-            fences = json.loads(fences_str)
-            if not isinstance(fences, list):
-                raise ServiceValidationError("fences must be a JSON array")
-        except json.JSONDecodeError as err:
-            raise ServiceValidationError(
-                f"Invalid JSON in fences parameter: {err}"
-            ) from err
-
-        # Validate fence structure
-        required_fields = {
-            "fence_id",
-            "name",
-            "latitude",
-            "longitude",
-            "radius_meters",
-            "enabled",
-        }
-        for i, fence in enumerate(fences):
-            if not isinstance(fence, dict):
-                raise ServiceValidationError(f"Fence {i} must be a JSON object")
-            missing_fields = required_fields - set(fence.keys())
-            if missing_fields:
-                raise ServiceValidationError(
-                    f"Fence {i} is missing required fields: {missing_fields}"
-                )
-
-        try:
-            _LOGGER.debug(
-                "Setting %d geofences for vehicle %s: %s",
-                len(fences),
-                vehicle_id,
-                fences,
-            )
-
-            # Call the Parallax command
-            result = await coordinator.send_parallax_command(
-                "set_vehicle_geofences",
-                fences=fences,
-            )
-
-            _LOGGER.info(
-                "Successfully set %d geofences for vehicle %s: %s",
-                len(fences),
-                vehicle_id,
-                result,
-            )
-
-        except Exception as err:
-            _LOGGER.error(
-                "Error setting geofences for vehicle %s: %s",
-                vehicle_id,
-                err,
-                exc_info=True,
-            )
-            raise ServiceValidationError(f"Failed to set geofences: {err}") from err
-
     # Register services only once (check if already registered)
     if not hass.services.has_service(DOMAIN, "set_charging_schedule"):
         hass.services.async_register(
@@ -338,15 +266,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
             supports_response=None,
         )
         _LOGGER.debug("Registered service: %s.set_charging_schedule", DOMAIN)
-
-    if not hass.services.has_service(DOMAIN, "set_geofences"):
-        hass.services.async_register(
-            DOMAIN,
-            "set_geofences",
-            set_geofences,
-            supports_response=None,
-        )
-        _LOGGER.debug("Registered service: %s.set_geofences", DOMAIN)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -364,10 +283,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if hass.services.has_service(DOMAIN, "set_charging_schedule"):
                 hass.services.async_remove(DOMAIN, "set_charging_schedule")
                 _LOGGER.debug("Unregistered service: %s.set_charging_schedule", DOMAIN)
-
-            if hass.services.has_service(DOMAIN, "set_geofences"):
-                hass.services.async_remove(DOMAIN, "set_geofences")
-                _LOGGER.debug("Unregistered service: %s.set_geofences", DOMAIN)
 
     return unload_ok
 

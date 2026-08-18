@@ -271,8 +271,10 @@ async def test_async_setup_entry(
     # - battery_limit
     # - halloween_brightness, cabin_ventilation_windows, cabin_ventilation_sunroof,
     #   cabin_ventilation_duration, passive_entry_distance
-    # ...plus upstream 1.5.3b5's charging-schedule amperage number.
-    assert len(entities_added) == 7
+    # 1 NUMBER + upstream 1.5.3b5's charging-schedule amperage. The five
+    # PARALLAX_NUMBERS were removed in s09a: their RVMs return
+    # INTERNAL_SERVER_ERROR, so they never worked.
+    assert len(entities_added) == 2
     assert isinstance(entities_added[0], RivianNumberEntity)
     assert (
         sum(isinstance(e, RivianChargingScheduleAmperageEntity) for e in entities_added)

@@ -330,3 +330,47 @@ A mutation that swaps two EQUAL-LENGTH strings and is reverted within the same
 second leaves a stale .pyc: Python invalidates on (mtime, size) and both matched.
 The restored source read "off" while the imported module still held "on", and the
 suite failed against correct code. Clear __pycache__ between mutation rounds.
+
+## 2026-08-18 — s09a: unverified entities and builders pruned
+
+s09a's only dep was s08b, so it was actionable without the s05 review gate. It
+touches switch/number/select/parallax.py, NOT the coordinator get()/routing that
+s06a rewrites -- and it HELPS s06a by removing ParallaxCoordinator consumers.
+
+Removed (every one targets an RVM that returns INTERNAL_SERVER_ERROR in BOTH
+directions per SENDVEHICLEOPERATION_TEST_RESULTS.md -- they could never work):
+  PARALLAX_SWITCHES (4), PARALLAX_NUMBERS (5), PARALLAX_SELECTS (2)
+  the parallax.* prefix routing in number.py and select.py
+  RivianParallaxSwitchEntity + RivianParallaxSwitchEntityDescription
+  the rivian.set_geofences service and its services.yaml block
+  11 orphaned translation keys
+  client: build_* 21 -> 4, RVMType 18 -> 4, and 6 dangling client methods
+
+### Judgement calls worth recording
+* set_charging_schedule (SINGULAR, Parallax) was deleted; set_charging_schedules
+  (PLURAL, GraphQL) was NOT -- upstream's time.py depends on the latter. One
+  character apart, opposite fates.
+* send_parallax_command SURVIVES (s09b routes the verified write through it), so
+  its tests were repointed at surviving builders rather than deleted. Deleting
+  them would have silently dropped coverage of live code.
+* Three "orphaned" translation keys were FALSE POSITIVES from my regex:
+  seat_front_left/right_heat_vent use dict syntax ("translation_key": "...")
+  rather than kwarg syntax, and active_driver predates the merge in BOTH parents.
+  Left alone -- only the 11 genuinely orphaned keys were removed.
+
+### Gate rewritten
+The old gate was 6 assertions and pointed at the VENDORED path, which is the only
+reason s09a looked dependent on s07. It now resolves whichever copy exists (as
+s08b's does) and adds: RVMType must shrink to 4, the five dead client methods must
+be gone, and no pruned translation key may survive. 13 assertions, fail-first
+validated.
+
+### Tooling notes
+* Deleting Python blocks by indentation heuristics cut a multi-line signature and
+  produced a SyntaxError. Redone with ast to get exact (decorator-inclusive) line
+  spans. Use the AST for structural edits.
+* Two anchors ("the next async def", "the next class") failed because the target
+  was the LAST one in its file. Both aborted before writing, which is the only
+  reason they were harmless.
+
+1013 integration tests, 142 client tests, coverage 82.01%, nine gates green.
