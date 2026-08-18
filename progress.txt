@@ -182,3 +182,67 @@ so the policy is testable without patching asyncio.sleep.
    the regression would surface in CI as a hang rather than a failure.
 
 Client suite 119 -> 137. HA suite 989, coverage 78.73%.
+
+## 2026-08-18 — s05 follow-up: duplicate Parallax subscription fixed
+
+An independent architect review of the s05 merge found two HIGH defects I
+introduced. Both come from ONE mistake: treating hunks as ADDITIVE UNIONS when
+the two sides were MUTUALLY EXCLUSIVE DESIGNS. Upstream 1.5.3b5 REPLACED the
+charging websocket with Parallax; our fork had built its own ParallaxCoordinator
+alongside the charging subscription. Merging both kept two implementations of one
+capability. No conflict marker could have shown this -- each hunk looked
+complementary in isolation.
+
+### FIXED — duplicate Parallax subscription
+coordinator.py had TWO subscribe_for_parallax_messages for the same vehicle:
+ours on ParallaxCoordinator (:590) and upstream's on VehicleCoordinator (:1041).
+Each PARENT had exactly one, so two is a pure merge regression. Both default to
+the same RVM set (rivian.py:673 -- rvms=None means all PARALLAX_RVMS), ws_monitor
+assigns a fresh uuid4 per subscription with no payload dedupe, and
+_resubscribe_all reopens BOTH on every reconnect. Every message was delivered and
+protobuf-decoded twice.
+
+Collapsed to one: ParallaxCoordinator owns the subscription (its _rvm_data store
+feeds diagnostics and the PARALLAX_* entities) and forwards each raw message to
+VehicleCoordinator._process_parallax_data through a new `on_message` hook, so
+upstream's routing is preserved. Mutation-verified both ways: re-adding the second
+subscription fails 2 tests; dropping the forwarding fails 1.
+
+### NOT FIXED — deliberately left for the human review
+ChargingCoordinator.data now has TWO writers with INCOMPATIBLE semantics:
+  :286  update_from_parallax  MERGES   (upstream, Parallax-driven)
+  :395  _process_new_data     REPLACES (ours, subscription-driven)
+  :384  _process_new_data     WIPES to {} on an empty chargingSession list
+Five CHARGING_SENSORS fields are in the collision set (totalChargedEnergy,
+rangeAddedThisSession, kilometersChargedPerHour, startTime, timeElapsed): every
+subscription callback discards the Parallax-only values, every Parallax push
+overwrites the subscription's. Second-order: update_from_parallax SYNTHESISES a
+startTime when power>0 and none is stored, so after the :384 wipe the next push
+invents one, and when the real one arrives :277 sees a mismatch and clear()s the
+accumulated session metrics. Both writers are live precisely DURING an active
+charging session.
+
+Not fixed unilaterally because it is a genuine trade-off, and "drop one side" is
+NOT available: 4 sensors (price, powerKW, timeRemaining, isFreeSession) have no
+Parallax source at all, which is exactly why keeping our subscription was right.
+  A. drop the charging subscription  -> breaks those 4 sensors. Not viable.
+  B. make _process_new_data MERGE    -> smallest fix; trades a correctness bug for
+                                        a staleness bug (nothing expires values)
+  C. namespace by source, resolve on read -> deterministic, largest diff, hardest
+                                        to merge against upstream later
+  D. ship as-is                      -> 5 sensors flap during charging
+Recommendation: B now, C recorded as the direction if flapping persists.
+
+### ALSO FOR THE REVIEW — _update_interval_seconds = 0 (coordinator.py:161)
+Taken from upstream, but upstream chose 0 BECAUSE its _async_update_data was a
+no-op. We kept OUR _async_update_data (:184-252), whose 15-minute tick was the
+self-heal that recreated a dropped charging subscription. With 0 there is no
+scheduled refresh, so recovery now rests solely on the watchdog,
+toggle_subscription and the 502/504 path. Those appear to cover it -- but it is a
+safety net removed by a constant, and lines 194-252 have ZERO test coverage.
+
+### Confirmed clean by the review
+No symbol, method, class, attribute, entity or translation lost from either side
+(AST-diffed across all 19 changed files). en.json is a strict superset with zero
+value changes. No remaining duplicate-entity risk in any of the nine platforms.
+Hunks 6, 7 and 8 correct; all three unsub handlers created and torn down.

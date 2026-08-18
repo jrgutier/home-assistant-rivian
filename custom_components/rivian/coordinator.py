@@ -563,6 +563,12 @@ class ParallaxCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """Initialize the coordinator."""
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.vehicle_id = vehicle_id
+        # Set by VehicleCoordinator. Upstream 1.5.3b5 routes decoded Parallax
+        # fields to the charging and vehicle coordinators; that routing is fed
+        # from THIS subscription rather than one of its own, because both would
+        # request the same RVM set and every message would be delivered and
+        # protobuf-decoded twice.
+        self.on_message: Callable[[dict[str, Any]], None] | None = None
         self._initial = asyncio.Event()
         self._unsub_handler: Callable[[], Awaitable[None]] | None = None
         self._last_update_time: datetime | None = None
@@ -620,6 +626,9 @@ class ParallaxCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _process_new_data(self, data: dict[str, Any]) -> None:
         """Process new Parallax data from subscription."""
+        if self.on_message is not None:
+            # Hand the raw message to upstream's router before decoding here.
+            self.on_message(data)
         # Check for GraphQL error messages
         if data.get("type") == "error":
             error_payload = data.get("payload", [])
@@ -924,9 +933,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self.parallax_coordinator = ParallaxCoordinator(
             hass=hass, config_entry=config_entry, client=client, vehicle_id=vehicle_id
         )
+        self.parallax_coordinator.on_message = self._process_parallax_data
         self._initial = asyncio.Event()
         self._unsub_handler: Callable[[], Awaitable[None]] | None = None
-        self._unsub_parallax: Callable[[], Awaitable[None]] | None = None
         self._connection_unsub_handler: Callable[[], Awaitable[None]] | None = None
         self._is_online: bool = False
         self._last_sync: str | None = None
@@ -1035,12 +1044,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 vehicle_id=self.vehicle_id,
                 properties=VEHICLE_STATE_API_FIELDS,
                 callback=self._process_new_data,
-            )
-
-            # Subscribe to Parallax messages for live charging data
-            self._unsub_parallax = await self.api.subscribe_for_parallax_messages(
-                vehicle_id=self.vehicle_id,
-                callback=self._process_parallax_data,
             )
 
             # Also subscribe to cloud connection for online/offline status
@@ -1403,10 +1406,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     async def _unsubscribe(self, close_monitor: bool = False):
         """Unsubscribe."""
-        if unsub := self._unsub_parallax:
-            await unsub()
-            self._unsub_parallax = None
-
         # Unsubscribe from vehicle state
         if unsub := self._unsub_handler:
             _LOGGER.debug(
