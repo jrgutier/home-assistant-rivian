@@ -33,11 +33,43 @@ The integration is installed via HACS. For local development:
 
 ### Dependencies
 
-The integration depends on the `rivian-python-client` library, which handles API communication and Bluetooth operations. The dependency is specified in `manifest.json` and currently points to a specific branch for development:
+**The API client is vendored, not installed.** It lives at
+`custom_components/rivian/rivian_client/` and is edited in place. There is no
+package to bump, no publish step, and no external client repository to keep in
+sync at install time.
+
+`manifest.json` declares exactly one requirement:
 
 ```json
-"requirements": ["rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@climate-hold-feature"]
+"requirements": ["bleak>=0.21"]
 ```
+
+That is the whole list, and it is deliberate. Home Assistant core does not ship
+`bleak` -- it belongs to the `bluetooth` integration -- so the pairing button needs
+it declared. Everything else the client imports (`aiohttp`, `cryptography`) is
+genuine HA core metadata.
+
+It previously read:
+
+```json
+"requirements": ["rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@<branch>"]
+```
+
+which is why installs were not reproducible: a moving branch, needing `git` and a
+source build inside HA, and unversionable, so HA could not tell whether it was
+satisfied.
+
+**Adding a requirement is not free.** Anything listed must be something the code
+imports and HA core does not guarantee. `scripts/load_test.sh` installs only what
+the manifest declares and imports every module out of the built zip; the test suite
+cannot catch a missing entry, because its venv carries HA's full test extra and so
+resolves imports that a user's install would not.
+
+**Tracking upstream:** see [docs/UPSTREAM_MERGE_REHEARSAL.md](docs/UPSTREAM_MERGE_REHEARSAL.md).
+The integration merges from `upstream/main` normally; the vendored client has no
+merge path and is synced with `scripts/sync_upstream_client.sh`. Do not run
+`ruff --fix` across `rivian_client/` -- it is excluded in `pyproject.toml` because
+reformatting vendored code recreates the divergence vendoring removed.
 
 ## Architecture
 
@@ -97,7 +129,7 @@ The integration provides a navigation service for sending destinations to vehicl
 - Coordinates: `"40.7128,-74.0060"` (decimal latitude,longitude format)
 
 **Implementation Notes:**
-- Uses `send_location_to_vehicle()` method from rivian-python-client
+- Uses `send_location_to_vehicle()` from the vendored client (`rivian_client/rivian.py`)
 - Reuses the authenticated GraphQL client from the integration (no new client created)
 - Returns result value 0 on success
 - Invalid locations raise exceptions that are handled and logged

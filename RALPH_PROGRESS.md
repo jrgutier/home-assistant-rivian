@@ -223,3 +223,34 @@ runs, with comments stripped and backslash continuations joined.
 Also synced const.VERSION (1.4.2-beta16) to the manifest (1.5.4-beta1). It is
 logged at startup next to "Please report issues at", so every bug report was
 citing a version that never existed. A test now asserts the two agree.
+
+## s14 — upstream tracking
+
+The story assumed one upstream flow. There are two, and only one is a git merge.
+
+The integration still merges from `upstream/main` normally. Rehearsing that today
+returns "Already up to date" -- `HEAD..upstream/main` is empty and the merge base
+IS upstream's head, because s05 merged 1.5.3b5 and upstream has not moved. A no-op
+merge rehearses nothing, so the merge was replayed from the `pre-merge-1.5.3b5`
+tag in a throwaway worktree: 18 files conflicted, all of them now listed in
+docs/UPSTREAM_MERGE_REHEARSAL.md, then `merge --abort` and the worktree removed.
+
+The vendored client has no merge path -- that is the part vendoring removed along
+with the moving git URL, and nothing had replaced it.
+scripts/sync_upstream_client.sh is that path. It fetches
+bretterer/rivian-python-client directly into this repo as `client-upstream` rather
+than going through the sibling checkout, because that repo is slated for archival
+and a process that only works on one laptop is not a process.
+
+Rehearsed against upstream's newest client commit (fb7d7a5). It reports the range
+is already vendored, which is the useful answer and validates the mechanism end to
+end: the patch reverse-applies against rivian_client/, proving both that the commit
+is present and that the -p3 path mapping is correct. Forward-applying the same
+patch fails, so the two states are distinguishable -- they need opposite responses
+and both fail a naive forward --check.
+
+CLAUDE.md's Dependencies section still presented the git-URL requirement as
+current, months after it stopped being true. Rewritten, with the old form kept as
+explicitly historical and a note that adding a manifest requirement is not free.
+
+19 of 20 stories now pass. s13 remains, and is mode:human by design.

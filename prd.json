@@ -269,10 +269,11 @@
         "s07"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Document upstream tracking",
       "detail": "Record in CLAUDE.md that custom_components/rivian/rivian_client/ is the vendored client, edited in place, with no external package to bump. Rehearse an upstream merge as a DRY RUN: git merge --no-commit --no-ff upstream/main, capture output and conflicted paths to docs/UPSTREAM_MERGE_REHEARSAL.md, then git merge --abort. A real rehearsed merge would be a fifth human gate.",
-      "gate": "scripts/gates/s14.sh"
+      "gate": "scripts/gates/s14.sh",
+      "evidence": "scripts/gates/s14.sh: 13/13, each validated by breaking it. docs/UPSTREAM_MERGE_REHEARSAL.md covers BOTH upstream flows, which the original story understated: the integration merges from upstream/main normally, but the vendored client has no merge path at all. `git merge --no-commit --no-ff upstream/main` reports 'Already up to date' (merge base IS upstream/main's head, a7e29e9), so the merge was replayed from the pre-merge-1.5.3b5 tag in a throwaway worktree -- 18 files conflicted, all named in the doc, then merge --abort and the worktree removed. scripts/sync_upstream_client.sh fetches the client upstream straight into this repo (no sibling checkout needed, since that repo is slated for archival) and was rehearsed against upstream's newest client commit: it reverse-applies cleanly, proving both that the commit is present and that the -p3 path mapping is right. CLAUDE.md's Dependencies section still described the git-URL requirement as current."
     }
   ],
   "_baseline": {
