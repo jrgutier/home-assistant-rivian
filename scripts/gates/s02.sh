@@ -50,8 +50,8 @@ else
 fi
 
 # The checks the workflow runs, run here.
-PY="${PYTEST:-$HA/venv/bin/pytest}"
-RUFF="$HA/venv/bin/python -m ruff"
+PY="$(resolve_pytest "$HA")"   # never hardcode venv/: see resolve_pytest
+RUFF="uvx ruff@0.14.2"   # the pinned version, matching .pre-commit-config.yaml
 # Blocking repo-wide. The "25 pre-existing errors" that once justified deferring
 # custom_components/ were an unpinned-ruff artifact; the tree is clean under the
 # pinned version, so there is no debt and no deferral.

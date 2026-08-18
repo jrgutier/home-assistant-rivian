@@ -99,6 +99,26 @@ on_branch() {
 # executor would chase the wrong problem. (The checked-in venv/ in
 # home-assistant-rivian is currently broken — stale python3.13 interpreter path —
 # so PYTEST must point at a rebuilt environment.)
+# Resolve a WORKING pytest for a repo. Prefers whichever interpreter can actually
+# import the test suite, because a stale venv/ that merely EXISTS is worse than none:
+# it makes gates fail with findings-shaped messages that are really env problems.
+resolve_pytest() {
+  local repo="$1" py
+  for py in ${PYTEST:-} "$repo/.venv/bin/pytest" "$repo/venv/bin/pytest"; do
+    [ -n "$py" ] && [ -x "$py" ] || continue
+    if "$py" --collect-only -q --no-cov >/dev/null 2>&1 || \
+       { cd "$repo" && "$py" --collect-only -q --no-cov >/dev/null 2>&1; }; then
+      echo "$py"; return 0
+    fi
+  done
+  # nothing collects; fall back to the first that at least runs, so callers can
+  # still report a specific failure rather than a missing path
+  for py in "$repo/.venv/bin/pytest" "$repo/venv/bin/pytest"; do
+    [ -x "$py" ] && { echo "$py"; return 0; }
+  done
+  return 1
+}
+
 test_count() {
   local repo="$1" floor="$2" py n
   # Try every candidate interpreter and use the first that actually yields a count.

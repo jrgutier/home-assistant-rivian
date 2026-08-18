@@ -13,7 +13,7 @@ source "$(dirname "$0")/_lib.sh"
 
 echo "S1b — suite green in a full run"
 
-PY="${PYTEST:-$HA/venv/bin/pytest}"
+PY="$(resolve_pytest "$HA")"   # never hardcode venv/: see resolve_pytest
 if [ ! -x "$PY" ]; then bad "pytest not found at $PY"; summary S1b; exit 1; fi
 
 out=$(cd "$HA" && "$PY" -q -p no:cacheprovider --no-cov 2>&1 || true)
