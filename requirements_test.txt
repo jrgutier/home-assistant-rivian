@@ -11,6 +11,12 @@ pytest-timeout>=2.1.0
 freezegun>=1.2.0
 # Used by the vendored client's own tests, moved here in s07.
 aresponses>=3.0,<4.0
+# Every runtime requirement the manifest declares must also be installed for the
+# tests, or CI fails at import while a developer's venv (which still has leftovers
+# from the pre-vendoring client install) passes. That is exactly how protobuf was
+# missed: the vendored parallax.py imports google.protobuf at module scope.
+# Keep this list in step with manifest.json's "requirements".
+protobuf>=6.31,<6.33
 # manifest.json declares bleak, so the test environment must have it too --
 # without it the vendored BLE modules are 353 statements at 0% and their tests
 # silently skip, which reads as coverage debt rather than an absent dependency.

@@ -567,3 +567,13 @@ coverage.json that an earlier gate's subset run had left at 38%; it now
 regenerates coverage itself rather than trusting an artifact it did not produce.
 
 1184 tests, twelve gates green.
+
+### s07 follow-up: CI caught what no local run could
+The first push failed with `ModuleNotFoundError: No module named 'google'`.
+requirements_test.txt never listed protobuf; my venv only had it as a leftover
+from the pre-vendoring editable install of the client. CI builds from
+requirements_test.txt alone, so it saw the truth and the developer machine did
+not. Added, pinned to match the manifest, and verified by building a throwaway
+venv from requirements_test.txt alone -- which is what CI actually does.
+Lesson: every runtime requirement the manifest declares must also appear in
+requirements_test.txt, or the test environment and the shipped environment differ.
