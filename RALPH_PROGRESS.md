@@ -156,3 +156,34 @@ State: 951 passed, 0 failed, green in reversed order too. 78.86% global, floor 7
 Gates s01/s01b/s02 all exit 0.
 
 ## STILL HALTED — next actionable story is s03 (mode:human). Nothing autonomous remains.
+
+## s12a — devcontainer on HA 2026.8.2 / Python 3.14
+
+Upgraded to the latest HA rather than pinning to production's 2026.8.1, per the
+answer given at the open-questions checkpoint ("Rebuild devcontainer to latest
+version").
+
+The jump is larger than it looks: 2026.8.2 requires Python >= 3.14.2, so the
+interpreter moved with it in all three places that declare one (requirements.txt,
+.devcontainer/devcontainer.json, .github/workflows/test.yaml). s12a's gate now
+asserts they agree, because any one of them lagging turns CI or the container red
+in a way that reads as a code failure.
+
+Measured cost of ~10 months of HA drift, against the warning that it could be
+large: one new test dependency (serialx, imported by homeassistant.components.usb
+via bluetooth) and three lines of test hygiene. test_coordinator_base's three
+interval tests each left a refresh timer pending; HA 2026.8's verify_cleanup fails
+on that and older HA did not check, so they had been leaking one on every run.
+Four pins also became unnecessary -- pycares<5, habluetooth==5.6.4,
+bleak-retry-connector==4.4.3 and dbus-fast==2.44.3 every one of which now pulls a
+package *backwards* under the new resolve.
+
+scripts/seed_config_entry.py writes the entry config_flow would have produced:
+data from _async_create_entry, options from validate_vehicle_control. It is
+idempotent, keeps entry_id across reseeds so the device and entity registries stay
+attached, leaves other domains' entries alone, chmod 600s the file, and never
+prints a value. Verified shape-identical to the real production entry.
+
+Not done here, deliberately: booting HA against the live vehicle. That is s13 and
+is human-gated, because one Parallax subscription is allowed per session token and
+a second HA would contend with the running production integration.

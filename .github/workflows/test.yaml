@@ -28,16 +28,17 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      # HA 2025.10.4 requires >=3.13.2. Homebrew's python@3.13 disappeared locally,
-      # which is what broke the checked-in venv; uv pins the interpreter explicitly.
-      - name: Set up Python 3.13
-        run: uv python install 3.13
+      # HA 2026.8.2 requires >=3.14.2. The interpreter is pinned explicitly rather
+      # than floored: HA's own floor moves with its releases, and a runner picking a
+      # different minor is how "green locally, red in CI" starts.
+      - name: Set up Python 3.14
+        run: uv python install 3.14
 
       # Every pin this needs lives in requirements_test.txt, deliberately: a green
       # suite must be reproducible from the repo, not from a recipe embedded in CI.
       - name: Create venv and install
         run: |
-          uv venv --python 3.13 .venv
+          uv venv --python 3.14 .venv
           VIRTUAL_ENV=$PWD/.venv uv pip install -r requirements_test.txt
 
       # Blocking repo-wide. ruff is intentionally unpinned (see requirements.txt):

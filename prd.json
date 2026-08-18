@@ -231,10 +231,11 @@
         "s11"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Devcontainer boots real HA",
       "detail": "Install requirements_test.txt, symlink custom_components/rivian into the container HA config dir, pin the HA version (requirements says >=2025.1.0, config/.HA_VERSION is 2025.10.4, the venv has 2025.12.0 \u2014 a .storage seeded by a newer HA is unreadable by an older one). Add scripts/seed_config_entry.py reading tokens from env at runtime, never inlining a value.",
-      "gate": "scripts/gates/s12a.sh"
+      "gate": "scripts/gates/s12a.sh",
+      "evidence": "scripts/gates/s12a.sh: 10/10. HA pinned 2026.8.2 on Python 3.14 across requirements.txt, devcontainer and CI; scripts/seed_config_entry.py seeds data+options from .env into a chmod-600, gitignored .storage without ever printing a value; tests/test_seed_config_entry.py (12 tests) builds the seeded dict as a real homeassistant ConfigEntry, so an HA schema change fails in CI rather than at container boot. Suite 1242 passed. Booting HA against the live vehicle stays in s13 (mode:human) -- one Parallax subscription per session token, so a second HA contends with production."
     },
     {
       "id": "s12b",
@@ -291,5 +292,11 @@
       "entity.py": 72,
       "const.py": 79
     }
+  },
+  "environment": {
+    "python": "3.14 (uv python install 3.14 -> cpython-3.14.6). HA 2026.8.2 requires >=3.14.2. Pinned identically in .devcontainer/devcontainer.json and .github/workflows/test.yaml; scripts/gates/s12a.sh asserts they agree.",
+    "ha_version": "2026.8.2, pinned exactly in requirements.txt and again (transitively) by pytest-homeassistant-custom-component==0.13.356. Bump the two together. Superseded the earlier state where requirements.txt said >=2025.1.0, config/.HA_VERSION said 2025.10.4 and the venv had something else again.",
+    "rebuild": "uv venv --python 3.14 .venv && VIRTUAL_ENV=$PWD/.venv uv pip install -r requirements_test.txt. Do not rename a venv -- script shebangs carry absolute paths.",
+    "upgrade_cost_measured": "The 2025.10.4 -> 2026.8.2 jump cost one new test dependency (serialx, pulled in by homeassistant.components.usb) and three lines of test hygiene: test_coordinator_base's interval tests leaked a refresh timer that HA 2026.8's verify_cleanup fails on. It also let four pins go -- pycares<5, habluetooth==5.6.4, bleak-retry-connector==4.4.3, dbus-fast==2.44.3 all now resolve forward on their own."
   }
 }

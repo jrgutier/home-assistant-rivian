@@ -49,6 +49,7 @@ class TestRivianDataUpdateCoordinatorBase:
 
         # Should double
         assert coordinator.update_interval.total_seconds() == initial_interval * 2
+        await coordinator.async_shutdown()
 
     async def test_set_update_interval_caps_at_900_seconds(
         self,
@@ -71,6 +72,11 @@ class TestRivianDataUpdateCoordinatorBase:
         # Should cap at 900 seconds (15 minutes)
         assert coordinator.update_interval.total_seconds() == 900
 
+        # Setting an interval schedules a refresh timer. HA 2026.8's verify_cleanup
+        # fails the test if it is still pending at teardown; older HA did not check,
+        # so these three leaked one on every run.
+        await coordinator.async_shutdown()
+
     async def test_set_update_interval_with_explicit_seconds(
         self,
         hass: HomeAssistant,
@@ -88,6 +94,7 @@ class TestRivianDataUpdateCoordinatorBase:
         coordinator._set_update_interval(seconds=600)
 
         assert coordinator.update_interval.total_seconds() == 600
+        await coordinator.async_shutdown()
 
     # test_async_update_data_handles_expired_token was deleted in w10 with the
     # handler it covered. It hand-raised RivianExpiredTokenError from a mocked

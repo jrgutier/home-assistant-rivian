@@ -1,5 +1,13 @@
 # Home Assistant
-homeassistant>=2025.1.0
+#
+# Pinned, not floored. `>=2025.1.0` let three different HA versions coexist in
+# this repo -- requirements.txt, config/.HA_VERSION and the venv all disagreed --
+# and a .storage seeded by a newer HA is unreadable by an older one, so a floor
+# makes "pre-authenticated devcontainer" unreproducible.
+#
+# 2026.8.2 requires Python >= 3.14.2. Bumping this means bumping the interpreter
+# in .github/workflows/test.yaml and .devcontainer/devcontainer.json with it.
+homeassistant==2026.8.2
 
 # Integration
 
