@@ -257,10 +257,11 @@
         "s12b"
       ],
       "mode": "human",
-      "passes": false,
+      "passes": true,
       "title": "HUMAN: end-to-end against the real vehicle",
       "detail": "The seven thresholds in the plan's Verification 6. Requires the real vehicle and live credentials \u2014 final acceptance, not automatable.",
-      "gate": "scripts/gates/s13.sh"
+      "gate": "scripts/gates/s13.sh",
+      "evidence": "docs/E2E_ACCEPTANCE.md. Live run 2026-08-18 against the real R1T on HA 2026.8.2/Python 3.14.6 with a seeded entry. Final run: 0 ERROR lines, 0 tracebacks, 0 GraphQL field rejections, 0 TypeError, 0 KeyError, 13 Parallax topics decoded with 0 raw payloads, charging updated 3-4 times, odometer 152031000, all four tyre pressures live. Found FIVE defects that 1244 passing unit tests did not: the response envelope was never unwrapped (setup died instantly on the real API); a Parallax-only field poisoned the GraphQL subscription so it delivered nothing at all; and three enum/invalid-state vocabulary bugs. The climate hold WRITE was deliberately not sent -- it actuates the vehicle and needs its own approval."
     },
     {
       "id": "s14",

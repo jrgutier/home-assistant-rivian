@@ -535,3 +535,85 @@ class TestTheReportedVersion:
         )["version"]
         assert re.fullmatch(r"\d+\.\d+\.\d+(-beta\d+)?", version)
         assert version != "0.0.0", "upstream's placeholder would publish 0.0.0-beta1"
+
+
+class TestTheSubscriptionFieldList:
+    """VEHICLE_STATE_API_FIELDS is derived from every sensor's `field`, so a sensor
+    fed by Parallax silently adds its field to the GraphQL subscription query.
+
+    Rivian's gateway rejects the entire subscription on the first unknown field:
+
+        {"type":"error","payload":[{"message":
+          "Cannot query field \"wheelsInstalled\" on type \"VehicleState\"."}]}
+
+    and then delivers nothing -- no battery level, no odometer, no tire pressures.
+    Observed on a live boot; every unit test passed, because none of them talks to
+    the real gateway.
+    """
+
+    def test_parallax_only_fields_stay_out_of_the_subscription(self) -> None:
+        from custom_components.rivian.const import (
+            PARALLAX_ONLY_FIELDS,
+            VEHICLE_STATE_API_FIELDS,
+        )
+
+        assert PARALLAX_ONLY_FIELDS
+        assert not (PARALLAX_ONLY_FIELDS & VEHICLE_STATE_API_FIELDS)
+
+    def test_the_sensor_still_exists_and_still_reads_the_field(self) -> None:
+        """Excluding the field from the subscription must not remove the sensor --
+        Parallax populates it, so it works; that is why exclusion is the right fix
+        rather than deleting the entity."""
+        from custom_components.rivian.const import SENSORS
+
+        fields = {
+            description.field for sensors in SENSORS.values() for description in sensors
+        }
+        assert "wheelsInstalled" in fields
+
+    def test_the_sans_tpms_variant_is_still_a_strict_subset(self) -> None:
+        """VEHICLE_STATE_SANS_TPMS_API_FIELDS is built with ^, which ADDS any name
+        that is not already present. It is only a subtraction while every tyre field
+        really is in the base set -- so this asserts the base set, not the operator.
+        """
+        from custom_components.rivian.const import (
+            VEHICLE_STATE_API_FIELDS,
+            VEHICLE_STATE_SANS_TPMS_API_FIELDS,
+        )
+
+        assert VEHICLE_STATE_SANS_TPMS_API_FIELDS < VEHICLE_STATE_API_FIELDS
+        for tyre in (
+            "tirePressureFrontLeft",
+            "tirePressureFrontRight",
+            "tirePressureRearLeft",
+            "tirePressureRearRight",
+        ):
+            assert tyre in VEHICLE_STATE_API_FIELDS
+            assert tyre not in VEHICLE_STATE_SANS_TPMS_API_FIELDS
+
+
+class TestVocabularyMatchesTheVehicle:
+    """Both of these were found by booting against the real vehicle; every unit
+    test passed, because the values only appear in live data."""
+
+    def test_preconditioning_options_cover_every_decoder_output(self) -> None:
+        """decode_preconditioning emits "active" | "initiate" | "off"; the sensor's
+        options were written for the GraphQL vocabulary and omitted "Off"."""
+        from custom_components.rivian.const import SENSORS, _to_title_case
+
+        description = next(
+            d
+            for sensors in SENSORS.values()
+            for d in sensors
+            if d.field == "cabinPreconditioningStatus"
+        )
+        for emitted in ("active", "initiate", "off"):
+            assert _to_title_case(emitted) in description.options
+
+    def test_sna_is_treated_as_an_invalid_state(self) -> None:
+        """The vehicle abbreviates signal-not-available to SNA. The set is compared
+        with .lower(), so the lowercase form is the one that matters."""
+        from custom_components.rivian.const import INVALID_SENSOR_STATES
+
+        assert "SNA".lower() in INVALID_SENSOR_STATES
+        assert all(entry == entry.lower() for entry in INVALID_SENSOR_STATES)

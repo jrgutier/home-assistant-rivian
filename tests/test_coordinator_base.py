@@ -221,7 +221,13 @@ class TestRivianDataUpdateCoordinatorBase:
     ) -> None:
         """Test that error count resets on successful fetch."""
         mock_client = MagicMock()
-        mock_client.get_user_information = AsyncMock(return_value={"userId": "test"})
+        # Mocked at the client's real contract -- a response with .status and an
+        # awaitable .json() -- not as an already-unwrapped dict. Mocking the latter
+        # is what hid the missing unwrap in _async_update_data until a live boot.
+        response = MagicMock()
+        response.status = 200
+        response.json = AsyncMock(return_value={"data": {"currentUser": {"id": "u1"}}})
+        mock_client.get_user_information = AsyncMock(return_value=response)
 
         coordinator = UserCoordinator(
             hass=hass,
@@ -439,3 +445,201 @@ class TestUserCoordinatorMethods:
         result = coordinator.get_enrolled_phone_data("test_key")
 
         assert result is None
+
+
+class TestTheResponseIsUnwrapped:
+    """The client returns aiohttp ClientResponse objects, not dicts.
+
+    Every coordinator that relies on the base _async_update_data must therefore
+    check the status, await .json(), and pull data["data"][key] out. Upstream does
+    exactly that; the s05 merge dropped it, and nothing failed, because the tests
+    mock self.api.get_*() as already-returning the unwrapped dict -- the wrong
+    boundary. The integration then died on the first real boot with
+    'HassClientResponse' object has no attribute 'get' at __init__.py:81.
+
+    These tests mock at the client's real contract: an object with .status and an
+    awaitable .json(). That is the only shape that can distinguish a coordinator
+    which unwraps from one which does not.
+    """
+
+    @staticmethod
+    def _response(payload: dict, status: int = 200) -> MagicMock:
+        response = MagicMock()
+        response.status = status
+        response.json = AsyncMock(return_value=payload)
+        response.raise_for_status = MagicMock()
+        return response
+
+    async def test_user_coordinator_returns_the_inner_object(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        client = MagicMock()
+        client.get_user_information = AsyncMock(
+            return_value=self._response(
+                {"data": {"currentUser": {"id": "u1", "vehicles": []}}}
+            )
+        )
+        coordinator = UserCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=client
+        )
+        data = await coordinator._async_update_data()
+
+        assert data == {"id": "u1", "vehicles": []}
+        # The precise failure seen in production: .get on a ClientResponse.
+        assert hasattr(data, "get")
+
+    async def test_a_non_200_does_not_silently_become_data(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Returning the response object on an error status is how a 500 turns into
+        entities holding a ClientResponse instead of an error."""
+        response = self._response({"errors": [{"message": "boom"}]}, status=500)
+        response.raise_for_status = MagicMock(side_effect=RuntimeError("500"))
+        client = MagicMock()
+        client.get_user_information = AsyncMock(return_value=response)
+
+        coordinator = UserCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=client
+        )
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+
+        # The status must be acted on. Returning the response object instead is how
+        # a 500 ends up in entity state as a ClientResponse.
+        response.raise_for_status.assert_called_once()
+
+    async def test_wallbox_coordinator_returns_the_inner_list(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        from custom_components.rivian.coordinator import WallboxCoordinator
+
+        client = MagicMock()
+        client.get_registered_wallboxes = AsyncMock(
+            return_value=self._response(
+                {"data": {"getRegisteredWallboxes": [{"serialNumber": "W1"}]}}
+            )
+        )
+        coordinator = WallboxCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=client
+        )
+        assert await coordinator._async_update_data() == [{"serialNumber": "W1"}]
+
+    async def test_driver_key_coordinator_returns_the_inner_object(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        from custom_components.rivian.coordinator import DriverKeyCoordinator
+
+        client = MagicMock()
+        client.get_drivers_and_keys = AsyncMock(
+            return_value=self._response({"data": {"getVehicle": {"invitedUsers": []}}})
+        )
+        coordinator = DriverKeyCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=client, vehicle_id="v1"
+        )
+        assert await coordinator._async_update_data() == {"invitedUsers": []}
+
+    async def test_vehicle_image_coordinator_returns_the_inner_list(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        from custom_components.rivian.coordinator import VehicleImageCoordinator
+
+        client = MagicMock()
+        client.get_vehicle_images = AsyncMock(
+            return_value=self._response(
+                {"data": {"getVehicleMobileImages": [{"url": "https://x/y.png"}]}}
+            )
+        )
+        coordinator = VehicleImageCoordinator(
+            hass=hass,
+            config_entry=mock_config_entry,
+            client=client,
+            version="1",
+        )
+        assert await coordinator._async_update_data() == [{"url": "https://x/y.png"}]
+
+
+class TestInvalidStatesOnTheFirstUpdate:
+    """An invalid value with nothing to fall back to must not be published.
+
+    _build_vehicle_info_dict keeps the previous value when a field arrives as
+    fault/SNA/undefined -- but that loop is only reached once self.data exists. The
+    first update returns items untouched, so an invalid state goes straight
+    through. An ENUM sensor then logs an error and appends the bad value to its own
+    options list, making it permanently "valid".
+
+    Seen live: sensor.r1t_rear_left_seat_heating and its right-hand twin both
+    reported a literal 'SNA' on every fresh start.
+    """
+
+    @staticmethod
+    def _coordinator(hass: HomeAssistant, entry: ConfigEntry):
+        from custom_components.rivian.coordinator import VehicleCoordinator
+
+        return VehicleCoordinator(
+            hass=hass, config_entry=entry, client=MagicMock(), vehicle_id="v1"
+        )
+
+    def test_an_invalid_first_value_is_dropped_not_published(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = self._coordinator(hass, mock_config_entry)
+        coordinator.data = None
+        result = coordinator._build_vehicle_info_dict(
+            {"seatRearLeftHeat": {"value": "SNA"}}
+        )
+        assert "seatRearLeftHeat" not in result
+
+    def test_a_valid_first_value_is_kept(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = self._coordinator(hass, mock_config_entry)
+        coordinator.data = None
+        result = coordinator._build_vehicle_info_dict(
+            {"seatRearLeftHeat": {"value": "Level 1"}}
+        )
+        assert result["seatRearLeftHeat"]["value"] == "Level 1"
+
+    def test_gnss_location_is_still_exempt(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """The existing loop exempts gnssLocation; the first-update path must not
+        quietly apply a stricter rule than the steady-state one."""
+        coordinator = self._coordinator(hass, mock_config_entry)
+        coordinator.data = None
+        result = coordinator._build_vehicle_info_dict(
+            {"gnssLocation": {"value": "undefined"}}
+        )
+        assert "gnssLocation" in result
+
+    def test_an_invalid_later_value_still_falls_back(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Existing behaviour must survive: once there IS a good previous value, an
+        invalid update keeps it rather than dropping the sensor."""
+        coordinator = self._coordinator(hass, mock_config_entry)
+        coordinator.data = {
+            "seatRearLeftHeat": {"value": "Level 2", "history": {"Level 2"}}
+        }
+        result = coordinator._build_vehicle_info_dict(
+            {"seatRearLeftHeat": {"value": "SNA"}}
+        )
+        assert result["seatRearLeftHeat"]["value"] == "Level 2"
+
+    def test_a_new_key_arriving_invalid_is_dropped_even_when_data_exists(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """prev_items being non-empty does not mean THIS key has a previous value.
+
+        Parallax populates other fields first, so self.data is already truthy by the
+        time the subscription delivers a field for the first time -- the early-return
+        path is skipped and the steady-state loop sees a key that is not in
+        prev_items. This is the case that kept 'SNA' reaching the sensors after the
+        first-update path was fixed.
+        """
+        coordinator = self._coordinator(hass, mock_config_entry)
+        coordinator.data = {"powerState": {"value": "ready", "history": {"ready"}}}
+        result = coordinator._build_vehicle_info_dict(
+            {"seatRearLeftHeat": {"value": "SNA"}}
+        )
+        assert "seatRearLeftHeat" not in result
+        assert result["powerState"]["value"] == "ready"

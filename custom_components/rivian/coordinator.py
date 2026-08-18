@@ -11,6 +11,8 @@ import time
 from typing import Any, Generic, TypeVar
 import uuid
 
+from aiohttp import ClientResponse
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
@@ -95,18 +97,33 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
             _LOGGER.info("Polling set to %s seconds", seconds)
 
     async def _async_update_data(self) -> T:
-        """Get the latest data from Rivian."""
+        """Get the latest data from Rivian.
+
+        _fetch_data returns an aiohttp ClientResponse -- that is the client's
+        contract for every method reaching this base class -- so the envelope has
+        to come off here: check the status, await .json(), and take
+        data["data"][key].
+
+        This unwrapping was dropped during the upstream merge and nothing failed,
+        because the tests mock self.api.get_*() as already returning the inner
+        dict. The integration died on its first real boot with
+        "'HassClientResponse' object has no attribute 'get'". self.key existed on
+        every subclass the whole time with nothing reading it, which is the tell.
+        """
         try:
-            data = await self._fetch_data()
-            _LOGGER.debug(
-                "[%s] %s",
-                self.__class__.__name__.replace("Coordinator", ""),
-                redact(data),
-            )
-            if self._error_count:
-                self._error_count = 0
-                self._set_update_interval()
-            return data
+            resp = await self._fetch_data()
+            if resp.status == 200:
+                payload = await resp.json()
+                _LOGGER.debug(
+                    "[%s] %s",
+                    self.__class__.__name__.replace("Coordinator", ""),
+                    redact(payload),
+                )
+                if self._error_count:
+                    self._error_count = 0
+                    self._set_update_interval()
+                return payload["data"][self.key]
+            resp.raise_for_status()
 
         except RivianApiRateLimitError as err:
             _LOGGER.error(
@@ -239,8 +256,9 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
 
         return value if value is not None else default
 
+    # Returns the raw response, NOT T. _async_update_data above unwraps it to T.
     @abstractmethod
-    async def _fetch_data(self) -> T:
+    async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
         raise NotImplementedError
 
@@ -636,7 +654,7 @@ class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.vehicle_id = vehicle_id
 
-    async def _fetch_data(self) -> dict[str, Any]:
+    async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
         return await self.api.get_drivers_and_keys(vehicle_id=self.vehicle_id)
 
@@ -671,7 +689,7 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.include_phones = include_phones
 
-    async def _fetch_data(self) -> dict[str, Any]:
+    async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
         return await self.api.get_user_information(self.include_phones)
 
@@ -1122,15 +1140,38 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self.config_entry.async_create_task(self.hass, task, eager_start=True)
 
         if not (prev_items := (self.data or {})):
-            return items
+            # First update: the loop below cannot suppress an invalid value because
+            # there is no previous one to fall back to, so it would be published
+            # as-is. An ENUM sensor then logs an error and appends the bad value to
+            # its own options list, where it stays for the life of the process.
+            # Observed live as a literal 'SNA' on both rear seat heating sensors at
+            # every fresh start. gnssLocation is exempt here for the same reason it
+            # is exempt below.
+            return {
+                key: item
+                for key, item in items.items()
+                if key == "gnssLocation"
+                or str(item.get("value")).lower() not in INVALID_SENSOR_STATES
+            }
         if not items or prev_items == items:
             return prev_items
 
         new_data = prev_items | items
         for key in filter(lambda i: i != "gnssLocation", items):
             value = items[key].get("value")
-            if str(value).lower() in INVALID_SENSOR_STATES and key in prev_items:
-                new_data[key] = prev_items[key]
+            if str(value).lower() in INVALID_SENSOR_STATES:
+                if key in prev_items:
+                    new_data[key] = prev_items[key]
+                else:
+                    # prev_items being non-empty does not mean THIS key has a
+                    # previous value -- Parallax populates other keys first, so a
+                    # field seen for the first time lands here with nothing to fall
+                    # back to. The original `and key in prev_items` let it through,
+                    # which is how both rear seat heating sensors reported a literal
+                    # 'SNA' on every start even after the first-update path was
+                    # fixed. Drop it; the sensor reports unavailable instead.
+                    del new_data[key]
+                    continue
             new_data[key]["history"] |= prev_items.get(key, {}).get("history", set())
 
         return new_data
@@ -1441,14 +1482,15 @@ class VehicleImageCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]])
         super().__init__(hass=hass, config_entry=config_entry, client=client)
         self.version = version
 
-    async def _fetch_data(self) -> list[dict[str, Any]]:
+    async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
-        data = await self.api.get_vehicle_images(
+        response = await self.api.get_vehicle_images(
             resolution="@3x", vehicle_version=self.version
         )
         self._last_updated = datetime.now(timezone.utc)
-        # Extract just the vehicle images list
-        return data.get(self.key, [])
+        # The key extraction that used to live here is the base class's job now,
+        # and calling .get on the response was the same bug in miniature.
+        return response
 
 
 class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
@@ -1456,6 +1498,6 @@ class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
 
     key = "getRegisteredWallboxes"
 
-    async def _fetch_data(self) -> list[dict[str, Any]]:
+    async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
         return await self.api.get_registered_wallboxes()

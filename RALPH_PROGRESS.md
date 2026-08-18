@@ -254,3 +254,37 @@ current, months after it stopped being true. Rewritten, with the old form kept a
 explicitly historical and a note that adding a manifest requirement is not free.
 
 19 of 20 stories now pass. s13 remains, and is mode:human by design.
+
+## s13 — E2E against the real vehicle: five defects the suite could not see
+
+Ran live, per the decision at the open-questions checkpoint. The result justifies
+the story existing: 1244 passing unit tests, and the integration did not survive
+its first contact with the real gateway.
+
+1. The response envelope was never unwrapped. Every client method returns an
+   aiohttp ClientResponse; the base _async_update_data returned it as data. Setup
+   died at once with "'HassClientResponse' object has no attribute 'get'". Upstream
+   checks status, awaits .json() and returns data["data"][key]; the s05 merge
+   dropped it, and nothing failed because the tests mock the api as already
+   returning the inner dict -- the wrong boundary. self.key sat unread on four
+   coordinators the whole time. This is exactly the failure the plan's own s05
+   review checkpoint predicted.
+2. VEHICLE_STATE_API_FIELDS is derived from every sensor's field, so the
+   wheels_installed sensor added in s09b injected wheelsInstalled into the GraphQL
+   subscription. Rivian rejected the whole subscription, which then delivered
+   nothing -- no battery, no odometer, no tyre pressures.
+3. "Off" was missing from the preconditioning enum, though the decoder documents
+   emitting it.
+4. INVALID_SENSOR_STATES listed signal_not_available but the vehicle sends SNA.
+5. The invalid-state fallback was guarded by `and key in prev_items`, so a field
+   seen for the first time leaked its invalid value -- both on the first update and,
+   the case that survived the first fix, whenever Parallax had already populated
+   other keys.
+
+Final run is clean: 0 errors, 0 tracebacks, 0 rejections, 13 Parallax topics with 0
+raw payloads, odometer and all four tyre pressures live.
+
+Not done: the climate hold write. It actuates the vehicle and needs its own
+approval; running the read path is not consent to command the car.
+
+All 20 stories now pass.
