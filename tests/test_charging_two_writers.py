@@ -120,3 +120,60 @@ class TestSessionEnd:
             _subscription([{"liveData": {"startTime": "T9"}}])
         )
         assert coordinator.data["startTime"] == "T9"
+
+
+class TestSubscriptionLifecycle:
+    """ChargingCoordinator._async_update_data was at 0% coverage after the merge.
+
+    It is the half the merge RETAINED while taking upstream's
+    `_update_interval_seconds = 0`, so it no longer runs on a timer -- it runs
+    only on first refresh, the watchdog, toggle_subscription and the 502/504 path.
+    That makes its guards load-bearing.
+    """
+
+    @pytest.fixture
+    def coord(self, hass: HomeAssistant, mock_config_entry: ConfigEntry):
+        from unittest.mock import AsyncMock
+
+        api = MagicMock()
+        api.subscribe_for_charging_session = AsyncMock(return_value=AsyncMock())
+        api._ws_monitor = None
+        c = ChargingCoordinator(
+            hass=hass,
+            config_entry=mock_config_entry,
+            client=api,
+            vehicle_id="test_vehicle_123",
+        )
+        c._initial.set()  # skip the 5s wait for first data
+        return c
+
+    async def test_it_subscribes_when_there_is_no_subscription(self, coord) -> None:
+        await coord._async_update_data()
+        assert coord.api.subscribe_for_charging_session.await_count == 1
+        assert coord._unsub_handler is not None
+        coord._stop_watchdog()
+
+    async def test_it_does_not_resubscribe_while_healthy(self, coord) -> None:
+        await coord._async_update_data()
+        coord.data = {"startTime": "T1"}
+        coord.last_update_success = True
+        await coord._async_update_data()
+        assert coord.api.subscribe_for_charging_session.await_count == 1
+        coord._stop_watchdog()
+
+    async def test_a_disabled_subscription_is_not_created(self, coord) -> None:
+        # VehicleCoordinator disables this when the charger is disconnected; the
+        # guard is what stops a subscription being opened for a car that is not
+        # plugged in.
+        coord._subscription_enabled = False
+        result = await coord._async_update_data()
+        assert coord.api.subscribe_for_charging_session.await_count == 0
+        assert result == {}
+
+    async def test_it_resubscribes_after_a_failed_update(self, coord) -> None:
+        await coord._async_update_data()
+        coord.data = {"startTime": "T1"}
+        coord.last_update_success = False
+        await coord._async_update_data()
+        assert coord.api.subscribe_for_charging_session.await_count == 2
+        coord._stop_watchdog()

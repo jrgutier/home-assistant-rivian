@@ -246,3 +246,44 @@ No symbol, method, class, attribute, entity or translation lost from either side
 (AST-diffed across all 19 changed files). en.json is a strict superset with zero
 value changes. No remaining duplicate-entity risk in any of the nine platforms.
 Hunks 6, 7 and 8 correct; all three unsub handlers created and torn down.
+
+## 2026-08-18 — Finding 2 fixed, plus the untested regions covered
+
+### Finding 2 APPLIED (was deferred to review; that was the wrong default)
+Leaving it meant option D -- five sensors flapping during an active charging
+session plus possible session-metric loss. Option B is strictly better than the
+status quo, so it is applied and remains open for the human review to overrule.
+
+  * _process_new_data now MERGES into what Parallax pushed instead of replacing,
+    so displayStatus/evseType/plugConnectionStatus/currentPrice/currentCurrency
+    survive every subscription callback.
+  * a SYNTHESISED startTime is now marked (_synthetic_start_time). Adopting a real
+    startTime over a synthetic one is no longer treated as a new session, so the
+    accumulated metrics survive. A genuinely new session (real -> real) still
+    clears, which is what that guard was written for.
+Honest cost, per the review: this trades a correctness bug for a staleness bug --
+nothing expires a merged value. Namespacing by source and resolving on read (option
+C) remains the direction if staleness shows up.
+
+### Coverage of the regions where the defects lived
+The architect noted BOTH merge defects sat in 0%-covered code while the 78% gate
+passed regardless. Now covered:
+  coordinator.py 199-257  charging subscription lifecycle  (subscribes, does not
+                          re-subscribe while healthy, honours _subscription_enabled,
+                          resubscribes after a failed update)
+  coordinator.py 1182-1223 _process_parallax_data routing  (charging vs vehicle
+                          split, gnssLocation passed raw, timeToEndOfCharge to BOTH,
+                          underscore fields dropped, malformed messages ignored)
+  including the ab760d1 ODOMETER MONOTONIC GUARD, which the s05 gate asserts by
+  value but nothing exercised: a decreasing Parallax odometer is rejected, an
+  equal or increasing one accepted, non-numeric rejected. Mutation-verified.
+
+coordinator.py 69% -> 76%. TOTAL COVERAGE 78.97% -> 81.00%, which clears the
+plan's 80% target (s11's goal) ahead of schedule. 1018 tests.
+
+### w01 delivered
+docs/development/WS_CONTENTION.md records the one-subscription-per-session rule,
+the twenty variants ruled out, the four measured close codes, the three
+non-interchangeable vehicle identifiers, and the rollback order for the live test.
+Written because the wrong conclusion ("the websocket is broken") was reached once
+already and the trap is still there for the next person.
