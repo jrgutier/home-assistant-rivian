@@ -61,3 +61,35 @@ jobs:
         run: |
           ! grep -rnE '^[[:space:]]*sys\.modules\[' tests/
           ! grep -rn 'type(mock_config_entry).options = PropertyMock' tests/
+
+  load:
+    name: artifact loads under declared requirements only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.14
+        run: uv python install 3.14
+
+      # The suite above cannot catch a missing manifest entry: its venv has HA's
+      # full test extra, so a module importing something HA core does not ship
+      # still resolves and only fails for users. This job installs exactly what
+      # manifest.json declares, builds the release zip, and imports every module
+      # out of it. It caught button.py importing homeassistant.components.bluetooth
+      # at module scope -- which would have taken the entire button platform down
+      # on any install without the bluetooth integration, with every test green.
+      - name: Load test
+        run: bash scripts/load_test.sh
+
+      # Same scanner both release workflows run, so "safe to publish" has one
+      # definition rather than three.
+      - name: Build and scan the release artifact
+        run: |
+          cd custom_components/rivian
+          zip -q -r ../../rivian.zip ./ \
+            -i '*.py' '*.json' '*.graphql' '*.proto' '*.yaml' 'py.typed'
+          cd ../..
+          bash scripts/scan_artifact.sh rivian.zip

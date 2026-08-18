@@ -67,11 +67,21 @@ jobs:
           cat custom_components/rivian/manifest.json
 
       - name: Create zip package
+        # Allow-list, not a bare recursive zip. This workflow fires on every push
+        # to dev and dev-*, and what it publishes is what beta users install, so a
+        # stray file here reaches people rather than sitting in a build dir.
         run: |
           cd custom_components/rivian
-          zip -r ../../rivian.zip ./
+          zip -q -r ../../rivian.zip ./ \
+            -i '*.py' '*.json' '*.graphql' '*.proto' '*.yaml' 'py.typed'
           cd ../..
-          ls -la rivian.zip
+          unzip -l rivian.zip | tail -1
+
+      - name: Scan the artifact
+        # Runs before the release step, so a dirty artifact fails the build instead
+        # of being published and withdrawn. Same script release.yaml and
+        # scripts/gates/s12b.sh use.
+        run: bash scripts/scan_artifact.sh rivian.zip
 
       - name: Create or update pre-release
         uses: softprops/action-gh-release@v2

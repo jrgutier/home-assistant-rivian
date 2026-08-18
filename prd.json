@@ -244,10 +244,11 @@
         "s12a"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Release hardening and the remaining CI gates",
       "detail": "Switch BOTH release.yaml:26-28 and pre-release.yaml:70-72 to a zip allowlist; pre-release fires on every dev push and matters more. Anchor release.yaml:22's sed to \"version\": \u2014 it currently rewrites every line containing 'version'. Add the artifact secret-scan and the load test (unzip into a bare HA container with only the declared requirements, start HA, fail if it does not load). Edit 'jobs:' only, never 'on:'. RELEASE ROUTE DECIDED 2026-08-18: vendor-client merges to dev, which fires pre-release.yaml and publishes a zip beta users install. Harden BOTH release.yaml and pre-release.yaml zips (allowlist, no dotfiles) and add the artifact secret-scan for that path. A HUMAN does the merge and push; the loop must never push to dev.",
-      "gate": "scripts/gates/s12b.sh"
+      "gate": "scripts/gates/s12b.sh",
+      "evidence": "scripts/gates/s12b.sh: 13/13, each assertion validated by breaking it. Both release workflows moved from a bare recursive zip to an allow-list and now run scripts/scan_artifact.sh before publishing; release.yaml's unanchored `sed -i '/version/c...'` became jq on the version key, and its ::set-output (disabled by GitHub in 2023, so the step had been setting nothing) became $GITHUB_OUTPUT. scripts/load_test.sh installs only what manifest.json declares and imports every module out of the built zip -- it caught button.py importing homeassistant.components.bluetooth at module scope, which reaches homeassistant.components.usb and would have taken the whole button platform down on any install without the bluetooth integration, with all 1244 tests green. Both scripts run in CI on every push. on: blocks verified byte-identical."
     },
     {
       "id": "s13",

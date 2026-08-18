@@ -8,10 +8,6 @@ import platform
 from typing import TYPE_CHECKING, Any, Final
 from uuid import UUID
 
-from home_assistant_bluetooth import BluetoothServiceInfoBleak
-
-from homeassistant.components import bluetooth
-from homeassistant.components.bluetooth import BluetoothScanningMode
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, HomeAssistantError
@@ -24,11 +20,16 @@ from .entity import RivianVehicleControlEntity
 from .rivian_client import VehicleCommand
 
 if TYPE_CHECKING:
-    # Annotation-only. bleak is NOT part of Home Assistant's Requires-Dist -- it
-    # belongs to the bluetooth integration -- so a runtime import here would take
-    # the whole button platform down, including the pairing button, on any system
-    # where bleak is absent.
+    # Annotation-only, all three. None of these ship with Home Assistant core:
+    # bleak and home_assistant_bluetooth belong to the bluetooth integration, and
+    # homeassistant.components.bluetooth pulls in homeassistant.components.usb,
+    # whose aiousbwatcher and serialx are likewise absent from core's metadata.
+    # Importing any of them at module scope takes the whole button platform down
+    # -- including the wake and pairing buttons -- on a system where the bluetooth
+    # integration was never set up. Verified: the artifact load test installs only
+    # what manifest.json declares, and this module was the one that failed it.
     from bleak import BLEDevice
+    from home_assistant_bluetooth import BluetoothServiceInfoBleak
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -142,12 +143,16 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
         # bleak is missing, which would otherwise break the import of this whole
         # platform rather than just this one button.
         try:
+            from homeassistant.components import bluetooth
+            from homeassistant.components.bluetooth import BluetoothScanningMode
+
             from .rivian_client import ble as rivian_ble
         except ImportError as err:
             self._pairing = False
             raise HomeAssistantError(
-                "Bluetooth support is unavailable: the 'bleak' library could not be "
-                "imported. Phone pairing requires it."
+                "Bluetooth support is unavailable: neither the 'bleak' library nor "
+                "Home Assistant's bluetooth integration could be imported. Phone "
+                "pairing requires both."
             ) from err
 
         entry_data = self.hass.data[DOMAIN][self._config_entry.entry_id]

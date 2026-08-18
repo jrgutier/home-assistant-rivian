@@ -187,3 +187,39 @@ prints a value. Verified shape-identical to the real production entry.
 Not done here, deliberately: booting HA against the live vehicle. That is s13 and
 is human-gated, because one Parallax subscription is allowed per session token and
 a second HA would contend with the running production integration.
+
+## s12b — release hardening
+
+Both workflows published a bare recursive zip of custom_components/rivian, which
+ships whatever is sitting in that directory. pre-release.yaml fires on every push
+to dev and dev-*, and what it publishes is what beta users install, so this
+mattered more there, not less. Both now use an allow-list and both run
+scripts/scan_artifact.sh before publishing -- one definition of "safe to publish"
+rather than three copies of a grep.
+
+Two further defects in release.yaml, neither of which anything would have caught:
+`sed -i '/version/c\...'` rewrites every line containing the substring "version"
+rather than the version key, and `::set-output` was disabled by GitHub in 2023, so
+that step had been setting nothing for two years.
+
+scripts/load_test.sh is the check that earns its keep. The suite cannot catch a
+missing manifest entry -- its venv carries HA's full test extra, so a module
+importing something HA core does not ship still resolves and fails only for users.
+Installing exactly what manifest.json declares and importing every module out of
+the built zip found button.py importing homeassistant.components.bluetooth at
+module scope. That component's requirements belong to the bluetooth integration
+and it reaches homeassistant.components.usb, whose aiousbwatcher and serialx are
+absent from HA core's metadata, so on any install without the bluetooth
+integration the entire button platform -- wake button included -- would have failed
+to load. All 1244 tests were green throughout.
+
+Gate note: the first version of s12b's gate reported four failures against a tree
+that was already fixed, because it grepped the workflows' raw text and their
+comments name the bugs they fixed ("was ::set-output", "was sed -i /version/c").
+That is the same self-triggering-comment defect found six times earlier in this
+project. scripts/gates/workflow_runs.py now yields the shell a workflow actually
+runs, with comments stripped and backslash continuations joined.
+
+Also synced const.VERSION (1.4.2-beta16) to the manifest (1.5.4-beta1). It is
+logged at startup next to "Please report issues at", so every bug report was
+citing a version that never existed. A test now asserts the two agree.

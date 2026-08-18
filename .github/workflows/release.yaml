@@ -10,26 +10,52 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - name: Get Version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        # Was `echo ::set-output name=VERSION::...`, a command GitHub disabled in
+        # 2023. This step could not have set an output since then.
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-      - name: "Set version numbmer"
+      - name: Set version number
+        # Both edits were unanchored. `sed -i '/version/c\...'` rewrites EVERY
+        # line containing the substring "version" -- with the manifest's current
+        # keys that is one line, but "minor_version", "config_version" or a
+        # documentation URL containing the word would each silently destroy the
+        # file. jq edits the key, not lines that mention it.
         run: |
-          sed -i '/VERSION = /c\VERSION = "${{ steps.get_version.outputs.VERSION }}"' ${{ github.workspace }}/custom_components/rivian/const.py
-          sed -i '/version/c\  \"version\": \"${{ steps.get_version.outputs.VERSION }}\"' ${{ github.workspace }}/custom_components/rivian/manifest.json
-      # Pack the rivian dir as a zip and upload to the release
-      - name: ZIP MnP Dir
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          jq --arg v "$VERSION" '.version = $v' \
+            custom_components/rivian/manifest.json > manifest.tmp
+          mv manifest.tmp custom_components/rivian/manifest.json
+          sed -i "s/^VERSION = .*/VERSION = \"$VERSION\"/" \
+            custom_components/rivian/const.py
+          grep -E '^VERSION = ' custom_components/rivian/const.py
+          jq -r '.version' custom_components/rivian/manifest.json
+
+      - name: Build the zip
+        # Allow-list, not a bare recursive zip. `zip rivian.zip -r ./` ships
+        # whatever is sitting in the directory -- a __pycache__ from a local run, a
+        # scratch file, a dotfile. A deny-list only catches what someone already
+        # thought of.
         run: |
-          cd ${{ github.workspace }}/custom_components/rivian
-          zip rivian.zip -r ./
+          cd custom_components/rivian
+          zip -q -r ../../rivian.zip ./ \
+            -i '*.py' '*.json' '*.graphql' '*.proto' '*.yaml' 'py.typed'
+          cd ../..
+          unzip -l rivian.zip | tail -1
+
+      - name: Scan the artifact
+        # Same script the pre-release workflow and scripts/gates/s12b.sh run, so
+        # there is one definition of "safe to publish" rather than three.
+        run: bash scripts/scan_artifact.sh rivian.zip
+
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ github.workspace }}/custom_components/rivian/rivian.zip
+          file: rivian.zip
           asset_name: rivian.zip
           tag: ${{ github.ref }}
           overwrite: true

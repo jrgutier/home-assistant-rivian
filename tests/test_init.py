@@ -487,3 +487,51 @@ class TestAsyncRemoveConfigEntryDevice:
 
         # Should be able to remove
         assert result is True
+
+
+class TestTheReportedVersion:
+    """const.VERSION is logged at startup with "Please report issues at ...", so a
+    stale value puts a version that never existed into every bug report.
+
+    It had drifted: const.py said 1.4.2-beta16 while manifest.json -- the version
+    HACS and Home Assistant actually display -- said 1.5.4-beta1. Both release
+    workflows rewrite the two together, so they only diverge in the working tree,
+    which is exactly where nobody looks.
+    """
+
+    def test_const_version_matches_the_manifest(self) -> None:
+        import json
+        from pathlib import Path
+
+        from custom_components.rivian.const import VERSION
+
+        manifest = json.loads(
+            (
+                Path(__file__).resolve().parent.parent
+                / "custom_components"
+                / "rivian"
+                / "manifest.json"
+            ).read_text()
+        )
+        assert VERSION == manifest["version"]
+
+    def test_the_version_still_satisfies_the_pre_release_regex(self) -> None:
+        """pre-release.yaml parses the manifest version with ^X.Y.Z-betaN$ or
+        ^X.Y.Z$ and exits 1 otherwise. Upstream's "0.0.0" matches the second form,
+        so a bad merge does not fail the workflow -- it silently publishes
+        0.0.0-beta1, sorting below every existing release.
+        """
+        import json
+        from pathlib import Path
+        import re
+
+        version = json.loads(
+            (
+                Path(__file__).resolve().parent.parent
+                / "custom_components"
+                / "rivian"
+                / "manifest.json"
+            ).read_text()
+        )["version"]
+        assert re.fullmatch(r"\d+\.\d+\.\d+(-beta\d+)?", version)
+        assert version != "0.0.0", "upstream's placeholder would publish 0.0.0-beta1"
