@@ -17,7 +17,7 @@ from rivian.exceptions import (
     RivianExpiredTokenError,
     RivianUnauthenticated,
 )
-from rivian.parallax import decode_parallax_message
+from rivian.parallax import CHARGING_RVMS, PARALLAX_RVMS, decode_parallax_message
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -123,21 +123,32 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         raise UpdateFailed("Error communicating with API")
 
     def get(self, key: str, default: Any | None = None) -> Any | None:
-        """Get a data value by key, supporting dot notation for nested keys."""
+        """Get a data value by key, supporting dot notation for nested keys.
+
+        The ONE accessor for every coordinator. There used to be three with
+        incompatible signatures -- the base took (key, default), VehicleCoordinator
+        took (key) only, and ParallaxCoordinator read a separate store -- so
+        `vehicle_coordinator.get("x", False)` raised TypeError depending purely on
+        which coordinator the caller happened to hold.
+
+        VehicleCoordinator wraps each field as {"value": ..., "history": {...}}
+        while ChargingCoordinator stores flat values, so a wrapped field is
+        unwrapped here rather than at every call site.
+        """
         if not self.data:
             return default
 
-        # Support nested key access with dot notation
-        keys = key.split(".")
-        value = self.data
-
-        for k in keys:
-            if isinstance(value, dict):
-                value = value.get(k)
-                if value is None:
-                    return default
-            else:
+        value: Any = self.data
+        for part in key.split("."):
+            if not isinstance(value, dict):
                 return default
+            value = value.get(part)
+            if value is None:
+                return default
+
+        # Unwrap the {"value": ..., "history": ...} envelope.
+        if isinstance(value, dict) and "value" in value:
+            value = value["value"]
 
         return value if value is not None else default
 
@@ -577,291 +588,6 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     #     )
 
 
-class ParallaxCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
-    """Parallax data update coordinator for Rivian.
-
-    Subscribes to Parallax WebSocket messages and decodes protobuf payloads
-    for climate hold, passive entry, Halloween settings, cabin ventilation, etc.
-    """
-
-    key = "parallaxMessages"
-    _update_interval_seconds = 0  # No polling - subscription only
-    _watchdog_timeout = 5 * 60  # 5 minutes
-
-    # Short key to full RVM type mapping
-    _RVM_KEY_MAP = {
-        "halloween": "holiday_celebration.mobile_vehicle_settings.halloween_celebration_settings",
-        "cabin_ventilation": "comfort.cabin.cabin_ventilation_setting",
-        "passive_entry_setting": "vehicle_access.passive_entry.passive_entry",
-        "passive_entry_status": "vehicle_access.state.passive_entry",
-        "gear_guard_consents": "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent",
-        "climate_hold_status": "comfort.cabin.climate_hold_status",
-        "climate_hold_setting": "comfort.cabin.climate_hold_setting",
-    }
-
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        config_entry: ConfigEntry,
-        client: Rivian,
-        vehicle_id: str,
-    ) -> None:
-        """Initialize the coordinator."""
-        super().__init__(hass=hass, config_entry=config_entry, client=client)
-        self.vehicle_id = vehicle_id
-        # Set by VehicleCoordinator. Upstream 1.5.3b5 routes decoded Parallax
-        # fields to the charging and vehicle coordinators; that routing is fed
-        # from THIS subscription rather than one of its own, because both would
-        # request the same RVM set and every message would be delivered and
-        # protobuf-decoded twice.
-        self.on_message: Callable[[dict[str, Any]], None] | None = None
-        self._initial = asyncio.Event()
-        self._unsub_handler: Callable[[], Awaitable[None]] | None = None
-        self._last_update_time: datetime | None = None
-        self._watchdog_task: asyncio.Task | None = None
-        self._subscription_start_time: datetime | None = None
-        self._subscription_count = 0
-
-        # RVM type to decoded data mapping
-        self._rvm_data: dict[str, dict[str, Any]] = {}
-
-    async def _async_update_data(self) -> dict[str, Any]:
-        """Get the latest data from Rivian."""
-        if not self.data or not self.last_update_success or not self._unsub_handler:
-            await self._unsubscribe()
-            self._subscription_count += 1
-            self._subscription_start_time = datetime.now(timezone.utc)
-
-            _LOGGER.debug(
-                "Creating Parallax subscription #%d for vehicle %s",
-                self._subscription_count,
-                self.vehicle_id,
-            )
-
-            # Subscribe to ALL RVMs (rvms=None)
-            self._unsub_handler = await self.api.subscribe_for_parallax_messages(
-                vehicle_id=self.vehicle_id,
-                callback=self._process_new_data,
-                rvms=None,
-            )
-
-            self._last_update_time = datetime.now(timezone.utc)
-            self._start_watchdog()
-
-            try:
-                await asyncio.wait_for(self._initial.wait(), 5)
-            except asyncio.TimeoutError:
-                # No initial data received (normal on startup)
-                _LOGGER.debug("No initial Parallax data received (normal on startup)")
-                self._initial.set()
-                if not self.data:
-                    self.data = {}
-
-        return self.data
-
-    async def _fetch_data(self) -> dict[str, Any]:
-        """Fetch the data."""
-        raise NotImplementedError("Polling Parallax data is not supported")
-
-    async def async_shutdown(self) -> None:
-        """Shutdown coordinator."""
-        self._stop_watchdog()
-        await self._unsubscribe()
-        return await super().async_shutdown()
-
-    @callback
-    def _process_new_data(self, data: dict[str, Any]) -> None:
-        """Process new Parallax data from subscription."""
-        if self.on_message is not None:
-            # Hand the raw message to upstream's router before decoding here.
-            self.on_message(data)
-        # Check for GraphQL error messages
-        if data.get("type") == "error":
-            error_payload = data.get("payload", [])
-            if isinstance(error_payload, list) and error_payload:
-                error_info = error_payload[0]
-                error_message = error_info.get("message", "Unknown error")
-                extensions = error_info.get("extensions", {})
-                rest_info = extensions.get("rest", {})
-                status_code = rest_info.get("status")
-
-                _LOGGER.warning(
-                    "Parallax subscription for vehicle %s received backend error: %s (HTTP %s)",
-                    self.vehicle_id,
-                    error_message,
-                    status_code or "unknown",
-                )
-
-                # Restart subscription on backend errors
-                if status_code in (502, 504):
-                    task = self._unsubscribe()
-                    self.config_entry.async_create_task(
-                        self.hass, task, eager_start=True
-                    )
-                    refresh_task = self.async_request_refresh()
-                    self.config_entry.async_create_task(
-                        self.hass, refresh_task, eager_start=True
-                    )
-            return
-
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
-            _LOGGER.debug(
-                "Received unknown Parallax subscription update: %s",
-                data,
-            )
-            return
-
-        parallax_data = pdata.get("parallaxMessages", {})
-        if not parallax_data:
-            return
-
-        rvm_type = parallax_data.get("rvm")
-        payload_b64 = parallax_data.get("payload")
-        timestamp = parallax_data.get("timestamp")
-
-        if not rvm_type or payload_b64 is None:
-            return
-
-        # Decode the Base64 protobuf payload
-        decoded = self._decode_payload(rvm_type, payload_b64)
-        if decoded is not None:
-            self._rvm_data[rvm_type] = {
-                "data": decoded,
-                "timestamp": timestamp,
-                "raw_payload": payload_b64,
-            }
-            _LOGGER.debug("Parallax %s updated: %s", rvm_type, decoded)
-
-        # Update coordinator data
-        self.async_set_updated_data(self._rvm_data)
-        self._error_count = 0
-        self._initial.set()
-        self._last_update_time = datetime.now(timezone.utc)
-
-    def _decode_payload(self, rvm_type: str, payload_b64: str) -> dict[str, Any] | None:
-        """Decode a Base64-encoded protobuf payload based on RVM type.
-
-        Args:
-            rvm_type: The RVM type string
-            payload_b64: Base64-encoded protobuf payload
-
-        Returns:
-            Decoded dict or {"raw": payload_b64} for unknown types
-        """
-        import base64
-
-        if not payload_b64:
-            return {}
-
-        try:
-            payload_bytes = base64.b64decode(payload_b64)
-            if not payload_bytes:
-                return {}
-
-            # TODO: Add protobuf decoding for known RVM types
-            # For now, return raw payload for all types
-            return {"raw": payload_b64}
-
-        except Exception as ex:  # noqa: BLE001 -- a malformed payload must not kill the subscription; s06a replaces this stub
-            _LOGGER.warning(
-                "Failed to decode Parallax payload for %s: %s", rvm_type, ex
-            )
-            return None
-
-    def get(self, key: str, default: Any | None = None) -> Any | None:
-        """Get a data value by RVM short key + field using dot notation.
-
-        Supports:
-        - "halloween.enabled" -> _rvm_data["holiday_celebration..."]["data"]["enabled"]
-        - "cabin_ventilation.mode" -> _rvm_data["comfort.cabin..."]["data"]["mode"]
-
-        Args:
-            key: Dot-notation key (e.g., "halloween.enabled")
-            default: Default value if key not found
-
-        Returns:
-            The value or default
-        """
-        if not self._rvm_data:
-            return default
-
-        parts = key.split(".")
-        if len(parts) < 2:
-            return default
-
-        rvm_short_key = parts[0]
-        field_path = parts[1:]
-
-        rvm_type = self._RVM_KEY_MAP.get(rvm_short_key)
-        if not rvm_type or rvm_type not in self._rvm_data:
-            return default
-
-        value = self._rvm_data[rvm_type].get("data", {})
-        for field in field_path:
-            if isinstance(value, dict):
-                value = value.get(field)
-                if value is None:
-                    return default
-            else:
-                return default
-
-        return value if value is not None else default
-
-    async def _unsubscribe(self) -> None:
-        """Unsubscribe from the Parallax subscription."""
-        if unsub := self._unsub_handler:
-            _LOGGER.debug(
-                "Unsubscribing from Parallax subscription #%d for vehicle %s",
-                self._subscription_count,
-                self.vehicle_id,
-            )
-            await unsub()
-            self._unsub_handler = None
-            self._initial.clear()
-
-    def _start_watchdog(self) -> None:
-        """Start the subscription watchdog."""
-        if self._watchdog_task and not self._watchdog_task.done():
-            return  # Watchdog already running
-
-        async def _watchdog_loop():
-            """Monitor subscription health and restart if stale."""
-            while True:
-                await asyncio.sleep(60)  # Check every minute
-
-                if not self._last_update_time:
-                    continue
-
-                time_since_update = (
-                    datetime.now(timezone.utc) - self._last_update_time
-                ).total_seconds()
-
-                # Restart subscription if stale
-                if time_since_update > self._watchdog_timeout:
-                    _LOGGER.warning(
-                        "Parallax subscription for vehicle %s stale, no updates for %.1f minutes. Restarting...",
-                        self.vehicle_id,
-                        time_since_update / 60,
-                    )
-                    await self._unsubscribe()
-                    task = self.async_request_refresh()
-                    self.config_entry.async_create_task(
-                        self.hass, task, eager_start=True
-                    )
-
-        self._watchdog_task = self.config_entry.async_create_task(
-            self.hass, _watchdog_loop(), eager_start=True
-        )
-        _LOGGER.debug("Started Parallax watchdog for vehicle %s", self.vehicle_id)
-
-    def _stop_watchdog(self) -> None:
-        """Stop the subscription watchdog."""
-        if self._watchdog_task and not self._watchdog_task.done():
-            self._watchdog_task.cancel()
-            self._watchdog_task = None
-            _LOGGER.debug("Stopped Parallax watchdog for vehicle %s", self.vehicle_id)
-
-
 class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     """Drivers/keys data update coordinator for Rivian."""
 
@@ -976,12 +702,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self.drivers_coordinator = DriverKeyCoordinator(
             hass=hass, config_entry=config_entry, client=client, vehicle_id=vehicle_id
         )
-        self.parallax_coordinator = ParallaxCoordinator(
-            hass=hass, config_entry=config_entry, client=client, vehicle_id=vehicle_id
-        )
-        self.parallax_coordinator.on_message = self._process_parallax_data
         self._initial = asyncio.Event()
         self._unsub_handler: Callable[[], Awaitable[None]] | None = None
+        self._unsub_parallax: Callable[[], Awaitable[None]] | None = None
         self._connection_unsub_handler: Callable[[], Awaitable[None]] | None = None
         self._is_online: bool = False
         self._last_sync: str | None = None
@@ -1090,6 +813,16 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 vehicle_id=self.vehicle_id,
                 properties=VEHICLE_STATE_API_FIELDS,
                 callback=self._process_new_data,
+            )
+
+            # Parallax. The RVM list is explicit and DEDUPED rather than rvms=None:
+            # PARALLAX_RVMS and CHARGING_RVMS overlap by five topics, so naive
+            # concatenation would ask for 25 subscriptions covering 20 topics and
+            # every duplicated message would be delivered and decoded twice.
+            self._unsub_parallax = await self.api.subscribe_for_parallax_messages(
+                vehicle_id=self.vehicle_id,
+                callback=self._process_parallax_data,
+                rvms=sorted({*PARALLAX_RVMS, *CHARGING_RVMS}),
             )
 
             # Also subscribe to cloud connection for online/offline status
@@ -1452,6 +1185,10 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     async def _unsubscribe(self, close_monitor: bool = False):
         """Unsubscribe."""
+        if unsub := self._unsub_parallax:
+            await unsub()
+            self._unsub_parallax = None
+
         # Unsubscribe from vehicle state
         if unsub := self._unsub_handler:
             _LOGGER.debug(
@@ -1485,12 +1222,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 close_monitor,
             )
             await monitor.close()
-
-    def get(self, key: str) -> Any | None:
-        """Get a data value by key."""
-        if entity := self.data.get(key, {}):
-            return entity.get("value")
-        return None
 
     @callback
     def _process_command_state(self, command_id: str, data: dict[str, Any]) -> None:

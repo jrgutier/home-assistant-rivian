@@ -5,7 +5,14 @@ echo "S6a — Parallax routing + get() unification"
 C="$HA/custom_components/rivian/coordinator.py"
 absent "the {\"raw\": ...} stub is gone" 'TODO: Add protobuf decoding' "$HA/custom_components"
 contains "routes to decode_parallax_message" 'decode_parallax_message' "$C"
-absent "no rvms=None subscription" 'rvms=None' "$HA/custom_components"
+# Code only: a comment EXPLAINING why rvms=None is wrong must not fail the gate.
+# (s02 hit the same self-triggering-comment problem.)
+if grep -rn --include='*.py' 'rvms=None' "$HA/custom_components" \
+     | sed 's/#.*//' | grep -q 'rvms=None'; then
+  bad "a live rvms=None subscription remains"
+else
+  ok "no rvms=None subscription in code"
+fi
 if [ -f "$HA/tests/test_parallax_coordinator.py" ] && \
    grep -qF 'test_decode_unknown_rvm_returns_raw' "$HA/tests/test_parallax_coordinator.py"; then
   bad "test_decode_unknown_rvm_returns_raw still present (must be DELETED, not adapted)"

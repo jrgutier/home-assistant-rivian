@@ -415,3 +415,48 @@ can turn CI red on a day nobody changed code.
   replacements for repeated text.
 * Collapsing a nested if left the body over-indented (SyntaxError). Both were
   caught by running ruff again rather than by assuming the edit was right.
+
+## 2026-08-18 — s06a: Parallax routed through real decoders, get() unified
+
+### ParallaxCoordinator dissolved (285 lines)
+With s09a having removed every PARALLAX_* entity, the class had no remaining
+consumer for its get() -- so the plan's "dissolve it" finally became possible.
+Gone with it: _RVM_KEY_MAP, _rvm_data, and _decode_payload (the
+`return {"raw": payload_b64}` stub with the TODO that started this whole effort).
+
+VehicleCoordinator now owns the ONE Parallax subscription, which is also where
+upstream 1.5.3b5 put it. Note this re-adds the subscribe call I deleted as a
+"duplicate" earlier -- it was only a duplicate while BOTH coordinators existed.
+
+### rvms is explicit and deduped
+  rvms=sorted({*PARALLAX_RVMS, *CHARGING_RVMS})   -> 20 unique topics
+Measured: PARALLAX_RVMS=17, CHARGING_RVMS=8, overlap=5. rvms=None would have
+asked for PARALLAX_RVMS only and silently dropped the charging topics; naive
+concatenation would have asked for 25 subscriptions covering 20 topics, with the
+five overlapping ones delivered and decoded twice.
+
+### get(): three signatures -> one
+  base                 get(key, default)   dot notation
+  VehicleCoordinator   get(key)            1-arg, unwrapped {"value": ...}
+  ParallaxCoordinator  get(key, default)   read a separate store
+`vehicle_coordinator.get("x", False)` raised TypeError while the same call on
+ChargingCoordinator worked -- success depending purely on which coordinator the
+caller happened to hold. The single base get() now unwraps the
+{"value": ..., "history": ...} envelope centrally, so both data shapes work.
+
+### Tests
+test_parallax_coordinator.py DELETED with its subject (16 tests). That includes
+test_decode_unknown_rvm_returns_raw, which asserted the stub and is one of the two
+deletions the plan authorises. Coverage was not dropped, it moved:
+  subscription  -> test_parallax_single_subscription.py, rewritten for the new
+                   owner and now also pinning "explicit", "deduped" and "covers
+                   both lists"
+  processing    -> test_parallax_routing.py (already existed, 11 tests)
+  get()         -> test_coordinator_get.py (new, 10 tests, both data shapes)
+
+### Gate defect, third of this kind
+The rvms=None assertion matched MY OWN COMMENT explaining why rvms=None is wrong.
+Same self-triggering-comment flaw s02 hit. The check now strips comments before
+grepping, and was fail-first validated against a real rvms=None.
+
+1010 tests, coverage 82.23%, ten gates green.

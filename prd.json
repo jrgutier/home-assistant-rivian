@@ -111,9 +111,9 @@
         "s05"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Route Parallax through the real decoders; unify get()",
-      "detail": "Delete _decode_payload (the {\"raw\": ...} stub) and its test test_decode_unknown_rvm_returns_raw \u2014 deleted, not adapted. Route to decode_parallax_message. Subscribe with an explicit DEDUPED PARALLAX_RVMS + CHARGING_RVMS list (they overlap), not rvms=None. Collapse the three conflicting get() signatures onto the base 2-arg dot-notation form.",
+      "detail": "Delete _decode_payload (the {\"raw\": ...} stub) and its test test_decode_unknown_rvm_returns_raw \u2014 deleted, not adapted. Route to decode_parallax_message. Subscribe with an explicit DEDUPED PARALLAX_RVMS + CHARGING_RVMS list (they overlap), not rvms=None. Collapse the three conflicting get() signatures onto the base 2-arg dot-notation form. DONE 2026-08-18. ParallaxCoordinator DISSOLVED (285 lines) along with _RVM_KEY_MAP, _rvm_data and _decode_payload; VehicleCoordinator now owns the single Parallax subscription with sorted({*PARALLAX_RVMS, *CHARGING_RVMS}) -- 20 unique topics, not the 25 a naive concat would request. get() collapsed from 3 signatures to 1, unwrapping the {value,history} envelope centrally.",
       "gate": "scripts/gates/s06a.sh"
     },
     {
