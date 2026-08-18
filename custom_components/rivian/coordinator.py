@@ -180,6 +180,11 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._subscription_enabled = True  # Track if subscription should be active
         self._is_charging: bool = False
         self._session_start_time: datetime | None = None
+        # True when the stored startTime was SYNTHESISED by update_from_parallax
+        # rather than reported by the vehicle. Without this, the real startTime
+        # arriving later differs from the invented one, looks like a brand-new
+        # session, and clears everything the session has accumulated.
+        self._synthetic_start_time = False
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
@@ -274,12 +279,18 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # it indicates a brand new charging session.
         if "startTime" in clean:
             old_start = new_data.get("startTime")
-            if old_start and old_start != clean["startTime"]:
+            if (
+                old_start
+                and old_start != clean["startTime"]
+                and not self._synthetic_start_time
+            ):
                 # New session started - clear old session metrics
                 new_data.clear()
             new_data["startTime"] = clean["startTime"]
+            self._synthetic_start_time = False
         elif not new_data.get("startTime") and clean.get("power", 0) > 0:
             new_data["startTime"] = now.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+            self._synthetic_start_time = True
 
         new_data.update(clean)
 
@@ -382,6 +393,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 # Empty list means no active charging session
                 _LOGGER.debug("No active charging session")
                 self.async_set_updated_data({})
+                self._synthetic_start_time = False
                 self._error_count = 0
                 self._initial.set()
                 # Update watchdog timestamp even for empty session
@@ -392,7 +404,13 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         # Merge chartData and liveData into flat structure matching current API
         processed_data = self._process_charging_data(charging_data)
-        self.async_set_updated_data(processed_data)
+        # Merge into what Parallax has already pushed rather than replacing it.
+        # displayStatus, evseType, plugConnectionStatus, currentPrice and
+        # currentCurrency have NO subscription source, so a replacing write made
+        # their sensors flap for the whole of an active charging session.
+        merged = dict(self.data or {})
+        merged.update(processed_data)
+        self.async_set_updated_data(merged)
         self._error_count = 0
         self._initial.set()
 
