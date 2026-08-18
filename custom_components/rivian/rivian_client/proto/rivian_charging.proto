@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package rivian;
+
+import "rivian_base.proto";
+
+// Charging session live data response
+// Based on Android app protobuf C19106b (p1004rj/C19106b.java)
+// RVM: energy_edge_compute.graphs.charge_session_breakdown
+message ChargingSessionLiveData {
+  float total_kwh = 1;                  // Total energy delivered (kWh)
+  float pack_kwh = 2;                   // Energy to battery pack (kWh)
+  float thermal_kwh = 3;                // Thermal management energy (kWh)
+  float outlets_kwh = 4;                // Energy to outlets/accessories (kWh)
+  float system_kwh = 5;                 // Vehicle system energy (kWh)
+  int32 session_duration_mins = 6;      // Session duration (minutes)
+  int32 time_remaining_mins = 7;        // Estimated time remaining (minutes)
+  int32 range_added_kms = 8;            // Range added (kilometers)
+  float current_power = 9;              // Current charging power (kW)
+  int32 current_range_per_hour = 10;    // Current range gain rate (km/h)
+  Money session_cost = 11;              // Session cost
+  bool is_free_session = 12;            // Whether session is free
+  int32 charging_state = 13;            // Charging state (0=idle, 1=charging, 2=complete)
+}
+
+// Window data for charging schedule
+// Based on Android app protobuf C18592k (p959pj/C18592k.java)
+message WindowData {
+  int32 start_time = 1;          // Time in seconds since midnight (0-86399)
+  int32 end_time = 2;            // Time in seconds since midnight (0-86399)
+  int32 duration = 3;            // Duration in seconds
+  int32 amps = 4;                // Charging amperage limit
+  Location location = 5;         // Location for geo-based scheduling
+  int32 start_day_of_week = 6;   // Start day (0=Sunday, 6=Saturday)
+  int32 end_day_of_week = 7;     // End day (0=Sunday, 6=Saturday)
+}
+
+// Charging schedule time window command
+// Based on Android app protobuf C18593l (p959pj/C18593l.java)
+// RVM: charging.schedule.time_window
+message ChargingScheduleTimeWindow {
+  bool is_valid = 1;           // Whether this schedule is valid/active
+  WindowData window_data = 2;  // The actual window configuration
+}
+
+// Charging session chart data for historical analysis
+// RVM: energy_edge_compute.graphs.charging_graph_global
+message ChargingSessionChartData {
+  string session_id = 1;              // Unique session identifier
+  repeated int64 timestamps = 2;      // Unix timestamps for chart points
+  repeated float power_values = 3;    // Power (kW) at each timestamp
+  repeated float soc_values = 4;      // State of charge (%) at each timestamp
+  repeated float voltage_values = 5;  // Voltage at each timestamp
+  repeated float current_values = 6;  // Current (A) at each timestamp
+  float total_energy_kwh = 7;         // Total energy delivered
+  int32 duration_minutes = 8;         // Session duration
+}

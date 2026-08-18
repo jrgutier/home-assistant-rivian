@@ -3,10 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.device_registry import DeviceEntry
 
 from custom_components.rivian import (
     async_remove_config_entry_device,
@@ -23,6 +19,10 @@ from custom_components.rivian.const import (
     ATTR_WALLBOX,
     DOMAIN,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.device_registry import DeviceEntry
 
 
 @pytest.fixture
@@ -69,6 +69,10 @@ def mock_vehicle_coordinator():
     coordinator.charging_coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.drivers_coordinator = MagicMock()
     coordinator.drivers_coordinator.async_config_entry_first_refresh = AsyncMock()
+    # Added in f3e62e3 alongside ParallaxCoordinator; the fixture was never updated,
+    # so __init__.py:110 awaited a plain MagicMock.
+    coordinator.parallax_coordinator = MagicMock()
+    coordinator.parallax_coordinator.async_config_entry_first_refresh = AsyncMock()
     return coordinator
 
 
@@ -483,3 +487,178 @@ class TestAsyncRemoveConfigEntryDevice:
 
         # Should be able to remove
         assert result is True
+
+
+class TestTheReportedVersion:
+    """const.VERSION is logged at startup with "Please report issues at ...", so a
+    stale value puts a version that never existed into every bug report.
+
+    It had drifted: const.py said 1.4.2-beta16 while manifest.json -- the version
+    HACS and Home Assistant actually display -- said 1.5.4-beta1. Both release
+    workflows rewrite the two together, so they only diverge in the working tree,
+    which is exactly where nobody looks.
+    """
+
+    def test_const_version_matches_the_manifest(self) -> None:
+        import json
+        from pathlib import Path
+
+        from custom_components.rivian.const import VERSION
+
+        manifest = json.loads(
+            (
+                Path(__file__).resolve().parent.parent
+                / "custom_components"
+                / "rivian"
+                / "manifest.json"
+            ).read_text()
+        )
+        assert VERSION == manifest["version"]
+
+    def test_the_version_still_satisfies_the_pre_release_regex(self) -> None:
+        """pre-release.yaml parses the manifest version with ^X.Y.Z-betaN$ or
+        ^X.Y.Z$ and exits 1 otherwise. Upstream's "0.0.0" matches the second form,
+        so a bad merge does not fail the workflow -- it silently publishes
+        0.0.0-beta1, sorting below every existing release.
+        """
+        import json
+        from pathlib import Path
+        import re
+
+        version = json.loads(
+            (
+                Path(__file__).resolve().parent.parent
+                / "custom_components"
+                / "rivian"
+                / "manifest.json"
+            ).read_text()
+        )["version"]
+        assert re.fullmatch(r"\d+\.\d+\.\d+(-beta\d+)?", version)
+        assert version != "0.0.0", "upstream's placeholder would publish 0.0.0-beta1"
+
+
+class TestTheSubscriptionFieldList:
+    """VEHICLE_STATE_API_FIELDS is derived from every sensor's `field`, so a sensor
+    fed by Parallax silently adds its field to the GraphQL subscription query.
+
+    Rivian's gateway rejects the entire subscription on the first unknown field:
+
+        {"type":"error","payload":[{"message":
+          "Cannot query field \"wheelsInstalled\" on type \"VehicleState\"."}]}
+
+    and then delivers nothing -- no battery level, no odometer, no tire pressures.
+    Observed on a live boot; every unit test passed, because none of them talks to
+    the real gateway.
+    """
+
+    def test_every_subscribed_field_is_one_the_gateway_knows(self) -> None:
+        """The real invariant, checked against the client's own property list.
+
+        The first version of this test asserted only that PARALLAX_ONLY_FIELDS was
+        excluded from VEHICLE_STATE_API_FIELDS -- a restatement of the fix, not a
+        check of anything. Add another Parallax-fed sensor tomorrow and it passes
+        while the subscription dies again, which is precisely the bug it was
+        written for.
+
+        This is the check that would have caught wheelsInstalled: the field is
+        computed by a Parallax decoder and appears in no gateway property list.
+        """
+        from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+        from custom_components.rivian.rivian_client.const import (
+            VEHICLE_STATES_SUBSCRIPTION_PROPERTIES,
+        )
+
+        unknown = set(VEHICLE_STATE_API_FIELDS) - VEHICLE_STATES_SUBSCRIPTION_PROPERTIES
+        assert not unknown, (
+            f"{sorted(unknown)} would be sent in the vehicleState subscription but "
+            "are not fields the gateway advertises. Rivian rejects the WHOLE "
+            "subscription on the first unknown field, so this delivers no vehicle "
+            "state at all. If the field is Parallax-derived, add it to "
+            "PARALLAX_ONLY_FIELDS; if the gateway really does accept it, add it to "
+            "the client's VEHICLE_STATE_PROPERTIES with evidence."
+        )
+
+    def test_parallax_only_fields_are_actually_excluded(self) -> None:
+        """Kept as a narrow check on the mechanism itself, no longer as the guard."""
+        from custom_components.rivian.const import (
+            PARALLAX_ONLY_FIELDS,
+            VEHICLE_STATE_API_FIELDS,
+        )
+
+        assert PARALLAX_ONLY_FIELDS
+        assert not (PARALLAX_ONLY_FIELDS & VEHICLE_STATE_API_FIELDS)
+
+    def test_the_sensor_still_exists_and_still_reads_the_field(self) -> None:
+        """Excluding the field from the subscription must not remove the sensor --
+        Parallax populates it, so it works; that is why exclusion is the right fix
+        rather than deleting the entity."""
+        from custom_components.rivian.const import SENSORS
+
+        fields = {
+            description.field for sensors in SENSORS.values() for description in sensors
+        }
+        assert "wheelsInstalled" in fields
+
+    def test_the_sans_tpms_variant_is_still_a_strict_subset(self) -> None:
+        """VEHICLE_STATE_SANS_TPMS_API_FIELDS is built with ^, which ADDS any name
+        that is not already present. It is only a subtraction while every tyre field
+        really is in the base set -- so this asserts the base set, not the operator.
+        """
+        from custom_components.rivian.const import (
+            VEHICLE_STATE_API_FIELDS,
+            VEHICLE_STATE_SANS_TPMS_API_FIELDS,
+        )
+
+        assert VEHICLE_STATE_SANS_TPMS_API_FIELDS < VEHICLE_STATE_API_FIELDS
+        for tyre in (
+            "tirePressureFrontLeft",
+            "tirePressureFrontRight",
+            "tirePressureRearLeft",
+            "tirePressureRearRight",
+        ):
+            assert tyre in VEHICLE_STATE_API_FIELDS
+            assert tyre not in VEHICLE_STATE_SANS_TPMS_API_FIELDS
+
+
+class TestVocabularyMatchesTheVehicle:
+    """Both of these were found by booting against the real vehicle; every unit
+    test passed, because the values only appear in live data."""
+
+    # Every ENUM sensor fed by a Parallax decoder, with the decoder's full output
+    # vocabulary. Testing only cabinPreconditioningStatus was too narrow: an
+    # independent review mutated away the "Off" in defrost_defog_status's options
+    # and NOTHING failed, even though decode_defrost emits exactly Defrost | Off.
+    # Same exposure, no guard.
+    PARALLAX_ENUM_VOCABULARIES = (
+        ("cabinPreconditioningStatus", ("active", "initiate", "off")),
+        ("defrostDefogStatus", ("defrost", "off")),
+    )
+
+    @pytest.mark.parametrize(
+        ("field", "emitted"), PARALLAX_ENUM_VOCABULARIES, ids=lambda v: str(v)[:30]
+    )
+    def test_enum_options_cover_every_decoder_output(
+        self, field: str, emitted: tuple[str, ...]
+    ) -> None:
+        """A value the decoder can emit but the sensor does not list makes HA log an
+        error and append it to the options at runtime, so the vocabulary silently
+        becomes whatever the vehicle happened to send."""
+        from custom_components.rivian.const import SENSORS, _to_title_case
+
+        description = next(
+            d for sensors in SENSORS.values() for d in sensors if d.field == field
+        )
+        missing = [
+            _to_title_case(v)
+            for v in emitted
+            if _to_title_case(v) not in description.options
+        ]
+        assert not missing, f"{field} cannot represent {missing}"
+
+    def test_sna_is_treated_as_an_invalid_state(self) -> None:
+        """The vehicle abbreviates signal-not-available to SNA. The set is compared
+        with .lower(), so the lowercase form is the one that matters."""
+        from custom_components.rivian.const import INVALID_SENSOR_STATES
+
+        assert "SNA".lower() in INVALID_SENSOR_STATES
+        assert all(entry == entry.lower() for entry in INVALID_SENSOR_STATES)

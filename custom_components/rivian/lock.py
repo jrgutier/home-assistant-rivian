@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from rivian import VehicleCommand
-
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,6 +14,7 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN, LOCK_STATE_ENTITIES
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianLockEntityDescription
 from .entity import RivianVehicleControlEntity
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,8 +23,8 @@ LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
     RivianLockEntityDescription(
         key="closures",
         translation_key="closures",
-        is_locked=lambda coordinator: not any(
-            coordinator.get(key) == "unlocked" for key in LOCK_STATE_ENTITIES
+        is_locked=lambda coordinator: (
+            not any(coordinator.get(key) == "unlocked" for key in LOCK_STATE_ENTITIES)
         ),
         command_lock=VehicleCommand.LOCK_ALL_CLOSURES_FEEDBACK,
         command_unlock=VehicleCommand.UNLOCK_ALL_CLOSURES,
@@ -36,7 +35,7 @@ LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the sensor entities"""
+    """Set up the lock entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -51,7 +50,7 @@ async def async_setup_entry(
 
 
 class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
-    """Representation of a Rivian sensor entity."""
+    """Representation of a Rivian lock entity."""
 
     entity_description: RivianLockEntityDescription
 

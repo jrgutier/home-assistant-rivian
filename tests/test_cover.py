@@ -1,34 +1,16 @@
 """Tests for Rivian cover platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.components.cover import CoverDeviceClass, CoverEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-
-# Mock VehicleCommand before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.CLOSE_ALL_WINDOWS = "CLOSE_ALL_WINDOWS"
-mock_rivian.VehicleCommand.OPEN_ALL_WINDOWS = "OPEN_ALL_WINDOWS"
-mock_rivian.VehicleCommand.CLOSE_CHARGE_PORT_DOOR = "CLOSE_CHARGE_PORT_DOOR"
-mock_rivian.VehicleCommand.OPEN_CHARGE_PORT_DOOR = "OPEN_CHARGE_PORT_DOOR"
-mock_rivian.VehicleCommand.CLOSE_LIFTGATE = "CLOSE_LIFTGATE"
-mock_rivian.VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE = (
-    "OPEN_LIFTGATE_UNLATCH_TAILGATE"
-)
-mock_rivian.VehicleCommand.CLOSE_FRUNK = "CLOSE_FRUNK"
-mock_rivian.VehicleCommand.OPEN_FRUNK = "OPEN_FRUNK"
-mock_rivian.VehicleCommand.CLOSE_TONNEAU_COVER = "CLOSE_TONNEAU_COVER"
-mock_rivian.VehicleCommand.OPEN_TONNEAU_COVER = "OPEN_TONNEAU_COVER"
-sys.modules["rivian"] = mock_rivian
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.cover import RivianCoverEntity, async_setup_entry
 from custom_components.rivian.data_classes import RivianCoverEntityDescription
+from homeassistant.components.cover import CoverDeviceClass, CoverEntityFeature
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianCoverEntity:
@@ -566,9 +548,12 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should have created cover entities (1 windows cover that doesn't require features)
-    assert len(entities_added) == 1
+    # A vehicle advertising NO capability flags still gets the two unconditional
+    # covers. frunk is deliberately among them: gating it behind FRUNK_NXT_ACT
+    # left vehicles that do not advertise that flag with no frunk control at all.
+    assert len(entities_added) == 2
     assert all(isinstance(e, RivianCoverEntity) for e in entities_added)
+    assert {e.entity_description.key for e in entities_added} == {"frunk", "windows"}
 
 
 @pytest.mark.asyncio

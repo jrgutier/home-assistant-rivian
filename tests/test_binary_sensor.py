@@ -3,9 +3,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 from custom_components.rivian.binary_sensor import (
     RivianBinarySensorEntity,
@@ -15,6 +12,9 @@ from custom_components.rivian.binary_sensor import (
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianBinarySensorEntityDescription
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianBinarySensorEntity:

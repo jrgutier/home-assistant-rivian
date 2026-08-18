@@ -1,11 +1,39 @@
 -r requirements.txt
 
 # Testing
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
+#
+# Pinned exactly: pytest-homeassistant-custom-component pins homeassistant itself
+# (0.13.356 -> homeassistant==2026.8.2), so an unpinned floor here silently
+# overrides the pin in requirements.txt. Bump the two together.
+pytest-homeassistant-custom-component==0.13.356
 pytest-cov>=4.1.0
-pytest-homeassistant-custom-component>=0.13.0
 pytest-timeout>=2.1.0
 
 # Mocking
 freezegun>=1.2.0
+# Used by the vendored client's own tests, moved here in s07.
+aresponses>=3.0,<4.0
+# manifest.json declares bleak, so the test environment must have it too --
+# without it the vendored BLE modules are 353 statements at 0% and their tests
+# silently skip, which reads as coverage debt rather than an absent dependency.
+bleak>=0.21
+# ble.set_bluez_pairable imports it inside the function; tests/test_button.py
+# exercises that path with platform.system patched to Linux.
+dbus-fast
+
+# Pulled in by homeassistant.components.bluetooth, which tests/test_button.py imports.
+# Absent from HA's own metadata, so without these the bluetooth import fails and
+# test_button.py errors at collection. Installed rather than mocked -- the previous
+# workaround was a module-level sys.modules stub that leaked across the whole session.
+# serialx arrived with HA 2026.8's homeassistant.components.usb.serial_proxy_stub.
+aiousbwatcher
+pyserial
+serialx
+
+# NOTE: the pycares<5 / habluetooth==5.6.4 / bleak-retry-connector==4.4.3 /
+# dbus-fast==2.44.3 pins that used to live here are gone. They existed because
+# `pip install -r` does not apply HA's package_constraints.txt, so an unconstrained
+# resolve landed outside what HA could run. Under HA 2026.8.2 the
+# pytest-homeassistant-custom-component pin resolves them consistently on its own
+# (bleak 3.0.2, habluetooth 6.26.6, pycares 5.0.1) -- every one of those old pins
+# now pulls a package *backwards*. Re-check this when HA is next bumped.

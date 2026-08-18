@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from rivian import VehicleCommand
-
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,11 +14,11 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSelectEntityDescription
 from .entity import RivianVehicleControlEntity
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 
 LEVEL_MAP = {"Off": "0", "On": "1", "Level_1": "2", "Level_2": "3", "Level_3": "4"}
-OFF_ON = ["Off", "On"]
 LEVELS = ["Off", "Level_1", "Level_2", "Level_3"]
 SEAT_CLIMATE_OPTIONS = [
     "Off",
@@ -87,28 +85,6 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
     ),
 )
 
-PARALLAX_SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
-    RivianSelectEntityDescription(
-        key="halloween_mode",
-        translation_key="halloween_mode",
-        icon="mdi:halloween",
-        options=["SPOOKY", "FESTIVE"],
-        field="parallax.halloween.animation_mode",
-        select=lambda coordinator, option: coordinator.send_parallax_command(
-            "set_halloween_settings", enabled=True, animation_mode=option
-        ),
-    ),
-    RivianSelectEntityDescription(
-        key="cabin_ventilation_mode",
-        translation_key="cabin_ventilation_mode",
-        icon="mdi:fan",
-        options=["AUTO", "MANUAL"],
-        field="parallax.cabin_ventilation.mode",
-        select=lambda coordinator, option: coordinator.send_parallax_command(
-            "set_cabin_ventilation", enabled=True, mode=option
-        ),
-    ),
-)
 
 # Front seat combined heat/cool entities use a custom entity class
 FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
@@ -132,7 +108,7 @@ FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the select entities"""
+    """Set up the select entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -164,16 +140,6 @@ async def async_setup_entry(
         ]
     )
 
-    # Add Parallax select entities (require pairing)
-    entities.extend(
-        [
-            RivianSelectEntity(coordinators[vehicle_id], entry, description, vehicle)
-            for vehicle_id, vehicle in vehicles.items()
-            if vehicle.get("phone_identity_id")
-            for description in PARALLAX_SELECTS
-        ]
-    )
-
     async_add_entities(entities)
 
 
@@ -183,14 +149,7 @@ class RivianSelectEntity(RivianVehicleControlEntity, SelectEntity):
     entity_description: RivianSelectEntityDescription
 
     def _get_value(self, key: str) -> Any | None:
-        """Get a data value from the coordinator.
-
-        Routes parallax.* keys to ParallaxCoordinator.
-        """
-        if key.startswith("parallax."):
-            # Route to ParallaxCoordinator (remove "parallax." prefix)
-            parallax_key = key[9:]
-            return self.coordinator.parallax_coordinator.get(parallax_key)
+        """Get a data value from the coordinator."""
         return self.coordinator.get(key)
 
     @property

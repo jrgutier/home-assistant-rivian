@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package rivian;
+
+import "google/protobuf/timestamp.proto";
+
+// Climate hold setting command
+// Based on Android app protobuf C18913s (p979qj/C18913s.java)
+// RVM: comfort.cabin.climate_hold_setting
+message ClimateHoldSetting {
+  int32 hold_time_duration_seconds = 1;  // Duration in seconds
+}
+
+// Climate hold status response
+// Based on Android app protobuf C18888A (p979qj/C18888A.java)
+// RVM: comfort.cabin.climate_hold_status
+message ClimateHoldStatus {
+  // Status enum
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_UNAVAILABLE = 1;
+    STATUS_OFF = 2;
+    STATUS_ON = 3;
+    STATUS_FAULT = 4;
+  }
+
+  // Availability enum
+  enum Availability {
+    AVAILABILITY_UNSPECIFIED = 0;
+    AVAILABILITY_AVAILABLE = 1;
+    AVAILABILITY_CONTROLLABLE = 2;
+    AVAILABILITY_UNAVAILABLE = 3;
+  }
+
+  // Unavailability reason enum
+  enum UnavailabilityReason {
+    UNAVAILABILITY_REASON_UNSPECIFIED = 0;
+    UNAVAILABILITY_REASON_UNKNOWN = 1;
+    UNAVAILABILITY_REASON_LOW_SOC = 2;
+  }
+
+  Status status = 1;                              // Current status
+  Availability availability = 2;                   // Availability state
+  UnavailabilityReason unavailability_reason = 3;  // Reason if unavailable
+  google.protobuf.Timestamp hold_end_time = 4;    // When hold will end
+}
+
+// Cabin ventilation setting
+// RVM: comfort.cabin.cabin_ventilation_setting
+message CabinVentilationSetting {
+  bool enabled = 1;                // Whether ventilation is enabled
+  string mode = 2;                 // Ventilation mode ("AUTO", "MANUAL", "OFF")
+  int32 windows_open_percent = 3;  // Window opening percentage (0-100)
+  int32 sunroof_open_percent = 4;  // Sunroof opening percentage (0-100)
+  int32 duration_minutes = 5;      // Duration in minutes
+}

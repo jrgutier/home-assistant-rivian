@@ -3,9 +3,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from homeassistant.components.device_tracker import SourceType
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
@@ -14,6 +11,9 @@ from custom_components.rivian.device_tracker import (
     RivianDeviceEntity,
     async_setup_entry,
 )
+from homeassistant.components.device_tracker import SourceType
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianDeviceEntity:
@@ -392,7 +392,9 @@ class TestRivianDeviceEntity:
             vehicle=vehicle_data,
         )
 
-        # Update coordinator data without timestamp (will cause KeyError)
+        # A payload missing timeStamp. Before upstream 53f6d93 this raised KeyError
+        # and the update was abandoned; the resilient accessors now tolerate it, so
+        # the entity must take the new position AND publish it.
         coordinator.data = {
             "gnssLocation": {
                 "latitude": 40.7128,
@@ -400,13 +402,14 @@ class TestRivianDeviceEntity:
                 # Missing timeStamp
             }
         }
+        entity.async_write_ha_state = MagicMock()
 
-        # Should handle exception and update tracker data anyway
         entity._handle_coordinator_update()
 
-        # Should have updated tracker data despite exception
         assert entity._tracker_data["latitude"] == 40.7128
         assert entity._tracker_data["longitude"] == -74.0060
+        # The point of the resilience fix: a partial payload still reaches HA.
+        entity.async_write_ha_state.assert_called_once()
 
 
 @pytest.mark.asyncio

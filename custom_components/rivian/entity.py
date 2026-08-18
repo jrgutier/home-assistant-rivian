@@ -64,9 +64,9 @@ class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
     @property
     def available(self) -> bool:
         """Return the availability of the entity."""
-        if field := getattr(self.entity_description, "field", None):
-            if self._get_value(field) is None:
-                return False
+        field = getattr(self.entity_description, "field", None)
+        if field and self._get_value(field) is None:
+            return False
         return self._available
 
     def _get_value(self, key: str) -> Any | None:
@@ -98,9 +98,9 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
             return False
         if not (super().available and self._get_value("gearStatus") == "park"):
             return False
-        if _fn := getattr(self.entity_description, "available", None):
-            if not _fn(self.coordinator):
-                return False
+        _fn = getattr(self.entity_description, "available", None)
+        if _fn and not _fn(self.coordinator):
+            return False
         if zone_entity_ids := self._config_entry.options.get(CONF_ZONE, []):
             location = self.coordinator.data.get("gnssLocation", {})
             for entity_id in zone_entity_ids:
@@ -140,6 +140,7 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
             Command state dict if successful, None otherwise
         """
         import asyncio
+
         from homeassistant.util import dt as dt_util
 
         # Set executing state
@@ -192,7 +193,7 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
             }
             return None
 
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001 -- command boundary: failures are surfaced to the caller as None, not raised
             _LOGGER.error("Error executing command %s: %s", command, ex)
             return None
         finally:

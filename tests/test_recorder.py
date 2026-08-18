@@ -1,8 +1,7 @@
 """Tests for Rivian recorder platform."""
 
-from homeassistant.core import HomeAssistant
-
 from custom_components.rivian.recorder import exclude_attributes
+from homeassistant.core import HomeAssistant
 
 
 def test_exclude_attributes(hass: HomeAssistant) -> None:

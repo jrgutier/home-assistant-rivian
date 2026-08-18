@@ -1,299 +1,619 @@
 {
-    "config": {
-        "title": "Rivian (Unofficial)",
-        "abort": {
-            "already_configured": "Device is already configured",
-            "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "password": "Password",
-                    "username": "Username",
-                    "otp": "Verification Code"
-                },
-                "title": "Setup your Rivian Integration"
-            }
-        }
+  "config": {
+    "title": "Rivian (Unofficial)",
+    "abort": {
+      "already_configured": "Device is already configured",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
     },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "vehicle_image_style": "Vehicle image style",
-                    "vehicle_control": "Enable vehicle control (experimental and at your own risk)",
-                    "zone": "Limit vehicle control to the following zones"
-                }
-            }
-        },
-        "error": {
-            "2fa_missing": "Two-factor authentication is required to enable vehicle control",
-            "phone_limit": "Insufficient phone slots available to enable vehicle control"
-        }
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
     },
-    "selector": {
-        "image_style": {
-            "options": {"cel": "Cel shaded", "photo": "Photorealistic", "none": "None"}
-        }
-    },
-    "entity": {
-        "sensor": {
-            "active_driver_name": {"name": "Active driver"},
-            "gnss_altitude": {"name": "Altitude"},
-            "alarm_sound_status": {"name": "Gear Guard Alarm Status"},
-            "battery_hv_thermal_event": {"name": "Battery Thermal Status"},
-            "battery_hv_thermal_event_propagation": {
-                "name": "Battery Thermal Runaway Propagation"
-            },
-            "battery_level": {"name": "Battery State of Charge"},
-            "battery_limit": {"name": "Charge Limit"},
-            "battery_capacity": {"name": "Battery Capacity"},
-            "gnss_bearing": {"name": "Bearing"},
-            "brake_fluid_low": {"name": "Brake Fluid Level Low"},
-            "cabin_climate_driver_temperature": {"name": "Cabin Climate Setpoint"},
-            "defrost_defog_status": {"name": "Defrost/Defog Status"},
-            "cabin_climate_interior_temperature": {
-                "name": "Cabin Interior Temperature"
-            },
-            "cabin_preconditioning_type": {
-                "name": "Cabin Climate Preconditioning Type"
-            },
-            "cabin_preconditioning_status": {
-                "name": "Cabin Climate Preconditioning Status"
-            },
-            "seat_front_left_heat": {"name": "Front Left Seat Heating"},
-            "seat_front_left_vent": {"name": "Front Left Seat Ventilation"},
-            "seat_front_right_heat": {"name": "Front Right Seat Heating"},
-            "seat_front_right_vent": {"name": "Front Right Seat Ventilation"},
-            "charger_derate_status": {"name": "Charger Derate Status"},
-            "charger_state": {"name": "Charging State"},
-            "charger_status": {"name": "Charger Status"},
-            "distance_to_empty": {"name": "Range"},
-            "drive_mode": {"name": "Drive Mode"},
-            "gear_status": {"name": "Gear Selector"},
-            "trailer_status": {"name": "Trailer Status"},
-            "gear_guard_video_mode": {"name": "Gear Guard Video Mode"},
-            "gear_guard_video_status": {"name": "Gear Guard Video Status"},
-            "gear_guard_video_terms_accepted": {
-                "name": "Gear Guard Video Terms Accepted"
-            },
-            "ota_available_version": {"name": "OTA Available Version"},
-            "ota_available_version_git_hash": {
-                "name": "OTA Available Version Git Hash"
-            },
-            "ota_available_version_number": {"name": "OTA Available Version Number"},
-            "ota_available_version_week": {"name": "OTA Available Version Week"},
-            "ota_available_version_year": {"name": "OTA Available Version Year"},
-            "ota_current_status": {"name": "OTA Status Current"},
-            "ota_current_version": {"name": "OTA Current Version"},
-            "ota_current_version_git_hash": {"name": "OTA Current Version Git Hash"},
-            "ota_current_version_number": {"name": "OTA Current Version Number"},
-            "ota_current_version_week": {"name": "OTA Current Version Week"},
-            "ota_current_version_year": {"name": "OTA Current Version Year"},
-            "ota_download_progress": {"name": "OTA Download Progress"},
-            "ota_install_duration": {"name": "OTA Install Duration"},
-            "ota_install_progress": {"name": "OTA Install Progress"},
-            "ota_install_ready": {"name": "OTA Install Ready"},
-            "ota_install_time": {"name": "OTA Install Time"},
-            "ota_install_type": {"name": "OTA Install Type"},
-            "ota_status": {"name": "OTA Status"},
-            "pet_mode_temperature_status": {"name": "Pet Comfort Temperature Status"},
-            "pet_mode_status": {"name": "Pet Comfort Status"},
-            "cabin_hold_status": {"name": "Cabin Climate Hold Status"},
-            "cabin_hold_notification": {"name": "Cabin Climate Hold Notification"},
-            "power_state": {"name": "Power State"},
-            "range_threshold": {"name": "Range Threshold"},
-            "remote_charging_available": {"name": "Remote Charging Available"},
-            "service_mode": {"name": "Service Mode"},
-            "gnss_speed": {"name": "Speed"},
-            "time_to_end_of_charge": {"name": "Charging Time Remaining"},
-            "tire_pressure_front_left": {"name": "Front Left Tire Pressure"},
-            "tire_pressure_front_right": {"name": "Front Right Tire Pressure"},
-            "tire_pressure_rear_left": {"name": "Rear Left Tire Pressure"},
-            "tire_pressure_rear_right": {"name": "Rear Right Tire Pressure"},
-            "tire_pressure_status_front_left": {
-                "name": "Front Left Tire Pressure Status"
-            },
-            "tire_pressure_status_front_right": {
-                "name": "Front Right Tire Pressure Status"
-            },
-            "tire_pressure_status_rear_left": {
-                "name": "Rear Left Tire Pressure Status"
-            },
-            "tire_pressure_status_rear_right": {
-                "name": "Rear Right Tire Pressure Status"
-            },
-            "vehicle_mileage": {"name": "Odometer"},
-            "window_front_left_calibrated": {"name": "Front Left Window Calibration"},
-            "window_front_right_calibrated": {"name": "Front Right Window Calibration"},
-            "window_rear_left_calibrated": {"name": "Rear Left Window Calibration"},
-            "window_rear_right_calibrated": {"name": "Rear Right Window Calibration"},
-            "windows_next_action": {"name": "Windows Next Action"},
-            "twelve_volt_battery_health": {"name": "12V Battery"},
-            "wiper_fluid_state": {"name": "Wiper Fluid Level"},
-            "steering_wheel_heat": {"name": "Steering Wheel Heating"},
-            "seat_rear_left_heat": {"name": "Rear Left Seat Heating"},
-            "seat_rear_right_heat": {"name": "Rear Right Seat Heating"},
-            "limited_accel_cold": {"name": "Limited Acceleration (Cold)"},
-            "limited_regen_cold": {"name": "Limited Regenerative Braking (Cold)"},
-            "btm_ff_hardware_failure_status": {
-                "name": "Bluetooth Module Failure Status Fascia Front"
-            },
-            "btm_rf_hardware_failure_status": {
-                "name": "Bluetooth Module Failure Status Fascia Rear"
-            },
-            "btm_ic_hardware_failure_status": {
-                "name": "Bluetooth Module Failure Status Instrument Controls"
-            },
-            "btm_rfd_hardware_failure_status": {
-                "name": "Bluetooth Module Failure Status Door Front Right"
-            },
-            "btm_lfd_hardware_failure_status": {
-                "name": "Bluetooth Module Failure Status Door Front Left"
-            },
-            "wifi_signal": {"name": "WiFi Signal Strength"},
-            "closure_charge_port_door_next_action": {
-                "name": "Charge Port Door Next Action"
-            },
-            "closure_frunk_next_action": {"name": "Hood Next Action"},
-            "closure_tailgate_next_action": {"name": "Tailgate Next Action"},
-            "closure_side_bin_left_next_action": {
-                "name": "Left Gear Tunnel Next Action"
-            },
-            "closure_side_bin_right_next_action": {
-                "name": "Right Gear Tunnel Next Action"
-            },
-            "seat_third_row_left_heat": {"name": "Third Row Left Seat Heating"},
-            "seat_third_row_right_heat": {"name": "Third Row Right Seat Heating"},
-            "closure_liftgate_next_action": {"name": "Liftgate Next Action"},
-            "charging_cost": {"name": "Charging Cost"},
-            "charging_energy_delivered": {"name": "Charging Energy Delivered"},
-            "charging_range_added": {"name": "Charging Range Added"},
-            "charging_rate": {"name": "Charging Rate"},
-            "charging_speed": {"name": "Charging Speed"},
-            "charging_start_time": {"name": "Charging Start Time"},
-            "charging_time_elapsed": {"name": "Charging Time Elapsed"},
-            "charging_time_remaining": {"name": "Charging Time Remaining"},
-            "charging_is_free": {"name": "Charging Is Free"},
-            "charging_status": {
-                "name": "Charging status",
-                "state": {
-                    "unavailable": "Unavailable",
-                    "available": "Available",
-                    "disconnected": "[%key:common::state::disconnected%]",
-                    "plugged_in": "Plugged in",
-                    "charging": "Charging"
-                }
-            },
-            "amperage": {"name": "Amperage"},
-            "amperage_maximum": {"name": "Amperage maximum"},
-            "power": {"name": "Power"},
-            "power_maximum": {"name": "Power maximum"},
-            "voltage": {"name": "Voltage"},
-            "voltage_maximum": {"name": "Voltage maximum"},
-            "drivers": {"name": "Drivers"},
-            "keys": {"name": "Keys"}
+    "step": {
+      "user": {
+        "data": {
+          "password": "Password",
+          "username": "Username",
+          "otp": "Verification Code"
         },
-        "binary_sensor": {
-            "charge_port_state": {"name": "Charge Port Door"},
-            "closure_frunk_closed": {"name": "Hood"},
-            "closure_frunk_locked": {"name": "Hood Lock"},
-            "closure_tailgate_closed": {"name": "Tailgate"},
-            "closure_tailgate_locked": {"name": "Tailgate Lock"},
-            "door_front_left_closed": {"name": "Front Left Door"},
-            "door_front_left_locked": {"name": "Front Left Door Lock"},
-            "door_front_right_closed": {"name": "Front Right Door"},
-            "door_front_right_locked": {"name": "Front Right Door Lock"},
-            "door_rear_left_closed": {"name": "Rear Left Door"},
-            "door_rear_left_locked": {"name": "Rear Left Door Lock"},
-            "door_rear_right_closed": {"name": "Rear Right Door"},
-            "door_rear_right_locked": {"name": "Rear Right Door Lock"},
-            "gear_guard_locked": {"name": "Gear Guard"},
-            "tire_pressure_status_valid_front_left": {
-                "name": "Front Left Tire Pressure Validity"
-            },
-            "tire_pressure_status_valid_front_right": {
-                "name": "Front Right Tire Pressure Validity"
-            },
-            "tire_pressure_status_valid_rear_left": {
-                "name": "Rear Left Tire Pressure Validity"
-            },
-            "tire_pressure_status_valid_rear_right": {
-                "name": "Rear Right Tire Pressure Validity"
-            },
-            "window_front_left_closed": {"name": "Front Left Window"},
-            "window_front_right_closed": {"name": "Front Right Window"},
-            "window_rear_left_closed": {"name": "Rear Left Window"},
-            "window_rear_right_closed": {"name": "Rear Right Window"},
-            "locked_state": {"name": "Locked State"},
-            "door_state": {"name": "Door State"},
-            "closure_state": {"name": "Closure State"},
-            "use_state": {"name": "In Use State"},
-            "car_wash_mode": {"name": "Car Wash Mode"},
-            "closure_side_bin_left_closed": {"name": "Left Gear Tunnel"},
-            "closure_side_bin_left_locked": {"name": "Left Gear Tunnel Lock"},
-            "closure_side_bin_right_closed": {"name": "Right Gear Tunnel"},
-            "closure_side_bin_right_locked": {"name": "Right Gear Tunnel Lock"},
-            "closure_tonneau_closed": {"name": "Tonneau Cover"},
-            "closure_tonneau_locked": {"name": "Tonneau Cover Lock"},
-            "closure_liftgate_closed": {"name": "Liftgate"},
-            "closure_liftgate_locked": {"name": "Liftgate Lock"}
-        },
-        "button": {
-            "wake": {"name": "Wake"},
-            "open_gear_tunnel_left": {"name": "Open Gear Tunnel Left"},
-            "open_gear_tunnel_right": {"name": "Open Gear Tunnel Right"},
-            "drop_tailgate": {"name": "Drop Tailgate"},
-            "pair": {"name": "Pair"}
-        },
-        "switch": {
-            "alarm": {"name": "Alarm"},
-            "charging_enabled": {"name": "Charging Enabled"},
-            "gear_guard_video": {"name": "Gear Guard Video"},
-            "steering_wheel_heat": {"name": "Steering Wheel Heating"},
-            "cabin_climate_hold": {"name": "Climate Hold"},
-            "halloween_enabled": {"name": "Halloween Mode"},
-            "cabin_ventilation": {"name": "Cabin Ventilation"},
-            "gear_guard_video_consent": {"name": "Gear Guard Video Consent"},
-            "passive_entry": {"name": "Passive Entry"}
-        },
-        "cover": {
-            "windows": {"name": "Windows"},
-            "charge_port": {"name": "Charge Port Door"},
-            "liftgate": {"name": "Liftgate"},
-            "frunk": {"name": "Hood"},
-            "tonneau": {"name": "Tonneau Cover"}
-        },
-        "lock": {"closures": {"name": "Closures"}},
-        "number": {
-            "battery_limit": {"name": "Charge Limit"},
-            "halloween_brightness": {"name": "Halloween Brightness"},
-            "cabin_ventilation_windows": {"name": "Cabin Ventilation Window Opening"},
-            "cabin_ventilation_sunroof": {"name": "Cabin Ventilation Sunroof Opening"},
-            "cabin_ventilation_duration": {"name": "Cabin Ventilation Duration"},
-            "passive_entry_distance": {"name": "Passive Entry Approach Distance"}
-        },
-        "select": {
-            "seat_rear_left_heat": {"name": "Rear Left Seat Heating"},
-            "seat_rear_right_heat": {"name": "Rear Right Seat Heating"},
-            "seat_front_left_heat_vent": {"name": "Front Left Seat Climate"},
-            "seat_front_right_heat_vent": {"name": "Front Right Seat Climate"},
-            "halloween_mode": {"name": "Halloween Animation Mode"},
-            "cabin_ventilation_mode": {"name": "Cabin Ventilation Mode"}
-        },
-        "climate": {"cabin_climate": {"name": "Cabin Climate"}},
-        "device_tracker": {"location": {"name": "Location"}},
-        "update": {"software_ota": {"name": "Software"}}
-    },
-    "issues": {
-        "2fa_missing": {
-            "title": "Two-factor authentication (2FA) required for vehicle control",
-            "description": "Please enable 2FA in your Rivian account and then reload the integration or re-configure the integration and remove any devices selected for vehicle control."
-        }
+        "title": "Setup your Rivian Integration"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "vehicle_image_style": "Vehicle image style",
+          "vehicle_control": "Enable vehicle control (experimental and at your own risk)",
+          "zone": "Limit vehicle control to the following zones"
+        }
+      }
+    },
+    "error": {
+      "2fa_missing": "Two-factor authentication is required to enable vehicle control",
+      "phone_limit": "Insufficient phone slots available to enable vehicle control"
+    }
+  },
+  "selector": {
+    "image_style": {
+      "options": {
+        "cel": "Cel shaded",
+        "photo": "Photorealistic",
+        "none": "None"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "active_driver_name": {
+        "name": "Active driver"
+      },
+      "gnss_altitude": {
+        "name": "Altitude"
+      },
+      "alarm_sound_status": {
+        "name": "Gear Guard Alarm Status"
+      },
+      "battery_hv_thermal_event": {
+        "name": "Battery Thermal Status"
+      },
+      "battery_hv_thermal_event_propagation": {
+        "name": "Battery Thermal Runaway Propagation"
+      },
+      "battery_level": {
+        "name": "Battery State of Charge"
+      },
+      "battery_limit": {
+        "name": "Charge Limit"
+      },
+      "battery_capacity": {
+        "name": "Battery Capacity"
+      },
+      "gnss_bearing": {
+        "name": "Bearing"
+      },
+      "brake_fluid_low": {
+        "name": "Brake Fluid Level Low"
+      },
+      "cabin_climate_driver_temperature": {
+        "name": "Cabin Climate Setpoint"
+      },
+      "defrost_defog_status": {
+        "name": "Defrost/Defog Status"
+      },
+      "cabin_climate_interior_temperature": {
+        "name": "Cabin Interior Temperature"
+      },
+      "cabin_preconditioning_type": {
+        "name": "Cabin Climate Preconditioning Type"
+      },
+      "cabin_preconditioning_status": {
+        "name": "Cabin Climate Preconditioning Status"
+      },
+      "seat_front_left_heat": {
+        "name": "Front Left Seat Heating"
+      },
+      "seat_front_left_vent": {
+        "name": "Front Left Seat Ventilation"
+      },
+      "seat_front_right_heat": {
+        "name": "Front Right Seat Heating"
+      },
+      "seat_front_right_vent": {
+        "name": "Front Right Seat Ventilation"
+      },
+      "charger_derate_status": {
+        "name": "Charger Derate Status"
+      },
+      "charger_state": {
+        "name": "Charging State"
+      },
+      "charger_status": {
+        "name": "Charger Status"
+      },
+      "distance_to_empty": {
+        "name": "Range"
+      },
+      "drive_mode": {
+        "name": "Drive Mode"
+      },
+      "gear_status": {
+        "name": "Gear Selector"
+      },
+      "trailer_status": {
+        "name": "Trailer Status"
+      },
+      "gear_guard_video_mode": {
+        "name": "Gear Guard Video Mode"
+      },
+      "gear_guard_video_status": {
+        "name": "Gear Guard Video Status"
+      },
+      "gear_guard_video_terms_accepted": {
+        "name": "Gear Guard Video Terms Accepted"
+      },
+      "ota_available_version": {
+        "name": "OTA Available Version"
+      },
+      "ota_available_version_git_hash": {
+        "name": "OTA Available Version Git Hash"
+      },
+      "ota_available_version_number": {
+        "name": "OTA Available Version Number"
+      },
+      "ota_available_version_week": {
+        "name": "OTA Available Version Week"
+      },
+      "ota_available_version_year": {
+        "name": "OTA Available Version Year"
+      },
+      "ota_current_status": {
+        "name": "OTA Status Current"
+      },
+      "ota_current_version": {
+        "name": "OTA Current Version"
+      },
+      "ota_current_version_git_hash": {
+        "name": "OTA Current Version Git Hash"
+      },
+      "ota_current_version_number": {
+        "name": "OTA Current Version Number"
+      },
+      "ota_current_version_week": {
+        "name": "OTA Current Version Week"
+      },
+      "ota_current_version_year": {
+        "name": "OTA Current Version Year"
+      },
+      "ota_download_progress": {
+        "name": "OTA Download Progress"
+      },
+      "ota_install_duration": {
+        "name": "OTA Install Duration"
+      },
+      "ota_install_progress": {
+        "name": "OTA Install Progress"
+      },
+      "ota_install_ready": {
+        "name": "OTA Install Ready"
+      },
+      "ota_install_time": {
+        "name": "OTA Install Time"
+      },
+      "ota_install_type": {
+        "name": "OTA Install Type"
+      },
+      "ota_status": {
+        "name": "OTA Status"
+      },
+      "pet_mode_temperature_status": {
+        "name": "Pet Comfort Temperature Status"
+      },
+      "pet_mode_status": {
+        "name": "Pet Comfort Status"
+      },
+      "cabin_hold_status": {
+        "name": "Cabin Climate Hold Status"
+      },
+      "cabin_hold_notification": {
+        "name": "Cabin Climate Hold Notification"
+      },
+      "power_state": {
+        "name": "Power State"
+      },
+      "range_threshold": {
+        "name": "Range Threshold"
+      },
+      "remote_charging_available": {
+        "name": "Remote Charging Available"
+      },
+      "service_mode": {
+        "name": "Service Mode"
+      },
+      "gnss_speed": {
+        "name": "Speed"
+      },
+      "time_to_end_of_charge": {
+        "name": "Charging Time Remaining"
+      },
+      "tire_pressure_front_left": {
+        "name": "Front Left Tire Pressure"
+      },
+      "tire_pressure_front_right": {
+        "name": "Front Right Tire Pressure"
+      },
+      "tire_pressure_rear_left": {
+        "name": "Rear Left Tire Pressure"
+      },
+      "tire_pressure_rear_right": {
+        "name": "Rear Right Tire Pressure"
+      },
+      "tire_pressure_status_front_left": {
+        "name": "Front Left Tire Pressure Status"
+      },
+      "tire_pressure_status_front_right": {
+        "name": "Front Right Tire Pressure Status"
+      },
+      "tire_pressure_status_rear_left": {
+        "name": "Rear Left Tire Pressure Status"
+      },
+      "tire_pressure_status_rear_right": {
+        "name": "Rear Right Tire Pressure Status"
+      },
+      "vehicle_mileage": {
+        "name": "Odometer"
+      },
+      "window_front_left_calibrated": {
+        "name": "Front Left Window Calibration"
+      },
+      "window_front_right_calibrated": {
+        "name": "Front Right Window Calibration"
+      },
+      "window_rear_left_calibrated": {
+        "name": "Rear Left Window Calibration"
+      },
+      "window_rear_right_calibrated": {
+        "name": "Rear Right Window Calibration"
+      },
+      "windows_next_action": {
+        "name": "Windows Next Action"
+      },
+      "twelve_volt_battery_health": {
+        "name": "12V Battery"
+      },
+      "wiper_fluid_state": {
+        "name": "Wiper Fluid Level"
+      },
+      "steering_wheel_heat": {
+        "name": "Steering Wheel Heating"
+      },
+      "seat_rear_left_heat": {
+        "name": "Rear Left Seat Heating"
+      },
+      "seat_rear_right_heat": {
+        "name": "Rear Right Seat Heating"
+      },
+      "limited_accel_cold": {
+        "name": "Limited Acceleration (Cold)"
+      },
+      "limited_regen_cold": {
+        "name": "Limited Regenerative Braking (Cold)"
+      },
+      "btm_ff_hardware_failure_status": {
+        "name": "Bluetooth Module Failure Status Fascia Front"
+      },
+      "btm_rf_hardware_failure_status": {
+        "name": "Bluetooth Module Failure Status Fascia Rear"
+      },
+      "btm_ic_hardware_failure_status": {
+        "name": "Bluetooth Module Failure Status Instrument Controls"
+      },
+      "btm_rfd_hardware_failure_status": {
+        "name": "Bluetooth Module Failure Status Door Front Right"
+      },
+      "btm_lfd_hardware_failure_status": {
+        "name": "Bluetooth Module Failure Status Door Front Left"
+      },
+      "wifi_signal": {
+        "name": "WiFi Signal Strength"
+      },
+      "closure_charge_port_door_next_action": {
+        "name": "Charge Port Door Next Action"
+      },
+      "closure_frunk_next_action": {
+        "name": "Hood Next Action"
+      },
+      "closure_tailgate_next_action": {
+        "name": "Tailgate Next Action"
+      },
+      "closure_side_bin_left_next_action": {
+        "name": "Left Gear Tunnel Next Action"
+      },
+      "closure_side_bin_right_next_action": {
+        "name": "Right Gear Tunnel Next Action"
+      },
+      "seat_third_row_left_heat": {
+        "name": "Third Row Left Seat Heating"
+      },
+      "seat_third_row_right_heat": {
+        "name": "Third Row Right Seat Heating"
+      },
+      "closure_liftgate_next_action": {
+        "name": "Liftgate Next Action"
+      },
+      "charging_cost": {
+        "name": "Charging Cost"
+      },
+      "charging_energy_delivered": {
+        "name": "Charging Energy Delivered"
+      },
+      "charging_range_added": {
+        "name": "Charging Range Added"
+      },
+      "charging_rate": {
+        "name": "Charging Rate"
+      },
+      "charging_speed": {
+        "name": "Charging Speed"
+      },
+      "charging_start_time": {
+        "name": "Charging Start Time"
+      },
+      "charging_time_elapsed": {
+        "name": "Charging Time Elapsed"
+      },
+      "charging_time_remaining": {
+        "name": "Charging Time Remaining"
+      },
+      "charging_is_free": {
+        "name": "Charging Is Free"
+      },
+      "charging_status": {
+        "name": "Charging status",
+        "state": {
+          "unavailable": "Unavailable",
+          "available": "Available",
+          "disconnected": "[%key:common::state::disconnected%]",
+          "plugged_in": "Plugged in",
+          "charging": "Charging"
+        }
+      },
+      "amperage": {
+        "name": "Amperage"
+      },
+      "amperage_maximum": {
+        "name": "Amperage maximum"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "power_maximum": {
+        "name": "Power maximum"
+      },
+      "voltage": {
+        "name": "Voltage"
+      },
+      "voltage_maximum": {
+        "name": "Voltage maximum"
+      },
+      "drivers": {
+        "name": "Drivers"
+      },
+      "keys": {
+        "name": "Keys"
+      },
+      "active_driver": {
+        "name": "Active driver"
+      },
+      "charging_schedule_days": {
+        "name": "Charging schedule days",
+        "state": {
+          "daily": "Daily",
+          "weekdays": "Weekdays"
+        }
+      },
+      "wheels_installed": {
+        "name": "Wheels installed"
+      }
+    },
+    "binary_sensor": {
+      "charge_port_state": {
+        "name": "Charge Port Door"
+      },
+      "closure_frunk_closed": {
+        "name": "Hood"
+      },
+      "closure_frunk_locked": {
+        "name": "Hood Lock"
+      },
+      "closure_tailgate_closed": {
+        "name": "Tailgate"
+      },
+      "closure_tailgate_locked": {
+        "name": "Tailgate Lock"
+      },
+      "door_front_left_closed": {
+        "name": "Front Left Door"
+      },
+      "door_front_left_locked": {
+        "name": "Front Left Door Lock"
+      },
+      "door_front_right_closed": {
+        "name": "Front Right Door"
+      },
+      "door_front_right_locked": {
+        "name": "Front Right Door Lock"
+      },
+      "door_rear_left_closed": {
+        "name": "Rear Left Door"
+      },
+      "door_rear_left_locked": {
+        "name": "Rear Left Door Lock"
+      },
+      "door_rear_right_closed": {
+        "name": "Rear Right Door"
+      },
+      "door_rear_right_locked": {
+        "name": "Rear Right Door Lock"
+      },
+      "gear_guard_locked": {
+        "name": "Gear Guard"
+      },
+      "tire_pressure_status_valid_front_left": {
+        "name": "Front Left Tire Pressure Validity"
+      },
+      "tire_pressure_status_valid_front_right": {
+        "name": "Front Right Tire Pressure Validity"
+      },
+      "tire_pressure_status_valid_rear_left": {
+        "name": "Rear Left Tire Pressure Validity"
+      },
+      "tire_pressure_status_valid_rear_right": {
+        "name": "Rear Right Tire Pressure Validity"
+      },
+      "window_front_left_closed": {
+        "name": "Front Left Window"
+      },
+      "window_front_right_closed": {
+        "name": "Front Right Window"
+      },
+      "window_rear_left_closed": {
+        "name": "Rear Left Window"
+      },
+      "window_rear_right_closed": {
+        "name": "Rear Right Window"
+      },
+      "locked_state": {
+        "name": "Locked State"
+      },
+      "door_state": {
+        "name": "Door State"
+      },
+      "closure_state": {
+        "name": "Closure State"
+      },
+      "use_state": {
+        "name": "In Use State"
+      },
+      "car_wash_mode": {
+        "name": "Car Wash Mode"
+      },
+      "closure_side_bin_left_closed": {
+        "name": "Left Gear Tunnel"
+      },
+      "closure_side_bin_left_locked": {
+        "name": "Left Gear Tunnel Lock"
+      },
+      "closure_side_bin_right_closed": {
+        "name": "Right Gear Tunnel"
+      },
+      "closure_side_bin_right_locked": {
+        "name": "Right Gear Tunnel Lock"
+      },
+      "closure_tonneau_closed": {
+        "name": "Tonneau Cover"
+      },
+      "closure_tonneau_locked": {
+        "name": "Tonneau Cover Lock"
+      },
+      "closure_liftgate_closed": {
+        "name": "Liftgate"
+      },
+      "closure_liftgate_locked": {
+        "name": "Liftgate Lock"
+      }
+    },
+    "button": {
+      "wake": {
+        "name": "Wake"
+      },
+      "open_gear_tunnel_left": {
+        "name": "Open Gear Tunnel Left"
+      },
+      "open_gear_tunnel_right": {
+        "name": "Open Gear Tunnel Right"
+      },
+      "drop_tailgate": {
+        "name": "Drop Tailgate"
+      },
+      "pair": {
+        "name": "Pair"
+      }
+    },
+    "switch": {
+      "alarm": {
+        "name": "Alarm"
+      },
+      "charging_enabled": {
+        "name": "Charging Enabled"
+      },
+      "gear_guard_video": {
+        "name": "Gear Guard Video"
+      },
+      "steering_wheel_heat": {
+        "name": "Steering Wheel Heating"
+      },
+      "cabin_climate_hold": {
+        "name": "Climate Hold"
+      },
+      "charging_schedule_enabled": {
+        "name": "Charging schedule enabled"
+      }
+    },
+    "cover": {
+      "windows": {
+        "name": "Windows"
+      },
+      "charge_port": {
+        "name": "Charge Port Door"
+      },
+      "liftgate": {
+        "name": "Liftgate"
+      },
+      "frunk": {
+        "name": "Hood"
+      },
+      "tonneau": {
+        "name": "Tonneau Cover"
+      }
+    },
+    "lock": {
+      "closures": {
+        "name": "Closures"
+      }
+    },
+    "number": {
+      "battery_limit": {
+        "name": "Charge Limit"
+      },
+      "charging_schedule_amperage": {
+        "name": "Charging schedule amperage"
+      }
+    },
+    "select": {
+      "seat_rear_left_heat": {
+        "name": "Rear Left Seat Heating"
+      },
+      "seat_rear_right_heat": {
+        "name": "Rear Right Seat Heating"
+      },
+      "seat_front_left_heat_vent": {
+        "name": "Front Left Seat Climate"
+      },
+      "seat_front_right_heat_vent": {
+        "name": "Front Right Seat Climate"
+      }
+    },
+    "climate": {
+      "cabin_climate": {
+        "name": "Cabin Climate"
+      }
+    },
+    "device_tracker": {
+      "location": {
+        "name": "Location"
+      }
+    },
+    "update": {
+      "software_ota": {
+        "name": "Software"
+      }
+    },
+    "time": {
+      "charging_schedule_start": {
+        "name": "Charging schedule start"
+      },
+      "charging_schedule_end": {
+        "name": "Charging schedule end"
+      }
+    }
+  },
+  "issues": {
+    "2fa_missing": {
+      "title": "Two-factor authentication (2FA) required for vehicle control",
+      "description": "Please enable 2FA in your Rivian account and then reload the integration or re-configure the integration and remove any devices selected for vehicle control."
+    }
+  }
 }

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from rivian import Rivian
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
@@ -14,20 +13,9 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ATTR_API, ATTR_VEHICLE, DOMAIN
+from .rivian_client import Rivian
 
 _LOGGER = logging.getLogger(__name__)
-
-# Debug: Log rivian library info
-try:
-    import rivian
-
-    _LOGGER.warning(
-        "Rivian library location: %s | Has send_location_to_vehicle: %s",
-        rivian.__file__,
-        hasattr(Rivian, "send_location_to_vehicle"),
-    )
-except Exception as err:
-    _LOGGER.error("Could not inspect rivian library: %s", err)
 
 # Service schema for navigation service
 NAVIGATION_SERVICE_SCHEMA = vol.Schema(
@@ -95,7 +83,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     vehicles: dict[str, dict[str, Any]] = entry_data[ATTR_VEHICLE]
 
     # Remove each vehicle's notification service
-    for vehicle_id, vehicle in vehicles.items():
+    for vehicle in vehicles.values():
         vehicle_name = vehicle.get("name", vehicle.get("model", "unknown"))
         vin_suffix = vehicle.get("vin", "")[-6:]
         safe_name = vehicle_name.lower().replace(" ", "_")
@@ -181,10 +169,8 @@ class RivianNotificationService:
                     result_code,
                 )
 
-        except Exception as err:  # pylint: disable=broad-except
-            _LOGGER.error(
-                "Error sending navigation destination to vehicle %s: %s",
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception(
+                "Error sending navigation destination to vehicle %s",
                 self._vehicle.get("name", self._vehicle_id),
-                err,
-                exc_info=True,
             )

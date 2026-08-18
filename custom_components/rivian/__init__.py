@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-
-from rivian import Rivian
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -31,7 +28,8 @@ from .const import (
     VERSION,
 )
 from .coordinator import UserCoordinator, VehicleCoordinator, WallboxCoordinator
-from .helpers import get_rivian_api_from_entry
+from .helpers import get_rivian_api_from_entry, redact_text
+from .rivian_client import Rivian
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [
@@ -47,6 +45,7 @@ PLATFORMS: list[Platform] = [
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
+    Platform.TIME,
     Platform.UPDATE,
 ]
 
@@ -64,8 +63,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     client = get_rivian_api_from_entry(hass, entry)
     try:
         await client.create_csrf_token()
-    except Exception as err:  # pylint: disable=broad-except
-        _LOGGER.error("Could not update Rivian Data: %s", err, exc_info=1)
+    except Exception as err:
+        # create_csrf_token makes an HTTP call, so err can be a transport exception
+        # carrying a signed URL or a header dump -- built without going through
+        # RivianApiException's redacting constructor. exc_info would render it
+        # verbatim, so it is dropped here on purpose rather than by oversight.
+        _LOGGER.error("Could not update Rivian Data: %s", redact_text(str(err)))
         await client.close()
         raise ConfigEntryNotReady("Error communicating with API") from err
 
@@ -107,7 +110,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise ConfigEntryNotReady("Issue loading vehicle data")
         await coor.charging_coordinator.async_config_entry_first_refresh()
         await coor.drivers_coordinator.async_config_entry_first_refresh()
-        await coor.parallax_coordinator.async_config_entry_first_refresh()
         vehicle_coordinators[vehicle_id] = coor
 
     wallbox_coordinator = WallboxCoordinator(
@@ -151,12 +153,10 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # Find the vehicle_id from device identifiers
         vehicle_id = None
         for identifier in device_entry.identifiers:
-            if identifier[0] == DOMAIN:
-                # Check if this is a vehicle ID (not a VIN)
-                # VINs are 17 characters, vehicle IDs are UUIDs
-                if len(identifier[1]) > 17:
-                    vehicle_id = identifier[1]
-                    break
+            # A VIN is 17 characters; a vehicle ID is a longer UUID-ish string.
+            if identifier[0] == DOMAIN and len(identifier[1]) > 17:
+                vehicle_id = identifier[1]
+                break
 
         if not vehicle_id:
             raise ServiceValidationError(
@@ -247,86 +247,12 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
 
         except Exception as err:
-            _LOGGER.error(
-                "Error setting charging schedule for vehicle %s: %s",
-                vehicle_id,
-                err,
-                exc_info=True,
+            _LOGGER.exception(
+                "Error setting charging schedule for vehicle %s", vehicle_id
             )
             raise ServiceValidationError(
                 f"Failed to set charging schedule: {err}"
             ) from err
-
-    async def set_geofences(call: ServiceCall) -> None:
-        """Handle set_geofences service call."""
-        # Get device from target
-        if not call.data.get("device_id"):
-            raise ServiceValidationError("No device specified")
-
-        device_id = call.data["device_id"]
-        coordinator, vehicle_id = await get_vehicle_coordinator_from_device(device_id)
-
-        # Parse fences JSON
-        fences_str = call.data.get("fences")
-        if not fences_str:
-            raise ServiceValidationError("fences parameter is required")
-
-        try:
-            fences = json.loads(fences_str)
-            if not isinstance(fences, list):
-                raise ServiceValidationError("fences must be a JSON array")
-        except json.JSONDecodeError as err:
-            raise ServiceValidationError(
-                f"Invalid JSON in fences parameter: {err}"
-            ) from err
-
-        # Validate fence structure
-        required_fields = {
-            "fence_id",
-            "name",
-            "latitude",
-            "longitude",
-            "radius_meters",
-            "enabled",
-        }
-        for i, fence in enumerate(fences):
-            if not isinstance(fence, dict):
-                raise ServiceValidationError(f"Fence {i} must be a JSON object")
-            missing_fields = required_fields - set(fence.keys())
-            if missing_fields:
-                raise ServiceValidationError(
-                    f"Fence {i} is missing required fields: {missing_fields}"
-                )
-
-        try:
-            _LOGGER.debug(
-                "Setting %d geofences for vehicle %s: %s",
-                len(fences),
-                vehicle_id,
-                fences,
-            )
-
-            # Call the Parallax command
-            result = await coordinator.send_parallax_command(
-                "set_vehicle_geofences",
-                fences=fences,
-            )
-
-            _LOGGER.info(
-                "Successfully set %d geofences for vehicle %s: %s",
-                len(fences),
-                vehicle_id,
-                result,
-            )
-
-        except Exception as err:
-            _LOGGER.error(
-                "Error setting geofences for vehicle %s: %s",
-                vehicle_id,
-                err,
-                exc_info=True,
-            )
-            raise ServiceValidationError(f"Failed to set geofences: {err}") from err
 
     # Register services only once (check if already registered)
     if not hass.services.has_service(DOMAIN, "set_charging_schedule"):
@@ -337,15 +263,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
             supports_response=None,
         )
         _LOGGER.debug("Registered service: %s.set_charging_schedule", DOMAIN)
-
-    if not hass.services.has_service(DOMAIN, "set_geofences"):
-        hass.services.async_register(
-            DOMAIN,
-            "set_geofences",
-            set_geofences,
-            supports_response=None,
-        )
-        _LOGGER.debug("Registered service: %s.set_geofences", DOMAIN)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -359,14 +276,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id)
 
         # Unregister services only if this is the last config entry
-        if not hass.data[DOMAIN]:
-            if hass.services.has_service(DOMAIN, "set_charging_schedule"):
-                hass.services.async_remove(DOMAIN, "set_charging_schedule")
-                _LOGGER.debug("Unregistered service: %s.set_charging_schedule", DOMAIN)
-
-            if hass.services.has_service(DOMAIN, "set_geofences"):
-                hass.services.async_remove(DOMAIN, "set_geofences")
-                _LOGGER.debug("Unregistered service: %s.set_geofences", DOMAIN)
+        if not hass.data[DOMAIN] and hass.services.has_service(
+            DOMAIN, "set_charging_schedule"
+        ):
+            hass.services.async_remove(DOMAIN, "set_charging_schedule")
+            _LOGGER.debug("Unregistered service: %s.set_charging_schedule", DOMAIN)
 
     return unload_ok
 
@@ -374,7 +288,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle removal of an entry."""
     if public_key := entry.options.get("public_key"):
-        client = client = get_rivian_api_from_entry(hass, entry)
+        client = get_rivian_api_from_entry(hass, entry)
         coordinator = UserCoordinator(
             hass=hass, config_entry=entry, client=client, include_phones=True
         )

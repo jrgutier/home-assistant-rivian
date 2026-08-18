@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from rivian import VehicleCommand
-
 from homeassistant.components.climate import (
     PRECISION_WHOLE,
     ClimateEntity,
@@ -22,6 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .entity import RivianVehicleControlEntity
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,6 +110,7 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
             return await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 1}
             )
+            return
         await self.async_set_temperature(
             temperature={"LO": 0, "HI": 63.5}.get(preset_mode)
         )

@@ -29,7 +29,14 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import ATTR_COORDINATOR, ATTR_VEHICLE, ATTR_WALLBOX, DOMAIN, SENSORS
+from .const import (
+    ATTR_COORDINATOR,
+    ATTR_VEHICLE,
+    ATTR_WALLBOX,
+    DOMAIN,
+    SENSORS,
+    WEEK_DAYS_ORDERED,
+)
 from .coordinator import DriverKeyCoordinator, VehicleCoordinator, WallboxCoordinator
 from .data_classes import (
     RivianSensorEntityDescription,
@@ -44,13 +51,16 @@ from .entity import (
 
 _LOGGER = logging.getLogger(__name__)
 
+ALL_WEEK_DAYS: Final[frozenset[str]] = frozenset(WEEK_DAYS_ORDERED)
+WEEKDAYS_ONLY: Final[frozenset[str]] = frozenset(WEEK_DAYS_ORDERED[:5])
+
 RIVIAN_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the sensor entities"""
+    """Set up the sensor entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, Any] = data[ATTR_VEHICLE]
     coordinators: dict[str, Any] = data[ATTR_COORDINATOR]
@@ -97,7 +107,48 @@ async def async_setup_entry(
         for description in WALLBOX_SENSORS
     )
 
+    for vehicle_id, vehicle in vehicles.items():
+        coord = vehicle_coordinators[vehicle_id]
+        entities.append(
+            RivianChargingScheduleDaysEntity(
+                coord, entry, CHARGING_SCHEDULE_DAYS_SENSOR, vehicle
+            )
+        )
+
     async_add_entities(entities)
+
+
+CHARGING_SCHEDULE_DAYS_SENSOR = RivianSensorEntityDescription(
+    key="charging_schedule_days",
+    translation_key="charging_schedule_days",
+    field="charging_schedule_days",
+)
+
+
+class RivianChargingScheduleDaysEntity(RivianVehicleEntity, SensorEntity):
+    """Charging Schedule Days Entity."""
+
+    @property
+    def available(self) -> bool:
+        """Return availability."""
+        return self._available
+
+    @property
+    def native_value(self) -> str | None:
+        """Return native value."""
+        sched = self.coordinator.charging_schedule
+        raw_days = sched.get("weekDays", [])
+        if not raw_days or not isinstance(raw_days, list):
+            return None
+        days = frozenset(raw_days)
+
+        if days == ALL_WEEK_DAYS:
+            return "daily"
+        if days == WEEKDAYS_ONLY:
+            return "weekdays"
+
+        ordered = [d for d in WEEK_DAYS_ORDERED if d in days]
+        return ", ".join(ordered)
 
 
 class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
@@ -218,12 +269,16 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         field="startTime",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_lambda=lambda val: (
-            datetime.fromtimestamp(val / 1000, tz=timezone.utc)
-            if isinstance(val, int)
-            else datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)
-        )
-        if val
-        else val,
+            (
+                datetime.fromtimestamp(val / 1000, tz=timezone.utc)
+                if isinstance(val, int)
+                # RIVIAN_TIMESTAMP_FORMAT ends in %z, so this IS tz-aware; ruff
+                # cannot see through the module-level constant.
+                else datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)  # noqa: DTZ007
+            )
+            if val
+            else val
+        ),
     ),
     RivianSensorEntityDescription(
         key="charging_time_elapsed",

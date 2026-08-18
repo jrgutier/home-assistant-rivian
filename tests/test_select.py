@@ -1,26 +1,8 @@
 """Tests for Rivian select platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-
-# Mock VehicleCommand before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.CABIN_HVAC_REAR_LEFT_SEAT_HEAT = (
-    "CABIN_HVAC_REAR_LEFT_SEAT_HEAT"
-)
-mock_rivian.VehicleCommand.CABIN_HVAC_REAR_RIGHT_SEAT_HEAT = (
-    "CABIN_HVAC_REAR_RIGHT_SEAT_HEAT"
-)
-mock_rivian.VehicleCommand.CABIN_HVAC_LEFT_SEAT_HEAT = "CABIN_HVAC_LEFT_SEAT_HEAT"
-mock_rivian.VehicleCommand.CABIN_HVAC_RIGHT_SEAT_HEAT = "CABIN_HVAC_RIGHT_SEAT_HEAT"
-mock_rivian.VehicleCommand.CABIN_HVAC_LEFT_SEAT_VENT = "CABIN_HVAC_LEFT_SEAT_VENT"
-mock_rivian.VehicleCommand.CABIN_HVAC_RIGHT_SEAT_VENT = "CABIN_HVAC_RIGHT_SEAT_VENT"
-sys.modules["rivian"] = mock_rivian
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
@@ -30,6 +12,8 @@ from custom_components.rivian.select import (
     async_setup_entry,
     get_seat_command_and_level,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestGetSeatCommandAndLevel:
@@ -553,7 +537,9 @@ async def test_async_setup_entry(
     # - seat_rear_left_heat, seat_rear_right_heat
     # - seat_front_left_heat_vent, seat_front_right_heat_vent
     # - halloween_mode, cabin_ventilation_mode
-    assert len(entities_added) == 6
+    # The two PARALLAX_SELECTS were removed in s09a (their RVMs return
+    # INTERNAL_SERVER_ERROR); the four seat/steering selects remain.
+    assert len(entities_added) == 4
 
 
 @pytest.mark.asyncio

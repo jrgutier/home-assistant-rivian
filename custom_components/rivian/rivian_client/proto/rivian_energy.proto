@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package rivian;
+
+// Energy distribution for a time period
+// Nested message used in ParkEnergyDistributions
+message EnergyDistribution {
+  float total_kwh = 1;             // Total energy consumed (kWh)
+  float thermal_kwh = 2;            // Thermal management energy (kWh)
+  float outlets_kwh = 3;            // Outlets/accessories energy (kWh)
+  float system_kwh = 4;             // Vehicle system energy (kWh)
+  float gear_guard_kwh = 5;         // GearGuard security system energy (kWh)
+  float total_range = 6;            // Total range impact (km)
+  float thermal_range = 7;          // Thermal range impact (km)
+  float outlets_range = 8;          // Outlets range impact (km)
+  float system_range = 9;           // System range impact (km)
+  float gear_guard_range = 10;      // GearGuard range impact (km)
+  int32 session_duration_mins = 11; // Duration of the period (minutes)
+}
+
+// Parked energy monitor data
+// Based on Android app protobuf C19117m (p1004rj/C19117m.java)
+// RVM: energy_edge_compute.graphs.parked_energy_distributions
+message ParkEnergyDistributions {
+  EnergyDistribution last_24_hours = 1;     // Energy used in last 24 hours
+  EnergyDistribution last_8_hours = 2;      // Energy used in last 8 hours
+  EnergyDistribution last_park_session = 3; // Energy used in last parking session
+}
+
+// Time estimation validity status enum
+enum TimeEstimationValidityStatus {
+  TIME_ESTIMATION_VALIDITY_STATUS_UNRECOGNIZED = 0;
+  TIME_ESTIMATION_VALID = 1;
+  TIME_ESTIMATION_INVALID = 2;
+}
+
+// Charging state enum
+enum ChargingState {
+  CHARGING_STATE_UNRECOGNIZED = 0;
+  CHARGING_STATE_IDLE = 1;
+  CHARGING_STATE_CHARGING = 2;
+  CHARGING_STATE_COMPLETE = 3;
+}
+
+// Bar context enum
+enum BarContext {
+  BAR_CONTEXT_UNRECOGNIZED = 0;
+  BAR_CONTEXT_ACTUAL = 1;
+  BAR_CONTEXT_ESTIMATED = 2;
+}
+
+// Single bar in charging graph
+// Nested message used in ChargingGraphGlobal
+message ChargingGraphBar {
+  int32 soc = 1;                                         // State of charge (%)
+  float power = 2;                                       // Charging power (kW)
+  int64 start_time_ms = 3;                              // Bar start time (Unix ms)
+  int64 end_time_ms = 4;                                // Bar end time (Unix ms)
+  TimeEstimationValidityStatus time_estimation_validity_status = 5; // Validity
+  ChargingState charging_state = 6;                     // Charging state
+  BarContext bar_context = 7;                           // Actual or estimated
+}
+
+// Charging session graph data
+// Based on Android app protobuf C19113i (p1004rj/C19113i.java)
+// RVM: energy_edge_compute.graphs.charging_graph_global
+message ChargingGraphGlobal {
+  repeated ChargingGraphBar global_charging_graph_bar = 1; // List of graph bars
+}

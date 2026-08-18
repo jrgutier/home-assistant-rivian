@@ -1,14 +1,23 @@
 # Home Assistant
-homeassistant>=2025.1.0
-numpy
-python-dateutil
-PyTurboJPEG
+#
+# Pinned, not floored. `>=2025.1.0` let three different HA versions coexist in
+# this repo -- requirements.txt, config/.HA_VERSION and the venv all disagreed --
+# and a .storage seeded by a newer HA is unreadable by an older one, so a floor
+# makes "pre-authenticated devcontainer" unreproducible.
+#
+# 2026.8.2 requires Python >= 3.14.2. Bumping this means bumping the interpreter
+# in .github/workflows/test.yaml and .devcontainer/devcontainer.json with it.
+homeassistant==2026.8.2
 
 # Integration
-rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client.git@v2.1.0-beta.1
 
 # Development
 colorlog
 pip>=21.0
 pre-commit
-ruff>=0.3.0
+# Deliberately NOT pinned, decided at the s05 review: the repo tracks upstream's
+# .pre-commit-config rev instead. The newer rules that a pin used to hide were real
+# findings (blind excepts, logging.exception, nested ifs) and are now fixed, so the
+# tree is clean under the current release. The accepted cost is that a future ruff
+# release can turn CI red on a day nobody changed any code.
+ruff>=0.16.2

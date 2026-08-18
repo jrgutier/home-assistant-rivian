@@ -1,0 +1,738 @@
+
+## 2026-08-18 — s08a complete (3/4 fixtures), + a retracted diagnosis
+
+### The websocket was never broken
+Reported earlier as "the Parallax real-time path is dead on this account". FALSE.
+The live instance logs ~13,639 state changes/24h. What was actually happening:
+the gateway permits exactly ONE active subscription per user session token. HA held
+it; every local probe was the second connection, which the server accepts, never
+acks, and closes at TTL with 4420. A malformed token by contrast gets 4403 in 0.5s.
+Proven by disabling the HA entry: ack arrived immediately, twice.
+
+Also retracted: "the access token expired and nothing refreshes it". The client
+authenticates on session tokens only and never sends Authorization: Bearer
+(see `git show dev:src/rivian/rivian.py` ~line 181, and BEARER_TOKEN_TEST_RESULTS.md
+:49-50). A-Sess is _app_session_token, minted fresh by create_csrf_token -- NOT the
+OAuth access token. No refresh mechanism is needed or wanted.
+
+### Identifiers (cost real time -- record them)
+  vehicles[0].id                  01-XXXXXXXXX   -> vehicleState, parallaxMessages
+  vehicles[0].vas.vasVehicleId    36-char UUID
+  HA options vehicle_control[0]   32-char hex    -> HMAC commands
+  .env RIVIAN_VEHICLE_ID          32-char hex    -> matches NONE; "Invalid vehicle ID"
+phone_id = uuid.UUID(enrolledPhones[0].vas.vasPhoneId).bytes -> 16 bytes, and needs
+get_user_information(include_phones=True) -- the default query omits enrolledPhones
+entirely, which briefly looked like "no phone enrolled".
+
+### s08a
+Captured as sole subscriber (HA entry disabled ~75s per window, three windows):
+  climate_hold_status   8B  0802100118012200
+  climate_hold_setting  3B  08ac02  = hold_time_duration_seconds 300
+  vehicle_wheels       74B  two repeated submessages (34B, 36B)
+climate_hold_setting was empty until written. Captured by SETTING a 5-minute hold and
+reading it back, then clearing (duration_minutes=0); verified after as
+switch.r1t_climate_hold = off. This validates the plan's single server-verified WRITE
+end to end, and independently confirms 7200s == 08a038.
+
+ota_config: signed GET ACCEPTED (SendVehicleOperationSuccess) but returned 0 bytes in
+all three sessions -- no OTA schedule configured. Dropped under principle 3 rather
+than inventing a layout. s08b must not write decode_ota_config.
+
+### Gate
+scripts/gates/s08a.sh was VACUOUS -- existence-only via have_path, so four `touch`ed
+empty files passed. Rewritten to assert non-empty + valid protobuf wire format +
+byte-identical re-encode for climate_hold_setting. Fail-first validated:
+  empty files   -> 1 passed, 4 failed
+  garbage bytes -> 4 passed, 1 failed
+  real fixtures -> 5 passed, 0 failed
+
+### Still true and unfixed (see plans/parallax-websocket-auth.md, stories w01-w11)
+- rivian.py:772 (4-arg) and :773 (5-arg) put request headers AND body into the
+  exception; exceptions.py has no __init__, so str(exc) renders all args. The
+  PLAINTEXT PASSWORD reaches home-assistant.log via config_flow.py:265 on failed
+  login. Highest-severity finding in this whole effort. Present upstream unchanged.
+- Five subscribe_for_* plus five ws_monitor.py paths swallow failure into None.
+  This is precisely why a non-bug cost a day.
+- ws_monitor.py:146 only recognises "Unauthenticated"; :189 resets backoff on every
+  open, so 4401/4403 reconnect-loop forever. Close frames log at DEBUG (:215).
+- vendor-client is NOT pushed in either repo -> the s02 CI has NEVER run.
+- The HA repo venv is gone again; integration suite currently unrunnable locally.
+
+## 2026-08-18 — s05: upstream 1.5.3b5 merged (AWAITING HUMAN REVIEW)
+
+18 conflicted files. Gate 14/14. Tests 951 -> 987, coverage 78.73% (floor 78).
+
+### Two defects the merge introduced or exposed, NEITHER flagged by git
+1. cover.py duplicate frunk. Upstream defines frunk unconditionally under
+   COVERS[None]; our fork had moved it behind the FRUNK_NXT_ACT feature. The merge
+   kept both, so a vehicle with that feature registers TWO entities keyed "frunk"
+   (duplicate unique_id). It arrived through an AUTO-MERGED region -- no conflict
+   marker, no test failure until the entity-count assertion caught it. This is the
+   silent-gain class the plan warned about, observed for real.
+2. ws_monitor.py imported WSMessageTextBytes from aiohttp.http_websocket at runtime
+   for an annotation only. HA pins aiohttp==3.12.15, which lacks it, so `import
+   rivian` raised ImportError under HA -- upstream 2.1.0's client CANNOT LOAD IN
+   HOME ASSISTANT. Inherited from upstream unchanged. Fixed in the client repo
+   (c587a79) by moving it under TYPE_CHECKING.
+
+### strings.json — open question CLOSED with evidence, not guessed
+homeassistant/helpers/translation.py loads
+  integration.file_path / "translations" / f"{language}.json"   (:102-104)
+and has ZERO references to strings.json. Custom components never read it at
+runtime. Our deletion stands.
+
+### Gate defect found and fixed
+scripts/gates/_lib.sh test_count preferred a stale venv/ over .venv/ and reported
+"test count 0 < 301 (tests deleted to go green?)" against a tree with 987 passing
+tests. It guarded MISSING pytest but not BROKEN pytest. Now tries each candidate
+and distinguishes an environment problem from a real finding.
+NOTE: a stale venv/ (Aug 16, old client) still sits beside .venv/ in this repo.
+Gitignored and untracked, harmless now the helper is fixed, but worth deleting.
+
+### Landmine worth knowing (pre-existing, NOT introduced here, NOT fixed)
+Home Assistant's DataUpdateCoordinator defines its own _update_interval_seconds
+(update_coordinator.py:83) and overwrites it in __init__. Our coordinators declare
+a class attribute of the SAME NAME. It works only because line 67 reads the class
+attribute while building super().__init__()'s arguments, before HA's __init__ runs.
+Every later read of self._update_interval_seconds -- including _set_update_interval
+at :78 -- sees HA's value, not ours. Assert coordinator.update_interval instead.
+
+### Client pin
+manifest.json and requirements.txt pin client SHA c587a79 (not @dev). The branch is
+NOT pushed, so the pin will not resolve until a human pushes vendor-client in the
+client repo. s07 removes the pin entirely by vendoring.
+
+### HUMAN REVIEW CHECKLIST before s06a
+- git diff 1.5.3b5...HEAD over the 18 conflicted files
+- coordinator.py: 8 hand-merged hunks; confirm both the Parallax subscription
+  (upstream) and the cloud-connection subscription (ours) are wired, and that the
+  charging-schedule prefetch in _async_update_data is wanted
+- confirm the cover.py frunk decision: gated on FRUNK_NXT_ACT (ours) rather than
+  unconditional (upstream) -- vehicles WITHOUT that feature now get no frunk cover
+- confirm the ruff 0.14.2 pin is still wanted over upstream's 0.16.2
+
+## 2026-08-18 — credential disclosure fixed (w03), outside the PRD chain
+
+The PRD is fully blocked: every remaining story (s06a..s14) is behind s06a, and
+s06a is behind the MANDATORY human review of s05. Rather than override that
+guardrail, took the highest-value unblocked work -- the credential disclosure,
+which is client-repo-local and needed before any release.
+
+### What leaked
+rivian.py:772 (4 args) and :773 (5 args) raise with the request HEADERS and BODY
+attached, and exceptions.py had no __init__, so str(args) rendered everything:
+  * A-Sess / U-Sess / Csrf-Token from headers
+  * the PLAINTEXT PASSWORD from the Login mutation body
+coordinator.py:97,103,106 and __init__.py:68 log with exc_info=1, and
+config_flow.py:265 logs the failed-login case -- so a mistyped password was
+written to home-assistant.log. Present in upstream unchanged.
+
+### Fix (client repo, 1aafd96)
+RivianApiException.__init__ redacts at construction. Shape-agnostic (walks every
+arg by key name at any depth) because the 5-arg fallback shifts headers/body by
+one and is used for every code absent from ERROR_CODE_CLASS_MAP -- a
+position-keyed fix would miss exactly the unclassified failures.
+Structure-preserving: args[1] stays navigable for config_flow.py:238.
+
+### Evidence
+TDD: 6 of 10 tests failed before the fix. Mutation-verified 3 ways --
+no-op redact() 6 fail; drop body key names 4 fail; key on position 1 fail (the
+5-arg case precisely). Verified end to end against the LIVE API: a real
+RivianUnauthenticated logged the way coordinator.py:97 logs it renders A-Sess and
+U-Sess as <redacted>, zero secrets in 2288 chars, diagnostic context intact.
+
+### TO_REDACT — corrected, and the earlier claim overstated
+helpers.py:15 imported the three token constants and TO_REDACT listed none.
+BUT this was NOT a live leak: async_get_config_entry_diagnostics dumps coordinator
+data only, never entry.data, so no token ever reached a diagnostics download.
+Added them as defence-in-depth and recorded the distinction rather than repeating
+the stronger claim.
+
+### Still open from the websocket/credential plan (parallax-websocket-auth.md)
+w04  per-site defence-in-depth at the 7 log sites  -- after s06a (touches coordinator.py)
+w05  five subscribe_for_* + five ws_monitor.py paths swallow failure into None
+w07  ws_monitor.py:146 only knows "Unauthenticated"; :189 resets backoff every open
+w11  commit guard / secret scan   (.env.bak already deleted + gitignored)
+
+## 2026-08-18 — w07: reconnect storm fixed (client repo e9363d9)
+
+ws_monitor.py recognised ONE close reason, the string "Unauthenticated". The codes
+the server actually sends (all MEASURED, not read off the spec) are 4401
+Unauthorized, 4403 Forbidden, 4408 init timeout, 4420 TTL expired. None matched, so
+an auth rejection was retried as if transient -- and `attempt = 0` ran as soon as
+the socket OPENED, which it does before the server rejects, so the exponential
+backoff was reset every cycle and never applied. A 4403 arriving 0.5s later gave an
+unbounded tight reconnect loop against Rivian's API.
+
+Now: 4401/4403 stop the monitor and log at error; 4420 is routine recycling;
+backoff resets only once the connection is ACKNOWLEDGED; backoff_delay() extracted
+so the policy is testable without patching asyncio.sleep.
+
+### Two testing lessons worth keeping
+1. My first backoff test was VACUOUS -- it passed with the bug restored, because the
+   fake socket reported closed=True and so exercised the pre-existing early-backoff
+   branch rather than the new ack-gated one. Only mutation testing caught this.
+   A test that cannot fail is worse than no test: it reads as coverage.
+2. My second attempt assigned to `rivian.ws_monitor.asyncio.sleep`. That module
+   attribute IS the global asyncio module, so it patched asyncio.sleep
+   process-wide and broke asyncio.wait_for -- the test hung instead of failing.
+   Patch YOUR OWN module's symbols; never a stdlib module's attributes.
+   The test now bounds itself from the reconnect side, because without the ack gate
+   the monitor never reaches an await that yields, so wait_for can never fire and
+   the regression would surface in CI as a hang rather than a failure.
+
+Client suite 119 -> 137. HA suite 989, coverage 78.73%.
+
+## 2026-08-18 — s05 follow-up: duplicate Parallax subscription fixed
+
+An independent architect review of the s05 merge found two HIGH defects I
+introduced. Both come from ONE mistake: treating hunks as ADDITIVE UNIONS when
+the two sides were MUTUALLY EXCLUSIVE DESIGNS. Upstream 1.5.3b5 REPLACED the
+charging websocket with Parallax; our fork had built its own ParallaxCoordinator
+alongside the charging subscription. Merging both kept two implementations of one
+capability. No conflict marker could have shown this -- each hunk looked
+complementary in isolation.
+
+### FIXED — duplicate Parallax subscription
+coordinator.py had TWO subscribe_for_parallax_messages for the same vehicle:
+ours on ParallaxCoordinator (:590) and upstream's on VehicleCoordinator (:1041).
+Each PARENT had exactly one, so two is a pure merge regression. Both default to
+the same RVM set (rivian.py:673 -- rvms=None means all PARALLAX_RVMS), ws_monitor
+assigns a fresh uuid4 per subscription with no payload dedupe, and
+_resubscribe_all reopens BOTH on every reconnect. Every message was delivered and
+protobuf-decoded twice.
+
+Collapsed to one: ParallaxCoordinator owns the subscription (its _rvm_data store
+feeds diagnostics and the PARALLAX_* entities) and forwards each raw message to
+VehicleCoordinator._process_parallax_data through a new `on_message` hook, so
+upstream's routing is preserved. Mutation-verified both ways: re-adding the second
+subscription fails 2 tests; dropping the forwarding fails 1.
+
+### NOT FIXED — deliberately left for the human review
+ChargingCoordinator.data now has TWO writers with INCOMPATIBLE semantics:
+  :286  update_from_parallax  MERGES   (upstream, Parallax-driven)
+  :395  _process_new_data     REPLACES (ours, subscription-driven)
+  :384  _process_new_data     WIPES to {} on an empty chargingSession list
+Five CHARGING_SENSORS fields are in the collision set (totalChargedEnergy,
+rangeAddedThisSession, kilometersChargedPerHour, startTime, timeElapsed): every
+subscription callback discards the Parallax-only values, every Parallax push
+overwrites the subscription's. Second-order: update_from_parallax SYNTHESISES a
+startTime when power>0 and none is stored, so after the :384 wipe the next push
+invents one, and when the real one arrives :277 sees a mismatch and clear()s the
+accumulated session metrics. Both writers are live precisely DURING an active
+charging session.
+
+Not fixed unilaterally because it is a genuine trade-off, and "drop one side" is
+NOT available: 4 sensors (price, powerKW, timeRemaining, isFreeSession) have no
+Parallax source at all, which is exactly why keeping our subscription was right.
+  A. drop the charging subscription  -> breaks those 4 sensors. Not viable.
+  B. make _process_new_data MERGE    -> smallest fix; trades a correctness bug for
+                                        a staleness bug (nothing expires values)
+  C. namespace by source, resolve on read -> deterministic, largest diff, hardest
+                                        to merge against upstream later
+  D. ship as-is                      -> 5 sensors flap during charging
+Recommendation: B now, C recorded as the direction if flapping persists.
+
+### ALSO FOR THE REVIEW — _update_interval_seconds = 0 (coordinator.py:161)
+Taken from upstream, but upstream chose 0 BECAUSE its _async_update_data was a
+no-op. We kept OUR _async_update_data (:184-252), whose 15-minute tick was the
+self-heal that recreated a dropped charging subscription. With 0 there is no
+scheduled refresh, so recovery now rests solely on the watchdog,
+toggle_subscription and the 502/504 path. Those appear to cover it -- but it is a
+safety net removed by a constant, and lines 194-252 have ZERO test coverage.
+
+### Confirmed clean by the review
+No symbol, method, class, attribute, entity or translation lost from either side
+(AST-diffed across all 19 changed files). en.json is a strict superset with zero
+value changes. No remaining duplicate-entity risk in any of the nine platforms.
+Hunks 6, 7 and 8 correct; all three unsub handlers created and torn down.
+
+## 2026-08-18 — Finding 2 fixed, plus the untested regions covered
+
+### Finding 2 APPLIED (was deferred to review; that was the wrong default)
+Leaving it meant option D -- five sensors flapping during an active charging
+session plus possible session-metric loss. Option B is strictly better than the
+status quo, so it is applied and remains open for the human review to overrule.
+
+  * _process_new_data now MERGES into what Parallax pushed instead of replacing,
+    so displayStatus/evseType/plugConnectionStatus/currentPrice/currentCurrency
+    survive every subscription callback.
+  * a SYNTHESISED startTime is now marked (_synthetic_start_time). Adopting a real
+    startTime over a synthetic one is no longer treated as a new session, so the
+    accumulated metrics survive. A genuinely new session (real -> real) still
+    clears, which is what that guard was written for.
+Honest cost, per the review: this trades a correctness bug for a staleness bug --
+nothing expires a merged value. Namespacing by source and resolving on read (option
+C) remains the direction if staleness shows up.
+
+### Coverage of the regions where the defects lived
+The architect noted BOTH merge defects sat in 0%-covered code while the 78% gate
+passed regardless. Now covered:
+  coordinator.py 199-257  charging subscription lifecycle  (subscribes, does not
+                          re-subscribe while healthy, honours _subscription_enabled,
+                          resubscribes after a failed update)
+  coordinator.py 1182-1223 _process_parallax_data routing  (charging vs vehicle
+                          split, gnssLocation passed raw, timeToEndOfCharge to BOTH,
+                          underscore fields dropped, malformed messages ignored)
+  including the ab760d1 ODOMETER MONOTONIC GUARD, which the s05 gate asserts by
+  value but nothing exercised: a decreasing Parallax odometer is rejected, an
+  equal or increasing one accepted, non-numeric rejected. Mutation-verified.
+
+coordinator.py 69% -> 76%. TOTAL COVERAGE 78.97% -> 81.00%, which clears the
+plan's 80% target (s11's goal) ahead of schedule. 1018 tests.
+
+### w01 delivered
+docs/development/WS_CONTENTION.md records the one-subscription-per-session rule,
+the twenty variants ruled out, the four measured close codes, the three
+non-interchangeable vehicle identifiers, and the rollback order for the live test.
+Written because the wrong conclusion ("the websocket is broken") was reached once
+already and the trap is still there for the next person.
+
+## 2026-08-18 — s08b: the shipped RVMs actually decode now
+
+Verified FIRST that decode_parallax_message returned None for all three shipped
+RVMs -- upstream's table covers 14 telemetry topics and none of ours. That is the
+defect the whole Parallax effort exists to fix; routing to upstream's decoder
+without this would have replaced one always-default entity with another.
+
+Written hand-rolled in parallax.py's existing zero-dependency idiom rather than
+with the generated _pb2 classes, so they survive the protobuf removal instead of
+needing a rewrite at s10. RVM_DECODERS 14 -> 17.
+
+Each decoder is asserted against its CAPTURED fixture and cross-checked against
+the generated protobuf class -- two independent references. The captured
+VehicleWheels payload round-trips byte-identically through the generated class,
+which is good evidence the APK-derived .proto definitions are correct.
+
+### Correction to the plan
+proto/climate.py:88 documents ClimateHoldStatus as (active, current_temp_celsius,
+target_temp_celsius, time_remaining_mins, mode). That is WRONG. The real message
+is (status enum, availability enum, unavailability_reason enum, hold_end_time).
+The plan had recorded that docstring as "the only written description" to preserve
+before deleting the file. It should not be trusted; the .proto is correct.
+
+### s08b's dependency on s07 was unnecessary
+Its gate hardcoded the VENDORED path, which does not exist until s07 -- that was
+the only reason for the dep. Vendoring merely MOVES parallax.py, so the gate now
+resolves whichever copy exists and the dep is dropped.
+
+### The gate had the same vacuity as s08a's
+It asserted only that functions of the right NAME exist, which three `def`s
+returning {} would satisfy while leaving every entity unavailable. It now also
+requires each shipped RVM to decode its captured fixture to non-empty, non-raw
+data. Fail-first validated: unregistering fails 4 assertions; stubbing the
+decoders to return {} fails the behavioural one that a name-only gate would miss.
+It also no longer demands decode_ota_config, which cannot be written without
+inventing a layout.
+
+### Bytecode hazard worth remembering
+A mutation that swaps two EQUAL-LENGTH strings and is reverted within the same
+second leaves a stale .pyc: Python invalidates on (mtime, size) and both matched.
+The restored source read "off" while the imported module still held "on", and the
+suite failed against correct code. Clear __pycache__ between mutation rounds.
+
+## 2026-08-18 — s09a: unverified entities and builders pruned
+
+s09a's only dep was s08b, so it was actionable without the s05 review gate. It
+touches switch/number/select/parallax.py, NOT the coordinator get()/routing that
+s06a rewrites -- and it HELPS s06a by removing ParallaxCoordinator consumers.
+
+Removed (every one targets an RVM that returns INTERNAL_SERVER_ERROR in BOTH
+directions per SENDVEHICLEOPERATION_TEST_RESULTS.md -- they could never work):
+  PARALLAX_SWITCHES (4), PARALLAX_NUMBERS (5), PARALLAX_SELECTS (2)
+  the parallax.* prefix routing in number.py and select.py
+  RivianParallaxSwitchEntity + RivianParallaxSwitchEntityDescription
+  the rivian.set_geofences service and its services.yaml block
+  11 orphaned translation keys
+  client: build_* 21 -> 4, RVMType 18 -> 4, and 6 dangling client methods
+
+### Judgement calls worth recording
+* set_charging_schedule (SINGULAR, Parallax) was deleted; set_charging_schedules
+  (PLURAL, GraphQL) was NOT -- upstream's time.py depends on the latter. One
+  character apart, opposite fates.
+* send_parallax_command SURVIVES (s09b routes the verified write through it), so
+  its tests were repointed at surviving builders rather than deleted. Deleting
+  them would have silently dropped coverage of live code.
+* Three "orphaned" translation keys were FALSE POSITIVES from my regex:
+  seat_front_left/right_heat_vent use dict syntax ("translation_key": "...")
+  rather than kwarg syntax, and active_driver predates the merge in BOTH parents.
+  Left alone -- only the 11 genuinely orphaned keys were removed.
+
+### Gate rewritten
+The old gate was 6 assertions and pointed at the VENDORED path, which is the only
+reason s09a looked dependent on s07. It now resolves whichever copy exists (as
+s08b's does) and adds: RVMType must shrink to 4, the five dead client methods must
+be gone, and no pruned translation key may survive. 13 assertions, fail-first
+validated.
+
+### Tooling notes
+* Deleting Python blocks by indentation heuristics cut a multi-line signature and
+  produced a SyntaxError. Redone with ast to get exact (decorator-inclusive) line
+  spans. Use the AST for structural edits.
+* Two anchors ("the next async def", "the next class") failed because the target
+  was the LAST one in its file. Both aborted before writing, which is the only
+  reason they were harmless.
+
+1013 integration tests, 142 client tests, coverage 82.01%, nine gates green.
+
+## 2026-08-18 — s05 REVIEW CLEARED, ruff unpinned
+
+Owner walked through all 18 resolutions and the 8 coordinator.py hunks and
+approved. s06a is unblocked.
+
+Decisions taken at the review:
+* frunk cover: UNCONDITIONAL (upstream's availability), kept in our style
+  (translation_key + command_*) because NEXT_ACTION_MAPPING keys on the entity key.
+* charging writers: option C, namespaced by source and resolved on read.
+* _update_interval_seconds = 0: RATIFIED. Upstream's push model stands; the
+  15-minute resubscribe self-heal is NOT restored. Recovery rests on the watchdog,
+  toggle_subscription and the 502/504 path, all of which are now tested.
+* ruff: UNPINNED, tracking upstream's .pre-commit-config rev.
+* all other resolutions accepted unchanged.
+
+### Unpinning ruff was not free, and that is the point
+The pin was hiding 13 real findings and 5 unformatted files, not just noise. The
+earlier claim in this file -- that the "25 pre-existing errors" were "an artifact
+of an unpinned ruff" -- was half right: they WERE caused by the newer ruff, but
+they were genuine findings, not false alarms. Fixed rather than suppressed:
+  SIM102 x2  nested ifs collapsed
+  G201  x2   logging.error(exc_info=True) -> logging.exception()
+  PERF102    iterate .values() where the key is unused
+  I001  x2   import sorting
+  BLE001 x5  blind excepts, each annotated with WHY that boundary is deliberate
+  DTZ007     FALSE POSITIVE: ruff cannot see through RIVIAN_TIMESTAMP_FORMAT,
+             which ends in %z, so the strptime IS tz-aware. noqa with reason.
+Also found: .pre-commit-config.yaml declared `id: ruff-check` under rev v0.14.2,
+but that hook id only exists in newer ruff-pre-commit. The hook was incoherent as
+committed; bumping the rev to v0.16.2 fixes it.
+
+Accepted cost, recorded in requirements.txt and test.yaml: a future ruff release
+can turn CI red on a day nobody changed code.
+
+### Two self-inflicted errors while doing it
+* str.replace() replaced BOTH occurrences of a loop header in notify.py; the first
+  loop needed vehicle_id and broke with F821. Use count-checked or line-targeted
+  replacements for repeated text.
+* Collapsing a nested if left the body over-indented (SyntaxError). Both were
+  caught by running ruff again rather than by assuming the edit was right.
+
+## 2026-08-18 — s06a: Parallax routed through real decoders, get() unified
+
+### ParallaxCoordinator dissolved (285 lines)
+With s09a having removed every PARALLAX_* entity, the class had no remaining
+consumer for its get() -- so the plan's "dissolve it" finally became possible.
+Gone with it: _RVM_KEY_MAP, _rvm_data, and _decode_payload (the
+`return {"raw": payload_b64}` stub with the TODO that started this whole effort).
+
+VehicleCoordinator now owns the ONE Parallax subscription, which is also where
+upstream 1.5.3b5 put it. Note this re-adds the subscribe call I deleted as a
+"duplicate" earlier -- it was only a duplicate while BOTH coordinators existed.
+
+### rvms is explicit and deduped
+  rvms=sorted({*PARALLAX_RVMS, *CHARGING_RVMS})   -> 20 unique topics
+Measured: PARALLAX_RVMS=17, CHARGING_RVMS=8, overlap=5. rvms=None would have
+asked for PARALLAX_RVMS only and silently dropped the charging topics; naive
+concatenation would have asked for 25 subscriptions covering 20 topics, with the
+five overlapping ones delivered and decoded twice.
+
+### get(): three signatures -> one
+  base                 get(key, default)   dot notation
+  VehicleCoordinator   get(key)            1-arg, unwrapped {"value": ...}
+  ParallaxCoordinator  get(key, default)   read a separate store
+`vehicle_coordinator.get("x", False)` raised TypeError while the same call on
+ChargingCoordinator worked -- success depending purely on which coordinator the
+caller happened to hold. The single base get() now unwraps the
+{"value": ..., "history": ...} envelope centrally, so both data shapes work.
+
+### Tests
+test_parallax_coordinator.py DELETED with its subject (16 tests). That includes
+test_decode_unknown_rvm_returns_raw, which asserted the stub and is one of the two
+deletions the plan authorises. Coverage was not dropped, it moved:
+  subscription  -> test_parallax_single_subscription.py, rewritten for the new
+                   owner and now also pinning "explicit", "deduped" and "covers
+                   both lists"
+  processing    -> test_parallax_routing.py (already existed, 11 tests)
+  get()         -> test_coordinator_get.py (new, 10 tests, both data shapes)
+
+### Gate defect, third of this kind
+The rvms=None assertion matched MY OWN COMMENT explaining why rvms=None is wrong.
+Same self-triggering-comment flaw s02 hit. The check now strips comments before
+grepping, and was fail-first validated against a real rvms=None.
+
+1010 tests, coverage 82.23%, ten gates green.
+
+## 2026-08-18 — s06b: watchdog de-duplicated, diagnostics extended
+
+### The watchdog now exists once
+Lifted into RivianDataUpdateCoordinator. Two near-identical ~50-line copies
+remained after s06a dissolved the third with ParallaxCoordinator; they differed
+only in log wording and ONE behavioural rule.
+
+That rule is preserved as an override, not a copied loop:
+  VehicleCoordinator._watchdog_skip_reason() -> "vehicle is sleeping"
+ChargingCoordinator deliberately has NO skip: a charging session continues while
+the vehicle sleeps, so the same rule would stop watching an active charge. That
+asymmetry is now stated in code and pinned by a test, rather than being an
+accident of which copy someone edited.
+
+### _watchdog_tick() is a seam, and the reason matters
+The existing test test_watchdog_logic_restarts_when_stale re-derived the trigger
+conditions in the test body -- asserting `time_since > timeout` and concluding
+"this validates that the watchdog WOULD restart". It cannot fail when the watchdog
+logic changes, which is the only thing it exists to protect. Extracting one tick
+makes the real logic drivable without waiting out the 60s loop OR patching
+asyncio.sleep globally (which broke wait_for session-wide earlier today).
+13 contract tests now exercise it, parametrised across both coordinators.
+
+### Diagnostics
+Parallax data already reaches the dump via the vehicle/charging coordinators, so
+the useful addition was the part that is otherwise invisible: whether the
+subscription is live, which topics were requested, and which are decodable.
+"Connected but receiving nothing" is a real state -- the gateway allows one
+subscription per user session -- and nothing in the dump showed it.
+
+Three existing diagnostics tests used MagicMock(spec=VehicleCoordinator), which
+exposes class attributes only, so the new instance attribute had to be set in the
+tests. Fixed there rather than making the production code defensive with getattr()
+about its own attribute.
+
+### Gate rewritten
+The old s06b gate only NOTED the watchdog reference count and asserted nothing --
+it would have passed against the triplicated code it was written to catch. Now
+asserts each piece is defined exactly once, that the skip override survives, and
+that the contract and diagnostics tests pass. Fail-first validated against a
+re-introduced duplicate.
+
+Also fixed 8 self-inflicted RuntimeWarnings: my fixture returned a real coroutine
+from a mocked async_request_refresh that nothing ever awaited.
+
+1025 tests, coverage 83.12%, eleven gates green.
+
+## 2026-08-18 — s07: the client is vendored
+
+28 modules now live at custom_components/rivian/rivian_client/, byte-identical to
+the client repo apart from __init__.py's version line. The manifest declares
+["bleak>=0.21", "protobuf>=6.31,<7"] and requirements.txt no longer references the
+client at all -- no git URL, no source build inside HA.
+
+### A shipping blocker only this step could expose
+Generated *_pb2 modules call ValidateProtobufRuntimeVersion and refuse to load
+when gencode is NEWER than the runtime. The client's bound was protobuf<7, its dev
+env resolved 6.33.6, and regen baked gencode 6.33.5 in. HA pins protobuf==6.32.0,
+so all eight modules raised VersionError inside HA and took the integration down.
+Capped at <6.33; regenerated gencode is 6.31.1.
+The client's CI regen check could NOT have caught this -- it compares the committed
+output against what that repo's own toolchain produces, and both sides were 6.33.
+Only importing under Home Assistant's constraint exposes it.
+
+### Three silent failures the move created, all caught
+1. `python_files = test_*.py` meant ble_gen2_test.py, rivian_test.py and
+   utils_test.py collected ZERO tests after the move. They ran in the client repo
+   and stopped running here without a word. Renamed; +29 tests.
+2. Tests importing `rivian.exceptions` while production raised
+   `...rivian_client.exceptions` -- DIFFERENT CLASSES, so `except` no longer
+   matched and errors fell through to UpdateFailed. Uninstalling the standalone
+   package turned every missed rewrite into a loud ImportError, which is exactly
+   what pre-mortem S1 said to do.
+3. `patch.dict(sys.modules, ...)` alone could not hide a submodule: once anything
+   imports it, Python binds it as a package ATTRIBUTE and `from pkg import name`
+   never consults sys.modules. The test passed alone and failed in a full run.
+   Fixed by also deleting the attribute.
+
+### A mistake worth recording
+I ran `ruff check --fix` repo-wide and it rewrote 23 vendored files in one pass,
+including protoc-generated *_pb2 output. That is precisely the permanent
+divergence vendoring exists to eliminate, and it would break the client's regen
+diff check. Restored byte-for-byte and added
+`extend-exclude = ["custom_components/rivian/rivian_client"]` so it cannot recur.
+The --no-deslop guardrail says the same thing about ai-slop-cleaner; the principle
+is broader than that one tool.
+
+### Coverage is now two floors
+Vendoring put ~2,590 client statements into the same measurement as ours.
+Integration code is at 83.23% -- ABOVE the old 78 floor and above the 78.86%
+pre-vendoring baseline -- while the client sits at 59.88%. A single
+--cov-fail-under cannot express two populations with different obligations, so
+scripts/check_coverage.py enforces both, and both ratchet upward only.
+Owner decision: integration pinned at 83, client gated separately.
+
+ble.py went 0% -> 61% with 14 tests, by owner decision: it is the pairing path
+every HMAC-signed vehicle command depends on. Mutation-verified (forcing Gen 1
+detection, and swallowing the detection failure, each fail tests).
+
+### Gate defects fixed
+s07's import check used the SYSTEM python3, which has neither HA nor aiohttp -- it
+would have reported all 28 modules broken for environment reasons. s07 also read a
+coverage.json that an earlier gate's subset run had left at 38%; it now
+regenerates coverage itself rather than trusting an artifact it did not produce.
+
+1184 tests, twelve gates green.
+
+### s07 follow-up: CI caught what no local run could
+The first push failed with `ModuleNotFoundError: No module named 'google'`.
+requirements_test.txt never listed protobuf; my venv only had it as a leftover
+from the pre-vendoring editable install of the client. CI builds from
+requirements_test.txt alone, so it saw the truth and the developer machine did
+not. Added, pinned to match the manifest, and verified by building a throwaway
+venv from requirements_test.txt alone -- which is what CI actually does.
+Lesson: every runtime requirement the manifest declares must also appear in
+requirements_test.txt, or the test environment and the shipped environment differ.
+
+## 2026-08-18 — open_questions: three owner decisions, all actioned
+
+### s06c added and DONE — subscription failures now surface
+Five subscribe_for_* ended `except Exception: _LOGGER.error(ex); return None`, so
+a dead real-time path was indistinguishable from a healthy one at every caller.
+That is the defect that made a NON-BUG cost a day of this session.
+
+They propagate now. Rivian exceptions re-raise UNCHANGED -- wrapping them in the
+base class would have destroyed the per-type dispatch at coordinator.py:121
+(expired token / unauthenticated / rate limit) -- and anything else is wrapped
+with the original as __cause__.
+
+The coordinator's policy is explicit rather than implicit: a Parallax failure is
+caught, logged at error, and setup CONTINUES, because vehicle state still works
+without it. That is a decision, not a swallow: it also shows up in diagnostics as
+parallax.<vehicle>.subscribed = false, which is exactly the signal that was
+missing. The primary vehicle subscription is deliberately NOT caught.
+
+Six existing tests asserted `unsubscribe is None`, one commenting "The method is
+designed to return None when connection fails" -- they were passing BECAUSE of the
+swallow, since they build a client with no session. They now expect the raise.
+
+### Release route decided
+vendor-client -> dev, firing pre-release.yaml and publishing a zip beta users
+install. s12b's detail records it so the hardening targets the right workflow.
+A HUMAN does the merge and push; the loop never pushes to dev.
+
+### Cleanup done
+* stale venv/ (Aug 16) deleted -- it had already caused two gates to fail with
+  findings-shaped messages before those gates were hardened.
+* .env RIVIAN_VEHICLE_ID corrected from the 32-char value that matched nothing to
+  01-276948064, with a comment naming all three identifiers so the next live
+  session does not repeat the "Invalid vehicle ID" dead end.
+
+1192 tests, thirteen gates green.
+
+## 2026-08-18 — s09b: the verified write reaches a real entity
+
+cabin_climate_hold now writes through comfort.cabin.climate_hold_setting -- the
+ONE Parallax write the server accepts -- via a new
+VehicleCoordinator.async_set_climate_hold(). It reads the DECODED
+climateHoldStatus, so the read and the write share one source. Splitting them is
+what produced the two-writer conflict in ChargingCoordinator.
+wheels_installed ships as a read-only diagnostic sensor. ota_config is NOT wired:
+dropped at s08a for want of a fixture, and the gate now asserts no OTA write
+builder exists and that it is not routed through time.py (which is charging-only).
+
+### I asserted something false and a test caught it
+I justified the change by claiming cabinHoldStatus was absent from
+VEHICLE_STATE_API_FIELDS -- "the subscription never requested it, so the switch
+could never report on". WRONG. It IS in that set; my earlier check used a regex
+over const.py that did not match the real structure. Importing the constant
+proved it in one line.
+
+The change still stands, but for the honest reason: both fields are real, and
+reading the Parallax one keeps the read and the write on a single source. The
+comment in switch.py and the test now say that instead. Had the test not asserted
+the claim directly, a false rationale would have shipped in a code comment and
+been trusted by the next person.
+
+### A real bug the new decoders exposed
+_process_parallax_data wrapped every value as {"value": x, "history": {x}}.
+decode_vehicle_wheels returns a LIST, and a set of a list raises
+`unhashable type: 'list'` -- which would have killed the WHOLE Parallax message,
+not just that field. Now falls back to an empty history for unhashable values.
+
+### Fourth self-triggering-comment gate defect
+The gate's "no VehicleCommand climate-hold write" check matched a stale COMMENT
+describing the old approach. The comment was wrong anyway (it still described the
+VehicleCommand path) and is rewritten; the check now strips comments first.
+The gate also passed FILE paths to absent(), which takes a directory -- the same
+defect as s06c, so two of its three original assertions failed for the wrong
+reason.
+
+1200 tests, coverage 83.40% / 60.04%, fifteen gates green.
+
+## 2026-08-18 — s10: protobuf is gone
+
+The package encoded exactly ONE message -- ClimateHoldSetting, a single int32 --
+plus an envelope whose SerializeToString was already hand-rolled. Carrying a
+runtime dependency for that was never proportionate, and it was actively harmful:
+generated code refuses to load when its gencode is newer than the runtime, which
+took the whole integration down during s07 when a dev env resolved 6.33 against
+HA's pinned 6.32.
+
+Deleted: 8 generated *_pb2 modules + stubs, 7 hand-written proto/*.py message
+modules. proto/climate.py went with them -- it held a ClimateHoldSetting(enabled,
+duration_minutes, target_temp_celsius) incompatible with the real message and with
+the write we ship. proto/vehicle_operation.py SURVIVES, cut free of protobuf.
+
+### Golden bytes first, because there is no round trip
+There is no write-side decoder, so decode(encode(x)) == x is unavailable and the
+golden bytes ARE the entire safety net. Captured from the generated classes BEFORE
+deleting them, across a 14-value grid including the 127/128 varint boundary.
+Corroborated twice against reality: 08ac02 is what the vehicle returned after a
+five-minute hold, and 08a038 (7200s) is in SENDVEHICLEOPERATION_TEST_RESULTS.md.
+google.protobuf.Timestamp is replaced by ~20 lines, pinned against four captured
+encodings -- including the epoch, which encodes to NOTHING because proto3 omits
+defaults, and sub-second nanos.
+
+### regen_proto.sh changed model rather than being deleted
+The .proto files REMAIN the documented wire format. The script no longer writes
+into the package; it regenerates into a temp dir and re-asserts the golden bytes,
+so the .proto files cannot quietly drift from what is actually encoded.
+
+### Coverage rose by deletion
+Client coverage 59.88% -> 74.29%, because untested generated and dead code left
+the denominator -- exactly what the plan's pre-mortem S3 predicted would happen at
+this phase. Floor ratcheted 59 -> 74.
+
+### Three gates encoded a moment in time and had to move with the tree
+* s07 required >= 20 vendored modules; s10 deleted 16, so the floor is now 10. The
+  point is unchanged -- a rename that moved nothing leaves a near-empty directory.
+* s07 required the manifest to declare the INTERIM protobuf pin, which s10 removes.
+  It now asserts the invariant that holds at every point: the manifest declares
+  what the package imports and HA does not guarantee, and nothing more.
+* s08a's fixture checker parsed with the generated classes. It now uses the
+  hand-rolled decoders -- a stronger reference, because they are what ships.
+  Fail-first re-validated: empty fixtures still fail 4 of 5.
+
+### Fifth self-triggering-comment gate defect
+s10's own "no google.protobuf" check matched PROSE explaining what was replaced,
+and the .proto files' legitimate `import "google/protobuf/timestamp.proto"`. Only
+import STATEMENTS matter for a dependency; the check now says so, plus a
+file-presence check that no *_pb2 ships.
+
+1192 tests, coverage 83.40% / 74.29%, fifteen gates green.
+
+## 2026-08-18 — s11: coverage, by testing the things that were actually untested
+
+Global 83.5%, every watched file over 80%. Reached by covering the three files
+that were genuinely unprotected, not by chasing the number:
+
+* config_flow.py 39% -> 96%. validate_vehicle_control -- which enrolls the phone
+  and generates the signing key pair behind EVERY HMAC command -- had no tests at
+  all. Now pins: 2FA missing is refused; a key pair is generated once and never
+  regenerated (regenerating invalidates the enrolment already on the vehicle); a
+  failed enrolment DESELECTS the vehicle so the options cannot claim control that
+  does not work; the phone limit is reported rather than swallowed; the api
+  session is closed on every path. Plus the login/OTP branching, including that a
+  wrong OTP re-prompts for the OTP rather than making the user retype credentials.
+* button.py 53% -> 93%. The pairing loop: a scan finding nothing must leave the
+  button pressable; a confirmed pair disables it; a pair the API cannot confirm
+  leaves it usable; and the RIGHT key failing to pair stops the loop instead of
+  scanning forever.
+* coordinator.py 79% -> 80+. The two websocket callbacks. Malformed input must not
+  raise inside a callback -- the event loop swallows it and the subscription then
+  looks healthy while delivering nothing.
+
+Integration floor ratcheted 83 -> 89.
+
+### The no-suppressions rule, now enforced rather than trusted
+s11 forbids buying coverage with skip/xfail/pragma. Four `# pragma: no cover` do
+exist -- all in the VENDORED client, copied in by s07, maintained in its own repo.
+The gate now asserts the rule against code we author, excluding rivian_client and
+tests/client, and was fail-first validated by adding a pragma to helpers.py.
+
+1224 tests, coverage 89.71% / 74.29%, sixteen gates green.

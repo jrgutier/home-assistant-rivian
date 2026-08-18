@@ -1,24 +1,21 @@
 """Tests for Rivian number platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.components.number import NumberDeviceClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
-from homeassistant.core import HomeAssistant
-
-# Mock VehicleCommand before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.CHARGING_LIMITS = "CHARGING_LIMITS"
-sys.modules["rivian"] = mock_rivian
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianNumberEntityDescription
-from custom_components.rivian.number import RivianNumberEntity, async_setup_entry
+from custom_components.rivian.number import (
+    RivianChargingScheduleAmperageEntity,
+    RivianNumberEntity,
+    async_setup_entry,
+)
+from homeassistant.components.number import NumberDeviceClass
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianNumberEntity:
@@ -274,8 +271,15 @@ async def test_async_setup_entry(
     # - battery_limit
     # - halloween_brightness, cabin_ventilation_windows, cabin_ventilation_sunroof,
     #   cabin_ventilation_duration, passive_entry_distance
-    assert len(entities_added) == 6
+    # 1 NUMBER + upstream 1.5.3b5's charging-schedule amperage. The five
+    # PARALLAX_NUMBERS were removed in s09a: their RVMs return
+    # INTERNAL_SERVER_ERROR, so they never worked.
+    assert len(entities_added) == 2
     assert isinstance(entities_added[0], RivianNumberEntity)
+    assert (
+        sum(isinstance(e, RivianChargingScheduleAmperageEntity) for e in entities_added)
+        == 1
+    )
 
 
 @pytest.mark.asyncio
@@ -313,5 +317,56 @@ async def test_async_setup_entry_no_phone_identity(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should not have created any number entities (no vehicle control)
-    assert len(entities_added) == 0
+    # Parallax numbers require pairing; the charging-schedule amperage does not,
+    # because it drives a GraphQL mutation rather than a signed vehicle command.
+    assert len(entities_added) == 1
+    assert isinstance(entities_added[0], RivianChargingScheduleAmperageEntity)
+
+
+class TestRivianChargingScheduleAmperageEntity:
+    """Upstream 1.5.3b5's charging-schedule amperage number."""
+
+    def _entity(self, mock_config_entry, schedule):
+        from custom_components.rivian.number import CHARGING_SCHEDULE_AMPERAGE_NUMBER
+
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.charging_schedule = schedule
+        coordinator.update_charging_schedule_data = AsyncMock()
+        vehicle = {"id": "v1", "vin": "V", "name": "R1T", "model": "R1T"}
+        return (
+            RivianChargingScheduleAmperageEntity(
+                coordinator,
+                mock_config_entry,
+                CHARGING_SCHEDULE_AMPERAGE_NUMBER,
+                vehicle,
+            ),
+            coordinator,
+        )
+
+    def test_native_value_reads_the_schedule(self, mock_config_entry) -> None:
+        entity, _ = self._entity(mock_config_entry, {"amperage": 32})
+        assert entity.native_value == 32
+
+    def test_native_value_falls_back_to_the_default(self, mock_config_entry) -> None:
+        # An empty schedule must still render a number rather than going unavailable.
+        entity, _ = self._entity(mock_config_entry, {})
+        assert entity.native_value == 48
+
+    def test_native_value_is_none_when_explicitly_null(self, mock_config_entry) -> None:
+        entity, _ = self._entity(mock_config_entry, {"amperage": None})
+        assert entity.native_value is None
+
+    async def test_set_value_writes_an_int(self, mock_config_entry) -> None:
+        # HA hands NumberEntity a float; the API expects an int amperage.
+        entity, coordinator = self._entity(mock_config_entry, {"amperage": 32})
+        await entity.async_set_native_value(24.0)
+        coordinator.update_charging_schedule_data.assert_awaited_once_with(
+            {"amperage": 24}
+        )
+
+    def test_available_tracks_the_coordinator(self, mock_config_entry) -> None:
+        entity, _ = self._entity(mock_config_entry, {})
+        entity._available = False
+        assert entity.available is False
+        entity._available = True
+        assert entity.available is True

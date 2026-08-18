@@ -1,9 +1,30 @@
 {
-    "entity": {
-        "sensor": {
-            "active_driver": {
-                "default": "mdi:seat-recline-normal"
-            }
-        }
+  "entity": {
+    "number": {
+      "charging_schedule_amperage": {
+        "default": "mdi:current-ac"
+      }
+    },
+    "sensor": {
+      "active_driver": {
+        "default": "mdi:seat-recline-normal"
+      },
+      "charging_schedule_days": {
+        "default": "mdi:calendar-range"
+      }
+    },
+    "switch": {
+      "charging_schedule_enabled": {
+        "default": "mdi:calendar-clock"
+      }
+    },
+    "time": {
+      "charging_schedule_start": {
+        "default": "mdi:clock-start"
+      },
+      "charging_schedule_end": {
+        "default": "mdi:clock-end"
+      }
     }
+  }
 }

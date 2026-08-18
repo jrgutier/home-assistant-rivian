@@ -1,32 +1,8 @@
 """Tests for Rivian climate platform."""
 
-import sys
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
-from homeassistant.components.climate import (
-    ATTR_TEMPERATURE,
-    ClimateEntityFeature,
-    HVACMode,
-)
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
-from homeassistant.core import HomeAssistant
-
-# Mock VehicleCommand before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.CABIN_HVAC_DEFROST_DEFOG = "CABIN_HVAC_DEFROST_DEFOG"
-mock_rivian.VehicleCommand.VEHICLE_CABIN_PRECONDITION_DISABLE = (
-    "VEHICLE_CABIN_PRECONDITION_DISABLE"
-)
-mock_rivian.VehicleCommand.VEHICLE_CABIN_PRECONDITION_ENABLE = (
-    "VEHICLE_CABIN_PRECONDITION_ENABLE"
-)
-mock_rivian.VehicleCommand.CABIN_PRECONDITIONING_SET_TEMP = (
-    "CABIN_PRECONDITIONING_SET_TEMP"
-)
-sys.modules["rivian"] = mock_rivian
 
 from custom_components.rivian.climate import (
     DEFROST_DEFOG,
@@ -35,6 +11,14 @@ from custom_components.rivian.climate import (
 )
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
+from homeassistant.components.climate import (
+    ATTR_TEMPERATURE,
+    ClimateEntityFeature,
+    HVACMode,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTemperature
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianClimateEntity:

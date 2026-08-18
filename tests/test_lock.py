@@ -1,23 +1,15 @@
 """Tests for Rivian lock platform."""
 
-import sys
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-
-# Mock VehicleCommand before importing
-mock_rivian = Mock()
-mock_rivian.VehicleCommand = Mock()
-mock_rivian.VehicleCommand.LOCK_ALL_CLOSURES_FEEDBACK = "LOCK_ALL_CLOSURES_FEEDBACK"
-mock_rivian.VehicleCommand.UNLOCK_ALL_CLOSURES = "UNLOCK_ALL_CLOSURES"
-sys.modules["rivian"] = mock_rivian
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianLockEntityDescription
 from custom_components.rivian.lock import RivianLockEntity, async_setup_entry
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 
 class TestRivianLockEntity:
@@ -136,8 +128,8 @@ class TestRivianLockEntity:
         description = RivianLockEntityDescription(
             key="closures",
             translation_key="closures",
-            is_locked=lambda coordinator: not any(
-                coordinator.get(key) == "unlocked" for key in lock_entities
+            is_locked=lambda coordinator: (
+                not any(coordinator.get(key) == "unlocked" for key in lock_entities)
             ),
             command_lock="LOCK_ALL_CLOSURES_FEEDBACK",
             command_unlock="UNLOCK_ALL_CLOSURES",

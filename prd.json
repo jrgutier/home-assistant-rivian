@@ -1,0 +1,314 @@
+{
+  "name": "vendor-rivian-client-parallax",
+  "plan": "/Users/jrgutier/.claude/plans/inherited-baking-avalanche.md",
+  "workspace": "/Users/jrgutier/src/ha-rivian",
+  "branch": "vendor-client",
+  "_authored": "Hand-authored deliberately. Do NOT regenerate from the plan: PRD refinement is a judgement step, and the judgement being protected (never attempt mode:human stories) is prose in the same document a generator would read. Artifacts live in home-assistant-rivian/ (the surviving repo) so they are version-controlled; the workspace root is not a git repo. Only .omc-workspace stays at the root, since it must anchor state across both repos.",
+  "_loop": {
+    "max_iterations": 25,
+    "rule": "Work the first story with passes:false whose deps are all passes:true. Run its gate. Set passes:true ONLY on exit 0. Append findings to progress.txt. Never attempt a story with mode:human \u2014 stop and report instead.",
+    "reviewer": "omc ask claude --agent-prompt critic",
+    "gates": "home-assistant-rivian/scripts/gates/<id>.sh \u2014 self-locating, runnable from any cwd"
+  },
+  "_guardrails": [
+    "Stay on branch vendor-client in BOTH repos; assert every iteration. pre-release.yaml fires on dev and dev-* and publishes a zip beta users install.",
+    "No git push, no --force, no tags. A tag matching v?*.*.* on rivian-python-client publishes to PyPI.",
+    "No writing gh commands (gh release, gh workflow run, gh pr merge, gh api -X POST|PATCH|PUT|DELETE). workflow_dispatch is enabled on both pre-release workflows.",
+    "The 'on:' block of every workflow is immutable. S12b may edit 'jobs:' only.",
+    "Never emit a secret VALUE into any file, commit, log, progress.txt or prd.json. The .storage corrupt-backup deletion and the .env move are human steps.",
+    "Do not delete or skip tests to pass a gate. Exactly two deletions are sanctioned: S6a deletes test_decode_unknown_rvm_returns_raw; S9a deletes the removed-entity tests.",
+    "Never lower --cov-fail-under. It ratchets one way.",
+    "Never resolve a merge conflict with -X ours / -X theirs wholesale."
+  ],
+  "_environment": {
+    "status": "RESOLVED 2026-08-16. venv rebuilt; suite runs.",
+    "python": "uv python install 3.13 -> cpython-3.13.13 (HA 2025.10.4 requires >=3.13.2). Homebrew python@3.13 is gone; brew now ships 3.14 only.",
+    "rebuild": "uv venv --python 3.13 venv && VIRTUAL_ENV=$PWD/venv uv pip install -r requirements_test.txt",
+    "extra_pins": "uv pip install 'pycares<5' 'habluetooth==5.6.4' 'bleak-retry-connector==4.4.3' 'dbus-fast==2.44.3' -- uv pip does NOT apply HA's package_constraints.txt, so pycares resolved past the aiodns 3.5.0 API and habluetooth past bleak 1.0.1.",
+    "pytest": "PYTEST=home-assistant-rivian/venv/bin/pytest (gates auto-detect venv/bin/pytest)",
+    "ha_version": "test env resolves HA 2025.10.4, pinned by pytest-homeassistant-custom-component -- NOT the 2025.12.0 the plan's dependency section cites. Conclusions verified to hold on both.",
+    "grep": "ugrep 7.5.0, not GNU grep. Inside grep -E, \\| is a literal pipe. Gates are bash, not zsh.",
+    "omc_workspace": ".omc-workspace marker present at the workspace root so both repos share one PRD."
+  },
+  "stories": [
+    {
+      "id": "s01",
+      "phase": "0",
+      "deps": [],
+      "mode": "auto",
+      "passes": true,
+      "title": "Record the real coverage baseline",
+      "detail": "The committed .coverage/htmlcov are from a nine-file subset run and disagree with each other; neither is quotable. Run the full suite once in a fresh venv, record global and per-file percentages to docs/COVERAGE_BASELINE.md, and set --cov-fail-under in pytest.ini to the measured floor so the ratchet starts from truth. Target remains 80% by S11.",
+      "gate": "scripts/gates/s01.sh"
+    },
+    {
+      "id": "s01b",
+      "phase": "0",
+      "deps": [
+        "s01"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Fix the 10 order-dependent test failures",
+      "detail": "The suite is NOT green: 10 failures that all pass in isolation. Five test modules permanently replace the client in sys.modules at IMPORT time with no teardown (test_button.py:19-21,30-31; test_select.py:23; test_update.py:20-21; test_coordinator_base.py:25; test_lock.py:15). Collection is alphabetical, so test_update's bare Mock() clobbers test_coordinator_base's carefully-built one and pytest.raises() receives a Mock. Replace the module-level assignments with fixture-scoped patch.dict(sys.modules, ...) that tears down. MUST land before S7: after vendoring, imports become custom_components.rivian.rivian_client and sys.modules['rivian'] stops intercepting anything, so these stubs fail silently. Also required for any gate to be trustworthy -- order-dependent failures make the loop thrash or record false passes.",
+      "gate": "scripts/gates/s01b.sh"
+    },
+    {
+      "id": "s02",
+      "phase": "1.1",
+      "deps": [
+        "s01",
+        "s01b"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Get CI onto the vendor-client branch",
+      "detail": "rivian-python-client/.github/workflows/ci.yaml EXISTS (ruff, mypy, pytest on 3.9-3.13) but triggers on main only \u2014 extend its trigger to vendor-client and add coverage. home-assistant-rivian has no test workflow at all; create one. Principle 4: CI exists before the risky work.",
+      "gate": "scripts/gates/s02.sh"
+    },
+    {
+      "id": "s03",
+      "phase": "1.2-1.4",
+      "deps": [
+        "s02"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "HUMAN: merge client onto upstream 2.1.0 transport",
+      "detail": "Adopt upstream's plain-string GraphQL transport and ClientResponse shape; drop gql. parallax.py is add/add with ZERO common ancestry (ours 22218 bytes, theirs 21668) \u2014 resolve by taking upstream's file as the base and appending our builder half. rivian.py: port only the ~20 methods with a reachable caller, delete the ~45 without one. Judgement call \u2014 do not automate. USER OVERRIDE (explicit): originally mode:human; the user directed the loop to attempt it autonomously with review after. Risk accepted and recorded: the merge has no test oracle \u2014 the suites are part of what is merged, so `git merge -X ours` satisfies 'no conflict markers + pytest green'. The preserved-symbol manifest in scripts/gates/s03.sh is the only real check.",
+      "gate": "scripts/gates/s03.sh",
+      "review": "MANDATORY human review before s04"
+    },
+    {
+      "id": "s04",
+      "phase": "1.5-1.7",
+      "deps": [
+        "s03"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Client cleanup",
+      "detail": "Drop py<3.11 shims (stdlib StrEnum, asyncio.timeout); bump requires-python to >=3.10; give bleak an honest ceiling; fix set_climate_hold (validates temp_celsius then never sends it); correct the ten '32-byte' phone_id docstrings \u2014 the correct value is 16-byte uuid.UUID(vasPhoneId).bytes. Do NOT fix the four setters S9a deletes.",
+      "gate": "scripts/gates/s04.sh"
+    },
+    {
+      "id": "s05",
+      "phase": "2.2-2.4",
+      "deps": [
+        "s04"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "review": "CLEARED 2026-08-18 by the repository owner after a walkthrough of all 18 resolutions and the 8 coordinator.py hunks.",
+      "title": "Merge upstream 1.5.3b5 into the integration (all 19 conflicts)",
+      "detail": "User decision: the loop attempts all 19 conflicted files. Take upstream wholesale for the Parallax routing, the charging fixes, INITIAL_UPDATE_TIMEOUT=60, the vehicleMileage oscillation guard, gnssLocation resilience, and time.py + Platform.TIME. Keep ours for notify.py, next_action_states.py, services.yaml, the i18n conversion and the entity renaming. Adopt upstream's ClientResponse shape. Record the strings.json decision rather than inventing one. Version must be 1.5.4-beta1, never 0.0.0. DONE 2026-08-18: 18 conflicts resolved, gate 14/14, 987 tests passing at 78.73%. AWAITING MANDATORY HUMAN REVIEW before s06a. REVIEW CLEARED. Owner decisions: frunk unconditional; charging writers namespaced by source (option C); _update_interval_seconds stays 0 (upstream's push model, ratified); ruff unpinned to track upstream; all other resolutions accepted as-is.",
+      "gate": "scripts/gates/s05.sh"
+    },
+    {
+      "id": "s06a",
+      "phase": "2.5-2.8",
+      "deps": [
+        "s05"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Route Parallax through the real decoders; unify get()",
+      "detail": "Delete _decode_payload (the {\"raw\": ...} stub) and its test test_decode_unknown_rvm_returns_raw \u2014 deleted, not adapted. Route to decode_parallax_message. Subscribe with an explicit DEDUPED PARALLAX_RVMS + CHARGING_RVMS list (they overlap), not rvms=None. Collapse the three conflicting get() signatures onto the base 2-arg dot-notation form. DONE 2026-08-18. ParallaxCoordinator DISSOLVED (285 lines) along with _RVM_KEY_MAP, _rvm_data and _decode_payload; VehicleCoordinator now owns the single Parallax subscription with sorted({*PARALLAX_RVMS, *CHARGING_RVMS}) -- 20 unique topics, not the 25 a naive concat would request. get() collapsed from 3 signatures to 1, unwrapping the {value,history} envelope centrally.",
+      "gate": "scripts/gates/s06a.sh"
+    },
+    {
+      "id": "s06b",
+      "phase": "2.9-2.10",
+      "deps": [
+        "s06a"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "De-duplicate the watchdog; extend diagnostics",
+      "detail": "The 502/504 + watchdog block is copy-pasted three times (~90 lines each). Write contract tests against the intended behaviour FIRST, then lift it into RivianDataUpdateCoordinator. Add Parallax data to diagnostics.py and extend redact()/TO_REDACT to the new fields. DONE 2026-08-18. Watchdog lifted into RivianDataUpdateCoordinator as _watchdog_tick/_start_watchdog/_stop_watchdog with a _watchdog_skip_reason hook; VehicleCoordinator overrides it for the sleep rule, ChargingCoordinator deliberately does not. Diagnostics gained parallax subscription state.",
+      "gate": "scripts/gates/s06b.sh"
+    },
+    {
+      "id": "s07",
+      "phase": "3",
+      "deps": [
+        "s01b",
+        "s06b"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Vendor the client into custom_components/rivian/rivian_client/",
+      "detail": "One mechanical commit, done AFTER both merges so upstream's 12 files of top-level 'rivian' imports merge against matching lines rather than applying silently into renamed code. Rewrite every import to relative form. manifest.json: requirements [bleak>=0.21, protobuf>=6.31,<7] (protobuf is interim, S10 removes it), loggers [custom_components.rivian], iot_class cloud_push. Guard the BLE imports: button.py:11 under TYPE_CHECKING, button.py:14 lazy inside the press handler. DONE 2026-08-18. 28 modules vendored, all importing individually under the declared requirements. Client tests moved to tests/client/. Coverage split into two floors (integration 83%, vendored client 59%) because --cov-fail-under is a single global number.",
+      "gate": "scripts/gates/s07.sh"
+    },
+    {
+      "id": "s06c",
+      "phase": "2.9",
+      "deps": [
+        "s07"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Stop swallowing subscription failures",
+      "detail": "Five subscribe_for_* in the vendored client end `except Exception: _LOGGER.error(ex); return None`, and five coordinator call sites branch on that None -- so a dead real-time path is indistinguishable from a healthy one at every caller. This is the defect that made a NON-BUG (one active subscription per user session) cost a day of diagnosis. Make the five propagate a typed failure, update coordinator.py:211/534/922/930/1334, and remove the dead `if unsubscribe:` at :1338. Entry setup must still COMPLETE when a subscription fails -- degrade, do not abort. Added at the owner's direction from the websocket/credential plan (w05/w06).",
+      "gate": "scripts/gates/s06c.sh"
+    },
+    {
+      "id": "s08a",
+      "phase": "4.0",
+      "deps": [],
+      "mode": "human",
+      "passes": true,
+      "title": "HUMAN: capture RVM payload fixtures from the live vehicle",
+      "detail": "DONE 2026-08-18. Captured 3 of 4: climate_hold_status (8B), climate_hold_setting (3B, 08ac02 = 300s), vehicle_wheels (74B). CORRECTION: the previous premise -- that all four are 'verified-working QUERIES today, so the existing query path suffices' -- was FALSE. sendVehicleOperation selects only {success} (rivian.py:866-870); the payload arrives ONLY on the parallaxMessages subscription. Capture also requires SOLE-SUBSCRIBER access: the gateway permits one active subscription per user session, so the HA config entry must be disabled for the duration. ota.user_schedule.ota_config returned a 0-byte payload to an accepted signed GET across three sessions -- no schedule is configured -- and is DROPPED under principle 3. See docs/development/RVM_FIXTURES.md.",
+      "gate": "scripts/gates/s08a.sh"
+    },
+    {
+      "id": "s08b",
+      "phase": "4.0",
+      "deps": [
+        "s08a"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Write and register the decoders for the shipped RVMs",
+      "detail": "Upstream's RVM_DECODERS covers 14 telemetry topics and NONE of the RVMs this plan ships. Write decode_* for the THREE captured RVMs only -- climate_hold_status, climate_hold_setting, vehicle_wheels -- register in RVM_DECODERS, and assert each against its s08a fixture. Do NOT write decode_ota_config: no fixture exists, its layout would be imagined, and the entity is dropped (s09a). See docs/development/RVM_FIXTURES.md. DONE 2026-08-18: decoders written hand-rolled for the THREE captured RVMs and registered (RVM_DECODERS 14 -> 17). Verified empirically first that decode_parallax_message returned None for all three. Each asserted against its captured fixture AND cross-checked against the generated protobuf class. decode_ota_config deliberately NOT written -- no fixture, layout would be imagined, entity dropped (see s09a).",
+      "gate": "scripts/gates/s08b.sh"
+    },
+    {
+      "id": "s09a",
+      "phase": "4.3",
+      "deps": [
+        "s08b"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Prune unverified entities and builders",
+      "detail": "Remove PARALLAX_SWITCHES, PARALLAX_NUMBERS, PARALLAX_SELECTS, the parallax.* prefix routing and the rivian.set_geofences service \u2014 all target RVMs that return INTERNAL_SERVER_ERROR. Delete their translation/icon keys and their tests. Then prune parallax.py from 21 build_* functions to the 4 backing verified RVMs, and prune RVMType to match. Incidentally fixes select.py:203's KeyError.",
+      "gate": "scripts/gates/s09a.sh"
+    },
+    {
+      "id": "s09b",
+      "phase": "4.1-4.2",
+      "deps": [
+        "s06c",
+        "s09a"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Wire the verified RVMs onto decoded data",
+      "detail": "Move cabin_climate_hold off VehicleCommand.CLIMATE_HOLD_ON/OFF onto the Parallax climate_hold_setting write \u2014 the ONE verified write \u2014 reading climate_hold_status. Add vehicle_wheels and ota_config as READ-ONLY attributes. ota_config is a Query, not a Command: do not build an OTA write, and do not route it through time.py, which is charging-only. DONE 2026-08-18. cabin_climate_hold now writes via async_set_climate_hold (the one verified Parallax write) and reads the decoded climateHoldStatus, keeping read and write on ONE source. wheels_installed ships read-only. ota_config NOT wired: dropped at s08a for want of a fixture.",
+      "gate": "scripts/gates/s09b.sh"
+    },
+    {
+      "id": "s10",
+      "phase": "4.4-4.7",
+      "deps": [
+        "s09b"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Remove protobuf",
+      "detail": "Ten top-level google.protobuf sites: parallax.py:13, proto/vehicle_operation.py:6-7, proto/ota.py:5, and proto/{base,charging,climate,energy,navigation,security,vehicle}.py:6. They subclass _message.Message at RUNTIME so TYPE_CHECKING does not help, and proto/__init__.py imports eight of them so fixing a subset still ImportErrors on every send_vehicle_operation. DELETE proto/climate.py \u2014 the shipped write imports rivian_climate_pb2.ClimateHoldSetting; proto/climate.py holds a dead incompatible definition. Keep and rewrite proto/vehicle_operation.py. Capture golden bytes from _pb2 BEFORE deleting. Then drop protobuf from manifest requirements. DONE 2026-08-18. Golden bytes captured from the generated classes BEFORE deleting them (14-value grid incl. the 127/128 varint boundary); the hand-rolled encoder matches all of them and the live-captured 08ac02. google.protobuf.Timestamp replaced by ~20 lines, pinned against four captured encodings. Verified importing with protobuf absent entirely.",
+      "gate": "scripts/gates/s10.sh"
+    },
+    {
+      "id": "s11",
+      "phase": "4b",
+      "deps": [
+        "s10"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Close the coverage gap to 80%",
+      "detail": "Global 80% AND coordinator.py plus each platform file at 80% independently. pytest-cov's --cov-fail-under is global-only, so per-file uses coverage json + a script. No added skip/xfail/pragma. DONE 2026-08-18. Global 83.5%; every watched file >= 80%. config_flow.py 39 -> 96 (validate_vehicle_control and the login/OTP flow were entirely untested), button.py 53 -> 93 (the pairing loop), coordinator.py 79 -> 80+ (the two websocket callbacks). Integration floor ratcheted 83 -> 89.",
+      "gate": "scripts/gates/s11.sh"
+    },
+    {
+      "id": "s12a",
+      "phase": "5.1-5.3",
+      "deps": [
+        "s11"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Devcontainer boots real HA",
+      "detail": "Install requirements_test.txt, symlink custom_components/rivian into the container HA config dir, pin the HA version (requirements says >=2025.1.0, config/.HA_VERSION is 2025.10.4, the venv has 2025.12.0 \u2014 a .storage seeded by a newer HA is unreadable by an older one). Add scripts/seed_config_entry.py reading tokens from env at runtime, never inlining a value.",
+      "gate": "scripts/gates/s12a.sh",
+      "evidence": "scripts/gates/s12a.sh: 10/10. HA pinned 2026.8.2 on Python 3.14 across requirements.txt, devcontainer and CI; scripts/seed_config_entry.py seeds data+options from .env into a chmod-600, gitignored .storage without ever printing a value; tests/test_seed_config_entry.py (12 tests) builds the seeded dict as a real homeassistant ConfigEntry, so an HA schema change fails in CI rather than at container boot. Suite 1242 passed. Booting HA against the live vehicle stays in s13 (mode:human) -- one Parallax subscription per session token, so a second HA contends with production."
+    },
+    {
+      "id": "s12b",
+      "phase": "5.4-5.5",
+      "deps": [
+        "s12a"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Release hardening and the remaining CI gates",
+      "detail": "Switch BOTH release.yaml:26-28 and pre-release.yaml:70-72 to a zip allowlist; pre-release fires on every dev push and matters more. Anchor release.yaml:22's sed to \"version\": \u2014 it currently rewrites every line containing 'version'. Add the artifact secret-scan and the load test (unzip into a bare HA container with only the declared requirements, start HA, fail if it does not load). Edit 'jobs:' only, never 'on:'. RELEASE ROUTE DECIDED 2026-08-18: vendor-client merges to dev, which fires pre-release.yaml and publishes a zip beta users install. Harden BOTH release.yaml and pre-release.yaml zips (allowlist, no dotfiles) and add the artifact secret-scan for that path. A HUMAN does the merge and push; the loop must never push to dev.",
+      "gate": "scripts/gates/s12b.sh",
+      "evidence": "scripts/gates/s12b.sh: 13/13, each assertion validated by breaking it. Both release workflows moved from a bare recursive zip to an allow-list and now run scripts/scan_artifact.sh before publishing; release.yaml's unanchored `sed -i '/version/c...'` became jq on the version key, and its ::set-output (disabled by GitHub in 2023, so the step had been setting nothing) became $GITHUB_OUTPUT. scripts/load_test.sh installs only what manifest.json declares and imports every module out of the built zip -- it caught button.py importing homeassistant.components.bluetooth at module scope, which reaches homeassistant.components.usb and would have taken the whole button platform down on any install without the bluetooth integration, with all 1244 tests green. Both scripts run in CI on every push. on: blocks verified byte-identical."
+    },
+    {
+      "id": "s13",
+      "phase": "5.6",
+      "deps": [
+        "s12b"
+      ],
+      "mode": "human",
+      "passes": true,
+      "title": "HUMAN: end-to-end against the real vehicle",
+      "detail": "The seven thresholds in the plan's Verification 6. Requires the real vehicle and live credentials \u2014 final acceptance, not automatable.",
+      "gate": "scripts/gates/s13.sh",
+      "evidence": "docs/E2E_ACCEPTANCE.md. Live run 2026-08-18 against the real R1T on HA 2026.8.2/Python 3.14.6 with a seeded entry. Final run: 0 ERROR lines, 0 tracebacks, 0 GraphQL field rejections, 0 TypeError, 0 KeyError, 13 Parallax topics decoded with 0 raw payloads, charging updated 3-4 times, odometer 152031000, all four tyre pressures live. Found FIVE defects that 1244 passing unit tests did not: the response envelope was never unwrapped (setup died instantly on the real API); a Parallax-only field poisoned the GraphQL subscription so it delivered nothing at all; and three enum/invalid-state vocabulary bugs. The climate hold WRITE was subsequently exercised with the owner's explicit approval: occupancy gated (all six closures closed, powerState ready), round-tripped 0 -> 300 -> 0 seconds through the live subscription in ~3s, both writes returning SendVehicleOperationSuccess, and the vehicle left exactly as found. 5 minutes encoding to exactly 300 seconds confirms s10's hand-rolled varint encoder against the real vehicle, which the golden-bytes tests could only check against the generated code it replaced."
+    },
+    {
+      "id": "s14",
+      "phase": "6",
+      "deps": [
+        "s07"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Document upstream tracking",
+      "detail": "Record in CLAUDE.md that custom_components/rivian/rivian_client/ is the vendored client, edited in place, with no external package to bump. Rehearse an upstream merge as a DRY RUN: git merge --no-commit --no-ff upstream/main, capture output and conflicted paths to docs/UPSTREAM_MERGE_REHEARSAL.md, then git merge --abort. A real rehearsed merge would be a fifth human gate.",
+      "gate": "scripts/gates/s14.sh",
+      "evidence": "scripts/gates/s14.sh: 13/13, each validated by breaking it. docs/UPSTREAM_MERGE_REHEARSAL.md covers BOTH upstream flows, which the original story understated: the integration merges from upstream/main normally, but the vendored client has no merge path at all. `git merge --no-commit --no-ff upstream/main` reports 'Already up to date' (merge base IS upstream/main's head, a7e29e9), so the merge was replayed from the pre-merge-1.5.3b5 tag in a throwaway worktree -- 18 files conflicted, all named in the doc, then merge --abort and the worktree removed. scripts/sync_upstream_client.sh fetches the client upstream straight into this repo (no sibling checkout needed, since that repo is slated for archival) and was rehearsed against upstream's newest client commit: it reverse-applies cleanly, proving both that the commit is present and that the -p3 path mapping is right. CLAUDE.md's Dependencies section still described the git-URL requirement as current."
+    }
+  ],
+  "_baseline": {
+    "measured": "2026-08-16",
+    "coverage_global": 78.86,
+    "statements": 2318,
+    "missing": 490,
+    "tests_collected": 951,
+    "passing": 951,
+    "failing": 0,
+    "note": "22% was a nine-file subset run. Baseline 75% at s01 -> 76% after s01b -> 78.86% after partial s11. Floor 78 (79 fails: true value 78.86).",
+    "under_80": {
+      "__init__.py": 37,
+      "config_flow.py": 39,
+      "button.py": 50,
+      "coordinator.py": 67,
+      "next_action_states.py": 69,
+      "entity.py": 72,
+      "const.py": 79
+    }
+  },
+  "environment": {
+    "python": "3.14 (uv python install 3.14 -> cpython-3.14.6). HA 2026.8.2 requires >=3.14.2. Pinned identically in .devcontainer/devcontainer.json and .github/workflows/test.yaml; scripts/gates/s12a.sh asserts they agree.",
+    "ha_version": "2026.8.2, pinned exactly in requirements.txt and again (transitively) by pytest-homeassistant-custom-component==0.13.356. Bump the two together. Superseded the earlier state where requirements.txt said >=2025.1.0, config/.HA_VERSION said 2025.10.4 and the venv had something else again.",
+    "rebuild": "uv venv --python 3.14 .venv && VIRTUAL_ENV=$PWD/.venv uv pip install -r requirements_test.txt. Do not rename a venv -- script shebangs carry absolute paths.",
+    "upgrade_cost_measured": "The 2025.10.4 -> 2026.8.2 jump cost one new test dependency (serialx, pulled in by homeassistant.components.usb) and three lines of test hygiene: test_coordinator_base's interval tests leaked a refresh timer that HA 2026.8's verify_cleanup fails on. It also let four pins go -- pycares<5, habluetooth==5.6.4, bleak-retry-connector==4.4.3, dbus-fast==2.44.3 all now resolve forward on their own."
+  },
+  "known_gaps": [
+    {
+      "id": "parallax-invalid-state-filter",
+      "source": "architect review, 2026-08-18",
+      "severity": "low \u2014 no live defect",
+      "detail": "coordinator.py:996 merges Parallax updates with `new_data = (self.data or {}) | vehicle_updates` and calls async_set_updated_data directly, so those values never pass through _build_vehicle_info_dict and INVALID_SENSOR_STATES is never applied to them. Defect 5 from s13 is therefore only half fixed: the GraphQL path filters fault/SNA/undefined, the Parallax path does not.",
+      "why_not_fixed": "Every Parallax decoder's output vocabulary was checked and none can emit a value in INVALID_SENSOR_STATES, so there is no live defect. The change would touch the hot path that carries all vehicle telemetry, on no evidence of harm. Revisit if a decoder ever gains a fault/unavailable value, or if a sensor is seen holding one."
+    }
+  ]
+}

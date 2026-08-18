@@ -5,16 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 from uuid import UUID
 
-from bleak import BLEDevice
-from home_assistant_bluetooth import BluetoothServiceInfoBleak
-from rivian import VehicleCommand
-import rivian.ble as rivian_ble
-
-from homeassistant.components import bluetooth
-from homeassistant.components.bluetooth import BluetoothScanningMode
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, HomeAssistantError
@@ -24,6 +17,19 @@ from .const import ATTR_COORDINATOR, ATTR_USER, ATTR_VEHICLE, DOMAIN
 from .coordinator import UserCoordinator, VehicleCoordinator
 from .data_classes import RivianButtonEntityDescription
 from .entity import RivianVehicleControlEntity
+from .rivian_client import VehicleCommand
+
+if TYPE_CHECKING:
+    # Annotation-only, all three. None of these ship with Home Assistant core:
+    # bleak and home_assistant_bluetooth belong to the bluetooth integration, and
+    # homeassistant.components.bluetooth pulls in homeassistant.components.usb,
+    # whose aiousbwatcher and serialx are likewise absent from core's metadata.
+    # Importing any of them at module scope takes the whole button platform down
+    # -- including the wake and pairing buttons -- on a system where the bluetooth
+    # integration was never set up. Verified: the artifact load test installs only
+    # what manifest.json declares, and this module was the one that failed it.
+    from bleak import BLEDevice
+    from home_assistant_bluetooth import BluetoothServiceInfoBleak
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,8 +60,9 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
         RivianButtonEntityDescription(
             key="drop_tailgate",
             translation_key="drop_tailgate",
-            available=lambda coordinator: coordinator.get("closureTailgateClosed")
-            != "open",
+            available=lambda coordinator: (
+                coordinator.get("closureTailgateClosed") != "open"
+            ),
             command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
         ),
     ),
@@ -65,7 +72,7 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the button entities"""
+    """Set up the button entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -132,6 +139,22 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
 
         self._pairing = True
 
+        # Imported here, not at module scope: rivian_client.ble re-raises when
+        # bleak is missing, which would otherwise break the import of this whole
+        # platform rather than just this one button.
+        try:
+            from homeassistant.components import bluetooth
+            from homeassistant.components.bluetooth import BluetoothScanningMode
+
+            from .rivian_client import ble as rivian_ble
+        except ImportError as err:
+            self._pairing = False
+            raise HomeAssistantError(
+                "Bluetooth support is unavailable: neither the 'bleak' library nor "
+                "Home Assistant's bluetooth integration could be imported. Phone "
+                "pairing requires both."
+            ) from err
+
         entry_data = self.hass.data[DOMAIN][self._config_entry.entry_id]
         vehicle = entry_data[ATTR_VEHICLE][self.coordinator.vehicle_id]
         user: UserCoordinator = entry_data[ATTR_COORDINATOR][ATTR_USER]
@@ -164,7 +187,7 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                     service_info.device,
                     str(UUID(vehicle["vas_id"])) in service_info.service_uuids,
                 )
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:  # noqa: BLE001
                 _LOGGER.error(
                     "%s not found%s",
                     rivian_ble.DEVICE_LOCAL_NAME,

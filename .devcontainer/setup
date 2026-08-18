@@ -1,14 +1,49 @@
 #!/usr/bin/env bash
 
-sudo apt-get update && sudo apt-get install libturbojpeg0 -y
-
 set -e
 
 cd "$(dirname "$0")/.."
 
-python3 -m pip install --upgrade pip
-python3 -m pip install --requirement requirements.txt
+# Install system dependencies
+sudo apt-get update && sudo apt-get install -y libturbojpeg0
 
+# Install Python dependencies.
+#
+# requirements_test.txt, not requirements.txt: it includes the latter and adds the
+# pins that make a green suite reproducible from the repo. Installing only
+# requirements.txt gave a container that could run HA but not the tests, which is
+# how the venv and CI drifted onto different HA versions in the first place.
+python3 -m pip install --upgrade pip
+python3 -m pip install --requirement requirements_test.txt
+
+# Setup pre-commit hooks
 pre-commit install
 
-mkdir -p config
+# Create the container's HA config directory and symlink custom_components.
+#
+# config-dev/, not config/. config/ carries a recorder database and a .storage
+# written by an older Home Assistant, and booting the pinned version against it
+# migrates both one-way -- an unrecoverable side effect of opening the devcontainer.
+mkdir -p config-dev
+if [ ! -L config-dev/custom_components ]; then
+    ln -sf "$(pwd)/custom_components" config-dev/custom_components
+fi
+
+# Copy default configuration if not exists
+if [ ! -f config-dev/configuration.yaml ]; then
+    cp .devcontainer/configuration.yaml config-dev/configuration.yaml
+fi
+
+# Seed an authenticated Rivian entry so the container comes up ready to use.
+#
+# Signing in through the UI needs a password and an OTP code from the owner's
+# phone, which is not something a container rebuild should require. Skipped
+# silently when .env is absent -- a contributor without credentials still gets a
+# working container, just one they have to sign into.
+#
+# Both ends are gitignored (.env and config/). The script never prints a value.
+if [ -f .env ]; then
+    python3 scripts/seed_config_entry.py --force
+else
+    echo "no .env found; skipping config entry seeding (sign in through the UI)"
+fi

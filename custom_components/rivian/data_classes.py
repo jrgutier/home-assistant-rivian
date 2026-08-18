@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from ast import Expression
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-
-from rivian import VehicleCommand
 
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription
 from homeassistant.components.button import ButtonEntityDescription
@@ -17,7 +14,10 @@ from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.select import SelectEntityDescription
 from homeassistant.components.sensor import SensorEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
+from homeassistant.components.time import TimeEntityDescription
 from homeassistant.helpers.entity import EntityDescription
+
+from .rivian_client import VehicleCommand
 
 if TYPE_CHECKING:
     from .coordinator import VehicleCoordinator
@@ -99,7 +99,7 @@ class RivianSensorEntityDescription(SensorEntityDescription):
 
     field: str
     value_fn: Callable[[VehicleCoordinator], Any] | None = None
-    value_lambda: Expression | None = None
+    value_lambda: Callable[[Any], Any] | None = None
 
 
 @dataclass(kw_only=True)
@@ -118,19 +118,6 @@ class RivianSwitchEntityDescription(
 
 
 @dataclass(kw_only=True)
-class RivianParallaxSwitchEntityDescription(
-    SwitchEntityDescription, RivianVehicleControlAvailableMixin
-):
-    """Rivian Parallax switch entity description."""
-
-    is_on: Callable[[VehicleCoordinator], bool] | None = None  # Optional - write-only
-    turn_on_method: str
-    turn_on_kwargs: dict[str, Any]
-    turn_off_method: str
-    turn_off_kwargs: dict[str, Any]
-
-
-@dataclass(kw_only=True)
 class RivianTrackerEntityDescription(EntityDescription):
     """Rivian tracker entity Description."""
 
@@ -140,3 +127,11 @@ class RivianWallboxSensorEntityDescription(SensorEntityDescription):
     """A class that describes Rivian wallbox sensor entities."""
 
     field: str
+
+
+@dataclass(kw_only=True)
+class RivianTimeEntityDescription(TimeEntityDescription):
+    """Rivian time entity description."""
+
+    value_fn: Callable[[VehicleCoordinator], Any]
+    set_fn: Callable[[VehicleCoordinator, Any], Awaitable[None]]

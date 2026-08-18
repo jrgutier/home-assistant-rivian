@@ -41,19 +41,3 @@ set_charging_schedule:
           min: 0
           max: 6
           mode: box
-
-set_geofences:
-  name: Set Geofences
-  description: Set favorite geofences for the vehicle
-  target:
-    device:
-      integration: rivian
-  fields:
-    fences:
-      name: Geofences
-      description: List of geofence definitions as JSON array. Each fence should have fence_id, name, latitude, longitude, radius_meters, and enabled fields.
-      required: true
-      example: '[{"fence_id": "home", "name": "Home", "latitude": 37.7749, "longitude": -122.4194, "radius_meters": 100, "enabled": true}]'
-      selector:
-        text:
-          multiline: true

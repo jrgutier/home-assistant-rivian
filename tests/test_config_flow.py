@@ -1,32 +1,16 @@
 """Tests for Rivian config flow."""
 
-import sys
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-
-# Mock rivian before importing
-mock_rivian_module = Mock()
-mock_rivian_module.Rivian = Mock
-mock_rivian_module.exceptions = Mock()
-mock_rivian_module.exceptions.RivianUnauthenticated = Exception
-mock_rivian_module.exceptions.RivianPhoneLimitReachedError = Exception
-mock_rivian_module.utils = Mock()
-mock_rivian_module.utils.generate_key_pair = Mock(
-    return_value=("public_key_test", "private_key_test")
-)
-sys.modules["rivian"] = mock_rivian_module
-sys.modules["rivian.exceptions"] = mock_rivian_module.exceptions
-sys.modules["rivian.utils"] = mock_rivian_module.utils
-
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 
 from custom_components.rivian.config_flow import (
-    _get_schema_credential_fields,
     RivianFlowHandler,
+    _get_schema_credential_fields,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant
 
 
 class TestGetSchemaCredentialFields:

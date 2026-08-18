@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
@@ -25,7 +25,7 @@ from .data_classes import (
 
 NAME = "Rivian (Unofficial)"
 DOMAIN = "rivian"
-VERSION = "1.4.2-beta17"
+VERSION = "1.6.0"
 ISSUE_URL = "https://github.com/bretterer/home-assistant-rivian/issues"
 
 # Attributes
@@ -81,7 +81,11 @@ CLOSURE_STATE_ENTITIES = {
     "closureTonneauClosed",
 }
 
-INVALID_SENSOR_STATES = {"fault", "signal_not_available", "undefined"}
+# Compared as str(value).lower() in coordinator.py, so entries are lowercase.
+# "sna" is the vehicle's own abbreviation for signal-not-available: a live boot
+# showed the rear seat heating sensors reporting a literal "SNA", which this set
+# was meant to suppress and did not, because it only listed the long form.
+INVALID_SENSOR_STATES = {"fault", "signal_not_available", "sna", "undefined"}
 
 
 DRIVE_MODE_MAP = {
@@ -175,13 +179,15 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Inactive",
                 "Signal Not Available",
             ],
-            value_lambda=lambda v: "Active"
-            if v == "true"
-            else "Inactive"
-            if v == "false"
-            else _to_title_case(v)
-            if v
-            else "Inactive",
+            value_lambda=lambda v: (
+                "Active"
+                if v == "true"
+                else "Inactive"
+                if v == "false"
+                else _to_title_case(v)
+                if v
+                else "Inactive"
+            ),
         ),
         RivianSensorEntityDescription(
             key="battery_hv_thermal_event",
@@ -300,6 +306,12 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Error System Fault",
                 "Timeout Temperature Not Achieved",
                 "Unavailable",
+                # decode_preconditioning (rivian_client/parallax.py) emits exactly
+                # "active" | "initiate" | "off". The rest of this list is the
+                # GraphQL vocabulary; "Off" was missing, so a live boot logged
+                # "provides state value 'Off', which is not in the list of known
+                # options" on every start and appended it at runtime.
+                "Off",
             ],
             value_lambda=lambda v: _to_title_case(v) if v else "Undefined",
         ),
@@ -682,6 +694,13 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             value_lambda=lambda v: _to_title_case(v) if v else "Off",
         ),
         RivianSensorEntityDescription(
+            key="wheels_installed",
+            translation_key="wheels_installed",
+            field="wheelsInstalled",
+            icon="mdi:tire",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
             key="cabin_hold_status",
             translation_key="cabin_hold_status",
             field="cabinHoldStatus",
@@ -708,9 +727,9 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Go",
                 "Unknown",
             ],
-            value_lambda=lambda v: _to_title_case(v)
-            if v and v.lower() != "sna"
-            else "Unknown",
+            value_lambda=lambda v: (
+                _to_title_case(v) if v and v.lower() != "sna" else "Unknown"
+            ),
         ),
         RivianSensorEntityDescription(
             key="range_threshold",
@@ -1417,6 +1436,27 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
     ),
 }
 
+# Fields a sensor reads but the GraphQL VehicleState type does not have.
+#
+# VEHICLE_STATE_API_FIELDS below is DERIVED from every sensor's `field`, so any
+# sensor fed by Parallax rather than by the vehicle-state subscription silently
+# adds its field to the subscription query. Rivian's gateway rejects the whole
+# subscription on the first unknown field:
+#
+#   {"type":"error","payload":[{"message":
+#     "Cannot query field \"wheelsInstalled\" on type \"VehicleState\"."}]}
+#
+# and the subscription then delivers nothing at all -- no battery level, no
+# odometer, no tire pressures. Every test passed, because no test speaks to the
+# real gateway; it took a live boot to see it.
+#
+# wheelsInstalled is computed by decode_vehicle_wheels (rivian_client/parallax.py)
+# from the vehicle.wheels.vehicle_wheels RVM, so excluding it here costs nothing:
+# the sensor still reads it out of the coordinator, which Parallax populates.
+PARALLAX_ONLY_FIELDS: Final[set[str]] = {
+    "wheelsInstalled",
+}
+
 VEHICLE_STATE_API_FIELDS: Final[set[str]] = {
     *(description.field for sensor in SENSORS.values() for description in sensor),
     *(
@@ -1440,7 +1480,7 @@ VEHICLE_STATE_API_FIELDS: Final[set[str]] = {
     # Front seat vent fields (removed from binary sensors, but still needed for combined enum sensors)
     "seatFrontLeftVent",
     "seatFrontRightVent",
-}
+} - PARALLAX_ONLY_FIELDS
 
 VEHICLE_STATE_SANS_TPMS_API_FIELDS: Final[set[str]] = VEHICLE_STATE_API_FIELDS ^ {
     "tirePressureFrontLeft",
@@ -1449,15 +1489,47 @@ VEHICLE_STATE_SANS_TPMS_API_FIELDS: Final[set[str]] = VEHICLE_STATE_API_FIELDS ^
     "tirePressureRearRight",
 }
 
-CHARGING_API_FIELDS: Final[set[str]] = {
-    "currency",
-    "price",
-    "kilometersChargedPerHour",
-    "powerKW",
-    "rangeAddedThisSession",
-    "startTime",
-    "timeElapsed",
-    "timeRemaining",
-    "totalChargedEnergy",
-    "isFreeSession",
+CHARGING_STATE_KEYS: Final[frozenset[str]] = frozenset(
+    {
+        "currentCurrency",
+        "currentPrice",
+        "displayStatus",
+        "evseType",
+        "kilometersChargedPerHour",
+        "plugConnectionStatus",
+        "power",
+        "rangeAddedThisSession",
+        "startTime",
+        "timeElapsed",
+        "timeToEndOfCharge",
+        "totalChargedEnergy",
+    }
+)
+
+WEEK_DAYS_ORDERED: Final[tuple[str, ...]] = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+
+MINUTES_PER_DAY: Final[int] = 1440
+MINUTES_PER_HOUR: Final[int] = 60
+
+CHARGING_SCHEDULE_AMPERAGE_MINIMUM: Final[int] = 8
+CHARGING_SCHEDULE_AMPERAGE_MAXIMUM: Final[int] = 48
+CHARGING_SCHEDULE_AMPERAGE_STEP: Final[int] = 2
+
+DEFAULT_CHARGING_SCHEDULE_START: Final[int] = 1320  # 10:00 PM
+DEFAULT_CHARGING_SCHEDULE_DURATION: Final[int] = 480  # 8 hours
+DEFAULT_CHARGING_SCHEDULE_AMPERAGE: Final[int] = 48
+DEFAULT_CHARGING_SCHEDULE: Final[dict[str, Any]] = {
+    "startTime": DEFAULT_CHARGING_SCHEDULE_START,
+    "duration": DEFAULT_CHARGING_SCHEDULE_DURATION,
+    "amperage": DEFAULT_CHARGING_SCHEDULE_AMPERAGE,
+    "enabled": True,
+    "weekDays": list(WEEK_DAYS_ORDERED),
 }
