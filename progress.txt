@@ -57,3 +57,56 @@ byte-identical re-encode for climate_hold_setting. Fail-first validated:
   open, so 4401/4403 reconnect-loop forever. Close frames log at DEBUG (:215).
 - vendor-client is NOT pushed in either repo -> the s02 CI has NEVER run.
 - The HA repo venv is gone again; integration suite currently unrunnable locally.
+
+## 2026-08-18 — s05: upstream 1.5.3b5 merged (AWAITING HUMAN REVIEW)
+
+18 conflicted files. Gate 14/14. Tests 951 -> 987, coverage 78.73% (floor 78).
+
+### Two defects the merge introduced or exposed, NEITHER flagged by git
+1. cover.py duplicate frunk. Upstream defines frunk unconditionally under
+   COVERS[None]; our fork had moved it behind the FRUNK_NXT_ACT feature. The merge
+   kept both, so a vehicle with that feature registers TWO entities keyed "frunk"
+   (duplicate unique_id). It arrived through an AUTO-MERGED region -- no conflict
+   marker, no test failure until the entity-count assertion caught it. This is the
+   silent-gain class the plan warned about, observed for real.
+2. ws_monitor.py imported WSMessageTextBytes from aiohttp.http_websocket at runtime
+   for an annotation only. HA pins aiohttp==3.12.15, which lacks it, so `import
+   rivian` raised ImportError under HA -- upstream 2.1.0's client CANNOT LOAD IN
+   HOME ASSISTANT. Inherited from upstream unchanged. Fixed in the client repo
+   (c587a79) by moving it under TYPE_CHECKING.
+
+### strings.json — open question CLOSED with evidence, not guessed
+homeassistant/helpers/translation.py loads
+  integration.file_path / "translations" / f"{language}.json"   (:102-104)
+and has ZERO references to strings.json. Custom components never read it at
+runtime. Our deletion stands.
+
+### Gate defect found and fixed
+scripts/gates/_lib.sh test_count preferred a stale venv/ over .venv/ and reported
+"test count 0 < 301 (tests deleted to go green?)" against a tree with 987 passing
+tests. It guarded MISSING pytest but not BROKEN pytest. Now tries each candidate
+and distinguishes an environment problem from a real finding.
+NOTE: a stale venv/ (Aug 16, old client) still sits beside .venv/ in this repo.
+Gitignored and untracked, harmless now the helper is fixed, but worth deleting.
+
+### Landmine worth knowing (pre-existing, NOT introduced here, NOT fixed)
+Home Assistant's DataUpdateCoordinator defines its own _update_interval_seconds
+(update_coordinator.py:83) and overwrites it in __init__. Our coordinators declare
+a class attribute of the SAME NAME. It works only because line 67 reads the class
+attribute while building super().__init__()'s arguments, before HA's __init__ runs.
+Every later read of self._update_interval_seconds -- including _set_update_interval
+at :78 -- sees HA's value, not ours. Assert coordinator.update_interval instead.
+
+### Client pin
+manifest.json and requirements.txt pin client SHA c587a79 (not @dev). The branch is
+NOT pushed, so the pin will not resolve until a human pushes vendor-client in the
+client repo. s07 removes the pin entirely by vendoring.
+
+### HUMAN REVIEW CHECKLIST before s06a
+- git diff 1.5.3b5...HEAD over the 18 conflicted files
+- coordinator.py: 8 hand-merged hunks; confirm both the Parallax subscription
+  (upstream) and the cloud-connection subscription (ours) are wired, and that the
+  charging-schedule prefetch in _async_update_data is wanted
+- confirm the cover.py frunk decision: gated on FRUNK_NXT_ACT (ours) rather than
+  unconditional (upstream) -- vehicles WITHOUT that feature now get no frunk cover
+- confirm the ruff 0.14.2 pin is still wanted over upstream's 0.16.2
