@@ -153,3 +153,32 @@ w04  per-site defence-in-depth at the 7 log sites  -- after s06a (touches coordi
 w05  five subscribe_for_* + five ws_monitor.py paths swallow failure into None
 w07  ws_monitor.py:146 only knows "Unauthenticated"; :189 resets backoff every open
 w11  commit guard / secret scan   (.env.bak already deleted + gitignored)
+
+## 2026-08-18 — w07: reconnect storm fixed (client repo e9363d9)
+
+ws_monitor.py recognised ONE close reason, the string "Unauthenticated". The codes
+the server actually sends (all MEASURED, not read off the spec) are 4401
+Unauthorized, 4403 Forbidden, 4408 init timeout, 4420 TTL expired. None matched, so
+an auth rejection was retried as if transient -- and `attempt = 0` ran as soon as
+the socket OPENED, which it does before the server rejects, so the exponential
+backoff was reset every cycle and never applied. A 4403 arriving 0.5s later gave an
+unbounded tight reconnect loop against Rivian's API.
+
+Now: 4401/4403 stop the monitor and log at error; 4420 is routine recycling;
+backoff resets only once the connection is ACKNOWLEDGED; backoff_delay() extracted
+so the policy is testable without patching asyncio.sleep.
+
+### Two testing lessons worth keeping
+1. My first backoff test was VACUOUS -- it passed with the bug restored, because the
+   fake socket reported closed=True and so exercised the pre-existing early-backoff
+   branch rather than the new ack-gated one. Only mutation testing caught this.
+   A test that cannot fail is worse than no test: it reads as coverage.
+2. My second attempt assigned to `rivian.ws_monitor.asyncio.sleep`. That module
+   attribute IS the global asyncio module, so it patched asyncio.sleep
+   process-wide and broke asyncio.wait_for -- the test hung instead of failing.
+   Patch YOUR OWN module's symbols; never a stdlib module's attributes.
+   The test now bounds itself from the reconnect side, because without the ack gate
+   the monitor never reaches an await that yields, so wait_for can never fire and
+   the regression would surface in CI as a hang rather than a failure.
+
+Client suite 119 -> 137. HA suite 989, coverage 78.73%.
