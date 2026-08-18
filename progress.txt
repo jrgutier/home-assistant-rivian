@@ -705,3 +705,34 @@ import STATEMENTS matter for a dependency; the check now says so, plus a
 file-presence check that no *_pb2 ships.
 
 1192 tests, coverage 83.40% / 74.29%, fifteen gates green.
+
+## 2026-08-18 — s11: coverage, by testing the things that were actually untested
+
+Global 83.5%, every watched file over 80%. Reached by covering the three files
+that were genuinely unprotected, not by chasing the number:
+
+* config_flow.py 39% -> 96%. validate_vehicle_control -- which enrolls the phone
+  and generates the signing key pair behind EVERY HMAC command -- had no tests at
+  all. Now pins: 2FA missing is refused; a key pair is generated once and never
+  regenerated (regenerating invalidates the enrolment already on the vehicle); a
+  failed enrolment DESELECTS the vehicle so the options cannot claim control that
+  does not work; the phone limit is reported rather than swallowed; the api
+  session is closed on every path. Plus the login/OTP branching, including that a
+  wrong OTP re-prompts for the OTP rather than making the user retype credentials.
+* button.py 53% -> 93%. The pairing loop: a scan finding nothing must leave the
+  button pressable; a confirmed pair disables it; a pair the API cannot confirm
+  leaves it usable; and the RIGHT key failing to pair stops the loop instead of
+  scanning forever.
+* coordinator.py 79% -> 80+. The two websocket callbacks. Malformed input must not
+  raise inside a callback -- the event loop swallows it and the subscription then
+  looks healthy while delivering nothing.
+
+Integration floor ratcheted 83 -> 89.
+
+### The no-suppressions rule, now enforced rather than trusted
+s11 forbids buying coverage with skip/xfail/pragma. Four `# pragma: no cover` do
+exist -- all in the VENDORED client, copied in by s07, maintained in its own repo.
+The gate now asserts the rule against code we author, excluding rivian_client and
+tests/client, and was fail-first validated by adding a pragma to helpers.py.
+
+1224 tests, coverage 89.71% / 74.29%, sixteen gates green.

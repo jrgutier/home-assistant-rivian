@@ -20,7 +20,7 @@ import json
 import pathlib
 import sys
 
-INTEGRATION_FLOOR = 83.0
+INTEGRATION_FLOOR = 89.0
 CLIENT_FLOOR = 74.0
 
 VENDORED = "custom_components/rivian/rivian_client/"

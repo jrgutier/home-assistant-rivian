@@ -1,6 +1,6 @@
 """Tests for Rivian button platform."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -9,7 +9,12 @@ from custom_components.rivian.button import (
     RivianPairPhoneButtonEntity,
     async_setup_entry,
 )
-from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
+from custom_components.rivian.const import (
+    ATTR_COORDINATOR,
+    ATTR_USER,
+    ATTR_VEHICLE,
+    DOMAIN,
+)
 from custom_components.rivian.coordinator import (
     DriverKeyCoordinator,
     VehicleCoordinator,
@@ -453,3 +458,141 @@ class TestPairButtonWithoutBleak:
         assert "bleak" in modules(guarded), (
             "the BLEDevice annotation import went missing"
         )
+
+
+class TestPairingSequence:
+    """The pairing loop: what happens after the phone key is found.
+
+    Pairing is a prerequisite for every HMAC-signed vehicle command, and its
+    failure modes are quiet by nature -- a BLE scan that finds nothing, a pair
+    that reports success but never registers server-side. What is pinned here is
+    the CONTROL FLOW: when the loop stops, when it retries, and whether the button
+    is left usable afterwards.
+    """
+
+    def _entity(self, hass: HomeAssistant, mock_config_entry: ConfigEntry):
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.hass = hass
+        coordinator.vehicle_id = "v1"
+        coordinator.drivers_coordinator = MagicMock()
+        coordinator.drivers_coordinator.async_refresh = AsyncMock()
+        entity = RivianPairPhoneButtonEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=ButtonEntityDescription(key="pair", translation_key="pair"),
+            vehicle={
+                "id": "v1",
+                "vin": "VIN",
+                "name": "R1T",
+                "model": "R1T",
+                "phone_identity_id": "identity-1",
+            },
+        )
+        entity.hass = hass
+        entity.async_write_ha_state = MagicMock()
+        user = MagicMock()
+        user.get_enrolled_phone_data = MagicMock(
+            return_value=("phone-uuid", {"v1": "identity-1"})
+        )
+        hass.data[DOMAIN] = {
+            mock_config_entry.entry_id: {
+                ATTR_VEHICLE: {
+                    "v1": {
+                        "id": "v1",
+                        "vas_id": "11111111-2222-3333-4444-555555555555",
+                        "public_key": "PUB",
+                    }
+                },
+                ATTR_COORDINATOR: {ATTR_USER: user},
+            }
+        }
+        return entity, coordinator
+
+    async def test_no_phone_key_found_releases_the_button(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """A scan that finds nothing must leave the button pressable; otherwise the
+        user can never retry after moving the phone closer."""
+        entity, _ = self._entity(hass, mock_config_entry)
+        with patch(
+            "homeassistant.components.bluetooth.async_process_advertisements",
+            AsyncMock(side_effect=TimeoutError),
+        ):
+            await entity.async_press()
+        assert entity._pairing is False
+
+    async def test_a_successful_pair_that_the_api_confirms_disables_the_button(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        coordinator.drivers_coordinator.get_device_details = MagicMock(
+            return_value={"isPaired": True}
+        )
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.device = MagicMock()
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch(
+                "custom_components.rivian.rivian_client.ble.pair_phone",
+                AsyncMock(return_value=True),
+            ),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            await entity.async_press()
+        # Paired means there is nothing left to do, so the button goes away.
+        assert entity._available is False
+
+    async def test_a_pair_the_api_cannot_confirm_leaves_the_button_usable(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """BLE reported success but the server does not show the key. The user must
+        be able to try again rather than be stuck with a dead button."""
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        coordinator.drivers_coordinator.get_device_details = MagicMock(
+            return_value={"isPaired": False}
+        )
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.device = MagicMock()
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch(
+                "custom_components.rivian.rivian_client.ble.pair_phone",
+                AsyncMock(return_value=True),
+            ),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            await entity.async_press()
+        assert entity._pairing is False
+        assert entity._available is not False
+
+    async def test_the_right_key_failing_to_pair_stops_the_loop(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """When the advertised service UUID matches this vehicle, a failed pair is
+        final -- retrying would scan forever against the correct, unwilling key."""
+        entity, _ = self._entity(hass, mock_config_entry)
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.device = MagicMock()
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+        pair = AsyncMock(return_value=False)
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch("custom_components.rivian.rivian_client.ble.pair_phone", pair),
+        ):
+            await entity.async_press()
+        pair.assert_awaited_once()
+        assert entity._pairing is False

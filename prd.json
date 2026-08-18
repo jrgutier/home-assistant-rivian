@@ -219,9 +219,9 @@
         "s10"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Close the coverage gap to 80%",
-      "detail": "Global 80% AND coordinator.py plus each platform file at 80% independently. pytest-cov's --cov-fail-under is global-only, so per-file uses coverage json + a script. No added skip/xfail/pragma.",
+      "detail": "Global 80% AND coordinator.py plus each platform file at 80% independently. pytest-cov's --cov-fail-under is global-only, so per-file uses coverage json + a script. No added skip/xfail/pragma. DONE 2026-08-18. Global 83.5%; every watched file >= 80%. config_flow.py 39 -> 96 (validate_vehicle_control and the login/OTP flow were entirely untested), button.py 53 -> 93 (the pairing loop), coordinator.py 79 -> 80+ (the two websocket callbacks). Integration floor ratcheted 83 -> 89.",
       "gate": "scripts/gates/s11.sh"
     },
     {
