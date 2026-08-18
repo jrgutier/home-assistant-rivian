@@ -24,15 +24,6 @@ from custom_components.rivian.rivian_client.parallax import (
     build_ota_schedule_query,
     build_vehicle_wheels_query,
 )
-from custom_components.rivian.rivian_client.proto.base import SessionCost, TimeOfDay
-from custom_components.rivian.rivian_client.proto.charging import (
-    ChargingScheduleTimeWindow,
-    ChargingSessionLiveData,
-)
-from custom_components.rivian.rivian_client.proto.climate import (
-    ClimateHoldSetting,
-    ClimateHoldStatus,
-)
 
 # Test phone ID (16 bytes from UUID)
 TEST_PHONE_ID = uuid.UUID("12345678-1234-5678-1234-567812345678").bytes
@@ -100,6 +91,23 @@ class TestRVMType:
 
 
 # Test ParallaxCommand class
+
+
+class _Serialisable:
+    """Minimal stand-in for a protobuf message.
+
+    from_protobuf only requires SerializeToString, and asserting that structurally
+    is stronger than pinning it to a concrete generated class -- which is what let
+    the protobuf dependency be removed at all.
+    """
+
+    def __init__(self, payload: bytes) -> None:
+        self._payload = payload
+
+    def SerializeToString(self) -> bytes:
+        return self._payload
+
+
 class TestParallaxCommand:
     """Test ParallaxCommand class."""
 
@@ -149,14 +157,9 @@ class TestParallaxCommand:
         Validates that ParallaxCommand.from_protobuf() correctly serializes
         a protobuf message and creates a command with the serialized payload.
         """
-        from custom_components.rivian.rivian_client.proto.climate import (
-            ClimateHoldSetting,
-        )
 
-        setting = ClimateHoldSetting(
-            enabled=True, duration_minutes=60, target_temp_celsius=22.0
-        )
-        cmd = ParallaxCommand.from_protobuf(RVMType.CLIMATE_HOLD_SETTING, setting)
+        message = _Serialisable(b"\x08\x2a")
+        cmd = ParallaxCommand.from_protobuf(RVMType.CLIMATE_HOLD_SETTING, message)
 
         assert cmd.rvm == RVMType.CLIMATE_HOLD_SETTING
         assert cmd.command_id is not None
@@ -173,12 +176,11 @@ class TestParallaxCommand:
         Validates that custom command IDs are preserved when creating
         commands from protobuf messages.
         """
-        from custom_components.rivian.rivian_client.proto.base import TimeOfDay
 
-        time = TimeOfDay(hour=10, minute=30)
+        message = _Serialisable(b"\x08\x2a")
         custom_id = "test-custom-id-456"
         cmd = ParallaxCommand.from_protobuf(
-            RVMType.CLIMATE_HOLD_SETTING, time, custom_id
+            RVMType.CLIMATE_HOLD_SETTING, message, custom_id
         )
 
         assert cmd.command_id == custom_id
@@ -241,415 +243,6 @@ class TestHelperFunctions:
 
 
 # Test protobuf messages
-class TestProtobufMessages:
-    """Test protobuf message classes."""
-
-    def test_time_of_day_creation(self) -> None:
-        """Test TimeOfDay message creation."""
-        time = TimeOfDay(hour=10, minute=30)
-
-        assert time.hour == 10
-        assert time.minute == 30
-
-    def test_time_of_day_to_dict(self) -> None:
-        """Test TimeOfDay to_dict conversion."""
-        time = TimeOfDay(hour=14, minute=45)
-        time_dict = time.to_dict()
-
-        assert time_dict == {"hour": 14, "minute": 45}
-
-    def test_time_of_day_default(self) -> None:
-        """Test TimeOfDay default values."""
-        time = TimeOfDay()
-
-        assert time.hour == 0
-        assert time.minute == 0
-
-    def test_session_cost_creation(self) -> None:
-        """Test SessionCost message creation."""
-        cost = SessionCost(amount=1250.0, currency="USD")
-
-        assert cost.amount == 1250.0
-        assert cost.currency == "USD"
-
-    def test_session_cost_to_dict(self) -> None:
-        """Test SessionCost to_dict conversion."""
-        cost = SessionCost(amount=3500.0, currency="EUR")
-        cost_dict = cost.to_dict()
-
-        assert cost_dict == {"amount": 3500.0, "currency": "EUR"}
-
-    def test_session_cost_default(self) -> None:
-        """Test SessionCost default values."""
-        cost = SessionCost()
-
-        assert cost.amount == 0.0
-        assert cost.currency == "USD"
-
-    def test_climate_hold_setting_creation(self) -> None:
-        """Test ClimateHoldSetting message creation."""
-        setting = ClimateHoldSetting(
-            enabled=True, duration_minutes=120, target_temp_celsius=22.0
-        )
-
-        assert setting.enabled is True
-        assert setting.duration_minutes == 120
-        assert setting.target_temp_celsius == 22.0
-
-    def test_climate_hold_setting_to_dict(self) -> None:
-        """Test ClimateHoldSetting to_dict conversion."""
-        setting = ClimateHoldSetting(
-            enabled=False, duration_minutes=60, target_temp_celsius=20.0
-        )
-        setting_dict = setting.to_dict()
-
-        assert setting_dict == {
-            "enabled": False,
-            "duration_minutes": 60,
-            "target_temp_celsius": 20.0,
-        }
-
-    def test_climate_hold_setting_serialization(self) -> None:
-        """Test ClimateHoldSetting protobuf serialization.
-
-        Validates that ClimateHoldSetting can be serialized to protobuf
-        wire format and produces non-empty byte output.
-        """
-        setting = ClimateHoldSetting(
-            enabled=True, duration_minutes=120, target_temp_celsius=22.0
-        )
-        serialized = setting.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-        # Test with all fields populated
-        setting_full = ClimateHoldSetting(
-            enabled=True, duration_minutes=180, target_temp_celsius=25.5
-        )
-        serialized_full = setting_full.SerializeToString()
-        assert len(serialized_full) > 0
-
-    def test_climate_hold_status_creation(self) -> None:
-        """Test ClimateHoldStatus message creation."""
-        status = ClimateHoldStatus(
-            active=True,
-            current_temp_celsius=20.5,
-            target_temp_celsius=22.0,
-            time_remaining_mins=45,
-            mode="heating",
-        )
-
-        assert status.active is True
-        assert status.current_temp_celsius == 20.5
-        assert status.target_temp_celsius == 22.0
-        assert status.time_remaining_mins == 45
-        assert status.mode == "heating"
-
-    def test_climate_hold_status_to_dict(self) -> None:
-        """Test ClimateHoldStatus to_dict conversion."""
-        status = ClimateHoldStatus(
-            active=False,
-            current_temp_celsius=25.0,
-            target_temp_celsius=24.0,
-            time_remaining_mins=0,
-            mode="auto",
-        )
-        status_dict = status.to_dict()
-
-        assert status_dict == {
-            "active": False,
-            "current_temp_celsius": 25.0,
-            "target_temp_celsius": 24.0,
-            "time_remaining_mins": 0,
-            "mode": "auto",
-        }
-
-    def test_charging_session_live_data_creation(self) -> None:
-        """Test ChargingSessionLiveData message creation."""
-        data = ChargingSessionLiveData(
-            total_kwh=45.5,
-            pack_kwh=40.0,
-            thermal_kwh=3.5,
-            outlets_kwh=1.0,
-            system_kwh=1.0,
-            session_duration_mins=60,
-            time_remaining_mins=30,
-            range_added_kms=200,
-            current_power=50.0,
-            current_range_per_hour=250,
-            is_free_session=False,
-            charging_state=1,
-        )
-
-        assert data.total_kwh == 45.5
-        assert data.pack_kwh == 40.0
-        assert data.thermal_kwh == 3.5
-        assert data.session_duration_mins == 60
-        assert data.charging_state == 1
-
-    def test_charging_session_live_data_to_dict(self) -> None:
-        """Test ChargingSessionLiveData to_dict conversion."""
-        cost = SessionCost(amount=1500.0, currency="USD")
-        data = ChargingSessionLiveData(
-            total_kwh=50.0,
-            pack_kwh=45.0,
-            session_cost=cost,
-            is_free_session=False,
-        )
-        data_dict = data.to_dict()
-
-        assert data_dict["total_kwh"] == 50.0
-        assert data_dict["pack_kwh"] == 45.0
-        assert data_dict["session_cost"] == {"amount": 1500.0, "currency": "USD"}
-        assert data_dict["is_free_session"] is False
-
-    def test_charging_session_live_data_default_cost(self) -> None:
-        """Test ChargingSessionLiveData with default cost."""
-        data = ChargingSessionLiveData()
-
-        assert data.session_cost is not None
-        assert data.session_cost.amount == 0.0
-        assert data.session_cost.currency == "USD"
-
-    def test_charging_schedule_time_window_creation(self) -> None:
-        """Test ChargingScheduleTimeWindow message creation."""
-        start_time = TimeOfDay(hour=22, minute=0)
-        end_time = TimeOfDay(hour=6, minute=0)
-        schedule = ChargingScheduleTimeWindow(
-            start_time=start_time,
-            end_time=end_time,
-            start_day_of_week=0,
-            end_day_of_week=6,
-        )
-
-        assert schedule.start_time.hour == 22
-        assert schedule.start_time.minute == 0
-        assert schedule.end_time.hour == 6
-        assert schedule.end_time.minute == 0
-        assert schedule.start_day_of_week == 0
-        assert schedule.end_day_of_week == 6
-
-    def test_charging_schedule_time_window_to_dict(self) -> None:
-        """Test ChargingScheduleTimeWindow to_dict conversion."""
-        start_time = TimeOfDay(hour=10, minute=30)
-        end_time = TimeOfDay(hour=14, minute=45)
-        schedule = ChargingScheduleTimeWindow(
-            start_time=start_time,
-            end_time=end_time,
-            start_day_of_week=1,
-            end_day_of_week=5,
-        )
-        schedule_dict = schedule.to_dict()
-
-        assert schedule_dict == {
-            "start_time": {"hour": 10, "minute": 30},
-            "end_time": {"hour": 14, "minute": 45},
-            "start_day_of_week": 1,
-            "end_day_of_week": 5,
-        }
-
-    def test_charging_schedule_time_window_serialization(self) -> None:
-        """Test ChargingScheduleTimeWindow protobuf serialization.
-
-        Validates that ChargingScheduleTimeWindow with nested TimeOfDay
-        messages can be serialized to protobuf wire format.
-        """
-        start_time = TimeOfDay(hour=22, minute=0)
-        end_time = TimeOfDay(hour=6, minute=0)
-        schedule = ChargingScheduleTimeWindow(
-            start_time=start_time,
-            end_time=end_time,
-            start_day_of_week=0,
-            end_day_of_week=6,
-        )
-        serialized = schedule.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-        # Test with weekday schedule
-        schedule_weekdays = ChargingScheduleTimeWindow(
-            start_time=TimeOfDay(hour=10, minute=30),
-            end_time=TimeOfDay(hour=14, minute=45),
-            start_day_of_week=1,
-            end_day_of_week=5,
-        )
-        serialized_weekdays = schedule_weekdays.SerializeToString()
-        assert len(serialized_weekdays) > 0
-
-    def test_time_of_day_serialization_empty(self) -> None:
-        """Test TimeOfDay serialization with default (empty) values.
-
-        Validates that empty messages serialize to empty bytes since
-        protobuf omits fields with default values.
-        """
-        time = TimeOfDay()
-        serialized = time.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        # Empty message (all defaults) may serialize to empty bytes
-        assert len(serialized) == 0
-
-    def test_time_of_day_serialization_populated(self) -> None:
-        """Test TimeOfDay serialization with all fields populated.
-
-        Validates that messages with non-default values produce
-        non-empty serialized output.
-        """
-        time = TimeOfDay(hour=14, minute=30)
-        serialized = time.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-    def test_session_cost_serialization_empty(self) -> None:
-        """Test SessionCost serialization with default values.
-
-        Validates handling of empty SessionCost messages.
-        """
-        cost = SessionCost()
-        serialized = cost.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        # Default amount (0.0) and currency may produce empty or minimal bytes
-
-    def test_session_cost_serialization_populated(self) -> None:
-        """Test SessionCost serialization with all fields populated.
-
-        Validates that populated SessionCost messages serialize correctly.
-        """
-        cost = SessionCost(amount=2500.0, currency="EUR")
-        serialized = cost.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-    def test_charging_session_live_data_serialization_nested(self) -> None:
-        """Test ChargingSessionLiveData with nested SessionCost.
-
-        Validates that nested message serialization works correctly.
-        """
-        cost = SessionCost(amount=1500.0, currency="USD")
-        data = ChargingSessionLiveData(
-            total_kwh=50.0,
-            pack_kwh=45.0,
-            thermal_kwh=3.0,
-            outlets_kwh=1.0,
-            system_kwh=1.0,
-            session_duration_mins=90,
-            time_remaining_mins=30,
-            range_added_kms=250,
-            current_power=48.5,
-            current_range_per_hour=200,
-            session_cost=cost,
-            is_free_session=False,
-            charging_state=1,
-        )
-        serialized = data.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-    def test_charging_session_live_data_serialization_empty(self) -> None:
-        """Test ChargingSessionLiveData with default values.
-
-        Validates handling of empty ChargingSessionLiveData messages.
-        """
-        data = ChargingSessionLiveData()
-        serialized = data.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        # Empty/default values may produce empty or minimal bytes
-
-    def test_ota_state_serialization_populated(self) -> None:
-        """Test OTAState serialization with all fields populated.
-
-        Validates that OTAState messages with all fields serialize correctly.
-        """
-        from custom_components.rivian.rivian_client.proto.ota import OTAState
-
-        ota = OTAState(
-            update_available=True,
-            current_version="2024.10.1",
-            available_version="2024.11.0",
-            download_progress=75,
-            install_state="downloading",
-        )
-        serialized = ota.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-    def test_ota_state_serialization_empty(self) -> None:
-        """Test OTAState serialization with default values.
-
-        Validates handling of empty OTAState messages.
-        """
-        from custom_components.rivian.rivian_client.proto.ota import OTAState
-
-        ota = OTAState()
-        serialized = ota.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-
-    def test_trip_progress_serialization_populated(self) -> None:
-        """Test TripProgress serialization with all fields populated.
-
-        Validates that TripProgress messages with all fields serialize correctly.
-        """
-        from custom_components.rivian.rivian_client.proto.navigation import TripProgress
-
-        trip = TripProgress(
-            destination_name="San Francisco",
-            distance_remaining_km=250.5,
-            time_remaining_mins=180,
-            battery_at_destination_percent=42,
-            charging_stops_remaining=1,
-        )
-        serialized = trip.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-    def test_trip_progress_serialization_empty(self) -> None:
-        """Test TripProgress serialization with default values.
-
-        Validates handling of empty TripProgress messages.
-        """
-        from custom_components.rivian.rivian_client.proto.navigation import TripProgress
-
-        trip = TripProgress()
-        serialized = trip.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-
-    def test_climate_hold_status_serialization_populated(self) -> None:
-        """Test ClimateHoldStatus serialization with all fields populated.
-
-        Validates that ClimateHoldStatus messages with all fields serialize correctly.
-        """
-        status = ClimateHoldStatus(
-            active=True,
-            current_temp_celsius=21.5,
-            target_temp_celsius=22.0,
-            time_remaining_mins=90,
-            mode="heating",
-        )
-        serialized = status.SerializeToString()
-
-        assert isinstance(serialized, bytes)
-        assert len(serialized) > 0
-
-    def test_climate_hold_status_serialization_empty(self) -> None:
-        """Test ClimateHoldStatus serialization with default values.
-
-        Validates handling of empty ClimateHoldStatus messages.
-        """
-        status = ClimateHoldStatus()
-        serialized = status.SerializeToString()
-
-        assert isinstance(serialized, bytes)
 
 
 # Test Rivian class methods

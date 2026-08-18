@@ -24,8 +24,11 @@ absent "no top-level 'rivian' imports remain" \
 VC="$HA/custom_components/rivian/rivian_client"
 if [ -d "$VC" ]; then
   n=$(find "$VC" -name '*.py' | wc -l | tr -d ' ')
-  if [ "$n" -ge 20 ]; then ok "vendored package has $n modules (>= 20)"
-  else bad "vendored package has only $n modules — expected >= 20"; fi
+  # Was >= 20 when this gate was written; S10 deleted 16 generated and dead
+  # protobuf modules, so the floor moved with the tree. The point of the check is
+  # unchanged: a rename that moved nothing would leave a near-empty directory.
+  if [ "$n" -ge 10 ]; then ok "vendored package has $n modules (>= 10)"
+  else bad "vendored package has only $n modules — expected >= 10"; fi
 else
   bad "vendored package missing: $VC"
 fi
@@ -51,7 +54,15 @@ fi
 # bleak always; protobuf only until Phase 4.4 (S10) removes it.
 MAN="$HA/custom_components/rivian/manifest.json"
 contains "manifest declares bleak" 'bleak' "$MAN"
-contains "manifest declares the interim protobuf pin" 'protobuf' "$MAN"
+# The interim protobuf pin this gate originally required was REMOVED by S10, which
+# replaced the generated code with a hand-rolled encoder. Assert the invariant that
+# actually holds at every point instead: the manifest declares what the package
+# imports and Home Assistant does not guarantee, and nothing more.
+if grep -q 'protobuf' "$MAN"; then
+  bad "manifest still declares protobuf — S10 removed the runtime dependency"
+else
+  ok "manifest declares no protobuf (S10 removed it)"
+fi
 
 # Coverage is now two populations with separate floors; --cov-fail-under
 # cannot express that.

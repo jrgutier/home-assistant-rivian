@@ -24,6 +24,7 @@ from custom_components.rivian.rivian_client.parallax import (
     decode_parallax_message,
     decode_vehicle_wheels,
 )
+from custom_components.rivian.rivian_client.proto.vehicle_operation import Timestamp
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "parallax"
 
@@ -41,20 +42,6 @@ class TestClimateHoldSetting:
                 "climateHoldDurationSeconds"
             ]
             == 300
-        )
-
-    def test_matches_the_generated_protobuf(self) -> None:
-        from custom_components.rivian.rivian_client.proto.rivian_climate_pb2 import (
-            ClimateHoldSetting,
-        )
-
-        msg = ClimateHoldSetting()
-        msg.ParseFromString((FIXTURES / "climate_hold_setting.bin").read_bytes())
-        assert (
-            decode_climate_hold_setting(_payload("climate_hold_setting"))[
-                "climateHoldDurationSeconds"
-            ]
-            == msg.hold_time_duration_seconds
         )
 
     def test_an_empty_payload_means_no_hold_not_no_data(self) -> None:
@@ -78,37 +65,21 @@ class TestClimateHoldStatus:
         # An empty hold_end_time submessage must not invent a timestamp.
         assert "climateHoldEndTime" not in out
 
-    def test_matches_the_generated_protobuf(self) -> None:
-        from custom_components.rivian.rivian_client.proto.rivian_climate_pb2 import (
-            ClimateHoldStatus,
-        )
-
-        msg = ClimateHoldStatus()
-        msg.ParseFromString((FIXTURES / "climate_hold_status.bin").read_bytes())
-        out = decode_climate_hold_status(_payload("climate_hold_status"))
-        assert (
-            out["climateHoldStatus"]
-            == ClimateHoldStatus.Status.Name(msg.status).removeprefix("STATUS_").lower()
-        )
-        assert (
-            out["climateHoldAvailability"]
-            == ClimateHoldStatus.Availability.Name(msg.availability)
-            .removeprefix("AVAILABILITY_")
-            .lower()
-        )
-
     def test_an_active_hold_exposes_its_end_time(self) -> None:
-        # Built with the generated class rather than hand-rolled bytes, so the
-        # timestamp submessage is encoded by the reference implementation.
-        from custom_components.rivian.rivian_client.proto.rivian_climate_pb2 import (
-            ClimateHoldStatus,
+        # Stimulus built by hand: a decoder test must not depend on an encoder to
+        # prove it decodes. status=ON(3), availability=AVAILABLE(1), and a
+        # hold_end_time submessage carrying seconds=1800000000.
+        from custom_components.rivian.rivian_client.proto.vehicle_operation import (
+            _encode_length_delimited,
         )
 
-        msg = ClimateHoldStatus(status=3, availability=1)
-        msg.hold_end_time.seconds = 1800000000
-        out = decode_climate_hold_status(
-            base64.b64encode(msg.SerializeToString()).decode()
+        timestamp = Timestamp(seconds=1800000000).SerializeToString()
+        raw = (
+            bytes([0x08, 0x03])
+            + bytes([0x10, 0x01])
+            + _encode_length_delimited(4, timestamp)
         )
+        out = decode_climate_hold_status(base64.b64encode(raw).decode())
         assert out["climateHoldStatus"] == "on"
         assert out["climateHoldEndTime"] == 1800000000
 
@@ -121,21 +92,6 @@ class TestVehicleWheels:
         assert out["wheels"][0]["isInstalled"] is True
         assert out["wheels"][1]["isInstalled"] is False
         assert out["wheelsInstalled"] == 1
-
-    def test_matches_the_generated_protobuf(self) -> None:
-        from custom_components.rivian.rivian_client.proto.rivian_vehicle_pb2 import (
-            VehicleWheels,
-        )
-
-        msg = VehicleWheels()
-        msg.ParseFromString((FIXTURES / "vehicle_wheels.bin").read_bytes())
-        out = decode_vehicle_wheels(_payload("vehicle_wheels"))
-        assert len(out["wheels"]) == len(msg.wheels_list)
-        for decoded, ref in zip(out["wheels"], msg.wheels_list, strict=True):
-            assert decoded["wheelPackage"] == ref.wheel_package
-            assert decoded["tireOdometerMeters"] == ref.tire_odometer_mileage_meters
-            assert decoded["isInstalled"] == ref.is_installed
-            assert decoded["tires"] == ref.tires
 
 
 class TestRegistration:

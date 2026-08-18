@@ -1,9 +1,9 @@
 """Vehicle operation Protocol Buffer messages for sendVehicleOperation mutation."""
 
+from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
-
-from google.protobuf import message as _message, timestamp_pb2
 
 
 def _encode_varint(value: int) -> bytes:
@@ -72,7 +72,43 @@ def _encode_varint_field(field_number: int, value: int) -> bytes:
     return tag + _encode_varint(value)
 
 
-class PhoneInfo(_message.Message):
+class Timestamp:
+    """google.protobuf.Timestamp, hand-rolled.
+
+    Two varint fields, seconds and nanos, and neither is emitted when zero --
+    proto3 omits defaults. Replaces timestamp_pb2 so the package carries no
+    protobuf runtime; verified byte-for-byte against the generated class.
+    """
+
+    def __init__(self, seconds: int = 0, nanos: int = 0) -> None:
+        """Initialize a Timestamp."""
+        self.seconds = seconds
+        self.nanos = nanos
+
+    @classmethod
+    def from_datetime(cls, moment: datetime) -> Timestamp:
+        """Build from an aware datetime."""
+        epoch = moment.timestamp()
+        seconds = int(epoch)
+        return cls(seconds=seconds, nanos=int((epoch - seconds) * 1_000_000_000))
+
+    def ToDatetime(self) -> datetime:
+        """Return the moment as an aware UTC datetime."""
+        return datetime.fromtimestamp(
+            self.seconds + self.nanos / 1_000_000_000, tz=timezone.utc
+        )
+
+    def SerializeToString(self) -> bytes:
+        """Serialize to protobuf wire format."""
+        output = bytearray()
+        if self.seconds:
+            output.extend(_encode_varint_field(1, self.seconds))
+        if self.nanos:
+            output.extend(_encode_varint_field(2, self.nanos))
+        return bytes(output)
+
+
+class PhoneInfo:
     """Phone information for vehicle operation request.
 
     Attributes:
@@ -82,7 +118,6 @@ class PhoneInfo(_message.Message):
 
     def __init__(self, version: int = 1, phone_id: bytes = b""):
         """Initialize PhoneInfo message."""
-        super().__init__()
         self.version = version
         self.phone_id = phone_id
 
@@ -103,7 +138,7 @@ class PhoneInfo(_message.Message):
         return bytes(output)
 
 
-class Metadata(_message.Message):
+class Metadata:
     """Request metadata for vehicle operation.
 
     Attributes:
@@ -113,7 +148,6 @@ class Metadata(_message.Message):
 
     def __init__(self, phone_info: PhoneInfo | None = None, request_id: str = ""):
         """Initialize Metadata message."""
-        super().__init__()
         self.phone_info = phone_info or PhoneInfo()
         self.request_id = request_id
 
@@ -135,7 +169,7 @@ class Metadata(_message.Message):
         return bytes(output)
 
 
-class Operation(_message.Message):
+class Operation:
     """Operation details for vehicle operation request.
 
     Attributes:
@@ -152,17 +186,15 @@ class Operation(_message.Message):
         operation_type: int = 1,
         operation_id: bytes | None = None,
         payload: bytes = b"",
-        timestamp: timestamp_pb2.Timestamp | None = None,
+        timestamp: Timestamp | None = None,
     ):
         """Initialize Operation message."""
-        super().__init__()
         self.rvm_type = rvm_type
         self.operation_type = operation_type
         self.operation_id = operation_id or uuid.uuid4().bytes
         self.payload = payload
         if timestamp is None:
-            timestamp = timestamp_pb2.Timestamp()
-            timestamp.FromDatetime(datetime.now(timezone.utc))
+            timestamp = Timestamp.from_datetime(datetime.now(timezone.utc))
         self.timestamp = timestamp
 
     def to_dict(self) -> dict:
@@ -192,7 +224,7 @@ class Operation(_message.Message):
         return bytes(output)
 
 
-class VehicleOperationRequest(_message.Message):
+class VehicleOperationRequest:
     """Vehicle operation request wrapper for sendVehicleOperation mutation.
 
     Attributes:
@@ -206,7 +238,6 @@ class VehicleOperationRequest(_message.Message):
         operation: Operation | None = None,
     ):
         """Initialize VehicleOperationRequest message."""
-        super().__init__()
         self.metadata = metadata or Metadata()
         self.operation = operation or Operation()
 

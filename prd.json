@@ -207,9 +207,9 @@
         "s09b"
       ],
       "mode": "auto",
-      "passes": false,
+      "passes": true,
       "title": "Remove protobuf",
-      "detail": "Ten top-level google.protobuf sites: parallax.py:13, proto/vehicle_operation.py:6-7, proto/ota.py:5, and proto/{base,charging,climate,energy,navigation,security,vehicle}.py:6. They subclass _message.Message at RUNTIME so TYPE_CHECKING does not help, and proto/__init__.py imports eight of them so fixing a subset still ImportErrors on every send_vehicle_operation. DELETE proto/climate.py \u2014 the shipped write imports rivian_climate_pb2.ClimateHoldSetting; proto/climate.py holds a dead incompatible definition. Keep and rewrite proto/vehicle_operation.py. Capture golden bytes from _pb2 BEFORE deleting. Then drop protobuf from manifest requirements.",
+      "detail": "Ten top-level google.protobuf sites: parallax.py:13, proto/vehicle_operation.py:6-7, proto/ota.py:5, and proto/{base,charging,climate,energy,navigation,security,vehicle}.py:6. They subclass _message.Message at RUNTIME so TYPE_CHECKING does not help, and proto/__init__.py imports eight of them so fixing a subset still ImportErrors on every send_vehicle_operation. DELETE proto/climate.py \u2014 the shipped write imports rivian_climate_pb2.ClimateHoldSetting; proto/climate.py holds a dead incompatible definition. Keep and rewrite proto/vehicle_operation.py. Capture golden bytes from _pb2 BEFORE deleting. Then drop protobuf from manifest requirements. DONE 2026-08-18. Golden bytes captured from the generated classes BEFORE deleting them (14-value grid incl. the 127/128 varint boundary); the hand-rolled encoder matches all of them and the live-captured 08ac02. google.protobuf.Timestamp replaced by ~20 lines, pinned against four captured encodings. Verified importing with protobuf absent entirely.",
       "gate": "scripts/gates/s10.sh"
     },
     {

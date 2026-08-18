@@ -667,9 +667,7 @@ class Rivian:
         except Exception as ex:
             # Returning None here made a dead subscription indistinguishable
             # from a healthy one at every call site.
-            raise RivianApiException(
-                "Failed to establish subscription"
-            ) from ex
+            raise RivianApiException("Failed to establish subscription") from ex
 
     async def subscribe_for_parallax_messages(
         self,
@@ -705,9 +703,7 @@ class Rivian:
         except Exception as ex:
             # Returning None here made a dead subscription indistinguishable
             # from a healthy one at every call site.
-            raise RivianApiException(
-                "Failed to establish subscription"
-            ) from ex
+            raise RivianApiException("Failed to establish subscription") from ex
 
     async def _ws_connect(self) -> ClientWebSocketResponse[bool]:
         """Initiate a websocket connection."""
@@ -839,15 +835,14 @@ class Rivian:
             RivianUnauthenticated: If authentication is invalid
 
         Example:
-            >>> from rivian.proto.rivian_climate_pb2 import ClimateHoldSetting
-            >>> # Get phone_id from enrollment
+            >>> from rivian.parallax import encode_climate_hold_setting
+            >>> # Get phone_id from enrollment -- 16 RAW BYTES, not the string
             >>> user_info = await client.get_user_information(include_phones=True)
             >>> phone_id_str = user_info["enrolledPhones"][0]["vas"]["vasPhoneId"]
             >>> import uuid
             >>> phone_id = uuid.UUID(phone_id_str).bytes
-            >>> # Build payload
-            >>> setting = ClimateHoldSetting(hold_time_duration_seconds=7200)  # 2 hours
-            >>> payload = setting.SerializeToString()
+            >>> # Build payload (2 hours -> 08a038)
+            >>> payload = encode_climate_hold_setting(7200)
             >>> # Send operation
             >>> result = await client.send_vehicle_operation(
             ...     vehicle_id="01-276948064",
@@ -1029,9 +1024,7 @@ class Rivian:
         except Exception as ex:
             # Returning None here made a dead subscription indistinguishable
             # from a healthy one at every call site.
-            raise RivianApiException(
-                "Failed to establish subscription"
-            ) from ex
+            raise RivianApiException("Failed to establish subscription") from ex
 
     async def subscribe_for_cloud_connection(
         self,
@@ -1070,9 +1063,7 @@ class Rivian:
         except Exception as ex:
             # Returning None here made a dead subscription indistinguishable
             # from a healthy one at every call site.
-            raise RivianApiException(
-                "Failed to establish subscription"
-            ) from ex
+            raise RivianApiException("Failed to establish subscription") from ex
 
     async def subscribe_for_command_state(
         self,
@@ -1109,9 +1100,7 @@ class Rivian:
         except Exception as ex:
             # Returning None here made a dead subscription indistinguishable
             # from a healthy one at every call site.
-            raise RivianApiException(
-                "Failed to establish subscription"
-            ) from ex
+            raise RivianApiException("Failed to establish subscription") from ex
 
     async def send_location_to_vehicle(
         self,

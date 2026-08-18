@@ -20,8 +20,16 @@ if [ ! -d "$VC" ]; then
   exit 1
 fi
 
-# Negative: no protobuf imports survive anywhere in the vendored package.
-absent "no google.protobuf imports remain" 'google\.protobuf' "$VC"
+# Only IMPORT STATEMENTS matter for a dependency. Prose that explains what was
+# replaced must not fail the gate (fifth self-triggering-comment defect here), and
+# the .proto files legitimately keep `import "google/protobuf/timestamp.proto"` --
+# they remain the documented wire format and are not shipped code.
+if grep -rnE --include='*.py' '^[[:space:]]*(from|import)[[:space:]]+google\.protobuf' "$VC" | grep -q .; then
+  bad "a google.protobuf import statement remains"
+  grep -rnE --include='*.py' '^[[:space:]]*(from|import)[[:space:]]+google\.protobuf' "$VC" | sed 's/^/      /'
+else
+  ok "no google.protobuf import statements remain"
+fi
 
 # proto/climate.py must be DELETED. It holds ClimateHoldSetting(enabled,
 # duration_minutes, target_temp_celsius) — a dead, incompatible definition. The
@@ -39,20 +47,43 @@ fi
 have_path "proto/vehicle_operation.py kept (live envelope)" "$VC/proto/vehicle_operation.py"
 
 # Generated modules gone.
-if { grep -rl -- '_pb2' "$VC" 2>/dev/null || true; } | grep -q .; then
-  bad "generated *_pb2 modules still referenced"
+# Same rule: an import of a generated module, not a mention of one.
+if grep -rnE --include='*.py' '^[[:space:]]*(from|import)[[:space:]]+\S*_pb2' "$VC" | grep -q .; then
+  bad "a generated *_pb2 module is still imported"
 else
-  ok "no *_pb2 references"
+  ok "no *_pb2 imports"
+fi
+# ...and none of the generated files themselves may ship.
+if find "$VC" -name '*_pb2.py' -o -name '*_pb2.pyi' | grep -q .; then
+  bad "generated *_pb2 files still present in the package"
+else
+  ok "no generated *_pb2 files ship"
 fi
 
 # The real gate: the package imports with protobuf absent. A grep proves nothing
 # about a transitive import chain — proto/__init__.py pulls in eight submodules.
-if (cd "$HA" && python3 -c "import custom_components.rivian" >/dev/null 2>&1); then
+# The system python has neither Home Assistant nor aiohttp; use the project venv.
+PY="$(resolve_pytest "$HA")"; PY="${PY%/pytest}/python"
+if (cd "$HA" && "$PY" -c "import custom_components.rivian" >/dev/null 2>&1); then
   ok "custom_components.rivian imports"
 else
   bad "custom_components.rivian does not import"
 fi
-note "run this in a venv with protobuf absent — that is the assertion that counts"
+
+# The assertion that actually counts: it must import with protobuf ABSENT. A grep
+# proves nothing about a transitive chain, and the dev venv still has protobuf
+# installed for the .proto regeneration.
+if (cd "$HA" && "$PY" -c "
+import importlib.util, sys
+if importlib.util.find_spec('google') is not None:
+    sys.exit(3)
+" >/dev/null 2>&1); then
+  ok "protobuf genuinely absent from the test environment"
+else
+  note "protobuf still installed here (dev tooling); relying on requirements_test.txt"
+fi
+try "requirements_test.txt does not install protobuf" \
+  bash -c "! grep -q '^protobuf' '$HA/requirements_test.txt'"
 
 # Interim protobuf pin removed from the manifest (added in S7, dropped here).
 MAN="$HA/custom_components/rivian/manifest.json"

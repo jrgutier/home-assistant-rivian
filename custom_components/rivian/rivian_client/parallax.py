@@ -29,14 +29,14 @@ import sys
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Protocol
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
     from backports.strenum import StrEnum
 
-from google.protobuf import message as _message
+from .proto.vehicle_operation import _encode_varint_field
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -796,6 +796,28 @@ CHARGING_RVMS: list[str] = [
 ]
 
 
+def encode_climate_hold_setting(hold_time_duration_seconds: int) -> bytes:
+    """Encode a ClimateHoldSetting payload without the protobuf runtime.
+
+    This is the ONLY message the integration ever encodes: one int32 field, so
+    carrying protobuf for it was never proportionate. The wire format is a single
+    varint field, verified byte-for-byte against the generated class across a
+    parameter grid (tests/fixtures/golden/climate_hold_setting.json) and twice
+    against reality -- 08ac02 came back from a real vehicle after a five-minute
+    hold, and 08a038 (7200s) is recorded in SENDVEHICLEOPERATION_TEST_RESULTS.md.
+
+    Zero encodes to NOTHING: proto3 omits a field at its default, and the vehicle
+    reports an unconfigured hold as an empty payload.
+    """
+    if hold_time_duration_seconds < 0:
+        raise ValueError(
+            f"hold duration must not be negative: {hold_time_duration_seconds}"
+        )
+    if hold_time_duration_seconds == 0:
+        return b""
+    return _encode_varint_field(1, hold_time_duration_seconds)
+
+
 def decode_parallax_message(
     rvm: str, payload: str, **kwargs: Any
 ) -> dict[str, Any] | None:
@@ -814,6 +836,16 @@ def decode_parallax_message(
 # ======================================================================
 # WRITE PATH -- outbound Parallax operations (this fork; not in upstream)
 # ======================================================================
+
+
+class SupportsSerializeToString(Protocol):
+    """Anything that can serialise itself to protobuf wire bytes.
+
+    Structural, so from_protobuf keeps working for the generated classes during
+    development without the package depending on the protobuf runtime at all.
+    """
+
+    def SerializeToString(self) -> bytes: ...
 
 
 class RVMType(StrEnum):
@@ -864,7 +896,10 @@ class ParallaxCommand:
 
     @classmethod
     def from_protobuf(
-        cls, rvm: RVMType, message: _message.Message, command_id: str | None = None
+        cls,
+        rvm: RVMType,
+        message: SupportsSerializeToString,
+        command_id: str | None = None,
     ) -> ParallaxCommand:
         """Create ParallaxCommand from a protobuf message.
 
@@ -916,12 +951,11 @@ def build_climate_hold_command(duration_minutes: int = 120) -> ParallaxCommand:
         >>> cmd = build_climate_hold_command(120)  # 2 hours
         >>> result = await client.send_parallax_command("VIN123", cmd)
     """
-    from .proto.rivian_climate_pb2 import ClimateHoldSetting
+    # Hand-rolled: one varint field, verified byte-for-byte against the generated
+    # class before it was deleted (tests/fixtures/golden/climate_hold_setting.json).
+    payload = encode_climate_hold_setting(duration_minutes * 60)
 
-    # Convert minutes to seconds as per APK definition
-    setting = ClimateHoldSetting(hold_time_duration_seconds=duration_minutes * 60)
-
-    return ParallaxCommand.from_protobuf(RVMType.CLIMATE_HOLD_SETTING, setting)
+    return ParallaxCommand(RVMType.CLIMATE_HOLD_SETTING, payload)
 
 
 def build_vehicle_wheels_query() -> ParallaxCommand:

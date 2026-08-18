@@ -1,50 +1,31 @@
-"""Protocol Buffer message definitions for Parallax protocol.
+"""Wire-format message types for the Parallax protocol.
 
-This package contains protobuf message classes for Rivian's Parallax protocol,
-which is a cloud-based GraphQL/HTTP protocol for vehicle commands and data retrieval.
+Everything here is hand-rolled. The package carries no protobuf runtime: the
+integration encodes exactly ONE message (ClimateHoldSetting, a single int32) and
+one envelope, which did not justify a dependency Home Assistant pins separately
+and whose generated code refuses to load when its gencode is newer than the
+runtime -- a failure that took the whole integration down during vendoring.
+
+The .proto files in this directory REMAIN as the source of truth for the wire
+formats, reverse-engineered from com.rivian.android.consumer. They are
+documentation and a regeneration input, not shipped code. scripts/regen_proto.sh
+regenerates the classes into a temporary directory and re-asserts the golden bytes
+in tests/fixtures/golden/, so the .proto files cannot drift from what is actually
+encoded.
 """
 
-from .base import SessionCost, TimeOfDay
-from .charging import (
-    ChargingScheduleTimeWindow,
-    ChargingSessionChartData,
-    ChargingSessionLiveData,
+from .vehicle_operation import (
+    Metadata,
+    Operation,
+    PhoneInfo,
+    Timestamp,
+    VehicleOperationRequest,
 )
-from .climate import CabinVentilationSetting, ClimateHoldSetting, ClimateHoldStatus
-from .energy import ParkedEnergyMonitor
-from .navigation import TripInfo, TripProgress, Waypoint
-from .ota import OTAState
-from .security import (
-    GearGuardConsents,
-    GearGuardDailyLimits,
-    GeoFence,
-    PassiveEntrySetting,
-    PassiveEntryStatus,
-    VehicleGeoFences,
-)
-from .vehicle import HalloweenSettings, VehicleWheels, WheelInfo
 
 __all__ = [
-    "CabinVentilationSetting",
-    "ChargingScheduleTimeWindow",
-    "ChargingSessionChartData",
-    "ChargingSessionLiveData",
-    "ClimateHoldSetting",
-    "ClimateHoldStatus",
-    "GearGuardConsents",
-    "GearGuardDailyLimits",
-    "GeoFence",
-    "HalloweenSettings",
-    "OTAState",
-    "ParkedEnergyMonitor",
-    "PassiveEntrySetting",
-    "PassiveEntryStatus",
-    "SessionCost",
-    "TimeOfDay",
-    "TripInfo",
-    "TripProgress",
-    "VehicleGeoFences",
-    "VehicleWheels",
-    "Waypoint",
-    "WheelInfo",
+    "Metadata",
+    "Operation",
+    "PhoneInfo",
+    "Timestamp",
+    "VehicleOperationRequest",
 ]

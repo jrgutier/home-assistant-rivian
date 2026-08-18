@@ -653,3 +653,55 @@ defect as s06c, so two of its three original assertions failed for the wrong
 reason.
 
 1200 tests, coverage 83.40% / 60.04%, fifteen gates green.
+
+## 2026-08-18 — s10: protobuf is gone
+
+The package encoded exactly ONE message -- ClimateHoldSetting, a single int32 --
+plus an envelope whose SerializeToString was already hand-rolled. Carrying a
+runtime dependency for that was never proportionate, and it was actively harmful:
+generated code refuses to load when its gencode is newer than the runtime, which
+took the whole integration down during s07 when a dev env resolved 6.33 against
+HA's pinned 6.32.
+
+Deleted: 8 generated *_pb2 modules + stubs, 7 hand-written proto/*.py message
+modules. proto/climate.py went with them -- it held a ClimateHoldSetting(enabled,
+duration_minutes, target_temp_celsius) incompatible with the real message and with
+the write we ship. proto/vehicle_operation.py SURVIVES, cut free of protobuf.
+
+### Golden bytes first, because there is no round trip
+There is no write-side decoder, so decode(encode(x)) == x is unavailable and the
+golden bytes ARE the entire safety net. Captured from the generated classes BEFORE
+deleting them, across a 14-value grid including the 127/128 varint boundary.
+Corroborated twice against reality: 08ac02 is what the vehicle returned after a
+five-minute hold, and 08a038 (7200s) is in SENDVEHICLEOPERATION_TEST_RESULTS.md.
+google.protobuf.Timestamp is replaced by ~20 lines, pinned against four captured
+encodings -- including the epoch, which encodes to NOTHING because proto3 omits
+defaults, and sub-second nanos.
+
+### regen_proto.sh changed model rather than being deleted
+The .proto files REMAIN the documented wire format. The script no longer writes
+into the package; it regenerates into a temp dir and re-asserts the golden bytes,
+so the .proto files cannot quietly drift from what is actually encoded.
+
+### Coverage rose by deletion
+Client coverage 59.88% -> 74.29%, because untested generated and dead code left
+the denominator -- exactly what the plan's pre-mortem S3 predicted would happen at
+this phase. Floor ratcheted 59 -> 74.
+
+### Three gates encoded a moment in time and had to move with the tree
+* s07 required >= 20 vendored modules; s10 deleted 16, so the floor is now 10. The
+  point is unchanged -- a rename that moved nothing leaves a near-empty directory.
+* s07 required the manifest to declare the INTERIM protobuf pin, which s10 removes.
+  It now asserts the invariant that holds at every point: the manifest declares
+  what the package imports and HA does not guarantee, and nothing more.
+* s08a's fixture checker parsed with the generated classes. It now uses the
+  hand-rolled decoders -- a stronger reference, because they are what ships.
+  Fail-first re-validated: empty fixtures still fail 4 of 5.
+
+### Fifth self-triggering-comment gate defect
+s10's own "no google.protobuf" check matched PROSE explaining what was replaced,
+and the .proto files' legitimate `import "google/protobuf/timestamp.proto"`. Only
+import STATEMENTS matter for a dependency; the check now says so, plus a
+file-presence check that no *_pb2 ships.
+
+1192 tests, coverage 83.40% / 74.29%, fifteen gates green.
