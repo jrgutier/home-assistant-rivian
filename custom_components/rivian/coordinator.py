@@ -1128,20 +1128,21 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # Update watchdog timestamp
         self._last_update_time = datetime.now(timezone.utc)
 
-    def _note_dropped(self, key: str, value: Any) -> None:
-        """Say once, per field, that the vehicle is not reporting it.
+    def _note_unusable(self, key: str, value: Any) -> None:
+        """Record once, per field, that the vehicle reported it as unusable.
 
-        Dropping the field is what makes the entity unavailable rather than
-        showing a fabricated value, so the reason has to be discoverable. Logged
-        once per key per coordinator: these arrive on every update and would
-        otherwise be several lines a minute.
+        Purely diagnostic: the value is still published, because suppressing it
+        makes the entity unavailable and that proved far more disruptive than a
+        stale reading. Debug rather than warning, and once per key per coordinator
+        -- these arrive on every update and are normal for hardware a given trim
+        does not have (an R1T has no liftgate, so closureLiftgateClosed is
+        permanently signal_not_available).
         """
         if key in self._dropped_reported:
             return
         self._dropped_reported.add(key)
-        _LOGGER.warning(
-            "Vehicle %s reports %s as %r, which is not a usable value; the entity "
-            "will be unavailable rather than show a fabricated state",
+        _LOGGER.debug(
+            "Vehicle %s reports %s as %r, which is not a usable value",
             self.vehicle_id,
             key,
             value,
@@ -1210,15 +1211,12 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # Observed live as a literal 'SNA' on both rear seat heating sensors at
             # every fresh start. gnssLocation is exempt here for the same reason it
             # is exempt below.
-            kept = {}
             for key, item in items.items():
                 if key != "gnssLocation" and (
                     str(item.get("value")).lower() in INVALID_SENSOR_STATES
                 ):
-                    self._note_dropped(key, item.get("value"))
-                    continue
-                kept[key] = item
-            return kept
+                    self._note_unusable(key, item.get("value"))
+            return items
         if not items or prev_items == items:
             return prev_items
 
@@ -1229,16 +1227,18 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 if key in prev_items:
                     new_data[key] = prev_items[key]
                 else:
-                    # prev_items being non-empty does not mean THIS key has a
-                    # previous value -- Parallax populates other keys first, so a
-                    # field seen for the first time lands here with nothing to fall
-                    # back to. The original `and key in prev_items` let it through,
-                    # which is how both rear seat heating sensors reported a literal
-                    # 'SNA' on every start even after the first-update path was
-                    # fixed. Drop it; the entity reports unavailable instead.
-                    self._note_dropped(key, value)
-                    del new_data[key]
-                    continue
+                    # No previous value to fall back to. Pass it through anyway.
+                    #
+                    # Dropping it here instead was tried and reverted: it made
+                    # entities unavailable rather than show a stale-but-plausible
+                    # state, which sounds more honest and is much worse in practice.
+                    # On a real R1T the vehicle reports SNA at startup for the
+                    # climate hold switch, both front seat climate selects, the
+                    # alarm, charging enabled, steering wheel heating and the charge
+                    # limit -- fifteen-plus entities went unavailable and stayed that
+                    # way until a good value happened to arrive. The cost of passing
+                    # it through is one log line per ENUM sensor at startup.
+                    self._note_unusable(key, value)
             new_data[key]["history"] |= prev_items.get(key, {}).get("history", set())
 
         return new_data
