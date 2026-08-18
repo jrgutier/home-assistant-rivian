@@ -393,6 +393,9 @@
           "daily": "Daily",
           "weekdays": "Weekdays"
         }
+      },
+      "wheels_installed": {
+        "name": "Wheels installed"
       }
     },
     "binary_sensor": {

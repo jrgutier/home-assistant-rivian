@@ -613,3 +613,43 @@ A HUMAN does the merge and push; the loop never pushes to dev.
   session does not repeat the "Invalid vehicle ID" dead end.
 
 1192 tests, thirteen gates green.
+
+## 2026-08-18 — s09b: the verified write reaches a real entity
+
+cabin_climate_hold now writes through comfort.cabin.climate_hold_setting -- the
+ONE Parallax write the server accepts -- via a new
+VehicleCoordinator.async_set_climate_hold(). It reads the DECODED
+climateHoldStatus, so the read and the write share one source. Splitting them is
+what produced the two-writer conflict in ChargingCoordinator.
+wheels_installed ships as a read-only diagnostic sensor. ota_config is NOT wired:
+dropped at s08a for want of a fixture, and the gate now asserts no OTA write
+builder exists and that it is not routed through time.py (which is charging-only).
+
+### I asserted something false and a test caught it
+I justified the change by claiming cabinHoldStatus was absent from
+VEHICLE_STATE_API_FIELDS -- "the subscription never requested it, so the switch
+could never report on". WRONG. It IS in that set; my earlier check used a regex
+over const.py that did not match the real structure. Importing the constant
+proved it in one line.
+
+The change still stands, but for the honest reason: both fields are real, and
+reading the Parallax one keeps the read and the write on a single source. The
+comment in switch.py and the test now say that instead. Had the test not asserted
+the claim directly, a false rationale would have shipped in a code comment and
+been trusted by the next person.
+
+### A real bug the new decoders exposed
+_process_parallax_data wrapped every value as {"value": x, "history": {x}}.
+decode_vehicle_wheels returns a LIST, and a set of a list raises
+`unhashable type: 'list'` -- which would have killed the WHOLE Parallax message,
+not just that field. Now falls back to an empty history for unhashable values.
+
+### Fourth self-triggering-comment gate defect
+The gate's "no VehicleCommand climate-hold write" check matched a stale COMMENT
+describing the old approach. The comment was wrong anyway (it still described the
+VehicleCommand path) and is rewritten; the check now strips comments first.
+The gate also passed FILE paths to absent(), which takes a directory -- the same
+defect as s06c, so two of its three original assertions failed for the wrong
+reason.
+
+1200 tests, coverage 83.40% / 60.04%, fifteen gates green.

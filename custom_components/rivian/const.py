@@ -684,6 +684,13 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             value_lambda=lambda v: _to_title_case(v) if v else "Off",
         ),
         RivianSensorEntityDescription(
+            key="wheels_installed",
+            translation_key="wheels_installed",
+            field="wheelsInstalled",
+            icon="mdi:tire",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
             key="cabin_hold_status",
             translation_key="cabin_hold_status",
             field="cabinHoldStatus",

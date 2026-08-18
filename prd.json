@@ -195,9 +195,9 @@
         "s09a"
       ],
       "mode": "auto",
-      "passes": false,
-      "title": "Wire the 4 survivors onto decoded data",
-      "detail": "Move cabin_climate_hold off VehicleCommand.CLIMATE_HOLD_ON/OFF onto the Parallax climate_hold_setting write \u2014 the ONE verified write \u2014 reading climate_hold_status. Add vehicle_wheels and ota_config as READ-ONLY attributes. ota_config is a Query, not a Command: do not build an OTA write, and do not route it through time.py, which is charging-only.",
+      "passes": true,
+      "title": "Wire the verified RVMs onto decoded data",
+      "detail": "Move cabin_climate_hold off VehicleCommand.CLIMATE_HOLD_ON/OFF onto the Parallax climate_hold_setting write \u2014 the ONE verified write \u2014 reading climate_hold_status. Add vehicle_wheels and ota_config as READ-ONLY attributes. ota_config is a Query, not a Command: do not build an OTA write, and do not route it through time.py, which is charging-only. DONE 2026-08-18. cabin_climate_hold now writes via async_set_climate_hold (the one verified Parallax write) and reads the decoded climateHoldStatus, keeping read and write on ONE source. wheels_installed ships read-only. ota_config NOT wired: dropped at s08a for want of a fixture.",
       "gate": "scripts/gates/s09b.sh"
     },
     {

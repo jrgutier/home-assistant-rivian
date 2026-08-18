@@ -9,10 +9,11 @@ from datetime import datetime, timedelta, timezone
 import logging
 import time
 from typing import Any, Generic, TypeVar
+import uuid
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -965,7 +966,15 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     if isinstance(new_val, (int, float)) and new_val >= prev_val:
                         vehicle_updates[k] = {"value": new_val, "history": {new_val}}
                 else:
-                    vehicle_updates[k] = {"value": clean[k], "history": {clean[k]}}
+                    value = clean[k]
+                    # `history` is a set, so an unhashable value (decode_vehicle_wheels
+                    # returns a LIST) raised `unhashable type: 'list'` and killed the
+                    # WHOLE message, not just that field.
+                    try:
+                        history = {value}
+                    except TypeError:
+                        history = set()
+                    vehicle_updates[k] = {"value": value, "history": history}
             new_data = (self.data or {}) | vehicle_updates
             self.async_set_updated_data(new_data)
             _LOGGER.debug(
@@ -1362,6 +1371,31 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             await self._subscribe_to_command_state(command_id)
 
         return command_id
+
+    async def async_set_climate_hold(self, duration_minutes: int) -> dict[str, Any]:
+        """Set or clear the cabin climate hold via Parallax.
+
+        The ONE Parallax write the server accepts, verified live: 5 minutes
+        encodes as 08ac02 = 300 seconds, and writing 0 returns the RVM to an empty
+        payload. Unlike send_vehicle_command this needs no HMAC signing, but it
+        does need the enrolled phone's id as 16 RAW BYTES -- uuid.UUID(...).bytes,
+        not the 36-character string.
+        """
+        entry_data = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        user: UserCoordinator = entry_data[ATTR_COORDINATOR][ATTR_USER]
+        phone_info = user.get_enrolled_phone_data(
+            self.config_entry.options.get("public_key")
+        )
+        if not phone_info:
+            raise HomeAssistantError(
+                "No enrolled phone found for this vehicle; climate hold requires "
+                "the pairing step to have completed"
+            )
+        return await self.api.set_climate_hold(
+            vehicle_id=self.vehicle_id,
+            phone_id=uuid.UUID(phone_info[0]).bytes,
+            duration_minutes=duration_minutes,
+        )
 
     async def send_parallax_command(
         self, method_name: str, **kwargs: Any

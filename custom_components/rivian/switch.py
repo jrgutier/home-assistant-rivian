@@ -18,6 +18,9 @@ from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 
+# The vehicle's own default hold length; writing 0 clears the hold.
+DEFAULT_CLIMATE_HOLD_MINUTES: Final[int] = 120
+
 
 SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
     RivianSwitchEntityDescription(
@@ -60,18 +63,27 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         command_on=VehicleCommand.CABIN_HVAC_STEERING_HEAT,
         command_on_params={"level": 1},
     ),
-    # NOTE: Climate Hold requires Rivian software 2025.38+ and rivian-python-client
-    # with CLIMATE_HOLD_ON/CLIMATE_HOLD_OFF commands. If these commands are not available
-    # in the installed rivian-python-client version, this switch will fail to operate.
-    # State fields (cabinHoldStatus, cabinHoldNotification) are confirmed in GraphQL subscription.
-    # Duration is controlled by the vehicle firmware and cannot be set via the mobile app API.
+    # Cabin climate hold. State comes from the DECODED Parallax
+    # comfort.cabin.climate_hold_status; the write goes through
+    # comfort.cabin.climate_hold_setting, which is the only Parallax write the
+    # server accepts. The older VehicleCommand.CLIMATE_HOLD_ON/OFF path is no
+    # longer used -- keeping the read and the write on one source is what avoids
+    # the two-writer conflict seen in ChargingCoordinator.
     RivianSwitchEntityDescription(
         key="cabin_climate_hold",
         translation_key="cabin_climate_hold",
         icon="mdi:hvac",
-        is_on=lambda coor: coor.get("cabinHoldStatus") in ("on", "ON", "On"),
-        command_off=VehicleCommand.CLIMATE_HOLD_OFF,
-        command_on=VehicleCommand.CLIMATE_HOLD_ON,
+        # Reads the DECODED Parallax status rather than the GraphQL cabinHoldStatus.
+        # Both are populated -- cabinHoldStatus IS in VEHICLE_STATE_API_FIELDS -- so
+        # this is a deliberate choice, not a repair: the write below goes through
+        # Parallax, and reading the matching Parallax field keeps one source behind
+        # both halves. Splitting them is what produced the two-writer conflict in
+        # ChargingCoordinator. cabinHoldStatus still backs its own sensor.
+        is_on=lambda coor: coor.get("climateHoldStatus") == "on",
+        # Writes through comfort.cabin.climate_hold_setting -- the one Parallax
+        # write the server accepts. Verified live: 08ac02 == 300s, and 0 clears.
+        turn_on=lambda coor: coor.async_set_climate_hold(DEFAULT_CLIMATE_HOLD_MINUTES),
+        turn_off=lambda coor: coor.async_set_climate_hold(0),
     ),
 )
 
