@@ -860,11 +860,24 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # PARALLAX_RVMS and CHARGING_RVMS overlap by five topics, so naive
             # concatenation would ask for 25 subscriptions covering 20 topics and
             # every duplicated message would be delivered and decoded twice.
-            self._unsub_parallax = await self.api.subscribe_for_parallax_messages(
-                vehicle_id=self.vehicle_id,
-                callback=self._process_parallax_data,
-                rvms=sorted({*PARALLAX_RVMS, *CHARGING_RVMS}),
-            )
+            try:
+                self._unsub_parallax = await self.api.subscribe_for_parallax_messages(
+                    vehicle_id=self.vehicle_id,
+                    callback=self._process_parallax_data,
+                    rvms=sorted({*PARALLAX_RVMS, *CHARGING_RVMS}),
+                )
+            except RivianApiException:
+                # Deliberate policy, not a swallow: vehicle state still works
+                # without Parallax, so setup degrades rather than aborting. It is
+                # logged at error AND surfaces in diagnostics as
+                # parallax.<vehicle>.subscribed = false, which is what was missing
+                # when a dead subscription looked identical to a healthy one.
+                _LOGGER.exception(
+                    "Parallax subscription failed for vehicle %s; live telemetry "
+                    "will be unavailable until it is re-established",
+                    self.vehicle_id,
+                )
+                self._unsub_parallax = None
 
             # Also subscribe to cloud connection for online/offline status
             self._connection_unsub_handler = (
@@ -1271,16 +1284,15 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 command_id=command_id,
                 callback=lambda data: self._process_command_state(command_id, data),
             )
-            if unsubscribe:
-                self._command_state_subscriptions[command_id] = unsubscribe
-                _LOGGER.debug("Subscribed to command %s state updates", command_id)
+            self._command_state_subscriptions[command_id] = unsubscribe
+            _LOGGER.debug("Subscribed to command %s state updates", command_id)
 
-                # Auto-unsubscribe after 60 seconds to prevent memory leaks
-                async def _auto_unsubscribe():
-                    await asyncio.sleep(60)
-                    await self._unsubscribe_command_state(command_id)
+            # Auto-unsubscribe after 60 seconds to prevent memory leaks
+            async def _auto_unsubscribe():
+                await asyncio.sleep(60)
+                await self._unsubscribe_command_state(command_id)
 
-                asyncio.create_task(_auto_unsubscribe())
+            asyncio.create_task(_auto_unsubscribe())
         except Exception as ex:  # noqa: BLE001 -- a failed command-state subscription must not abort the command itself
             _LOGGER.error("Failed to subscribe to command %s state: %s", command_id, ex)
 

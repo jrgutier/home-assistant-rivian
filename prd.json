@@ -142,6 +142,18 @@
       "gate": "scripts/gates/s07.sh"
     },
     {
+      "id": "s06c",
+      "phase": "2.9",
+      "deps": [
+        "s07"
+      ],
+      "mode": "auto",
+      "passes": true,
+      "title": "Stop swallowing subscription failures",
+      "detail": "Five subscribe_for_* in the vendored client end `except Exception: _LOGGER.error(ex); return None`, and five coordinator call sites branch on that None -- so a dead real-time path is indistinguishable from a healthy one at every caller. This is the defect that made a NON-BUG (one active subscription per user session) cost a day of diagnosis. Make the five propagate a typed failure, update coordinator.py:211/534/922/930/1334, and remove the dead `if unsubscribe:` at :1338. Entry setup must still COMPLETE when a subscription fails -- degrade, do not abort. Added at the owner's direction from the websocket/credential plan (w05/w06).",
+      "gate": "scripts/gates/s06c.sh"
+    },
+    {
       "id": "s08a",
       "phase": "4.0",
       "deps": [],
@@ -179,6 +191,7 @@
       "id": "s09b",
       "phase": "4.1-4.2",
       "deps": [
+        "s06c",
         "s09a"
       ],
       "mode": "auto",
@@ -232,7 +245,7 @@
       "mode": "auto",
       "passes": false,
       "title": "Release hardening and the remaining CI gates",
-      "detail": "Switch BOTH release.yaml:26-28 and pre-release.yaml:70-72 to a zip allowlist; pre-release fires on every dev push and matters more. Anchor release.yaml:22's sed to \"version\": \u2014 it currently rewrites every line containing 'version'. Add the artifact secret-scan and the load test (unzip into a bare HA container with only the declared requirements, start HA, fail if it does not load). Edit 'jobs:' only, never 'on:'.",
+      "detail": "Switch BOTH release.yaml:26-28 and pre-release.yaml:70-72 to a zip allowlist; pre-release fires on every dev push and matters more. Anchor release.yaml:22's sed to \"version\": \u2014 it currently rewrites every line containing 'version'. Add the artifact secret-scan and the load test (unzip into a bare HA container with only the declared requirements, start HA, fail if it does not load). Edit 'jobs:' only, never 'on:'. RELEASE ROUTE DECIDED 2026-08-18: vendor-client merges to dev, which fires pre-release.yaml and publishes a zip beta users install. Harden BOTH release.yaml and pre-release.yaml zips (allowlist, no dotfiles) and add the artifact secret-scan for that path. A HUMAN does the merge and push; the loop must never push to dev.",
       "gate": "scripts/gates/s12b.sh"
     },
     {

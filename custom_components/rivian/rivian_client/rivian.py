@@ -659,9 +659,17 @@ class Rivian:
             unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
             _LOGGER.debug("%s subscribed to updates", vehicle_id)
             return unsubscribe
-        except Exception as ex:  # pylint: disable=broad-except # noqa: BLE001
-            _LOGGER.error(ex)
-            return None
+        except RivianApiException:
+            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
+            # per-type handling (expired token, unauthenticated, rate limit)
+            # still sees the specific subclass rather than the base class.
+            raise
+        except Exception as ex:
+            # Returning None here made a dead subscription indistinguishable
+            # from a healthy one at every call site.
+            raise RivianApiException(
+                "Failed to establish subscription"
+            ) from ex
 
     async def subscribe_for_parallax_messages(
         self,
@@ -689,9 +697,17 @@ class Rivian:
             unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
             _LOGGER.debug("%s subscribed to %d Parallax RVMs", vehicle_id, len(rvms))
             return unsubscribe
-        except Exception as ex:  # pylint: disable=broad-except # noqa: BLE001
-            _LOGGER.error(ex)
-            return None
+        except RivianApiException:
+            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
+            # per-type handling (expired token, unauthenticated, rate limit)
+            # still sees the specific subclass rather than the base class.
+            raise
+        except Exception as ex:
+            # Returning None here made a dead subscription indistinguishable
+            # from a healthy one at every call site.
+            raise RivianApiException(
+                "Failed to establish subscription"
+            ) from ex
 
     async def _ws_connect(self) -> ClientWebSocketResponse[bool]:
         """Initiate a websocket connection."""
@@ -1005,14 +1021,17 @@ class Rivian:
                 "Vehicle %s subscribed to charging session updates", vehicle_id
             )
             return unsubscribe
-        except Exception as ex:  # noqa: BLE001  # pylint: disable=broad-except
-            # Deliberately broad, and deliberately unchanged here. Narrowing this
-            # is a behavioural change -- auth and transport errors should reach the
-            # coordinator instead of becoming a silent None -- and it is scoped to
-            # the client-cleanup story alongside the same fix in
-            # subscribe_for_parallax_messages. Not a drive-by edit inside a merge.
-            _LOGGER.error(ex)
-            return None
+        except RivianApiException:
+            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
+            # per-type handling (expired token, unauthenticated, rate limit)
+            # still sees the specific subclass rather than the base class.
+            raise
+        except Exception as ex:
+            # Returning None here made a dead subscription indistinguishable
+            # from a healthy one at every call site.
+            raise RivianApiException(
+                "Failed to establish subscription"
+            ) from ex
 
     async def subscribe_for_cloud_connection(
         self,
@@ -1043,14 +1062,17 @@ class Rivian:
                 "Vehicle %s subscribed to cloud connection updates", vehicle_id
             )
             return unsubscribe
-        except Exception as ex:  # noqa: BLE001  # pylint: disable=broad-except
-            # Deliberately broad, and deliberately unchanged here. Narrowing this
-            # is a behavioural change -- auth and transport errors should reach the
-            # coordinator instead of becoming a silent None -- and it is scoped to
-            # the client-cleanup story alongside the same fix in
-            # subscribe_for_parallax_messages. Not a drive-by edit inside a merge.
-            _LOGGER.error(ex)
-            return None
+        except RivianApiException:
+            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
+            # per-type handling (expired token, unauthenticated, rate limit)
+            # still sees the specific subclass rather than the base class.
+            raise
+        except Exception as ex:
+            # Returning None here made a dead subscription indistinguishable
+            # from a healthy one at every call site.
+            raise RivianApiException(
+                "Failed to establish subscription"
+            ) from ex
 
     async def subscribe_for_command_state(
         self,
@@ -1079,14 +1101,17 @@ class Rivian:
             unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
             _LOGGER.debug("Command %s subscribed to state updates", command_id)
             return unsubscribe
-        except Exception as ex:  # noqa: BLE001  # pylint: disable=broad-except
-            # Deliberately broad, and deliberately unchanged here. Narrowing this
-            # is a behavioural change -- auth and transport errors should reach the
-            # coordinator instead of becoming a silent None -- and it is scoped to
-            # the client-cleanup story alongside the same fix in
-            # subscribe_for_parallax_messages. Not a drive-by edit inside a merge.
-            _LOGGER.error(ex)
-            return None
+        except RivianApiException:
+            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
+            # per-type handling (expired token, unauthenticated, rate limit)
+            # still sees the specific subclass rather than the base class.
+            raise
+        except Exception as ex:
+            # Returning None here made a dead subscription indistinguishable
+            # from a healthy one at every call site.
+            raise RivianApiException(
+                "Failed to establish subscription"
+            ) from ex
 
     async def send_location_to_vehicle(
         self,

@@ -577,3 +577,39 @@ not. Added, pinned to match the manifest, and verified by building a throwaway
 venv from requirements_test.txt alone -- which is what CI actually does.
 Lesson: every runtime requirement the manifest declares must also appear in
 requirements_test.txt, or the test environment and the shipped environment differ.
+
+## 2026-08-18 — open_questions: three owner decisions, all actioned
+
+### s06c added and DONE — subscription failures now surface
+Five subscribe_for_* ended `except Exception: _LOGGER.error(ex); return None`, so
+a dead real-time path was indistinguishable from a healthy one at every caller.
+That is the defect that made a NON-BUG cost a day of this session.
+
+They propagate now. Rivian exceptions re-raise UNCHANGED -- wrapping them in the
+base class would have destroyed the per-type dispatch at coordinator.py:121
+(expired token / unauthenticated / rate limit) -- and anything else is wrapped
+with the original as __cause__.
+
+The coordinator's policy is explicit rather than implicit: a Parallax failure is
+caught, logged at error, and setup CONTINUES, because vehicle state still works
+without it. That is a decision, not a swallow: it also shows up in diagnostics as
+parallax.<vehicle>.subscribed = false, which is exactly the signal that was
+missing. The primary vehicle subscription is deliberately NOT caught.
+
+Six existing tests asserted `unsubscribe is None`, one commenting "The method is
+designed to return None when connection fails" -- they were passing BECAUSE of the
+swallow, since they build a client with no session. They now expect the raise.
+
+### Release route decided
+vendor-client -> dev, firing pre-release.yaml and publishing a zip beta users
+install. s12b's detail records it so the hardening targets the right workflow.
+A HUMAN does the merge and push; the loop never pushes to dev.
+
+### Cleanup done
+* stale venv/ (Aug 16) deleted -- it had already caused two gates to fail with
+  findings-shaped messages before those gates were hardened.
+* .env RIVIAN_VEHICLE_ID corrected from the 32-char value that matched nothing to
+  01-276948064, with a comment naming all three identifiers so the next live
+  session does not repeat the "Invalid vehicle ID" dead end.
+
+1192 tests, thirteen gates green.

@@ -365,12 +365,13 @@ async def test_subscribe_for_charging_session() -> None:
 
         # Test that method can be called and returns None on error (no actual WebSocket server)
         # The method is designed to return None when connection fails
-        unsubscribe = await rivian.subscribe_for_charging_session(
-            vehicle_id="test-vehicle-123", callback=test_callback
-        )
-
-        # In test environment without WebSocket server, should return None
-        assert unsubscribe is None
+        # Previously this asserted `is None`, describing the swallow as
+        # "designed to return None when connection fails". That is the defect:
+        # a dead subscription was indistinguishable from a healthy one.
+        with pytest.raises(RivianApiException):
+            await rivian.subscribe_for_charging_session(
+                vehicle_id="test-vehicle-123", callback=test_callback
+            )
 
         await rivian.close()
 
@@ -391,12 +392,13 @@ async def test_subscribe_for_cloud_connection() -> None:
 
         # Test that method can be called and returns None on error (no actual WebSocket server)
         # The method is designed to return None when connection fails
-        unsubscribe = await rivian.subscribe_for_cloud_connection(
-            vehicle_id="test-vehicle-123", callback=test_callback
-        )
-
-        # In test environment without WebSocket server, should return None
-        assert unsubscribe is None
+        # Previously this asserted `is None`, describing the swallow as
+        # "designed to return None when connection fails". That is the defect:
+        # a dead subscription was indistinguishable from a healthy one.
+        with pytest.raises(RivianApiException):
+            await rivian.subscribe_for_cloud_connection(
+                vehicle_id="test-vehicle-123", callback=test_callback
+            )
 
         await rivian.close()
 
@@ -418,11 +420,12 @@ async def test_subscribe_for_command_state() -> None:
         # Test that method can be called and returns None on error (no actual WebSocket server)
         # The method is designed to return None when connection fails
         # Note: This method takes command_id instead of vehicle_id
-        unsubscribe = await rivian.subscribe_for_command_state(
-            command_id="test-command-123", callback=test_callback
-        )
-
-        # In test environment without WebSocket server, should return None
-        assert unsubscribe is None
+        # Previously this asserted `is None`, describing the swallow as
+        # "designed to return None when connection fails". That is the defect:
+        # a dead subscription was indistinguishable from a healthy one.
+        with pytest.raises(RivianApiException):
+            await rivian.subscribe_for_command_state(
+                command_id="test-command-123", callback=test_callback
+            )
 
         await rivian.close()
