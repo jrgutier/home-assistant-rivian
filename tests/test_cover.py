@@ -548,9 +548,12 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should have created cover entities (1 windows cover that doesn't require features)
-    assert len(entities_added) == 1
+    # A vehicle advertising NO capability flags still gets the two unconditional
+    # covers. frunk is deliberately among them: gating it behind FRUNK_NXT_ACT
+    # left vehicles that do not advertise that flag with no frunk control at all.
+    assert len(entities_added) == 2
     assert all(isinstance(e, RivianCoverEntity) for e in entities_added)
+    assert {e.entity_description.key for e in entities_added} == {"frunk", "windows"}
 
 
 @pytest.mark.asyncio

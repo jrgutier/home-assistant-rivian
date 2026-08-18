@@ -59,6 +59,19 @@ NEXT_ACTION_MAPPING: Final[
 
 COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     None: (
+        # Unconditional, not gated on the FRUNK_NXT_ACT capability flag: vehicles
+        # that do not advertise it would otherwise expose no frunk cover at all.
+        # Kept in this fork's style (translation_key + command_*) rather than
+        # upstream's (name= + lambdas); NEXT_ACTION_MAPPING is keyed on the entity
+        # key, so next-action handling still applies here.
+        RivianCoverEntityDescription(
+            key="frunk",
+            translation_key="frunk",
+            device_class=CoverDeviceClass.DOOR,
+            is_closed=lambda coor: coor.get("closureFrunkClosed") != "open",
+            command_close=VehicleCommand.CLOSE_FRUNK,
+            command_open=VehicleCommand.OPEN_FRUNK,
+        ),
         RivianCoverEntityDescription(
             key="windows",
             translation_key="windows",
@@ -86,16 +99,6 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             is_closed=lambda coor: coor.get("closureLiftgateClosed") != "open",
             command_close=VehicleCommand.CLOSE_LIFTGATE,
             command_open=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
-        ),
-    ),
-    "FRUNK_NXT_ACT": (
-        RivianCoverEntityDescription(
-            key="frunk",
-            translation_key="frunk",
-            device_class=CoverDeviceClass.DOOR,
-            is_closed=lambda coor: coor.get("closureFrunkClosed") != "open",
-            command_close=VehicleCommand.CLOSE_FRUNK,
-            command_open=VehicleCommand.OPEN_FRUNK,
         ),
     ),
     "TONNEAU_CMD": (

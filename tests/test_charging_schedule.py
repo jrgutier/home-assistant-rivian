@@ -137,9 +137,11 @@ class TestChargingCoordinatorParallax:
     def test_a_new_start_time_clears_the_previous_session(
         self, hass, mock_config_entry
     ) -> None:
-        # Stale metrics leaking across sessions is the bug this guards.
+        # Stale metrics leaking across sessions is the bug this guards. Seeded
+        # through update_from_parallax rather than by poking .data, because the
+        # coordinator resolves its view from per-source namespaces.
         coord = self._coord(hass, mock_config_entry)
-        coord.data = {"startTime": "A", "totalChargedEnergy": 42}
+        coord.update_from_parallax({"startTime": "A", "totalChargedEnergy": 42})
         coord.async_set_updated_data = MagicMock()
         coord.update_from_parallax({"startTime": "B"})
         new = coord.async_set_updated_data.call_args.args[0]
@@ -150,7 +152,7 @@ class TestChargingCoordinatorParallax:
         self, hass, mock_config_entry
     ) -> None:
         coord = self._coord(hass, mock_config_entry)
-        coord.data = {"startTime": "A", "totalChargedEnergy": 42}
+        coord.update_from_parallax({"startTime": "A", "totalChargedEnergy": 42})
         coord.async_set_updated_data = MagicMock()
         coord.update_from_parallax({"startTime": "A", "power": 11})
         new = coord.async_set_updated_data.call_args.args[0]
@@ -160,7 +162,6 @@ class TestChargingCoordinatorParallax:
         self, hass, mock_config_entry
     ) -> None:
         coord = self._coord(hass, mock_config_entry)
-        coord.data = {}
         coord.async_set_updated_data = MagicMock()
         coord.update_from_parallax({"power": 11})
         assert coord.async_set_updated_data.call_args.args[0]["startTime"]

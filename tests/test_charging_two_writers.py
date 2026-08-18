@@ -108,12 +108,27 @@ class TestSyntheticStartTimeDoesNotFakeANewSession:
 
 
 class TestSessionEnd:
-    def test_an_empty_session_list_still_ends_the_session(self, coordinator) -> None:
+    def test_an_empty_session_list_ends_the_session(self, coordinator) -> None:
         coordinator._process_new_data(
             _subscription({"startTime": "T1", "totalChargedEnergy": 5})
         )
         coordinator._process_new_data(_subscription([]))
-        assert coordinator.data == {}
+        assert "totalChargedEnergy" not in coordinator.data
+
+    def test_ending_a_session_keeps_non_session_parallax_state(
+        self, coordinator
+    ) -> None:
+        """plugConnectionStatus is not session-scoped: the car can still be
+        plugged in after a session ends. Blanking the whole dict took it out."""
+        coordinator.update_from_parallax(
+            {"plugConnectionStatus": "connected", "power": 0}
+        )
+        coordinator._process_new_data(
+            _subscription({"startTime": "T1", "totalChargedEnergy": 5})
+        )
+        coordinator._process_new_data(_subscription([]))
+        assert coordinator.data["plugConnectionStatus"] == "connected"
+        assert "totalChargedEnergy" not in coordinator.data
 
     def test_a_non_empty_list_takes_the_first_entry(self, coordinator) -> None:
         coordinator._process_new_data(
@@ -177,3 +192,45 @@ class TestSubscriptionLifecycle:
         await coord._async_update_data()
         assert coord.api.subscribe_for_charging_session.await_count == 2
         coord._stop_watchdog()
+
+
+class TestSourceNamespacing:
+    """Option C: each writer owns a namespace, and the view is resolved on read.
+
+    Merging in place made every value permanent -- nothing aged out, so a field
+    whose source stopped publishing kept its last value forever. Namespacing lets
+    a source's contribution be REPLACED wholesale while still never clobbering
+    the other source's fields.
+    """
+
+    def test_each_source_keeps_its_own_namespace(self, coordinator) -> None:
+        coordinator.update_from_parallax({"displayStatus": "charging"})
+        coordinator._process_new_data(_subscription({"price": 0.42}))
+        assert coordinator._source_data["parallax"]["displayStatus"] == "charging"
+        assert coordinator._source_data["subscription"]["price"] == 0.42
+
+    def test_a_subscription_snapshot_replaces_only_its_own_namespace(
+        self, coordinator
+    ) -> None:
+        # The subscription delivers a full snapshot, so a field it stops sending
+        # must disappear -- that is the staleness the plain merge could not express.
+        coordinator.update_from_parallax({"displayStatus": "charging"})
+        coordinator._process_new_data(
+            _subscription({"price": 0.42, "timeRemaining": 30})
+        )
+        coordinator._process_new_data(_subscription({"price": 0.42}))
+        assert "timeRemaining" not in coordinator.data
+        assert coordinator.data["displayStatus"] == "charging"
+
+    def test_parallax_wins_on_overlapping_fields(self, coordinator) -> None:
+        # Parallax pushes during the session; the subscription snapshot lags.
+        coordinator._process_new_data(_subscription({"totalChargedEnergy": 5}))
+        coordinator.update_from_parallax({"totalChargedEnergy": 8})
+        assert coordinator.data["totalChargedEnergy"] == 8
+
+    def test_a_real_start_time_beats_a_synthesised_one(self, coordinator) -> None:
+        # Precedence is Parallax-over-subscription EXCEPT here: an invented
+        # startTime must never displace one the vehicle actually reported.
+        coordinator.update_from_parallax({"power": 11})  # invents a startTime
+        coordinator._process_new_data(_subscription({"startTime": "REAL"}))
+        assert coordinator.data["startTime"] == "REAL"

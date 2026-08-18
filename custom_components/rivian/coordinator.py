@@ -180,11 +180,23 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._subscription_enabled = True  # Track if subscription should be active
         self._is_charging: bool = False
         self._session_start_time: datetime | None = None
-        # True when the stored startTime was SYNTHESISED by update_from_parallax
-        # rather than reported by the vehicle. Without this, the real startTime
-        # arriving later differs from the invented one, looks like a brand-new
-        # session, and clears everything the session has accumulated.
+        # True when the Parallax namespace's startTime was SYNTHESISED rather than
+        # reported by the vehicle. Without this, the real startTime arriving later
+        # differs from the invented one, looks like a brand-new session, and
+        # clears everything the session has accumulated.
         self._synthetic_start_time = False
+        # Two sources write this coordinator and they are not interchangeable:
+        # four sensors (price, powerKW, timeRemaining, isFreeSession) exist only
+        # in the subscription snapshot, and five (displayStatus, evseType,
+        # plugConnectionStatus, currentPrice, currentCurrency) only in Parallax.
+        # Each owns a namespace and the view entities read is resolved from both,
+        # so neither can clobber the other AND a field the subscription stops
+        # sending still disappears -- a plain in-place merge could not express the
+        # second without breaking the first.
+        self._source_data: dict[str, dict[str, Any]] = {
+            "subscription": {},
+            "parallax": {},
+        }
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
@@ -260,6 +272,21 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """Fetch the data."""
         raise NotImplementedError("Polling charging data no longer allowed")
 
+    def _publish_resolved(self) -> None:
+        """Resolve the per-source namespaces into the view entities read.
+
+        Precedence is Parallax over the subscription snapshot, because Parallax
+        pushes throughout a session while the snapshot lags. The one exception is
+        startTime: a synthesised value must never displace one the vehicle
+        actually reported.
+        """
+        subscription = self._source_data["subscription"]
+        parallax = self._source_data["parallax"]
+        resolved = {**subscription, **parallax}
+        if self._synthetic_start_time and subscription.get("startTime"):
+            resolved["startTime"] = subscription["startTime"]
+        self.async_set_updated_data(resolved)
+
     @callback
     def update_from_parallax(self, decoded: dict[str, Any]) -> None:
         """Update charging data from decoded Parallax protobuf fields.
@@ -273,7 +300,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             return
 
         now = datetime.now(timezone.utc)
-        new_data = dict(self.data or {})
+        new_data = self._source_data["parallax"]
 
         # If a verified startTime arrives from graph data that differs from existing,
         # it indicates a brand new charging session.
@@ -294,7 +321,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         new_data.update(clean)
 
-        self.async_set_updated_data(new_data)
+        self._publish_resolved()
         _LOGGER.debug("Charging data updated from Parallax: %s", clean)
 
     def adjust_update_interval(self, is_plugged_in: bool) -> None:
@@ -392,8 +419,12 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             if not charging_data:
                 # Empty list means no active charging session
                 _LOGGER.debug("No active charging session")
-                self.async_set_updated_data({})
+                # Clear only the subscription's namespace. Parallax state such as
+                # plugConnectionStatus is not session-scoped -- the car can still
+                # be plugged in after a session ends.
+                self._source_data["subscription"] = {}
                 self._synthetic_start_time = False
+                self._publish_resolved()
                 self._error_count = 0
                 self._initial.set()
                 # Update watchdog timestamp even for empty session
@@ -404,13 +435,10 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         # Merge chartData and liveData into flat structure matching current API
         processed_data = self._process_charging_data(charging_data)
-        # Merge into what Parallax has already pushed rather than replacing it.
-        # displayStatus, evseType, plugConnectionStatus, currentPrice and
-        # currentCurrency have NO subscription source, so a replacing write made
-        # their sensors flap for the whole of an active charging session.
-        merged = dict(self.data or {})
-        merged.update(processed_data)
-        self.async_set_updated_data(merged)
+        # A snapshot: it REPLACES the subscription's namespace, so a field it
+        # stops sending disappears, while Parallax's namespace is untouched.
+        self._source_data["subscription"] = processed_data
+        self._publish_resolved()
         self._error_count = 0
         self._initial.set()
 
