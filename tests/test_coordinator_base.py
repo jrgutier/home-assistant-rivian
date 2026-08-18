@@ -9,7 +9,6 @@ from custom_components.rivian.coordinator import UserCoordinator, WallboxCoordin
 from custom_components.rivian.rivian_client.exceptions import (
     RivianApiException,
     RivianApiRateLimitError,
-    RivianExpiredTokenError,
     RivianUnauthenticated,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -90,33 +89,12 @@ class TestRivianDataUpdateCoordinatorBase:
 
         assert coordinator.update_interval.total_seconds() == 600
 
-    async def test_async_update_data_handles_expired_token(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-    ) -> None:
-        """Test that expired token triggers refresh."""
-        mock_client = MagicMock()
-        mock_client.create_csrf_token = AsyncMock()
-        mock_client.get_user_information = AsyncMock(
-            side_effect=[
-                RivianExpiredTokenError("Token expired"),
-                {"userId": "test_user"},
-            ]
-        )
-
-        coordinator = UserCoordinator(
-            hass=hass,
-            config_entry=mock_config_entry,
-            client=mock_client,
-        )
-
-        data = await coordinator._async_update_data()
-
-        # Should have refreshed token and retried
-        mock_client.create_csrf_token.assert_called_once()
-        assert data == {"userId": "test_user"}
-        assert coordinator._error_count == 0
+    # test_async_update_data_handles_expired_token was deleted in w10 with the
+    # handler it covered. It hand-raised RivianExpiredTokenError from a mocked
+    # client; nothing in the real client raises it -- ERROR_CODE_CLASS_MAP has no
+    # entry producing it -- so it asserted that unreachable code worked, and was the
+    # only thing keeping that code alive. The handler also recursed into
+    # _async_update_data with no depth guard.
 
     async def test_async_update_data_handles_rate_limit(
         self,

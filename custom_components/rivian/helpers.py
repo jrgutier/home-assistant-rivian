@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from homeassistant.components.diagnostics.util import async_redact_data
@@ -39,6 +40,28 @@ TO_REDACT = {
     "vin",
     "wallboxId",
 }
+
+
+# Any run of 24+ token-ish characters. Long enough to miss vehicle ids
+# ("01-276948064"), command names and HTTP status text, all of which are the
+# diagnostic content worth keeping.
+_TOKEN_SHAPED = re.compile(r"[A-Za-z0-9_\-]{24,}(?:\.[A-Za-z0-9_\-]{8,}){0,2}")
+
+
+def redact_text(text: str) -> str:
+    """Mask anything token-shaped in a string bound for a log.
+
+    Defence in depth ONLY. The real fix is in the client: RivianApiException
+    redacts headers and request bodies as it is constructed, verified against the
+    live API. This catches what that cannot -- an exception raised somewhere that
+    never goes through that constructor, such as a bare transport error carrying a
+    signed URL.
+
+    Deliberately conservative: it masks long opaque runs and leaves short
+    identifiers alone, because a redactor that eats the message makes the log
+    useless and gets turned off.
+    """
+    return _TOKEN_SHAPED.sub("<REDACTED>", text)
 
 
 def get_rivian_api_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> Rivian:

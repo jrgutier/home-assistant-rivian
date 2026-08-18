@@ -26,12 +26,11 @@ from .const import (
     INVALID_SENSOR_STATES,
     VEHICLE_STATE_API_FIELDS,
 )
-from .helpers import redact
+from .helpers import redact, redact_text
 from .rivian_client import Rivian, VehicleCommand
 from .rivian_client.exceptions import (
     RivianApiException,
     RivianApiRateLimitError,
-    RivianExpiredTokenError,
     RivianUnauthenticated,
 )
 from .rivian_client.parallax import (
@@ -109,21 +108,22 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
                 self._set_update_interval()
             return data
 
-        except RivianExpiredTokenError:
-            _LOGGER.info("Rivian token expired, refreshing")
-            await self.api.create_csrf_token()
-            return await self._async_update_data()
         except RivianApiRateLimitError as err:
-            _LOGGER.error("Rate limit being enforced: %s", err, exc_info=1)
+            _LOGGER.error(
+                "Rate limit being enforced: %s", redact_text(str(err)), exc_info=1
+            )
             self._set_update_interval()
         except RivianUnauthenticated as err:
             await self.api.close()
             raise ConfigEntryAuthFailed from err
         except RivianApiException as ex:
-            _LOGGER.error("Rivian api exception: %s", ex, exc_info=1)
-        except Exception as ex:  # pylint: disable=broad-except
+            _LOGGER.error("Rivian api exception: %s", redact_text(str(ex)), exc_info=1)
+        # Anything reaching here was built outside RivianApiException's redacting
+        # constructor, so its traceback would render verbatim. exc_info is dropped
+        # on purpose; BLE001 exists to catch a traceback discarded by accident.
+        except Exception as ex:  # noqa: BLE001
             _LOGGER.error(
-                "Unknown Exception while updating Rivian data: %s", ex, exc_info=1
+                "Unknown Exception while updating Rivian data: %s", redact_text(str(ex))
             )
 
         self._error_count += 1

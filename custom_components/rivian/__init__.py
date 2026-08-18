@@ -28,7 +28,7 @@ from .const import (
     VERSION,
 )
 from .coordinator import UserCoordinator, VehicleCoordinator, WallboxCoordinator
-from .helpers import get_rivian_api_from_entry
+from .helpers import get_rivian_api_from_entry, redact_text
 from .rivian_client import Rivian
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,7 +64,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await client.create_csrf_token()
     except Exception as err:
-        _LOGGER.error("Could not update Rivian Data: %s", err, exc_info=1)
+        # create_csrf_token makes an HTTP call, so err can be a transport exception
+        # carrying a signed URL or a header dump -- built without going through
+        # RivianApiException's redacting constructor. exc_info would render it
+        # verbatim, so it is dropped here on purpose rather than by oversight.
+        _LOGGER.error("Could not update Rivian Data: %s", redact_text(str(err)))
         await client.close()
         raise ConfigEntryNotReady("Error communicating with API") from err
 
