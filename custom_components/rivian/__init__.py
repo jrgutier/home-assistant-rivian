@@ -151,12 +151,10 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # Find the vehicle_id from device identifiers
         vehicle_id = None
         for identifier in device_entry.identifiers:
-            if identifier[0] == DOMAIN:
-                # Check if this is a vehicle ID (not a VIN)
-                # VINs are 17 characters, vehicle IDs are UUIDs
-                if len(identifier[1]) > 17:
-                    vehicle_id = identifier[1]
-                    break
+            # A VIN is 17 characters; a vehicle ID is a longer UUID-ish string.
+            if identifier[0] == DOMAIN and len(identifier[1]) > 17:
+                vehicle_id = identifier[1]
+                break
 
         if not vehicle_id:
             raise ServiceValidationError(
@@ -247,11 +245,8 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
 
         except Exception as err:
-            _LOGGER.error(
-                "Error setting charging schedule for vehicle %s: %s",
-                vehicle_id,
-                err,
-                exc_info=True,
+            _LOGGER.exception(
+                "Error setting charging schedule for vehicle %s", vehicle_id
             )
             raise ServiceValidationError(
                 f"Failed to set charging schedule: {err}"
@@ -279,10 +274,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id)
 
         # Unregister services only if this is the last config entry
-        if not hass.data[DOMAIN]:
-            if hass.services.has_service(DOMAIN, "set_charging_schedule"):
-                hass.services.async_remove(DOMAIN, "set_charging_schedule")
-                _LOGGER.debug("Unregistered service: %s.set_charging_schedule", DOMAIN)
+        if not hass.data[DOMAIN] and hass.services.has_service(
+            DOMAIN, "set_charging_schedule"
+        ):
+            hass.services.async_remove(DOMAIN, "set_charging_schedule")
+            _LOGGER.debug("Unregistered service: %s.set_charging_schedule", DOMAIN)
 
     return unload_ok
 

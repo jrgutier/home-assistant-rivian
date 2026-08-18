@@ -51,9 +51,10 @@ fi
 
 # The checks the workflow runs, run here.
 PY="$(resolve_pytest "$HA")"   # never hardcode venv/: see resolve_pytest
-RUFF="uvx ruff@0.14.2"   # the pinned version, matching .pre-commit-config.yaml
+RUFF="uvx ruff@latest"   # NOT pinned by choice (s05 review): the gate must run
+                         # what a fresh checkout resolves, not a frozen version
 # Blocking repo-wide. The "25 pre-existing errors" that once justified deferring
-# custom_components/ were an unpinned-ruff artifact; the tree is clean under the
+# custom_components/ were REAL findings under a newer ruff and are now fixed; the
 # pinned version, so there is no debt and no deferral.
 try "ruff check passes (repo-wide)"        env -C "$HA" $RUFF check .
 try "ruff format --check passes (repo-wide)" env -C "$HA" $RUFF format --check .

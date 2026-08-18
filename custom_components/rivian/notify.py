@@ -26,7 +26,7 @@ try:
         rivian.__file__,
         hasattr(Rivian, "send_location_to_vehicle"),
     )
-except Exception as err:
+except Exception as err:  # noqa: BLE001 -- module-level debug introspection; must never break import
     _LOGGER.error("Could not inspect rivian library: %s", err)
 
 # Service schema for navigation service
@@ -95,7 +95,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     vehicles: dict[str, dict[str, Any]] = entry_data[ATTR_VEHICLE]
 
     # Remove each vehicle's notification service
-    for vehicle_id, vehicle in vehicles.items():
+    for vehicle in vehicles.values():
         vehicle_name = vehicle.get("name", vehicle.get("model", "unknown"))
         vin_suffix = vehicle.get("vin", "")[-6:]
         safe_name = vehicle_name.lower().replace(" ", "_")
@@ -181,10 +181,8 @@ class RivianNotificationService:
                     result_code,
                 )
 
-        except Exception as err:  # pylint: disable=broad-except
-            _LOGGER.error(
-                "Error sending navigation destination to vehicle %s: %s",
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception(
+                "Error sending navigation destination to vehicle %s",
                 self._vehicle.get("name", self._vehicle_id),
-                err,
-                exc_info=True,
             )

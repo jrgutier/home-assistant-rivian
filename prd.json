@@ -99,9 +99,9 @@
       ],
       "mode": "auto",
       "passes": true,
-      "review": "MANDATORY human review before s06a",
+      "review": "CLEARED 2026-08-18 by the repository owner after a walkthrough of all 18 resolutions and the 8 coordinator.py hunks.",
       "title": "Merge upstream 1.5.3b5 into the integration (all 19 conflicts)",
-      "detail": "User decision: the loop attempts all 19 conflicted files. Take upstream wholesale for the Parallax routing, the charging fixes, INITIAL_UPDATE_TIMEOUT=60, the vehicleMileage oscillation guard, gnssLocation resilience, and time.py + Platform.TIME. Keep ours for notify.py, next_action_states.py, services.yaml, the i18n conversion and the entity renaming. Adopt upstream's ClientResponse shape. Record the strings.json decision rather than inventing one. Version must be 1.5.4-beta1, never 0.0.0. DONE 2026-08-18: 18 conflicts resolved, gate 14/14, 987 tests passing at 78.73%. AWAITING MANDATORY HUMAN REVIEW before s06a.",
+      "detail": "User decision: the loop attempts all 19 conflicted files. Take upstream wholesale for the Parallax routing, the charging fixes, INITIAL_UPDATE_TIMEOUT=60, the vehicleMileage oscillation guard, gnssLocation resilience, and time.py + Platform.TIME. Keep ours for notify.py, next_action_states.py, services.yaml, the i18n conversion and the entity renaming. Adopt upstream's ClientResponse shape. Record the strings.json decision rather than inventing one. Version must be 1.5.4-beta1, never 0.0.0. DONE 2026-08-18: 18 conflicts resolved, gate 14/14, 987 tests passing at 78.73%. AWAITING MANDATORY HUMAN REVIEW before s06a. REVIEW CLEARED. Owner decisions: frunk unconditional; charging writers namespaced by source (option C); _update_interval_seconds stays 0 (upstream's push model, ratified); ruff unpinned to track upstream; all other resolutions accepted as-is.",
       "gate": "scripts/gates/s05.sh"
     },
     {

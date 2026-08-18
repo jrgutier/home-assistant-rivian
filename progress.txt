@@ -374,3 +374,44 @@ validated.
   reason they were harmless.
 
 1013 integration tests, 142 client tests, coverage 82.01%, nine gates green.
+
+## 2026-08-18 — s05 REVIEW CLEARED, ruff unpinned
+
+Owner walked through all 18 resolutions and the 8 coordinator.py hunks and
+approved. s06a is unblocked.
+
+Decisions taken at the review:
+* frunk cover: UNCONDITIONAL (upstream's availability), kept in our style
+  (translation_key + command_*) because NEXT_ACTION_MAPPING keys on the entity key.
+* charging writers: option C, namespaced by source and resolved on read.
+* _update_interval_seconds = 0: RATIFIED. Upstream's push model stands; the
+  15-minute resubscribe self-heal is NOT restored. Recovery rests on the watchdog,
+  toggle_subscription and the 502/504 path, all of which are now tested.
+* ruff: UNPINNED, tracking upstream's .pre-commit-config rev.
+* all other resolutions accepted unchanged.
+
+### Unpinning ruff was not free, and that is the point
+The pin was hiding 13 real findings and 5 unformatted files, not just noise. The
+earlier claim in this file -- that the "25 pre-existing errors" were "an artifact
+of an unpinned ruff" -- was half right: they WERE caused by the newer ruff, but
+they were genuine findings, not false alarms. Fixed rather than suppressed:
+  SIM102 x2  nested ifs collapsed
+  G201  x2   logging.error(exc_info=True) -> logging.exception()
+  PERF102    iterate .values() where the key is unused
+  I001  x2   import sorting
+  BLE001 x5  blind excepts, each annotated with WHY that boundary is deliberate
+  DTZ007     FALSE POSITIVE: ruff cannot see through RIVIAN_TIMESTAMP_FORMAT,
+             which ends in %z, so the strptime IS tz-aware. noqa with reason.
+Also found: .pre-commit-config.yaml declared `id: ruff-check` under rev v0.14.2,
+but that hook id only exists in newer ruff-pre-commit. The hook was incoherent as
+committed; bumping the rev to v0.16.2 fixes it.
+
+Accepted cost, recorded in requirements.txt and test.yaml: a future ruff release
+can turn CI red on a day nobody changed code.
+
+### Two self-inflicted errors while doing it
+* str.replace() replaced BOTH occurrences of a loop header in notify.py; the first
+  loop needed vehicle_id and broke with F821. Use count-checked or line-targeted
+  replacements for repeated text.
+* Collapsing a nested if left the body over-indented (SyntaxError). Both were
+  caught by running ruff again rather than by assuming the edit was right.

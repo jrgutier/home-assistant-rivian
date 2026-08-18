@@ -40,10 +40,10 @@ jobs:
           uv venv --python 3.13 .venv
           VIRTUAL_ENV=$PWD/.venv uv pip install -r requirements_test.txt
 
-      # Blocking repo-wide. An earlier revision deferred custom_components/ over
-      # "25 pre-existing errors" — those were an artifact of an unpinned ruff
-      # resolving 0.16.3. Under the pinned version the tree is clean, so there is
-      # no debt to defer.
+      # Blocking repo-wide. ruff is intentionally unpinned (see requirements.txt):
+      # the findings a pin used to hide were real and are fixed. A new ruff release
+      # can therefore turn this red without a code change — that is the accepted
+      # trade for tracking upstream's hook rev.
       - name: Lint
         run: |
           .venv/bin/python -m ruff check .

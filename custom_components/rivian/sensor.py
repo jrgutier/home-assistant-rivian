@@ -269,12 +269,16 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         field="startTime",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_lambda=lambda val: (
-            datetime.fromtimestamp(val / 1000, tz=timezone.utc)
-            if isinstance(val, int)
-            else datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)
-        )
-        if val
-        else val,
+            (
+                datetime.fromtimestamp(val / 1000, tz=timezone.utc)
+                if isinstance(val, int)
+                # RIVIAN_TIMESTAMP_FORMAT ends in %z, so this IS tz-aware; ruff
+                # cannot see through the module-level constant.
+                else datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)  # noqa: DTZ007
+            )
+            if val
+            else val
+        ),
     ),
     RivianSensorEntityDescription(
         key="charging_time_elapsed",

@@ -11,8 +11,9 @@ rivian-python-client[ble] @ git+https://github.com/jrgutier/rivian-python-client
 colorlog
 pip>=21.0
 pre-commit
-# Pinned to the .pre-commit-config.yaml rev so CI, the hook and local runs apply
-# the SAME rule set. Unpinned this resolved ruff 0.16.3, whose newer rules reported
-# 25 errors and 5 unformatted files in custom_components/ -- all of which are clean
-# under the pinned version. That is CI failing on a tool upgrade nobody made.
-ruff>=0.14.2,<0.15
+# Deliberately NOT pinned, decided at the s05 review: the repo tracks upstream's
+# .pre-commit-config rev instead. The newer rules that a pin used to hide were real
+# findings (blind excepts, logging.exception, nested ifs) and are now fixed, so the
+# tree is clean under the current release. The accepted cost is that a future ruff
+# release can turn CI red on a day nobody changed any code.
+ruff>=0.16.2

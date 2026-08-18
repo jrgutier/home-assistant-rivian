@@ -762,7 +762,7 @@ class ParallaxCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # For now, return raw payload for all types
             return {"raw": payload_b64}
 
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001 -- a malformed payload must not kill the subscription; s06a replaces this stub
             _LOGGER.warning(
                 "Failed to decode Parallax payload for %s: %s", rvm_type, ex
             )
@@ -1576,7 +1576,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     await self._unsubscribe_command_state(command_id)
 
                 asyncio.create_task(_auto_unsubscribe())
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001 -- a failed command-state subscription must not abort the command itself
             _LOGGER.error("Failed to subscribe to command %s state: %s", command_id, ex)
 
     async def _unsubscribe_command_state(self, command_id: str) -> None:
@@ -1585,7 +1585,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             try:
                 await unsub()
                 _LOGGER.debug("Unsubscribed from command %s state updates", command_id)
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001 -- teardown: an unsubscribe failure must not mask the caller's outcome
                 _LOGGER.error("Error unsubscribing from command %s: %s", command_id, ex)
 
     def get_command_state(self, command_id: str) -> dict[str, Any] | None:

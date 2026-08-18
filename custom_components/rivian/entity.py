@@ -140,6 +140,7 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
             Command state dict if successful, None otherwise
         """
         import asyncio
+
         from homeassistant.util import dt as dt_util
 
         # Set executing state
@@ -192,7 +193,7 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
             }
             return None
 
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001 -- command boundary: failures are surfaced to the caller as None, not raised
             _LOGGER.error("Error executing command %s: %s", command, ex)
             return None
         finally:

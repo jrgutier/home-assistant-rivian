@@ -9,7 +9,6 @@ import pathlib
 import sys
 
 from google.protobuf.internal import decoder
-
 from rivian.proto.rivian_climate_pb2 import ClimateHoldSetting
 
 D = pathlib.Path(sys.argv[1])

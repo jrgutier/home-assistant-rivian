@@ -175,13 +175,15 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Inactive",
                 "Signal Not Available",
             ],
-            value_lambda=lambda v: "Active"
-            if v == "true"
-            else "Inactive"
-            if v == "false"
-            else _to_title_case(v)
-            if v
-            else "Inactive",
+            value_lambda=lambda v: (
+                "Active"
+                if v == "true"
+                else "Inactive"
+                if v == "false"
+                else _to_title_case(v)
+                if v
+                else "Inactive"
+            ),
         ),
         RivianSensorEntityDescription(
             key="battery_hv_thermal_event",
@@ -708,9 +710,9 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Go",
                 "Unknown",
             ],
-            value_lambda=lambda v: _to_title_case(v)
-            if v and v.lower() != "sna"
-            else "Unknown",
+            value_lambda=lambda v: (
+                _to_title_case(v) if v and v.lower() != "sna" else "Unknown"
+            ),
         ),
         RivianSensorEntityDescription(
             key="range_threshold",
