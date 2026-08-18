@@ -287,3 +287,46 @@ the twenty variants ruled out, the four measured close codes, the three
 non-interchangeable vehicle identifiers, and the rollback order for the live test.
 Written because the wrong conclusion ("the websocket is broken") was reached once
 already and the trap is still there for the next person.
+
+## 2026-08-18 — s08b: the shipped RVMs actually decode now
+
+Verified FIRST that decode_parallax_message returned None for all three shipped
+RVMs -- upstream's table covers 14 telemetry topics and none of ours. That is the
+defect the whole Parallax effort exists to fix; routing to upstream's decoder
+without this would have replaced one always-default entity with another.
+
+Written hand-rolled in parallax.py's existing zero-dependency idiom rather than
+with the generated _pb2 classes, so they survive the protobuf removal instead of
+needing a rewrite at s10. RVM_DECODERS 14 -> 17.
+
+Each decoder is asserted against its CAPTURED fixture and cross-checked against
+the generated protobuf class -- two independent references. The captured
+VehicleWheels payload round-trips byte-identically through the generated class,
+which is good evidence the APK-derived .proto definitions are correct.
+
+### Correction to the plan
+proto/climate.py:88 documents ClimateHoldStatus as (active, current_temp_celsius,
+target_temp_celsius, time_remaining_mins, mode). That is WRONG. The real message
+is (status enum, availability enum, unavailability_reason enum, hold_end_time).
+The plan had recorded that docstring as "the only written description" to preserve
+before deleting the file. It should not be trusted; the .proto is correct.
+
+### s08b's dependency on s07 was unnecessary
+Its gate hardcoded the VENDORED path, which does not exist until s07 -- that was
+the only reason for the dep. Vendoring merely MOVES parallax.py, so the gate now
+resolves whichever copy exists and the dep is dropped.
+
+### The gate had the same vacuity as s08a's
+It asserted only that functions of the right NAME exist, which three `def`s
+returning {} would satisfy while leaving every entity unavailable. It now also
+requires each shipped RVM to decode its captured fixture to non-empty, non-raw
+data. Fail-first validated: unregistering fails 4 assertions; stubbing the
+decoders to return {} fails the behavioural one that a name-only gate would miss.
+It also no longer demands decode_ota_config, which cannot be written without
+inventing a layout.
+
+### Bytecode hazard worth remembering
+A mutation that swaps two EQUAL-LENGTH strings and is reverted within the same
+second leaves a stale .pyc: Python invalidates on (mtime, size) and both matched.
+The restored source read "off" while the imported module still held "on", and the
+suite failed against correct code. Clear __pycache__ between mutation rounds.

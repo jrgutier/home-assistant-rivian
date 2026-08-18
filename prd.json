@@ -155,13 +155,12 @@
       "id": "s08b",
       "phase": "4.0",
       "deps": [
-        "s07",
         "s08a"
       ],
       "mode": "auto",
-      "passes": false,
-      "title": "Write and register the 4 missing decoders",
-      "detail": "Upstream's RVM_DECODERS covers 14 telemetry topics and NONE of the RVMs this plan ships. Write decode_* for the THREE captured RVMs only -- climate_hold_status, climate_hold_setting, vehicle_wheels -- register in RVM_DECODERS, and assert each against its s08a fixture. Do NOT write decode_ota_config: no fixture exists, its layout would be imagined, and the entity is dropped (s09a). See docs/development/RVM_FIXTURES.md.",
+      "passes": true,
+      "title": "Write and register the decoders for the shipped RVMs",
+      "detail": "Upstream's RVM_DECODERS covers 14 telemetry topics and NONE of the RVMs this plan ships. Write decode_* for the THREE captured RVMs only -- climate_hold_status, climate_hold_setting, vehicle_wheels -- register in RVM_DECODERS, and assert each against its s08a fixture. Do NOT write decode_ota_config: no fixture exists, its layout would be imagined, and the entity is dropped (s09a). See docs/development/RVM_FIXTURES.md. DONE 2026-08-18: decoders written hand-rolled for the THREE captured RVMs and registered (RVM_DECODERS 14 -> 17). Verified empirically first that decode_parallax_message returned None for all three. Each asserted against its captured fixture AND cross-checked against the generated protobuf class. decode_ota_config deliberately NOT written -- no fixture, layout would be imagined, entity dropped (see s09a).",
       "gate": "scripts/gates/s08b.sh"
     },
     {
