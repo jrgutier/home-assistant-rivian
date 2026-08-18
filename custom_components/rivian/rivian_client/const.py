@@ -42,7 +42,14 @@ VEHICLE_STATE_PROPERTIES: Final[set[str]] = {
     "cellularCarrier",
     "cellularSignalStrength",
     "wifiAntennaBars",
-    "wifiSignalStrength",
+    # "wifiSignal", not "wifiSignalStrength". Probed against the live gateway:
+    # a query selecting wifiSignalStrength returns 400 GRAPHQL_VALIDATION_FAILED,
+    # exactly like a field name invented for the control case, while wifiSignal
+    # validates (200) and the vehicle-state subscription delivers values for it.
+    # The typo made this whole default property set unusable with
+    # get_vehicle_state, which is why nothing caught it: the integration
+    # subscribes and never calls that method.
+    "wifiSignal",
     "wifiSsid",
     # TimeStamped(String|[Nullable]Float|Int)
     "activeDriverName",

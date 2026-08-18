@@ -484,9 +484,11 @@ class TestTheResponseIsUnwrapped:
         )
         data = await coordinator._async_update_data()
 
+        # The equality is what kills a revert; `hasattr(data, "get")` looked like a
+        # check for the production failure (.get on a ClientResponse) but MagicMock
+        # synthesises .get, so it held either way. Removed rather than kept as
+        # decoration.
         assert data == {"id": "u1", "vehicles": []}
-        # The precise failure seen in production: .get on a ClientResponse.
-        assert hasattr(data, "get")
 
     async def test_a_non_200_does_not_silently_become_data(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
@@ -643,3 +645,46 @@ class TestInvalidStatesOnTheFirstUpdate:
         )
         assert "seatRearLeftHeat" not in result
         assert result["powerState"]["value"] == "ready"
+
+
+class TestAMissingKeyFailsLoudly:
+    """A renamed or withdrawn top-level field must not present stale data as fresh.
+
+    The miss used to land in the broad `except Exception`, which returns self.data,
+    so entities kept their last good values with last_update_success still True --
+    visible only as one ERROR line per poll.
+    """
+
+    async def test_a_missing_key_raises_update_failed(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        response = MagicMock()
+        response.status = 200
+        response.json = AsyncMock(return_value={"data": {"somethingElse": {}}})
+        client = MagicMock()
+        client.get_user_information = AsyncMock(return_value=response)
+
+        coordinator = UserCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=client
+        )
+        coordinator.data = {"id": "stale"}
+        with pytest.raises(UpdateFailed, match="currentUser"):
+            await coordinator._async_update_data()
+
+    async def test_a_null_data_block_raises_update_failed(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """GraphQL may answer 200 with data: null alongside errors."""
+        response = MagicMock()
+        response.status = 200
+        response.json = AsyncMock(
+            return_value={"data": None, "errors": [{"message": "nope"}]}
+        )
+        client = MagicMock()
+        client.get_user_information = AsyncMock(return_value=response)
+
+        coordinator = UserCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=client
+        )
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()

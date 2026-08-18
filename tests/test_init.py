@@ -551,7 +551,35 @@ class TestTheSubscriptionFieldList:
     the real gateway.
     """
 
-    def test_parallax_only_fields_stay_out_of_the_subscription(self) -> None:
+    def test_every_subscribed_field_is_one_the_gateway_knows(self) -> None:
+        """The real invariant, checked against the client's own property list.
+
+        The first version of this test asserted only that PARALLAX_ONLY_FIELDS was
+        excluded from VEHICLE_STATE_API_FIELDS -- a restatement of the fix, not a
+        check of anything. Add another Parallax-fed sensor tomorrow and it passes
+        while the subscription dies again, which is precisely the bug it was
+        written for.
+
+        This is the check that would have caught wheelsInstalled: the field is
+        computed by a Parallax decoder and appears in no gateway property list.
+        """
+        from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+        from custom_components.rivian.rivian_client.const import (
+            VEHICLE_STATES_SUBSCRIPTION_PROPERTIES,
+        )
+
+        unknown = set(VEHICLE_STATE_API_FIELDS) - VEHICLE_STATES_SUBSCRIPTION_PROPERTIES
+        assert not unknown, (
+            f"{sorted(unknown)} would be sent in the vehicleState subscription but "
+            "are not fields the gateway advertises. Rivian rejects the WHOLE "
+            "subscription on the first unknown field, so this delivers no vehicle "
+            "state at all. If the field is Parallax-derived, add it to "
+            "PARALLAX_ONLY_FIELDS; if the gateway really does accept it, add it to "
+            "the client's VEHICLE_STATE_PROPERTIES with evidence."
+        )
+
+    def test_parallax_only_fields_are_actually_excluded(self) -> None:
+        """Kept as a narrow check on the mechanism itself, no longer as the guard."""
         from custom_components.rivian.const import (
             PARALLAX_ONLY_FIELDS,
             VEHICLE_STATE_API_FIELDS,
@@ -596,19 +624,36 @@ class TestVocabularyMatchesTheVehicle:
     """Both of these were found by booting against the real vehicle; every unit
     test passed, because the values only appear in live data."""
 
-    def test_preconditioning_options_cover_every_decoder_output(self) -> None:
-        """decode_preconditioning emits "active" | "initiate" | "off"; the sensor's
-        options were written for the GraphQL vocabulary and omitted "Off"."""
+    # Every ENUM sensor fed by a Parallax decoder, with the decoder's full output
+    # vocabulary. Testing only cabinPreconditioningStatus was too narrow: an
+    # independent review mutated away the "Off" in defrost_defog_status's options
+    # and NOTHING failed, even though decode_defrost emits exactly Defrost | Off.
+    # Same exposure, no guard.
+    PARALLAX_ENUM_VOCABULARIES = (
+        ("cabinPreconditioningStatus", ("active", "initiate", "off")),
+        ("defrostDefogStatus", ("defrost", "off")),
+    )
+
+    @pytest.mark.parametrize(
+        ("field", "emitted"), PARALLAX_ENUM_VOCABULARIES, ids=lambda v: str(v)[:30]
+    )
+    def test_enum_options_cover_every_decoder_output(
+        self, field: str, emitted: tuple[str, ...]
+    ) -> None:
+        """A value the decoder can emit but the sensor does not list makes HA log an
+        error and append it to the options at runtime, so the vocabulary silently
+        becomes whatever the vehicle happened to send."""
         from custom_components.rivian.const import SENSORS, _to_title_case
 
         description = next(
-            d
-            for sensors in SENSORS.values()
-            for d in sensors
-            if d.field == "cabinPreconditioningStatus"
+            d for sensors in SENSORS.values() for d in sensors if d.field == field
         )
-        for emitted in ("active", "initiate", "off"):
-            assert _to_title_case(emitted) in description.options
+        missing = [
+            _to_title_case(v)
+            for v in emitted
+            if _to_title_case(v) not in description.options
+        ]
+        assert not missing, f"{field} cannot represent {missing}"
 
     def test_sna_is_treated_as_an_invalid_state(self) -> None:
         """The vehicle abbreviates signal-not-available to SNA. The set is compared

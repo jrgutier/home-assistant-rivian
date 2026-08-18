@@ -122,9 +122,27 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
                 if self._error_count:
                     self._error_count = 0
                     self._set_update_interval()
-                return payload["data"][self.key]
+                try:
+                    return payload["data"][self.key]
+                except (KeyError, TypeError) as err:
+                    # Without this the miss lands in the broad `except Exception`
+                    # below, which returns self.data -- so a renamed or withdrawn
+                    # field leaves entities showing plausible but frozen values
+                    # indefinitely, with last_update_success still True. One ERROR
+                    # line per poll and nothing visible in the UI. Fail loudly:
+                    # UpdateFailed marks the coordinator unsuccessful and the
+                    # entities unavailable.
+                    raise UpdateFailed(
+                        f"{self.key} missing from the response payload"
+                    ) from err
             resp.raise_for_status()
 
+        except UpdateFailed:
+            # Raised deliberately just above for a missing key. Without this it
+            # falls into the broad handler below, which returns self.data -- the
+            # exact stale-data-presented-as-fresh behaviour the raise exists to
+            # stop -- and the specific message is lost.
+            raise
         except RivianApiRateLimitError as err:
             _LOGGER.error(
                 "Rate limit being enforced: %s", redact_text(str(err)), exc_info=1
