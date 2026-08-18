@@ -301,5 +301,14 @@
     "ha_version": "2026.8.2, pinned exactly in requirements.txt and again (transitively) by pytest-homeassistant-custom-component==0.13.356. Bump the two together. Superseded the earlier state where requirements.txt said >=2025.1.0, config/.HA_VERSION said 2025.10.4 and the venv had something else again.",
     "rebuild": "uv venv --python 3.14 .venv && VIRTUAL_ENV=$PWD/.venv uv pip install -r requirements_test.txt. Do not rename a venv -- script shebangs carry absolute paths.",
     "upgrade_cost_measured": "The 2025.10.4 -> 2026.8.2 jump cost one new test dependency (serialx, pulled in by homeassistant.components.usb) and three lines of test hygiene: test_coordinator_base's interval tests leaked a refresh timer that HA 2026.8's verify_cleanup fails on. It also let four pins go -- pycares<5, habluetooth==5.6.4, bleak-retry-connector==4.4.3, dbus-fast==2.44.3 all now resolve forward on their own."
-  }
+  },
+  "known_gaps": [
+    {
+      "id": "parallax-invalid-state-filter",
+      "source": "architect review, 2026-08-18",
+      "severity": "low \u2014 no live defect",
+      "detail": "coordinator.py:996 merges Parallax updates with `new_data = (self.data or {}) | vehicle_updates` and calls async_set_updated_data directly, so those values never pass through _build_vehicle_info_dict and INVALID_SENSOR_STATES is never applied to them. Defect 5 from s13 is therefore only half fixed: the GraphQL path filters fault/SNA/undefined, the Parallax path does not.",
+      "why_not_fixed": "Every Parallax decoder's output vocabulary was checked and none can emit a value in INVALID_SENSOR_STATES, so there is no live defect. The change would touch the hot path that carries all vehicle telemetry, on no evidence of harm. Revisit if a decoder ever gains a fault/unavailable value, or if a sensor is seen holding one."
+    }
+  ]
 }
