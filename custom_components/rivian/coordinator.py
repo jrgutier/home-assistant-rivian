@@ -816,6 +816,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._last_update_time: datetime | None = None
         self._watchdog_task: asyncio.Task | None = None
         self._prev_charger_state: str | None = None
+        # Fields already reported as unusable, so the warning fires once each.
+        self._dropped_reported: set[str] = set()
         self._subscription_start_time: datetime | None = None
         self._subscription_count = 0  # Track number of resubscriptions
         self._charging_schedule: dict[str, Any] | None = None
@@ -1126,6 +1128,25 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # Update watchdog timestamp
         self._last_update_time = datetime.now(timezone.utc)
 
+    def _note_dropped(self, key: str, value: Any) -> None:
+        """Say once, per field, that the vehicle is not reporting it.
+
+        Dropping the field is what makes the entity unavailable rather than
+        showing a fabricated value, so the reason has to be discoverable. Logged
+        once per key per coordinator: these arrive on every update and would
+        otherwise be several lines a minute.
+        """
+        if key in self._dropped_reported:
+            return
+        self._dropped_reported.add(key)
+        _LOGGER.warning(
+            "Vehicle %s reports %s as %r, which is not a usable value; the entity "
+            "will be unavailable rather than show a fabricated state",
+            self.vehicle_id,
+            key,
+            value,
+        )
+
     def _build_vehicle_info_dict(self, vijson: dict[str, Any]) -> dict[str, Any]:
         """Take the json output of vehicle_info and build a dictionary."""
         items = {
@@ -1189,12 +1210,15 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # Observed live as a literal 'SNA' on both rear seat heating sensors at
             # every fresh start. gnssLocation is exempt here for the same reason it
             # is exempt below.
-            return {
-                key: item
-                for key, item in items.items()
-                if key == "gnssLocation"
-                or str(item.get("value")).lower() not in INVALID_SENSOR_STATES
-            }
+            kept = {}
+            for key, item in items.items():
+                if key != "gnssLocation" and (
+                    str(item.get("value")).lower() in INVALID_SENSOR_STATES
+                ):
+                    self._note_dropped(key, item.get("value"))
+                    continue
+                kept[key] = item
+            return kept
         if not items or prev_items == items:
             return prev_items
 
@@ -1211,7 +1235,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     # back to. The original `and key in prev_items` let it through,
                     # which is how both rear seat heating sensors reported a literal
                     # 'SNA' on every start even after the first-update path was
-                    # fixed. Drop it; the sensor reports unavailable instead.
+                    # fixed. Drop it; the entity reports unavailable instead.
+                    self._note_dropped(key, value)
                     del new_data[key]
                     continue
             new_data[key]["history"] |= prev_items.get(key, {}).get("history", set())

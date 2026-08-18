@@ -40,23 +40,50 @@ from .proto.vehicle_operation import _encode_varint_field
 
 _LOGGER = logging.getLogger(__name__)
 
+# Ids from the Rivian Android app's own CLOSURE_INSTANCE enum
+# (com.rivian.android.consumer 3.15.0). Transcribed, not inferred.
+#
+# Id 6 was previously mapped to closureSideBinLeftClosed. It is the TAILGATE; the
+# left side bin is 8. On an R1T that made the left gear tunnel sensor report the
+# tailgate's state, while the real side bins, tonneau and charge port were
+# discarded because nothing mapped their ids.
+#
+# Ids present in the enum but deliberately unmapped: 0 UNSPECIFIED, 10 CHARGE_PORT
+# and 16 WINDOW_REAR (no corresponding entity field), and 10000 GROUP_WINDOWS,
+# which is an aggregate rather than a physical closure.
 CLOSURE_MAP = {
-    1: "doorFrontLeftClosed",
-    2: "doorFrontRightClosed",
-    3: "doorRearLeftClosed",
-    4: "doorRearRightClosed",
-    5: "closureFrunkClosed",
-    6: "closureSideBinLeftClosed",
-    7: "closureLiftgateClosed",
+    1: "doorFrontLeftClosed",  # DOOR_ROW_1_LEFT
+    2: "doorFrontRightClosed",  # DOOR_ROW_1_RIGHT
+    3: "doorRearLeftClosed",  # DOOR_ROW_2_LEFT
+    4: "doorRearRightClosed",  # DOOR_ROW_2_RIGHT
+    5: "closureFrunkClosed",  # FRUNK
+    6: "closureTailgateClosed",  # TAILGATE   (was: side bin left)
+    7: "closureLiftgateClosed",  # LIFTGATE
+    8: "closureSideBinLeftClosed",  # SIDE_BIN_LEFT
+    9: "closureSideBinRightClosed",  # SIDE_BIN_RIGHT
+    11: "closureTonneauClosed",  # TONNEAU
+    12: "windowFrontLeftClosed",  # WINDOW_FRONT_LEFT
+    13: "windowFrontRightClosed",  # WINDOW_FRONT_RIGHT
+    14: "windowRearLeftClosed",  # WINDOW_BACK_LEFT
+    15: "windowRearRightClosed",  # WINDOW_BACK_RIGHT
 }
 
+# Ids from the app's LOCK_INSTANCE enum. Note it is NOT the same numbering as
+# CLOSURE_INSTANCE past id 10: tonneau is 15 here and 11 there.
+#
+# Unmapped: 0 UNSPECIFIED, 10 CHARGE_PORT, 11 TRUNK_SECURITY, 12 CENTER_CONSOLE,
+# 13 GLOVE_BOX and 14 GEAR_GUARD -- no entity reads them.
 LOCK_MAP = {
-    1: "doorFrontLeftLocked",
-    2: "doorFrontRightLocked",
-    3: "doorRearLeftLocked",
-    4: "doorRearRightLocked",
-    5: "closureFrunkLocked",
-    7: "closureLiftgateLocked",
+    1: "doorFrontLeftLocked",  # DOOR_FRONT_LEFT
+    2: "doorFrontRightLocked",  # DOOR_FRONT_RIGHT
+    3: "doorRearLeftLocked",  # DOOR_BACK_LEFT
+    4: "doorRearRightLocked",  # DOOR_BACK_RIGHT
+    5: "closureFrunkLocked",  # FRUNK
+    6: "closureTailgateLocked",  # TAILGATE
+    7: "closureLiftgateLocked",  # LIFTGATE
+    8: "closureSideBinLeftLocked",  # SIDE_BIN_LEFT
+    9: "closureSideBinRightLocked",  # SIDE_BIN_RIGHT
+    15: "closureTonneauLocked",  # TONNEAU
 }
 
 POWER_STATE_MAP = {
