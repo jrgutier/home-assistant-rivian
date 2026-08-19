@@ -56,7 +56,7 @@ for f in wcm cdm apj h9l lel; do
   contains "$f.java is a vehicleState(id:) document" \
            'vehicleState(id: $vehicleID)' "$APKDIR/$f.java"
 done
-contains "apj carries the tyre fields (its unique contribution)" \
+contains "apj carries the tire fields (its unique contribution)" \
          'tirePressureRearRight' "$APKDIR/apj.java"
 contains "h9l carries activeDriverName (its unique contribution)" \
          'activeDriverName' "$APKDIR/h9l.java"

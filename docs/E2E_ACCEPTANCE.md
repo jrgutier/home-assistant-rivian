@@ -15,7 +15,7 @@ for this story existing.
 | Parallax decodes to real dicts, never `{"raw": …}` | **13 topics, 0 raw** |
 | GraphQL field rejections | **0** |
 | `sensor.*_odometer` holds a value | **`vehicleMileage: 152031000`** |
-| All four tyre pressures hold values | **3.4 / 3.38 / 3.4 / 3.4** |
+| All four tire pressures hold values | **3.4 / 3.38 / 3.4 / 3.4** |
 | Door and lock binary sensors hold values | **6 doors/closures, 6 locks, all decoded** |
 | Live charging sensors update more than once | **3–4 updates per run** |
 | Zero `TypeError` from `get()` | **0** |
@@ -82,7 +82,7 @@ duration is stored.
    `wheels_installed` sensor added in s09b put `wheelsInstalled` into the
    subscription query. Rivian rejected it —
    `Cannot query field "wheelsInstalled" on type "VehicleState"` — and the whole
-   subscription then delivered nothing: no battery level, no odometer, no tyre
+   subscription then delivered nothing: no battery level, no odometer, no tire
    pressures. Every reading in the table above was absent before this fix.
 
 3. **`Off` missing from the preconditioning enum.** `decode_preconditioning` emits

@@ -37,7 +37,7 @@ That run yields 32,941 `.java` files. Copy these nine out of it:
 | `l6e.java` | `defpackage/` | The Parallax RVM table — names, and `subscriptionScope` |
 | `wcm.java` | `defpackage/` | `vehicleState(id:)` document (128 fields) |
 | `cdm.java` | `defpackage/` | `vehicleState(id:)` document |
-| `apj.java` | `defpackage/` | `vehicleState(id:)` document — carries the eight tyre fields |
+| `apj.java` | `defpackage/` | `vehicleState(id:)` document — carries the eight tire fields |
 | `h9l.java` | `defpackage/` | `vehicleState(id:)` document — carries `activeDriverName` |
 | `lel.java` | `defpackage/` | `vehicleState(id:)` document — carries the GNSS consent block |
 
