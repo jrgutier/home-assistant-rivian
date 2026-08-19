@@ -29,7 +29,6 @@ from .responses import (
     SET_CHARGING_SCHEDULES_RESPONSE,
     USER_INFORMATION_RESPONSE,
     VEHICLE_CHARGING_SCHEDULES_RESPONSE,
-    VEHICLE_STATE_RESPONSE,
     WALLBOXES_RESPONSE,
     error_response,
     load_response,
@@ -165,23 +164,6 @@ async def test_get_registered_wallboxes(aresponses: ResponsesMockServer) -> None
         await rivian.close()
 
 
-async def test_get_vehicle_state(aresponses: ResponsesMockServer) -> None:
-    """Test GraphQL Response for a vehicleState request"""
-    aresponses.add(
-        "rivian.com",
-        "/api/gql/gateway/graphql",
-        "POST",
-        response=VEHICLE_STATE_RESPONSE,
-    )
-    async with aiohttp.ClientSession():
-        rivian = Rivian(app_session_token="token", user_session_token="token")
-        response = await rivian.get_vehicle_state("vin", {})
-        response_json = await response.json()
-        assert response.status == 200
-        assert len(response_json["data"]["vehicleState"]) == 72
-        await rivian.close()
-
-
 async def test_get_live_charging_session(aresponses: ResponsesMockServer) -> None:
     """Test GraphQL Response for a getLiveSessionData request"""
     aresponses.add(
@@ -263,7 +245,15 @@ async def test_set_charging_schedules(aresponses: ResponsesMockServer) -> None:
 
 
 async def test_graphql_errors(aresponses: ResponsesMockServer) -> None:
-    """Test GraphQL error responses."""
+    """Test GraphQL error responses.
+
+    The call is incidental -- these exercise __graphql_query's error handling, not
+    the operation. They used get_vehicle_state until f4 deleted it; repointed at
+    get_user_information rather than dropped, because the error paths are the
+    coverage, and the client floor has under half a point of headroom.
+    get_user_information posts to the same GRAPHQL_GATEWAY url the mock registers;
+    get_registered_wallboxes posts to GRAPHQL_CHARGING and would not match.
+    """
     host = "rivian.com"
     path = "/api/gql/gateway/graphql"
 
@@ -271,28 +261,28 @@ async def test_graphql_errors(aresponses: ResponsesMockServer) -> None:
     async with aiohttp.ClientSession():
         rivian = Rivian()
         with pytest.raises(RivianApiRateLimitError):
-            await rivian.get_vehicle_state("vin", {})
+            await rivian.get_user_information()
         await rivian.close()
 
     aresponses.add(host, path, "POST", response=error_response("DATA_ERROR"))
     async with aiohttp.ClientSession():
         rivian = Rivian()
         with pytest.raises(RivianDataError):
-            await rivian.get_vehicle_state("vin", {})
+            await rivian.get_user_information()
         await rivian.close()
 
     aresponses.add(host, path, "POST", response=error_response("SESSION_MANAGER_ERROR"))
     async with aiohttp.ClientSession():
         rivian = Rivian()
         with pytest.raises(RivianTemporarilyLockedError):
-            await rivian.get_vehicle_state("vin", {})
+            await rivian.get_user_information()
         await rivian.close()
 
     aresponses.add(host, path, "POST", response=error_response())
     async with aiohttp.ClientSession():
         rivian = Rivian()
         with pytest.raises(RivianApiException):
-            await rivian.get_vehicle_state("vin", {})
+            await rivian.get_user_information()
         await rivian.close()
 
     aresponses.add(

@@ -417,12 +417,19 @@ class TestUnpopulatedFields:
         for field in (*self.VALIDITY_FIELDS, "cabinHoldNotification"):
             assert field not in app_fields
 
-    def test_the_tire_source_the_app_actually_uses_is_recorded(self) -> None:
-        """The app requests tirePressureState, an aggregate we do not subscribe to.
+    def test_no_offline_candidate_exists_for_the_validity_fields(self) -> None:
+        """There is no aggregate to adopt. An earlier draft said there was.
 
-        Recorded here so f4 adopts the right field. The four tirePressureStatus*
-        siblings ARE subscribed and DO report (live value OK on all four), so the
-        gap is specifically the aggregate.
+        `tirePressureState` is the OPERATION NAME of apj.java's subscription, not
+        a field it selects, and it appears nowhere else except two retired flat
+        extracts. Parsing the selection set shows apj selects exactly eight tire
+        fields: the four pressures and the four statuses. No validity field, no
+        aggregate.
+
+        It was briefly adopted on that misreading and reverted before anything
+        shipped. Subscribing to a name the server does not know takes the ENTIRE
+        subscription down -- that is what wheelsInstalled did -- so this asserts
+        the absence rather than leaving it to a comment.
         """
         from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
 
@@ -433,7 +440,6 @@ class TestUnpopulatedFields:
             "tirePressureStatusRearRight",
         ):
             assert field in VEHICLE_STATE_API_FIELDS
-        # f4's job, not f2's: adding a name is what killed the subscription once.
         assert "tirePressureState" not in VEHICLE_STATE_API_FIELDS
 
     def test_each_field_has_a_recorded_finding(self) -> None:

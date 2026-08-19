@@ -18,7 +18,6 @@ from aiohttp import ClientResponse, ClientWebSocketResponse
 
 from .const import (
     LIVE_SESSION_PROPERTIES,
-    VEHICLE_STATE_PROPERTIES,
     VEHICLE_STATES_SUBSCRIPTION_ONLY_PROPERTIES,
     VEHICLE_STATES_SUBSCRIPTION_PROPERTIES,
     VehicleCommand,
@@ -420,40 +419,21 @@ class Rivian:
 
         return await self.__graphql_query(headers, url, graphql_json)
 
-    async def get_vehicle_state(
-        self, vin: str, properties: set[str] | None = None
-    ) -> ClientResponse:
-        """Get vehicle state."""
-        if not properties:
-            properties = VEHICLE_STATE_PROPERTIES
-        elif (
-            subscription_properties
-            := VEHICLE_STATES_SUBSCRIPTION_ONLY_PROPERTIES.intersection(properties)
-        ):
-            _LOGGER.warning(
-                "Subscription only properties have been identified and removed: %s",
-                ", ".join(subscription_properties),
-            )
-            properties.difference_update(subscription_properties)
-
-        url = GRAPHQL_GATEWAY
-
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
-
-        graphql_query = "query GetVehicleState($vehicleID: String!) {\n  vehicleState(id: $vehicleID) "
-        graphql_query += self._build_vehicle_state_fragment(properties)
-        graphql_query += "}"
-
-        graphql_json = {
-            "operationName": "GetVehicleState",
-            "query": graphql_query,
-            "variables": {"vehicleID": vin},
-        }
-
-        return await self.__graphql_query(headers, url, graphql_json)
+    # get_vehicle_state was deleted by f4.
+    #
+    # It had no caller: coordinator.py's VehicleCoordinator._fetch_data raises
+    # NotImplementedError("Polling VehicleState no longer allowed") because vehicle
+    # state arrives over the subscription, and nothing else called it.
+    #
+    # It was also an unsound oracle. A field valid on the subscription and rejected
+    # by the poll is not an invalid field, it is the wrong channel -- so answering
+    # "does the server know this name?" with this method gave the wrong answer.
+    #
+    # If it is ever revived, fix this first: the elif branch called
+    # `properties.difference_update(...)` on the caller's own set, stripping eleven
+    # names -- including all four tire pressures -- from whatever was passed in.
+    # (It never reached the module-level VEHICLE_STATE_PROPERTIES: that assignment
+    # is in the `if` branch and the mutation in the `elif`.)
 
     async def get_charging_schedules(self, vehicle_id: str) -> ClientResponse:
         """Get charging schedules for a vehicle."""

@@ -585,62 +585,139 @@ type VehicleState {
 
   alarmSoundStatus: TimeStampedString
 
+  # The server accepts it; this APK build does not request it.
   batteryCapacity: TimeStampedFloat
+
   batteryCellType: TimeStampedString
+
   batteryHvThermalEvent: TimeStampedString
+
   batteryHvThermalEventPropagation: TimeStampedString
+
   batteryLevel: TimeStampedFloat
+
   batteryLimit: TimeStampedInt
+
   batteryNeedsLfpCalibration: TimeStampedInt
 
+  # The server accepts it; this APK build does not request it.
   brakeFluidLow: TimeStampedString
 
   btmFfHardwareFailureStatus: TimeStampedString
+
   btmIcHardwareFailureStatus: TimeStampedString
+
   btmLfdHardwareFailureStatus: TimeStampedString
+
   btmOcHardwareFailureStatus: TimeStampedString
-  btmRfdHardwareFailureStatus: TimeStampedString
+
   btmRfHardwareFailureStatus: TimeStampedString
 
+  btmRfdHardwareFailureStatus: TimeStampedString
+
   cabinClimateDriverTemperature: TimeStampedFloat
+
   cabinClimateInteriorTemperature: TimeStampedFloat
+
+  # The server accepts it; this APK build does not request it.
+  # Added by f4, which is why it had no declaration before: it is in neither the
+  # app's documents nor the old block. Scalar takes cabinHoldStatus's shape; the
+  # field has never carried a value here, so it is not observed.
+  cabinHoldNotification: TimeStampedString
+
+  # Added by f4. Scalar from live data: live value "Available".
+  cabinHoldStatus: TimeStampedString
+
   cabinPreconditioningStatus: TimeStampedString
+
   cabinPreconditioningType: TimeStampedString
 
   carWashMode: TimeStampedString
 
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  cellularAntennaBars: TimeStampedInt
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  cellularCarrier: TimeStampedString
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  cellularMode: TimeStampedString
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  cellularSignalStrength: TimeStampedInt
+
   chargePortState: TimeStampedString
+
   chargerDerateStatus: TimeStampedString
+
   chargerState: TimeStampedString
+
   chargerStatus: TimeStampedString
+
+  # Declared before f4 and not in any app document. KEPT: the app is a
+  # lower bound, and this one is read by the integration.
   chargingDisabledAC: TimeStampedInt
+
   chargingDisabledACFaultState: TimeStampedInt @subscriptionOnly
+
   chargingDisabledAll: TimeStampedInt
+
   chargingTimeEstimationValidity: TimeStampedString
 
-  chargingTripTargetSoc: TimeStampedInt
   chargingTripTargetMinsRemaining: TimeStampedInt
 
+  chargingTripTargetSoc: TimeStampedInt
+
   closureChargePortDoorNextAction: TimeStampedString @subscriptionOnly
+
   closureFrunkClosed: TimeStampedString
+
   closureFrunkLocked: TimeStampedString
+
   closureFrunkNextAction: TimeStampedString
+
   closureLiftgateClosed: TimeStampedString
+
   closureLiftgateLocked: TimeStampedString
+
   closureLiftgateNextAction: TimeStampedString
+
   closureSideBinLeftClosed: TimeStampedString
+
   closureSideBinLeftLocked: TimeStampedString
+
   closureSideBinLeftNextAction: TimeStampedString
+
   closureSideBinRightClosed: TimeStampedString
+
   closureSideBinRightLocked: TimeStampedString
+
   closureSideBinRightNextAction: TimeStampedString
+
   closureTailgateClosed: TimeStampedString
+
   closureTailgateLocked: TimeStampedString
+
   closureTailgateNextAction: TimeStampedString
+
   closureTonneauClosed: TimeStampedString
+
   closureTonneauLocked: TimeStampedString
+
+  # Declared before f4 and not in any app document. KEPT: the app is a
+  # lower bound, and this one is read by the integration.
   closureTonneauNextAction: TimeStampedString
 
+  # Declared before f4 and not in any app document. KEPT: the app is a
+  # lower bound, and this one is read by the integration.
   cloudConnection: VehicleCloudConnection
 
   coldRangeNotification: TimeStampedString @subscriptionOnly
@@ -650,53 +727,109 @@ type VehicleState {
   distanceToEmpty: TimeStampedInt
 
   doorFrontLeftClosed: TimeStampedString
+
   doorFrontLeftLocked: TimeStampedString
+
   doorFrontRightClosed: TimeStampedString
+
   doorFrontRightLocked: TimeStampedString
+
   doorRearLeftClosed: TimeStampedString
+
   doorRearLeftLocked: TimeStampedString
+
   doorRearRightClosed: TimeStampedString
+
   doorRearRightLocked: TimeStampedString
 
   driveMode: TimeStampedString
 
+  # The server accepts it; this APK build does not request it.
   gearGuardLocked: TimeStampedString
+
   gearGuardVideoMode: TimeStampedString
+
   gearGuardVideoStatus: TimeStampedString
+
   gearGuardVideoTermsAccepted: TimeStampedString
+
   gearStatus: TimeStampedString
 
   geoLocation: TimeStampedString
 
   gnssAltitude: TimeStampedNullableFloat
+
   gnssBearing: TimeStampedFloat
+
   gnssError: VehicleLocationError
+
   gnssLocation: VehicleLocation
+
   gnssSpeed: TimeStampedFloat
 
   limitedAccelCold: TimeStampedInt
+
   limitedRegenCold: TimeStampedInt
 
   otaAvailableVersion: TimeStampedString
+
   otaAvailableVersionGitHash: TimeStampedString
+
+  # The server accepts it; this APK build does not request it.
   otaAvailableVersionNumber: TimeStampedInt
+
+  # The server accepts it; this APK build does not request it.
   otaAvailableVersionWeek: TimeStampedInt
+
+  # The server accepts it; this APK build does not request it.
   otaAvailableVersionYear: TimeStampedInt
+
   otaCurrentStatus: TimeStampedString
+
   otaCurrentVersion: TimeStampedString
+
   otaCurrentVersionGitHash: TimeStampedString
+
+  # The server accepts it; this APK build does not request it.
   otaCurrentVersionNumber: TimeStampedInt
+
+  # The server accepts it; this APK build does not request it.
   otaCurrentVersionWeek: TimeStampedInt
+
+  # The server accepts it; this APK build does not request it.
   otaCurrentVersionYear: TimeStampedInt
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  otaDeploymentIntent: TimeStampedString
+
   otaDownloadProgress: TimeStampedInt
+
   otaInstallDuration: TimeStampedInt
+
   otaInstallProgress: TimeStampedInt
+
   otaInstallReady: TimeStampedString
+
   otaInstallTime: TimeStampedInt
+
   otaInstallType: TimeStampedString
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  otaSoftwareCategory: TimeStampedString
+
   otaStatus: TimeStampedString
 
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  passiveEntryUnlockFailReason: TimeStampedString
+
   petModeStatus: TimeStampedString
+
   petModeTemperatureStatus: TimeStampedString
 
   powerState: TimeStampedString
@@ -708,52 +841,133 @@ type VehicleState {
   remoteChargingAvailable: TimeStampedInt
 
   seatFrontLeftHeat: TimeStampedString
+
   seatFrontLeftVent: TimeStampedString
+
   seatFrontRightHeat: TimeStampedString
+
   seatFrontRightVent: TimeStampedString
+
   seatRearLeftHeat: TimeStampedString
+
   seatRearRightHeat: TimeStampedString
+
   seatThirdRowLeftHeat: TimeStampedString
+
   seatThirdRowRightHeat: TimeStampedString
 
   serviceMode: TimeStampedString
 
   steeringWheelHeat: TimeStampedString
 
+  # Declared before f4 and not in any app document. KEPT: the app is a
+  # lower bound, and this one is read by the integration.
+  supportedFeatures: [SupportedFeature!]!
+
   timeToEndOfCharge: TimeStampedFloat
 
   tirePressureFrontLeft: TimeStampedNullableFloat @subscriptionOnly
+
   tirePressureFrontRight: TimeStampedNullableFloat @subscriptionOnly
+
   tirePressureRearLeft: TimeStampedNullableFloat @subscriptionOnly
+
   tirePressureRearRight: TimeStampedNullableFloat @subscriptionOnly
+
   tirePressureStatusFrontLeft: TimeStampedString
+
   tirePressureStatusFrontRight: TimeStampedString
+
   tirePressureStatusRearLeft: TimeStampedString
+
   tirePressureStatusRearRight: TimeStampedString
+
+  # The server accepts it; this APK build does not request it.
   tirePressureStatusValidFrontLeft: TimeStampedString
+
+  # The server accepts it; this APK build does not request it.
   tirePressureStatusValidFrontRight: TimeStampedString
+
+  # The server accepts it; this APK build does not request it.
   tirePressureStatusValidRearLeft: TimeStampedString
+
+  # The server accepts it; this APK build does not request it.
   tirePressureStatusValidRearRight: TimeStampedString
 
   trailerStatus: TimeStampedString
 
   twelveVoltBatteryHealth: TimeStampedString
 
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  vasAccessCanFaulted: TimeStampedString
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  vasSecureElementFaulted: TimeStampedString
+
   vehicleMileage: TimeStampedInt
 
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  wifiAntennaBars: TimeStampedInt
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  wifiFreq: TimeStampedInt
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  wifiLinkSpeed: TimeStampedInt
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  wifiSecureStatus: TimeStampedString
+
+  # Added by f4. Scalar from live data: live value -52, dBm.
+  wifiSignal: TimeStampedInt
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  wifiSsid: TimeStampedString
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  wifiStaDisabledReason: TimeStampedString
+
+  # Added by f4 from the app's documents. The compiled documents carry
+  # field NAMES but no types, so this scalar is INFERRED from the
+  # convention the rest of this block follows -- not observed.
+  wifiWpaStatus: TimeStampedString
+
   windowFrontLeftCalibrated: TimeStampedString
+
   windowFrontLeftClosed: TimeStampedString
+
   windowFrontRightCalibrated: TimeStampedString
+
   windowFrontRightClosed: TimeStampedString
+
   windowRearLeftCalibrated: TimeStampedString
+
   windowRearLeftClosed: TimeStampedString
+
   windowRearRightCalibrated: TimeStampedString
+
   windowRearRightClosed: TimeStampedString
+
   windowsNextAction: TimeStampedString
 
+  # The server accepts it; this APK build does not request it.
   wiperFluidState: TimeStampedString
-
-  supportedFeatures: [SupportedFeature!]!
 }
 
 type WayPoint {

@@ -20,30 +20,37 @@ undercounts.
 | Entities | `binary_sensor.*_{front,rear}_{left,right}_tire_pressure_validity` |
 | In the app | **0 files** |
 | Live | `unavailable`, all four |
-| Verdict | **Left in place. Live probe deferred to f8.** |
+| Verdict | **No source found in the app. Left in place. Live probe deferred to f8.** |
 
-**A source was found, and it is not these.** The app's `vehicleState` document
-(`apj.java`) requests nine tire fields:
+**Correction.** An earlier draft of this file said a source *had* been found:
+`tirePressureState`, "the aggregate the app requests instead". That was wrong,
+and it is worth recording how, because the mistake is the exact one this project
+keeps having to unlearn.
+
+`tirePressureState` is the **operation name** of `apj.java`'s subscription —
+`subscription tirePressureState($vehicleID: String!) { vehicleState(id: …) { … } }`
+— not a field it selects. A flat grep for `tirePressure[A-Za-z]*` returns it and
+gives no hint which it is. The only other occurrences in the whole decompilation
+are in two retired flat extracts, `apk_statefields.txt` and `apk_ops.txt`, which
+is how it reached the plan in the first place. Parsing the selection set instead
+of grepping the text shows `apj.java` selects exactly **eight** fields:
 
 ```
 tirePressure{FrontLeft,FrontRight,RearLeft,RearRight}
 tirePressureStatus{FrontLeft,FrontRight,RearLeft,RearRight}
-tirePressureState
 ```
 
-Note what is there and what is not. The four `tirePressureStatus*` are **already
-subscribed and already reporting** — all four read `OK` live. The app does *not*
-request any `…StatusValid…` field; instead it asks for a single aggregate,
-**`tirePressureState`**, which this integration does not subscribe to at all.
+It was briefly adopted into `VEHICLE_STATE_API_FIELDS` on the strength of that
+misreading, and reverted before anything shipped. Subscribing to a name the
+server does not know is not a harmless experiment: it is what `wheelsInstalled`
+did, and it takes the **entire** subscription down (`const.py:1441-1455`).
 
-So `tirePressureState` is the obvious candidate for whatever the validity
-entities were meant to express. Adopting it is **f4's** work, not this file's,
-because adding a name to the subscription is the operation that killed the whole
-subscription once already (`wheelsInstalled`, `const.py:1441-1455`) and belongs
-with the schema rebuild.
+So: the four `tirePressureStatus*` are already subscribed and already reporting —
+all four read `OK` live — and the app requests **no** validity field of any kind
+and **no** aggregate. There is no offline candidate. That is the third outcome:
+no source found in the app, entities left in place, live probe deferred to f8.
 
-Until then the four validity entities stay, reading `unavailable`. They cost
-nothing and removing them needs a live failure nobody has recorded.
+They cost nothing and removing them needs a live failure nobody has recorded.
 
 ## `cabinHoldNotification`
 
