@@ -190,3 +190,91 @@ my reading of them was not.
 
 Final state: all closures closed except the charge-port door (plugged in), Park,
 speed 0, Gear Guard armed, `lock.r1t_closures` locked.
+
+## f7 — actuate the residue, 2026-08-19 ~12:31 CDT (beta6)
+
+**Supersedes, does not replace, the "f7 not attempted" note above.** That note deferred f7 "until
+the command-state path reports again". `ae06ee9` fixed it; beta6 deployed it; f7 ran.
+
+Sent with `scripts/probe_vehicle_command.py` against the deployed beta6 client. `OPEN_TAILGATE` was
+**never sent** — see the prohibition below.
+
+### Pre-flight (from the production integration, not inferred)
+
+`gear_selector` Park, `speed` 0.0, `power_state` Ready, `lock.r1t_closures` locked, all closures
+closed, Gear Guard video enabled, alarm Inactive. `cover.r1t_charge_port_door` open — expected and
+excluded, the truck is plugged in. `pet_comfort_status` **Disabled**, `pet_comfort_temperature_status`
+**Default** — the pre-state for the one command whose reversal is verifiable.
+
+### Results
+
+| Command | Disposition | Send→terminal | state |
+|---|---|---|---|
+| `WAKE_VEHICLE` (calibration) | accepted | **1.68 s** | 5 |
+| `LOCK_ALL_CLOSURES_FEEDBACK` (calibration, already locked) | accepted | **1.75 s** | 2 |
+| `OPEN_LIFTGATE` | accepted | **2.77 s** | 2 |
+| `CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT` | accepted | **1.48 s** | 2 |
+| `CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT` | accepted | **1.47 s** | 2 |
+| `CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `PET_COMFORT_ON` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `PET_COMFORT_OFF` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `START_VIDEO_DOWNLOADING_SESSION` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `TWO_FACTOR_DRIVE_ALLOW` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `TWO_FACTOR_DRIVE_DENY` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `TWO_FACTOR_DRIVE_DISABLE` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `TWO_FACTOR_DRIVE_ENABLE` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
+| `OPEN_TAILGATE` | **not sent — owner prohibited, physical hazard** | — | — |
+
+### The third-row spelling question is ANSWERED
+
+`COMMAND_COVERAGE.md` recorded "two spellings exist and neither has been seen to work here; which one
+a vehicle accepts is a live question". **`CABIN_HVAC_3RD_ROW_REAR_*` is accepted; `CABIN_HVAC_THIRD_ROW_*`
+is rejected.** Identical `params={"level": 0}`, same truck, seconds apart — one variable.
+
+This required adding `--params` to the probe first. `_validate_vehicle_command` (`rivian.py:524-548`)
+lists eight `level`-requiring HVAC commands and **omits all four third-row spellings**, while
+`send_vehicle_command`'s docstring (`:576`) says `CABIN_HVAC_*` needs `level`. Without the parameter
+nothing raises locally and every rejection is uninterpretable — "wrong spelling" and "missing
+parameter" look identical.
+
+### All seven invalid-wrapper commands rejected identically — a TRANSPORT answer, not a capability one
+
+Every one returned the same `CONFLICT / VEHICLE_COMMAND_ERROR`, including two that a healthy vehicle
+should accept. `COMMAND_COVERAGE.md:45-47` records them as built with `generateInvalidCloudDataWrapper`
+(`appName=""`) and `isParallaxRequestOnly`. The uniformity across all seven, against acceptance of
+ordinary commands minutes earlier on the same credentials, is consistent with the ordinary cloud VAS
+path being **the wrong envelope** for this family. The plan declared seven rejections a passing f7 in
+advance, and that is what happened.
+
+**Nothing is removed on this evidence.** Under Principle -1 a rejection through a possibly-wrong
+transport is not a recorded live failure of the command.
+
+### `TWO_FACTOR_DRIVE_*`: the unverifiable guardrail never came due
+
+All four were rejected, so **no security posture changed**. There is no state surface for them
+anywhere — not in the repo, and confirmed not in Home Assistant either (no entity matches
+`two_factor`/`factor`). Had any been accepted there would have been nothing to read back. They were
+sent last, individually, ordered ALLOW → DENY → DISABLE → ENABLE so that any command which did take
+effect would leave the run on the *more secure* state.
+
+### Command response latency — measured (owner ruling 14)
+
+**Accepted commands answer in 1.47–2.77 s** (n=5; send ack 0.54–1.83 s, result 0.63–0.94 s after).
+
+Against that: `entity.py` waits **30 s**, roughly 11-20x the observed latency, and the coordinator's
+`_poll_command_state` first polls at **5 s** — about 3x the time an answer is actually available. The
+subscription still delivers nothing, so that 5 s poll is the real feed and it is what bounds
+perceived latency. A first poll at ~1 s with a ~10 s ceiling would match the vehicle's measured
+behaviour; the current values were never measured, and are recorded here so the next change to them
+is evidence-based. **Not changed in this run** — it is a live-path change and belongs behind its own
+gate.
+
+**State vocabulary widened.** `ae06ee9` calibrated only `state 0`. Observed here: **2** for
+lock/liftgate/seat-heat, **5** for wake. Still no meaning assigned — `entity.py` treats any `int` as
+terminal, which is why every one of these reported correctly.
+
+### Vehicle left as found
+
+Pet mode `Disabled` / `Default` (unchanged — both commands rejected). Park, speed 0, all closures
+closed, `lock.r1t_closures` locked, charge-port door open because it is plugged in.

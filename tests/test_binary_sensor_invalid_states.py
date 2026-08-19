@@ -289,19 +289,18 @@ async def test_the_entity_set_is_exactly_what_binary_sensors_declares(
 
 
 class TestLockSignalsAreComplements:
-    """`binary_sensor.*_locked_state` and `lock.*_closures` agree, always.
+    """`binary_sensor.*_locked_state` and `lock.*_closures` agree on usable values.
 
-    A finding was filed claiming they disagreed. They do not, and the mistake is
-    worth pinning: `locked_state` carries `device_class=LOCK`, and Home Assistant
-    renders that class as **`on` = Unlocked, `off` = Locked** -- the inverse of the
-    intuitive reading. Both observations that looked contradictory were consistent
-    once that is applied.
+    A finding was filed claiming they disagreed. They do not on locked/unlocked
+    members, and the mistake is worth pinning: `locked_state` carries
+    `device_class=LOCK`, and Home Assistant renders that class as **`on` =
+    Unlocked, `off` = Locked** -- the inverse of the intuitive reading. Both
+    observations that looked contradictory were consistent once that is applied.
 
-    Both read the same `LOCK_STATE_ENTITIES` set, and their logic is exactly
-    complementary:
-
-        lock.is_locked      = not any(v == "unlocked")     (lock.py)
-        binary.is_on        = "unlocked" in values         (binary_sensor.py)
+    Both read the same `LOCK_STATE_ENTITIES` set. On usable values they remain
+    complementary. When every member is invalid they are not: lock.py returns
+    None and the aggregate binary sensor still treats a non-"unlocked" value as
+    off (Locked). That divergence is asserted below rather than papered over.
     """
 
     @staticmethod
@@ -376,3 +375,77 @@ class TestLockSignalsAreComplements:
 
         (description,) = [d for d in BINARY_SENSORS["R1"] if d.key == "locked_state"]
         assert set(description.field) == set(LOCK_STATE_ENTITIES)
+
+    def test_live_sna_combination_still_complements(
+        self, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Three SNA members, the rest locked: lock stays Locked, binary off."""
+        from custom_components.rivian.const import LOCK_STATE_ENTITIES
+
+        values = {key: "locked" for key in LOCK_STATE_ENTITIES}
+        for key in (
+            "closureTailgateLocked",
+            "closureTonneauLocked",
+            "closureSideBinRightLocked",
+        ):
+            values[key] = "signal_not_available"
+        is_locked, is_on = self._pair(mock_config_entry, values)
+        assert is_locked is True
+        assert is_on is False
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_they_are_not_complements_when_every_member_is_invalid(
+        self, mock_config_entry: ConfigEntry, invalid: str
+    ) -> None:
+        """The invalid case the complement claim does not cover."""
+        from custom_components.rivian.const import LOCK_STATE_ENTITIES
+
+        values = {key: invalid for key in LOCK_STATE_ENTITIES}
+        is_locked, is_on = self._pair(mock_config_entry, values)
+        assert is_locked is None
+        assert is_on is False
+
+
+class TestClosureLockAggregateSurvivesLiveSNA:
+    """`lock.r1t_closures` must stay usable on a truck whose closures are SNA.
+
+    Read from the live production instance on 2026-08-19 12:31 CDT, on beta6:
+    tailgate_lock, tonneau_cover_lock and right_gear_tunnel_lock all `unknown`
+    (their LOCK-class binary sensors already return None per binary_sensor.py:109),
+    while `lock.r1t_closures` read `locked`.
+
+    A "return None if ANY member is invalid" shape would make the aggregate
+    permanently `unknown` on this vehicle, because those three are genuine R1T
+    closures -- model-scoping the member set does not remove them. Invalid
+    members are ignored instead, and None is returned only when nothing is usable.
+    """
+
+    def test_live_sna_combination_still_yields_locked(self):
+        from custom_components.rivian.lock import _closures_are_locked
+
+        coordinator = MagicMock()
+        live = {
+            "closureTailgateLocked": "signal_not_available",
+            "closureTonneauLocked": "signal_not_available",
+            "closureSideBinRightLocked": "signal_not_available",
+        }
+        coordinator.get = lambda key: live.get(key, "locked")
+        assert _closures_are_locked(coordinator) is True
+
+    def test_an_unlocked_member_still_wins_over_valid_locked_ones(self):
+        from custom_components.rivian.lock import _closures_are_locked
+
+        coordinator = MagicMock()
+        live = {
+            "closureTailgateLocked": "signal_not_available",
+            "doorFrontLeftLocked": "unlocked",
+        }
+        coordinator.get = lambda key: live.get(key, "locked")
+        assert _closures_are_locked(coordinator) is False
+
+    def test_none_only_when_no_member_is_usable(self):
+        from custom_components.rivian.lock import _closures_are_locked
+
+        coordinator = MagicMock()
+        coordinator.get = lambda key: "signal_not_available"
+        assert _closures_are_locked(coordinator) is None

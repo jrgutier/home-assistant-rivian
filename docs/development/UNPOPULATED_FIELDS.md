@@ -112,3 +112,37 @@ pair appears in no file of this build.
 **Added alongside, not renamed.** The older spelling may serve older firmware, and
 neither pair is wired to an entity yet — which one a given vehicle accepts is a
 live question, and f6 answers it by testing rather than by grepping.
+
+## f8 attempted 2026-08-19 — INCONCLUSIVE, and the instrument is why
+
+**No verdict changes. Nothing is removed.** Under Principle -1 an inconclusive run is not a recorded
+live failure, so all five fields keep their entities and their existing verdicts.
+
+The integration was disabled (`ha core stop` -> edit `disabled_by` -> `ha core start`, that order
+because HA flushes config entries on shutdown, `WS_CONTENTION.md:101-104`), making the probe the sole
+subscriber. Outage 12:38-12:41:38 CDT, ~3.5 minutes. Re-enabled and verified recovered:
+`disabled_by: None`, and fresh recorder rows at 12:41:38 for battery SoC, lock, gear and odometer.
+
+**The probe never became a valid instrument.** It opens with a CONTROL of two known-good fields
+(`batteryLevel`, `vehicleMileage`) precisely so that "the five are silent" can be told from "the probe
+is not working". The control delivered **zero fields in 30 s** as sole subscriber, and again zero in
+25.6 s after a `WAKE_VEHICLE` that returned terminal in 1.87 s. The run stopped there rather than
+reporting five absent fields, which would have been false evidence.
+
+**What the failure teaches, and it corrects an earlier reading of H4.** Home Assistant's own
+subscription received a full snapshot within seconds of starting — recorder rows at 12:29:52 after the
+beta6 restart and again at 12:41:38 after the f8 restore — while this probe, subscribing to a small
+explicit property set, received nothing in either window. So:
+
+- The earlier "accepted but silent" observation (2026-08-19 ~12:0x, with production running) was
+  read as the `WS_CONTENTION.md:24` contention signature. **That reading is not safe.** The same
+  silence appears with no competitor at all, so silence does not distinguish contention from
+  "this probe does not receive what the integration receives".
+- A Parallax subscription on the same credentials **did** deliver during the same period, so whatever
+  the cause, it is specific to the GraphQL vehicle-state path as this probe drives it.
+
+**What f8 needs before it is re-run:** an instrument that reproduces the integration's subscription
+rather than approximating it — the same property set the coordinator uses
+(`VEHICLE_STATES_SUBSCRIPTION_PROPERTIES`) and the same setup path — verified by the control
+delivering before any conclusion is drawn about the five. Bisection logic is written and ready
+(`scratchpad/f8_probe.py`); only the subscription setup is wrong.

@@ -229,9 +229,9 @@ Vehicle commands require a one-time Bluetooth pairing:
 - Main vehicle state uses GraphQL subscriptions for real-time updates, not polling
 - Always check if a vehicle supports a feature via `supported_features` before creating entities
 - Some entities are disabled by default (marked with `entity_registry_enabled_default=False`)
-- Invalid sensor states (`fault`, `signal_not_available`, `undefined`) are filtered using history
+- Invalid sensor states (`fault`, `signal_not_available`, `undefined`) are filtered using history on both the GraphQL and Parallax coordinator paths. Dropping an invalid value with no previous was tried twice and reverted -- it makes the entity unavailable and takes the matching control down with it. `sensor.py` and `binary_sensor.py` also filter at the entity; the other platforms do not.
 - When adding new sensors, update both `SENSORS`/`BINARY_SENSORS` in `const.py` AND `VEHICLE_STATE_API_FIELDS`
 
 ## Development Branch
 
-The `dev` branch is the main development branch. The current working branch is `dev-climate-hold` which is being used to develop a climate hold feature.
+The `dev` branch is the main development branch.

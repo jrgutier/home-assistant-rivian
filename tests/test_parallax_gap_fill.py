@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from custom_components.rivian.const import INVALID_SENSOR_STATES
 from custom_components.rivian.coordinator import VehicleCoordinator
 
 
@@ -413,3 +414,138 @@ class TestRvmArrivalCounters:
         arrivals = VehicleCoordinator.rvm_arrivals.fget(coordinator)
         assert arrivals == {"dynamics.vehicle.gear": 1}
         assert "security.access.btm" not in arrivals
+
+
+# climateHoldStatus is Parallax-only (absent from VEHICLE_STATE_API_FIELDS), so
+# the gap-fill guard never skips it. It is also the field whose decoder emits
+# "fault" (_CLIMATE_HOLD_STATUS[4]), which is why this filter exists.
+_PARALLAX_ONLY_KEY = "climateHoldStatus"
+_PARALLAX_ONLY_RVM = "comfort.cabin.climate_hold_status"
+
+
+class TestParallaxInvalidStateFilter:
+    """Parallax must apply the same INVALID_SENSOR_STATES policy as GraphQL.
+
+    Decision 4 / known_gaps[0]. Dropping an invalid value with no previous was
+    tried twice and reverted: it makes the entity unavailable and takes the
+    matching control down with it. Parametrised over the real constant rather
+    than a hardcoded "fault" so a value added later cannot silently stop being
+    covered.
+    """
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_invalid_with_previous_keeps_the_previous(self, invalid: str) -> None:
+        coordinator = _coordinator()
+        coordinator.data = {
+            _PARALLAX_ONLY_KEY: {"value": "on", "history": {"on"}},
+        }
+
+        result = _parallax(
+            coordinator, _PARALLAX_ONLY_RVM, {_PARALLAX_ONLY_KEY: invalid}
+        )
+
+        assert result[_PARALLAX_ONLY_KEY]["value"] == "on"
+        coordinator._note_unusable.assert_not_called()
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_invalid_with_no_previous_is_passed_through(self, invalid: str) -> None:
+        coordinator = _coordinator()
+
+        result = _parallax(
+            coordinator, _PARALLAX_ONLY_RVM, {_PARALLAX_ONLY_KEY: invalid}
+        )
+
+        assert result[_PARALLAX_ONLY_KEY]["value"] == invalid
+        coordinator._note_unusable.assert_called_once_with(_PARALLAX_ONLY_KEY, invalid)
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_gnss_location_invalid_value_is_exempt(self, invalid: str) -> None:
+        coordinator = _coordinator()
+
+        result = _parallax(coordinator, "gnss.location", {"gnssLocation": invalid})
+
+        assert result["gnssLocation"] == invalid
+        coordinator._note_unusable.assert_not_called()
+
+    def test_gnss_location_is_passed_through_unwrapped(self) -> None:
+        """The gnssLocation branch assigns clean[k] raw, without the wrapper."""
+        coordinator = _coordinator()
+        gnss = {"latitude": 1.0, "longitude": 2.0}
+
+        result = _parallax(coordinator, "gnss.location", {"gnssLocation": gnss})
+
+        assert result["gnssLocation"] == gnss
+        coordinator._note_unusable.assert_not_called()
+
+    def test_vehicle_mileage_increase_is_still_accepted(self) -> None:
+        coordinator = _coordinator()
+        coordinator.data = {"vehicleMileage": {"value": 1000, "history": {1000}}}
+
+        result = _parallax(
+            coordinator, "dynamics.vehicle.odometer", {"vehicleMileage": 1200}
+        )
+
+        assert result["vehicleMileage"]["value"] == 1200
+
+    def test_vehicle_mileage_decrease_is_still_rejected(self) -> None:
+        """The filter must not short-circuit the oscillation guard."""
+        coordinator = _coordinator()
+        coordinator.data = {"vehicleMileage": {"value": 1000, "history": {1000}}}
+
+        result = _parallax(
+            coordinator, "dynamics.vehicle.odometer", {"vehicleMileage": 900}
+        )
+
+        assert result["vehicleMileage"]["value"] == 1000
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_a_subscribed_invalid_value_is_still_skipped(self, invalid: str) -> None:
+        """The gap-fill rule outranks the filter: the subscription owns the key."""
+        coordinator = _coordinator()
+        coordinator._subscription_keys = {"gearStatus"}
+        coordinator.data = {"gearStatus": {"value": "park", "history": {"park"}}}
+
+        result = _parallax(
+            coordinator, "dynamics.vehicle.gear", {"gearStatus": invalid}
+        )
+
+        assert result == {} or result["gearStatus"]["value"] == "park"
+        coordinator._note_unusable.assert_not_called()
+
+
+def test_some_decoders_emit_invalid_sensor_states() -> None:
+    """prd.json claimed no decoder can emit INVALID_SENSOR_STATES. False.
+
+    Walks every module-level dict in parallax.py whose values are strings,
+    intersects with INVALID_SENSOR_STATES, and asserts the intersection is
+    non-empty so that claim cannot be re-derived by hand.
+
+    Limit: this sees dict-valued vocabularies and not ternary-emitted strings.
+    decode_locks (parallax.py:489) and decode_closures (:395) emit from a
+    conditional expression and are invisible to it.
+    """
+    from custom_components.rivian.rivian_client import parallax
+    from custom_components.rivian.rivian_client.parallax import (
+        _ALARM_SOUND_MAP,
+        _CLIMATE_HOLD_STATUS,
+        _DRIVE_MODE_MAP,
+    )
+
+    emitted: set[str] = set()
+    for obj in vars(parallax).values():
+        if not isinstance(obj, dict):
+            continue
+        for value in obj.values():
+            if isinstance(value, str):
+                emitted.add(value.lower())
+
+    intersection = emitted & INVALID_SENSOR_STATES
+    assert intersection, (
+        "a decoder emits a value in INVALID_SENSOR_STATES; that is why the "
+        "Parallax coordinator filter exists"
+    )
+    assert _CLIMATE_HOLD_STATUS[4] == "fault"
+    assert _ALARM_SOUND_MAP[3] == "signal_not_available"
+    assert _DRIVE_MODE_MAP[7] == "fault"
+    assert "fault" in intersection
+    assert "signal_not_available" in intersection

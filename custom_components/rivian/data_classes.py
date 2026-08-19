@@ -79,7 +79,7 @@ class RivianCoverEntityDescription(CoverEntityDescription):
 class RivianLockEntityDescription(LockEntityDescription):
     """Rivian lock entity description."""
 
-    is_locked: Callable[[VehicleCoordinator], bool]
+    is_locked: Callable[[VehicleCoordinator], bool | None]
     command_lock: VehicleCommand | None = None
     command_lock_params: dict[str, Any] | None = None
     command_unlock: VehicleCommand | None = None

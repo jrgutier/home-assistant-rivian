@@ -1104,6 +1104,22 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                         vehicle_updates[k] = {"value": new_val, "history": {new_val}}
                 else:
                     value = clean[k]
+                    # Same INVALID_SENSOR_STATES policy as the GraphQL path
+                    # (_build_vehicle_info_dict). gnssLocation is already exempt
+                    # via the branch above; vehicleMileage has its own guard.
+                    if str(value).lower() in INVALID_SENSOR_STATES:
+                        if k in (self.data or {}):
+                            vehicle_updates[k] = self.data[k]
+                            continue
+                        # No previous value to fall back to. Pass it through
+                        # anyway.
+                        #
+                        # Dropping it here instead was tried and reverted: it
+                        # made entities unavailable rather than show a
+                        # stale-but-plausible state, which takes the matching
+                        # control down with the sensor (sensor.py:172-179,
+                        # binary_sensor.py:104-108).
+                        self._note_unusable(k, value)
                     # `history` is a set, so an unhashable value (decode_vehicle_wheels
                     # returns a LIST) raised `unhashable type: 'list'` and killed the
                     # WHOLE message, not just that field.

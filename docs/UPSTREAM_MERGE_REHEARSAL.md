@@ -130,3 +130,34 @@ After archiving, `rivian_client/` is the only copy. The marker in its
 `__init__.py` becomes the sole record of which upstream commit it corresponds to,
 so keeping it current stops being bookkeeping and starts being the only way to
 answer "what are we based on".
+
+## Archived 2026-08-19 — what went dormant, enumerated
+
+`jrgutier/rivian-python-client` is archived and the local checkout is deleted. The sibling's final
+commit `88301c0f2732` was **pushed before** the archive, so the `vendored+88301c0f2732` marker in
+`rivian_client/__init__.py` names a commit that still exists. Pushing after archiving is impossible —
+archived repos are read-only — and deleting the clone first destroys the only copy, so this ordering
+is not optional.
+
+`rivian_client/` is now the only copy, and the marker is the sole record of what it is based on.
+`s14.sh` gained a sha-prefix assertion for exactly that reason: it previously asserted only that the
+string `vendored+` existed, which is how a marker naming a commit **958 insertions** away from the
+tree it described survived unnoticed.
+
+**Three gates go fully dormant** — every assertion they make needs the sibling:
+`s03`, `s04`, `s08a`.
+
+**Five degrade** — they lose their sibling-comparing assertions and keep the rest:
+`s02` (keeps seven, including repo-wide ruff, pytest, both coverage floors and the HA workflow's
+dev-push trigger check), `s08b` (keeps seven, because `s08b.sh:25` prefers the vendored
+`parallax.py`), `s14` (keeps its non-sibling checks), and `f4`/`f5` (each lose exactly one
+byte-identity assertion, 21 → 20).
+
+Verified on the real sibling-less tree, 2026-08-19: **all nineteen gates exit 0, zero FAIL lines,
+eight dormancy notes.** Before the Step 0a hardening the same tree would have crashed `s03` and `s04`
+with `fatal: cannot change to …` exit 128 and produced a finding-shaped false `FAIL` from `s08b` —
+a crash and a lie, not a skip.
+
+The forward path is unaffected: `scripts/sync_upstream_client.sh:9-13` does not use the sibling
+checkout at all; it adds `bretterer/rivian-python-client` as the `client-upstream` remote and fetches
+directly into this repo.

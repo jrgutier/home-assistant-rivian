@@ -4,7 +4,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
+from custom_components.rivian.const import (
+    ATTR_COORDINATOR,
+    ATTR_VEHICLE,
+    DOMAIN,
+    INVALID_SENSOR_STATES,
+    LOCK_STATE_ENTITIES,
+)
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianLockEntityDescription
 from custom_components.rivian.lock import RivianLockEntity, async_setup_entry
@@ -511,3 +517,74 @@ class TestRivianLockEntityErrorPaths:
 
         # Should log error but not raise
         await entity.async_unlock()
+
+
+# Live 2026-08-19 12:31 CDT on the production R1T. The three LOCK-device-class
+# binary sensors already return None for signal_not_available (f0); lock.py
+# used to report a confident Locked over the same inputs.
+_LIVE_SNA_KEYS = (
+    "closureTailgateLocked",
+    "closureTonneauLocked",
+    "closureSideBinRightLocked",
+)
+
+
+def _production_is_locked(values: dict) -> bool | None:
+    from custom_components.rivian.lock import LOCKS
+
+    coordinator = MagicMock(spec=VehicleCoordinator)
+    coordinator.get = MagicMock(side_effect=values.get)
+    (description,) = LOCKS
+    return description.is_locked(coordinator)
+
+
+def _locked_except(**overrides: str) -> dict[str, str]:
+    values = {key: "locked" for key in LOCK_STATE_ENTITIES}
+    values.update(overrides)
+    return values
+
+
+class TestClosuresIgnoreInvalidMembers:
+    """lock.r1t_closures must not become permanently unknown on this truck.
+
+    Shape (b): ignore members in INVALID_SENSOR_STATES, compute over the rest,
+    None only if none are valid. (a) "None if any invalid" is permanently
+    unknown here -- three members are SNA right now. (c) model-scoping the
+    member set does not save it: tailgate and tonneau are genuine R1T
+    closures (BINARY_SENSORS "R1" / "R1T"), not R1S-only liftgate.
+    """
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_live_sna_combination_stays_usable(self, invalid: str) -> None:
+        values = _locked_except(**dict.fromkeys(_LIVE_SNA_KEYS, invalid))
+        assert _production_is_locked(values) is True
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_an_unlocked_usable_member_wins(self, invalid: str) -> None:
+        values = _locked_except(
+            **dict.fromkeys(_LIVE_SNA_KEYS, invalid),
+            doorFrontLeftLocked="unlocked",
+        )
+        assert _production_is_locked(values) is False
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_none_when_every_member_is_invalid(self, invalid: str) -> None:
+        values = {key: invalid for key in LOCK_STATE_ENTITIES}
+        assert _production_is_locked(values) is None
+
+    def test_model_scoping_would_not_drop_the_live_sna_members(self) -> None:
+        """Scoping LOCK_STATE_ENTITIES the way BINARY_SENSORS is removes
+        closureLiftgateLocked (R1S-only) and keeps both keys the live
+        record holds as SNA."""
+        from custom_components.rivian.const import BINARY_SENSORS
+
+        r1_fields = {d.field for d in BINARY_SENSORS["R1"] if isinstance(d.field, str)}
+        r1t_fields = {
+            d.field for d in BINARY_SENSORS["R1T"] if isinstance(d.field, str)
+        }
+        assert "closureTailgateLocked" in LOCK_STATE_ENTITIES
+        assert "closureTonneauLocked" in LOCK_STATE_ENTITIES
+        assert "closureSideBinRightLocked" in LOCK_STATE_ENTITIES
+        assert "closureTailgateLocked" in r1_fields
+        assert "closureTonneauLocked" in r1t_fields
+        assert "closureSideBinRightLocked" in r1t_fields

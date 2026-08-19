@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 from pathlib import Path
 import sys
+import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -60,6 +62,20 @@ async def main() -> int:
     parser.add_argument("--env", default=".env", type=Path)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--poll", type=int, default=12, help="result polls")
+    parser.add_argument(
+        "--params",
+        type=json.loads,
+        default=None,
+        help="JSON object, e.g. '{\"level\": 0}'. The seat-heat family needs one; "
+        "_validate_vehicle_command does NOT list the third-row spellings, so "
+        "omitting it raises nothing locally and the rejection is uninterpretable.",
+    )
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=0.5,
+        help="seconds between result polls (default 0.5, for latency measurement)",
+    )
     args = parser.parse_args()
 
     env = load_env(args.env)
@@ -101,6 +117,7 @@ async def main() -> int:
             print("dry run — nothing sent")
             return 0
 
+        sent_at = time.monotonic()
         command_id = await client.send_vehicle_command(
             command=command,
             vehicle_id=vehicle["id"],
@@ -108,19 +125,25 @@ async def main() -> int:
             identity_id=identity,
             vehicle_key=vehicle["vas"]["vehiclePublicKey"],
             private_key=env["RIVIAN_PRIVATE_KEY"],
+            **({"params": args.params} if args.params is not None else {}),
         )
-        print(f"command_id: {command_id}")
+        ack = time.monotonic() - sent_at
+        print(f"command_id: {command_id}   (send ack in {ack:.2f}s)")
         if not command_id:
-            print("REJECTED at send — no command id returned")
+            print(f"REJECTED at send — no command id returned  (after {ack:.2f}s)")
             return 1
 
-        for attempt in range(args.poll):
-            await asyncio.sleep(5)
+        for _ in range(args.poll):
+            await asyncio.sleep(args.interval)
             state = await (await client.get_vehicle_command_state(command_id)).json()
             data = (state.get("data") or {}).get("getVehicleCommand")
-            print(f"  t+{(attempt + 1) * 5:>3}s  {data}")
+            elapsed = time.monotonic() - sent_at
+            print(f"  t+{elapsed:>6.2f}s  {data}")
             if data and data.get("state") not in (None, "in_progress", "pending"):
+                print(f"TERMINAL after {elapsed:.2f}s from send")
                 break
+        else:
+            print(f"NO TERMINAL STATE after {time.monotonic() - sent_at:.2f}s")
     return 0
 
 

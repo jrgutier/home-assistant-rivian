@@ -1107,3 +1107,130 @@ Step 1 pre-flight, all recorded output:
 STOPPED BEFORE STEP 2 by instruction. Step 2 is the irreversible trigger: the push
 to dev makes CI publish beta6 to HACS testers. Steps 3-6 are human -- the deploy,
 the vehicle, the GitHub Settings click.
+
+--- Backfill: the seven commits after c578637 (owner decision 8) -----------
+progress.txt stopped at c578637 while seven commits landed. Backfilled here
+BEFORE the beta6 banner so the register reads as complete -- which is the property
+that made ae06ee9's diagnosis reconstructible in the first place.
+
+2bac04e  Decoded vehicle.network.state, the one binding that had been taken on an
+         inference rather than read off a parse site.
+ae06ee9  THE ONE USERS FEEL. Every vehicle command reported TIMEOUT. Two defects,
+         either sufficient alone: the vehicleCommandState SUBSCRIPTION never
+         delivers, so nothing populated _command_states; and the wait loop tested
+         state in ["COMPLETED_SUCCESS", ...] -- STRINGS -- while the server answers
+         with an INTEGER, so the list never matched anything. Sending was never
+         broken. Polling added alongside the subscription; both forms accepted.
+0c4575d  f5's decoder count updated for vehicle.network.state.
+0dc04e0  Description corrected: the commands work, the result REPORTING does not.
+857815d  A false claim corrected, and how the app avoids duplicate subscriptions
+         recorded.
+947316c  f3a's failure message fixed -- it contradicted its own assertion.
+3018fb7  Five disabled entities enabled on the arming argument, four kept disabled
+         because their ARRIVAL IS UNWITNESSED, and per-topic rvm_arrivals counters
+         added so that ambiguity is instrumented rather than argued.
+
+--- beta6 shipped, deployed, and the plan executed end to end --------------
+Plan: .omc/plans/beta6-deploy-live-stories-archival-filter.md, four consensus
+iterations (planner/architect/critic), APPROVED. Owner rulings 1-14 in
+.omc/plans/owner-decisions-2026-08-19b.md.
+
+SHIPPED. 1.6.0-beta6 published from ten commits plus Steps 0a/0b/0c. CI run
+32277942773 success; release carries rivian.zip; dev's manifest and const.py both
+read 1.6.0-beta6 (5e17fd8). That last check matters: pre-release.yaml:117 is
+`git push || echo`, which CANNOT fail the build, so a lost race leaves dev on the
+old version while the job goes green and the NEXT push republishes the same tag
+over the existing release. It landed.
+
+0a  Five sibling-dependent gates hardened, guard shape decided PER GATE by what
+    each still asserts sibling-less: note/summary/exit 0 for s03/s04/s08a; an
+    s14-shaped wrap of only the sibling block for s02 (16-37) and s08b (38-40),
+    which between them keep fourteen live assertions a skip-and-exit would have
+    discarded -- including repo-wide ruff, pytest, both coverage floors and the
+    dev-push-trigger check. A bare `if [ ! -d ]; then note; summary; fi` FALLS
+    THROUGH: summary returns 0 with no failures, so set -e does not stop it.
+0b  switch.py:82 and :30 return None for anything outside {on,off} -- which also
+    covers unspecified and unavailable, values NO coordinator filter can reach
+    because they are not in INVALID_SENSOR_STATES. entity.py seeds
+    response_code/status_code before the _last_command_status guard so both are
+    readable pre-command, which is the state f7 inspects.
+0c  Seven VehicleCommand members added (ruling 11), 59 total, with the lockstep
+    sibling commit. The vendored-from marker was WRONG, not stale: vendored+3cec320254f9
+    against a tree that actually matched dd1dc21e5d3b, 958 insertions apart, zero
+    drift between the files. s14 only ever asserted the string "vendored+" existed.
+    Corrected and given a real sha-prefix assertion, inside the -d guard so it goes
+    dormant with the rest.
+    Ruling 11 INVERTED a recorded invariant: f6.sh and two tests asserted the seven
+    were NOT in the enum. Rewritten to the surviving half -- members, backing no
+    entity -- not deleted. The test f6.sh names by name kept its name.
+
+3   Deployed to production. 188 registry entities, exactly as predicted; two reads
+    195s apart agree. Zero rivian ERRORs. Disabled count stays 22 -- the five
+    enabled entities only affect NEW installs (entity_registry.py:1425-1427), which
+    3018fb7 already said and I briefly forgot.
+    DEFECT I INTRODUCED: my backup directory rivian.beta5.bak was placed INSIDE
+    custom_components/, and the dots broke the loader -- "No module named
+    'custom_components.rivian.beta5'". The integration failed setup entirely and
+    177 entities were unavailable for ~9 minutes until it was moved out. NOTE:
+    /config/custom_components/rivian.bak predates me and is the same shape.
+
+4   f7 RAN. The third-row spelling question is ANSWERED: CABIN_HVAC_3RD_ROW_REAR_*
+    is ACCEPTED, CABIN_HVAC_THIRD_ROW_* is REJECTED, identical params, same truck,
+    seconds apart. Required adding --params first -- _validate_vehicle_command omits
+    all four spellings from its level-requiring list while send_vehicle_command's
+    docstring says CABIN_HVAC_* needs one, so nothing raises locally and a rejection
+    is uninterpretable.
+    All seven invalid-wrapper commands rejected identically (CONFLICT/
+    VEHICLE_COMMAND_ERROR) including PET_COMFORT_ON, which a healthy vehicle should
+    accept, while ordinary commands succeeded minutes earlier on the same
+    credentials -- a TRANSPORT answer, not a capability one. Removes nothing.
+    All four TWO_FACTOR_DRIVE_* rejected, so no security posture changed and the
+    guardrail that could not be discharged never came due.
+    OPEN_TAILGATE NEVER SENT -- owner prohibition, the truck is parked where it
+    would strike the garage.
+    LATENCY MEASURED (ruling 14): accepted commands answer in 1.47-2.77s. entity.py
+    waits 30s; the coordinator first polls at 5s. So the integration cannot see an
+    answer faster than 5s when one exists in under 2. Recorded, NOT changed -- a
+    live-path change needs its own gate. State vocabulary widened: 0, 2 and 5 all
+    observed; ae06ee9 had only calibrated 0.
+
+5   f8 INCONCLUSIVE, and honestly so. Integration disabled (core stop -> edit ->
+    core start, because HA flushes entries on shutdown), probe as sole subscriber,
+    outage 12:38-12:41:38. It stopped at its own CONTROL: batteryLevel and
+    vehicleMileage delivered ZERO fields in 30s, and zero again after a wake. The
+    control exists so "the five are silent" cannot be confused with "the probe is
+    broken", and it did its job. No verdict changes.
+    This RETRACTS an earlier reading: the "accepted but silent" subscription seen
+    while production was running was filed as the WS_CONTENTION.md:24 contention
+    signature. Not safe -- the same silence appears with no competitor at all. HA's
+    own subscription got a snapshot within seconds of each restart while this probe
+    got nothing. A Parallax subscription on the same credentials DID deliver.
+
+6   Sibling PUSHED (dd1dc21..88301c0) BEFORE archiving -- without that the corrected
+    marker would have named a commit existing nowhere, which is the defect §0.8
+    exists to fix, recreated at the moment the marker becomes the only record. Repo
+    archived. Local checkout DELETED per ruling 3.
+    THE REAL TREE IS NOW THE SIBLING-LESS CASE, and all nineteen gates pass on it:
+    zero FAIL lines, eight dormancy notes. Before 0a, s03/s04 would have crashed
+    exit 128 and s08b emitted a false FAIL.
+
+7   The Parallax path now applies INVALID_SENSOR_STATES with the GraphQL policy
+    mirrored exactly -- gnssLocation exempt, invalid-with-previous keeps previous,
+    invalid-with-no-previous passes through and calls _note_unusable. Dropping was
+    tried twice and reverted; it takes the matching control down with the sensor.
+    known_gaps[0] closed with its why_not_fixed CORRECTED rather than deleted: the
+    claim that no decoder can emit an INVALID_SENSOR_STATES value was false when
+    written (_CLIMATE_HOLD_STATUS[4], _ALARM_SOUND_MAP[3], _DRIVE_MODE_MAP[7]).
+    lock.py stops reporting a confident Locked while three of its inputs are SNA --
+    invalid members ignored, None only when nothing is usable. Shape chosen against
+    LIVE data, not guessed: returning None if ANY member is invalid would have made
+    lock.r1t_closures permanently unknown on this truck.
+
+FINAL: 1637 tests pass, 0 failed. Integration 90.34% (floor 89), client 75.51%
+(floor 74). Nineteen gates green with the sibling present AND absent.
+
+NOT DONE, and stated rather than skipped silently: f7.sh and f8.sh were specified
+in the plan and never written, so the workspace PRD's passes flags for f7/f8 are
+NOT flipped -- its rule is passes:true only on gate exit 0, and flipping them on no
+gate is exactly the fake completion the plan condemns. Step 7's change is committed
+but NOT deployed; production still runs beta6.

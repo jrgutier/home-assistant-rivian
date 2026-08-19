@@ -24,8 +24,8 @@ f2 added `CABIN_HVAC_3RD_ROW_REAR_{LEFT,RIGHT}_SEAT_HEAT`; f6 added
 | `OPEN_LIFTGATE` | Wired as `button.open_liftgate`, **disabled by default** — it moves a closure and has not been actuated (f7) |
 | `OPEN_TAILGATE` | Wired as `button.open_tailgate`, **disabled by default**, same reason |
 | `START_GEAR_GUARD_MASTER_SESSION` | Starts a live camera session. A streaming feature, not a control; this integration has no surface for it |
-| `CABIN_HVAC_THIRD_ROW_*` | Two spellings exist and neither has been seen to work here; which one a vehicle accepts is a live question |
-| `CABIN_HVAC_3RD_ROW_REAR_*` | Same pair, other spelling |
+| `CABIN_HVAC_THIRD_ROW_*` | **ANSWERED by f7, 2026-08-19: REJECTED** (`CONFLICT/VEHICLE_COMMAND_ERROR`) on an R1T with `params={"level": 0}` |
+| `CABIN_HVAC_3RD_ROW_REAR_*` | **ANSWERED by f7, 2026-08-19: ACCEPTED**, terminal in ~1.5 s, same params, same truck, seconds apart |
 
 The two closure-openers ship `entity_registry_enabled_default=False`. Shipping an
 untested opener enabled puts it one tap away.
@@ -79,3 +79,28 @@ three separate ways now:
 Stamping a dated "deprecated" note on these would write false provenance and
 defeat the next person's instinct to re-check. Removal requires a recorded live
 failure.
+
+
+## f7 results, 2026-08-19 (beta6)
+
+**The third-row spelling question is settled.** `CABIN_HVAC_3RD_ROW_REAR_LEFT/RIGHT_SEAT_HEAT` are
+accepted; `CABIN_HVAC_THIRD_ROW_LEFT/RIGHT_SEAT_HEAT` are rejected. One variable: identical
+`params={"level": 0}`, same vehicle, seconds apart. Sending them without `level` is uninterpretable —
+`_validate_vehicle_command` (`rivian.py:524-548`) omits all four third-row spellings from its
+`level`-requiring list while the `send_vehicle_command` docstring (`:576`) says `CABIN_HVAC_*` needs
+one, so nothing raises locally and a rejection cannot be told from a missing parameter.
+
+**All seven `generateInvalidCloudDataWrapper` commands were rejected identically**
+(`CONFLICT/VEHICLE_COMMAND_ERROR`), including `PET_COMFORT_ON`/`OFF`, which a healthy vehicle should
+accept. Ordinary commands were accepted on the same credentials minutes earlier. That uniformity is
+consistent with the ordinary cloud VAS path being the **wrong envelope** for a family the app builds
+with `appName=""` and marks `isParallaxRequestOnly` — a transport result, not a capability one.
+**Nothing is removed on this evidence** (Principle -1): a rejection through a possibly-wrong
+transport is not a recorded live failure of the command.
+
+**`OPEN_TAILGATE` was not sent.** Owner prohibition, 2026-08-19: the vehicle is parked where the
+tailgate strikes the garage. Disposition `not-sent-owner-prohibited-physical-hazard`, distinct from
+`not-run`. `OPEN_LIFTGATE` was sent and accepted (terminal 2.77 s); on an R1T it moves nothing, so
+this proves the send path and not a physical effect — which is why it was the cheapest candidate in
+the pool and why excluding it would have left `button.open_liftgate`'s "has not been actuated (f7)"
+justification permanently unresolvable.
