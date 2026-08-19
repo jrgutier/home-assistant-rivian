@@ -98,6 +98,51 @@ subscription picks the topic up automatically.
 
 <!-- 24 remaining -->
 
+## The exhaustive search for the remaining 24 (result: none to be found)
+
+The owner asked for a harder search rather than stopping at the 14. It was done
+exhaustively and it came back empty, which is a result rather than a shrug.
+
+**Method.** Every protobuf-parse-from-base64 site in all 32,941 files, found with
+`grep -rE '\b[a-z0-9]{2,4}\.[A-Z]\(Base64\.decode'`. There are **25**, in 14
+files. Not a sample — the whole set.
+
+| Parser | Bound to | Status |
+|---|---|---|
+| 21 sites in `b7h` and ten siblings | a topic, via a guarded method | all already decoded here |
+| `vj3` (in `ipf`, called from `lra`) | `CLIMATE_HOLD_STATUS` | already decoded |
+| `rsb` (in `cqf`, "ProtobufVehicleStateParserHelper") | `BODY_CLOSURES_STATES` | already decoded |
+| `pol` (in `cfl`) | not a topic payload at all — `REF_UUID`, `REF_MODEL`, `PROGRESS`, `OPERATION_ERROR`, `DATA` is the Parallax **operation-response envelope** | n/a |
+| `opl` (in `ipf`) | see below | **no caller** |
+
+The other four files that reference the undecoded topics — `k6e` (all 24), `zuf`,
+`nnb`, `sn4` — contain **zero** base64 decodes. They handle subscription
+management, not parsing.
+
+**Conclusion: the 24 have no topic-to-message binding anywhere in this build.**
+The app subscribes to them and this version contains no decoder for them. There
+is nothing further to read off a parse site, so the search is finished rather
+than paused.
+
+### The one candidate, deliberately not taken
+
+`opl` is parsed at `ipf`, and its fields are `default_link` (1), `routes` (2),
+`default_link_quality` (3), `wifi` (4) and `cellular` (5). That is
+`vehicle.network.state` and nothing else in the topic list — the integration's own
+schema already carries `wifiSignal`, `cellularSignalStrength`, `wifiSsid` and six
+more siblings.
+
+It is **not** written, because its parser `ipf.e` has **no caller in the
+decompilation**. The identification is therefore semantic, not a binding read off
+a dispatch — the exact category recorded as a guess when this work was scoped, and
+a wrong guess writes wrong values into real sensors.
+
+The blast radius would admittedly be small: the cellular and wifi detail fields
+are declared in the schema but not subscribed, so a bad decoder there would
+mis-fill entities that do not exist yet rather than corrupt a working sensor. That
+lowers the cost of being wrong; it does not turn a guess into evidence. Taking it
+needs an owner decision, or a captured payload from f8 to check the guess against.
+
 ## Two findings recorded rather than acted on
 
 **`needDoubleConsumerSubscription` has no caller.** `CLIMATE_HOLD_STATUS` is the
