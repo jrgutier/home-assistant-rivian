@@ -29,6 +29,7 @@ we exceed the app, that is recorded as a finding, not a failure.
 
 from __future__ import annotations
 
+import inspect
 import json
 import pathlib
 import re
@@ -41,7 +42,11 @@ from custom_components.rivian.rivian_client import VehicleCommand
 from custom_components.rivian.rivian_client.parallax import RVM_DECODERS
 
 from tests.apk.transcription import (
+    COMMAND_STATE_CONTINUE,
+    COMMAND_STATE_TERMINAL,
+    INVALID_CLOUD_WRAPPER_APP_NAME,
     INVALID_WRAPPER_COMMANDS,
+    PARALLAX_REQUEST_ONLY_COMMANDS,
     RVM_NAMES,
     RVM_TOPICS,
     SENDABLE_COMMANDS,
@@ -575,3 +580,47 @@ class TestCommandCoverage:
         for command in sorted(COMMANDS_ABSENT_FROM_THIS_APK):
             assert command in text, command
         assert "START_GEAR_GUARD_MASTER_SESSION" in text
+
+
+class TestCommandStateVocabulary:
+    """§7 test 10: the transcribed integer sets, and where they are consumed."""
+
+    def test_continue_and_terminal_are_disjoint_and_cover_zero_to_seven(self) -> None:
+        assert not COMMAND_STATE_CONTINUE & COMMAND_STATE_TERMINAL
+        assert COMMAND_STATE_CONTINUE | COMMAND_STATE_TERMINAL == frozenset(range(8))
+
+    def test_coordinator_imports_the_continue_set_by_name(self) -> None:
+        """The transcription is the source of truth; coordinator.py must not
+        restated the literal inside the consumer. Production cannot import
+        tests/, so the name is defined in coordinator.py and asserted equal.
+        """
+        from custom_components.rivian.coordinator import (
+            COMMAND_STATE_CONTINUE as used,
+            _command_state_is_lifecycle,
+        )
+
+        assert used == COMMAND_STATE_CONTINUE
+        source = inspect.getsource(_command_state_is_lifecycle)
+        assert "COMMAND_STATE_CONTINUE" in source
+        assert "{1, 2, 3, 5}" not in source
+
+    def test_entity_contains_no_terminality_vocabulary(self) -> None:
+        source = (REPO / "custom_components/rivian/entity.py").read_text()
+        assert "COMMAND_STATE_CONTINUE" not in source
+        assert "isinstance(state, int) or state in" not in source
+
+    def test_parallax_request_only_is_two_of_the_invalid_wrapper_seven(self) -> None:
+        assert PARALLAX_REQUEST_ONLY_COMMANDS <= INVALID_WRAPPER_COMMANDS
+        assert len(PARALLAX_REQUEST_ONLY_COMMANDS) == 2
+
+    def test_our_client_never_sends_app_name(self) -> None:
+        """N8: the two wrappers differ in appName alone, a field we never send."""
+        hits = []
+        root = REPO / "custom_components/rivian"
+        for path in root.rglob("*.py"):
+            if "__pycache__" in path.parts:
+                continue
+            if "appName" in path.read_text():
+                hits.append(str(path.relative_to(REPO)))
+        assert not hits
+        assert INVALID_CLOUD_WRAPPER_APP_NAME == ""
