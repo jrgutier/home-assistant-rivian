@@ -41,6 +41,7 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
             translation_key="wake",
             icon="mdi:weather-night",
             available=lambda coordinator: coordinator.get("powerState") == "sleep",
+            available_offline=True,
             command=VehicleCommand.WAKE_VEHICLE,
         ),
     ),

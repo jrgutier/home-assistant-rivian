@@ -34,6 +34,7 @@ from .const import (
     ATTR_VEHICLE,
     ATTR_WALLBOX,
     DOMAIN,
+    INVALID_SENSOR_STATES,
     SENSORS,
     WEEK_DAYS_ORDERED,
 )
@@ -166,6 +167,22 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
             return STATE_UNAVAILABLE if not self.native_unit_of_measurement else None
 
         rval = _fn(val) if (_fn := self.entity_description.value_lambda) else val
+        # A value the vehicle flags as unusable is not a state -- report unknown.
+        #
+        # This is the right layer for it. Suppressing it in the coordinator was
+        # tried twice and is wrong: the raw value has to keep flowing, because
+        # RivianVehicleEntity.available is driven by the field being present, and
+        # dropping it makes the matching CONTROL unavailable too. On a real R1T the
+        # rear seat heaters report SNA whenever the vehicle is parked, so dropping
+        # it meant you could not preheat them remotely -- the one time you would
+        # want to.
+        #
+        # Without this, the branch below appends "SNA" to the entity's own options
+        # list, so the vehicle's error code silently becomes a valid state for the
+        # life of the process, and the select beside it shows "unknown".
+        if str(rval).lower() in INVALID_SENSOR_STATES:
+            return None
+
         if self.device_class == SensorDeviceClass.ENUM and rval not in self.options:
             _LOGGER.error(
                 "Sensor %s provides state value '%s', which is not in the list of known options. Please consider opening an issue at https://github.com/bretterer/home-assistant-rivian/issues with the following info: 'field: \"%s\" / value: \"%s\"'",

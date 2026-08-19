@@ -788,6 +788,60 @@ def decode_vehicle_wheels(payload: str) -> dict[str, Any]:
         return {}
 
 
+# comfort.cabin.seat_conditioning_status. Field numbers and the level enum are
+# transcribed from com.rivian.android.consumer 3.15.0:
+#
+#   SEAT_HEAT_STATUS_FRONT_LEFT   = 7    SEAT_VENT_STATUS_FRONT_LEFT  = 11
+#   SEAT_HEAT_STATUS_FRONT_RIGHT  = 8    SEAT_VENT_STATUS_FRONT_RIGHT = 12
+#   SEAT_HEAT_STATUS_REAR_LEFT    = 9
+#   SEAT_HEAT_STATUS_REAR_RIGHT   = 10
+#
+# Each is a submessage with one varint field `val` holding a Level:
+#   0 UNSPECIFIED, 1 LEVEL_0, 2 LEVEL_1, 3 LEVEL_2, 4 LEVEL_3, 5 LEVEL_4
+#
+# Why this exists: the vehicle-state subscription reports seatRearLeftHeat and
+# seatRearRightHeat as 'SNA' on a truck that does have rear heaters, so those
+# entities showed SNA (sensor) and unknown (select). Parallax carries the real
+# value. The strings emitted here match the GraphQL vocabulary exactly -- "Off",
+# "Level_1".. -- so the existing entities consume them unchanged.
+SEAT_STATUS_FIELDS = {
+    7: "seatFrontLeftHeat",
+    8: "seatFrontRightHeat",
+    9: "seatRearLeftHeat",
+    10: "seatRearRightHeat",
+    11: "seatFrontLeftVent",
+    12: "seatFrontRightVent",
+}
+SEAT_LEVELS = {1: "Off", 2: "Level_1", 3: "Level_2", 4: "Level_3", 5: "Level_4"}
+
+
+def decode_seat_conditioning_status(payload: str) -> dict[str, Any]:
+    """Decode comfort.cabin.seat_conditioning_status.
+
+    Returns dict with keys:
+        - seatFrontLeftHeat, seatFrontRightHeat, seatRearLeftHeat,
+          seatRearRightHeat, seatFrontLeftVent, seatFrontRightVent
+          ("Off" / "Level_1" / "Level_2" / "Level_3")
+    """
+    if not payload:
+        return {}
+    try:
+        data = base64.b64decode(payload)
+        result: dict[str, Any] = {}
+        for field_num, wire_type, value in _decode_protobuf_fields(data):
+            if wire_type != 2 or field_num not in SEAT_STATUS_FIELDS:
+                continue
+            for in_num, in_type, in_val in _decode_protobuf_fields(value):
+                # LEVEL_UNSPECIFIED (0) means the vehicle is not saying, which is
+                # not the same as off -- leave the field out entirely.
+                if in_num == 1 and in_type == 0 and in_val in SEAT_LEVELS:
+                    result[SEAT_STATUS_FIELDS[field_num]] = SEAT_LEVELS[in_val]
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode seat conditioning payload", exc_info=True)
+        return {}
+
+
 RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "body.closures.states": decode_closures,
     "body.locks.states": decode_locks,
@@ -795,6 +849,7 @@ RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "charging.session.time_estimation": decode_time_estimation,
     "comfort.cabin.cabin_preconditioning_status": decode_preconditioning,
     "comfort.cabin.cabin_temperatures": decode_cabin_temperatures,
+    "comfort.cabin.seat_conditioning_status": decode_seat_conditioning_status,
     "comfort.cabin.defrost_defog_status": decode_defrost,
     "dynamics.tires.state": decode_tires,
     "dynamics.vehicle.gnss": decode_gnss,

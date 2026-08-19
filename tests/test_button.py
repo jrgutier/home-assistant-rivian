@@ -596,3 +596,53 @@ class TestPairingSequence:
             await entity.async_press()
         pair.assert_awaited_once()
         assert entity._pairing is False
+
+
+class TestTheWakeButtonIsUsableWhenAsleep:
+    """The one control that must work on a sleeping vehicle.
+
+    RivianVehicleControlEntity.available checks coordinator.is_online() before
+    anything else, and a sleeping vehicle is not online -- so every control goes
+    unavailable, including wake. From Home Assistant there was no way to wake the
+    vehicle: the only command that would have worked was guaranteed to be
+    unavailable, and the user has to open the Rivian app instead.
+
+    Confirmed on a real R1T: cloud_connected off, all nineteen controls
+    unavailable including button.*_wake, and sending WAKE_VEHICLE over the same
+    cloud API succeeded immediately -- so the command works, the gate was simply
+    wrong about it.
+    """
+
+    def test_the_wake_description_opts_out_of_the_online_gate(self) -> None:
+        from custom_components.rivian.button import BUTTONS
+
+        wake = next(d for d in BUTTONS[None] if d.key == "wake")
+        assert wake.available_offline is True
+
+    def test_no_other_button_opts_out(self) -> None:
+        """The exemption must stay narrow: any other command needs the vehicle
+        online, and a control that looks usable but always fails is worse than one
+        that is honestly unavailable."""
+        from custom_components.rivian.button import BUTTONS
+
+        offline = [
+            d.key
+            for group in BUTTONS.values()
+            for d in group
+            if getattr(d, "available_offline", False)
+        ]
+        assert offline == ["wake"]
+
+    def test_an_offline_coordinator_still_hides_ordinary_controls(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """The gate itself must survive: only the flagged description bypasses it."""
+        from custom_components.rivian.entity import RivianVehicleControlEntity
+
+        coordinator = MagicMock()
+        coordinator.is_online.return_value = False
+        entity = RivianVehicleControlEntity.__new__(RivianVehicleControlEntity)
+        entity.coordinator = coordinator
+        entity.entity_description = MagicMock(spec=[])  # no available_offline
+        entity._config_entry = mock_config_entry
+        assert RivianVehicleControlEntity.available.fget(entity) is False
