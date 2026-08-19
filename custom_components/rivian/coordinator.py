@@ -848,6 +848,14 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # "is the key present", because once Parallax writes a key it IS present,
         # and a Parallax-only field must keep updating.
         self._subscription_keys: set[str] = set()
+        # How many Parallax messages have arrived, per RVM topic.
+        #
+        # Without this, "the field is absent" is ambiguous between "the message
+        # arrived and the field was zero, which proto3 omits" and "the message
+        # never arrived at all". That ambiguity is why four of the nine
+        # Parallax-only sensors ship disabled: their topics have no unsubscribed
+        # sibling, so nothing witnesses arrival. A count settles it.
+        self._rvm_arrivals: dict[str, int] = {}
         # Fields already reported as unusable, so the warning fires once each.
         self._dropped_reported: set[str] = set()
         self._subscription_start_time: datetime | None = None
@@ -1019,6 +1027,17 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         await self._unsubscribe(True)
         return await super().async_shutdown()
 
+    @property
+    def rvm_arrivals(self) -> dict[str, int]:
+        """Parallax messages received per RVM topic, for diagnostics.
+
+        A topic absent from this mapping has never delivered. That is the
+        distinction the counter exists to make: a field missing from the decoded
+        payload is otherwise ambiguous between "the message arrived and the field
+        was zero, which proto3 omits" and "the message never arrived at all".
+        """
+        return dict(sorted(self._rvm_arrivals.items()))
+
     @callback
     def _process_parallax_data(self, data: dict[str, Any]) -> None:
         """Process incoming Parallax subscription messages."""
@@ -1027,6 +1046,14 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         px = pdata.get("parallaxMessages")
         if not px:
             return
+        # Count arrival FIRST -- before the decode can bail, and well before the
+        # per-key merge below drops anything the subscription also supplies. Count
+        # after that merge and this is blind to exactly the topics it exists to
+        # witness: every field of security.access.btm and security.alarm.state is
+        # subscribed, so all of them are discarded there.
+        if rvm := px.get("rvm"):
+            self._rvm_arrivals[rvm] = self._rvm_arrivals.get(rvm, 0) + 1
+
         decoded = decode_parallax_message(**px)
         if not decoded:
             return

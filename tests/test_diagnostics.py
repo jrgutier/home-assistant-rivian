@@ -38,7 +38,7 @@ async def test_async_get_config_entry_diagnostics(
         "lastName": "User",
     }
 
-    vehicle_coordinator = MagicMock(spec=VehicleCoordinator)
+    vehicle_coordinator = MagicMock(spec=VehicleCoordinator, rvm_arrivals={})
     vehicle_coordinator._unsub_parallax = None
     vehicle_coordinator.data = {
         "vin": "TEST123456789",
@@ -105,7 +105,7 @@ async def test_async_get_config_entry_diagnostics_multiple_vehicles(
     user_coordinator = MagicMock(spec=UserCoordinator)
     user_coordinator.data = {"userId": "user_123"}
 
-    vehicle_coordinator_1 = MagicMock(spec=VehicleCoordinator)
+    vehicle_coordinator_1 = MagicMock(spec=VehicleCoordinator, rvm_arrivals={})
     vehicle_coordinator_1._unsub_parallax = None
     vehicle_coordinator_1.data = {"vin": "VIN1"}
     vehicle_coordinator_1.charging_coordinator = MagicMock(spec=ChargingCoordinator)
@@ -113,7 +113,7 @@ async def test_async_get_config_entry_diagnostics_multiple_vehicles(
     vehicle_coordinator_1.drivers_coordinator = MagicMock(spec=DriverKeyCoordinator)
     vehicle_coordinator_1.drivers_coordinator.data = {"drivers": []}
 
-    vehicle_coordinator_2 = MagicMock(spec=VehicleCoordinator)
+    vehicle_coordinator_2 = MagicMock(spec=VehicleCoordinator, rvm_arrivals={})
     vehicle_coordinator_2._unsub_parallax = None
     vehicle_coordinator_2.data = {"vin": "VIN2"}
     vehicle_coordinator_2.charging_coordinator = MagicMock(spec=ChargingCoordinator)

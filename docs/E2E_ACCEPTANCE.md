@@ -158,11 +158,35 @@ returning nothing for every command, f7 would fire closure-openers and record
 `TIMEOUT` against each — no evidence, and several closures opened at 05:20 with no
 reliable feedback. Deferred until the command-state path reports again.
 
-### Separate finding: two lock signals disagree
+### RETRACTED: "two lock signals disagree"
 
-`binary_sensor.r1t_locked_state` read `on` before the run and `off` after, while
-`lock.r1t_closures` read `unlocked` before and `locked` after. They disagree in
-both directions, so at least one is wrong or stale. Recorded, not chased.
+**This finding was wrong. The two signals agree, and always did.**
+
+What I filed: `binary_sensor.r1t_locked_state` read `on` before the run and `off`
+after, while `lock.r1t_closures` read `unlocked` before and `locked` after —
+therefore "at least one is wrong or stale".
+
+What is actually true: `locked_state` carries `device_class=LOCK`, and Home
+Assistant renders that class as **`on` = Unlocked, `off` = Locked** — the inverse
+of the intuitive reading. Applying it, both observations were consistent:
+
+| moment | `locked_state` | means | `lock.r1t_closures` | agree? |
+|---|---|---|---|---|
+| before | `on` | Unlocked | `unlocked` | yes |
+| after `LOCK_ALL_CLOSURES_FEEDBACK` | `off` | Locked | `locked` | yes |
+
+They cannot disagree by construction. Both read the same `LOCK_STATE_ENTITIES`
+set (`const.py:55`) and are exact complements — `lock.py:26-28` is
+`not any(v == "unlocked")`, the binary sensor is `"unlocked" in values`
+(`binary_sensor.py:83-86`).
+
+`TestLockSignalsAreComplements` in `tests/test_binary_sensor_invalid_states.py`
+now pins this, including a standalone assertion that the device class is `LOCK` —
+which is the single check that would have stopped me filing the finding.
+
+The observed values above are kept rather than deleted: a retracted finding is
+worth more than a vanished one, and the readings themselves were accurate. Only
+my reading of them was not.
 
 Final state: all closures closed except the charge-port door (plugged in), Park,
 speed 0, Gear Guard armed, `lock.r1t_closures` locked.
