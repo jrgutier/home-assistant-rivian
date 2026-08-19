@@ -10,7 +10,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN, LOCK_STATE_ENTITIES
+from .const import (
+    ATTR_COORDINATOR,
+    ATTR_VEHICLE,
+    DOMAIN,
+    INVALID_SENSOR_STATES,
+    LOCK_STATE_ENTITIES,
+)
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianLockEntityDescription
 from .entity import RivianVehicleControlEntity
@@ -19,13 +25,33 @@ from .rivian_client import VehicleCommand
 _LOGGER = logging.getLogger(__name__)
 
 
+def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
+    """True if every usable member is locked; False if any is unlocked.
+
+    Invalid members are ignored rather than treated as locked. `not any(v ==
+    "unlocked")` over the whole set reports a confident Locked while this
+    truck's tailgate, tonneau and right gear tunnel hold
+    `signal_not_available` (live 2026-08-19 12:31 CDT). Returning None if any
+    member is invalid would make `lock.r1t_closures` permanently unknown here:
+    those three are genuine R1T closures, so model-scoping the member set
+    does not remove them (const.py:1375, :1573; BINARY_SENSORS "R1" / "R1T").
+    None only if no member has a usable value.
+    """
+    usable = []
+    for key in LOCK_STATE_ENTITIES:
+        value = coordinator.get(key)
+        if value is not None and str(value).lower() not in INVALID_SENSOR_STATES:
+            usable.append(value)
+    if not usable:
+        return None
+    return not any(value == "unlocked" for value in usable)
+
+
 LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
     RivianLockEntityDescription(
         key="closures",
         translation_key="closures",
-        is_locked=lambda coordinator: (
-            not any(coordinator.get(key) == "unlocked" for key in LOCK_STATE_ENTITIES)
-        ),
+        is_locked=_closures_are_locked,
         command_lock=VehicleCommand.LOCK_ALL_CLOSURES_FEEDBACK,
         command_unlock=VehicleCommand.UNLOCK_ALL_CLOSURES,
     ),
@@ -55,7 +81,7 @@ class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
     entity_description: RivianLockEntityDescription
 
     @property
-    def is_locked(self) -> bool:
+    def is_locked(self) -> bool | None:
         """Return true if the lock is locked."""
         return self.entity_description.is_locked(self.coordinator)
 

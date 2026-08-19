@@ -307,8 +307,9 @@
       "id": "parallax-invalid-state-filter",
       "source": "architect review, 2026-08-18",
       "severity": "low \u2014 no live defect",
-      "detail": "coordinator.py:996 merges Parallax updates with `new_data = (self.data or {}) | vehicle_updates` and calls async_set_updated_data directly, so those values never pass through _build_vehicle_info_dict and INVALID_SENSOR_STATES is never applied to them. Defect 5 from s13 is therefore only half fixed: the GraphQL path filters fault/SNA/undefined, the Parallax path does not.",
-      "why_not_fixed": "Every Parallax decoder's output vocabulary was checked and none can emit a value in INVALID_SENSOR_STATES, so there is no live defect. The change would touch the hot path that carries all vehicle telemetry, on no evidence of harm. Revisit if a decoder ever gains a fault/unavailable value, or if a sensor is seen holding one."
+      "status": "closed",
+      "detail": "coordinator.py:_process_parallax_data merged Parallax updates with `new_data = (self.data or {}) | vehicle_updates` and called async_set_updated_data directly, so those values never passed through _build_vehicle_info_dict and INVALID_SENSOR_STATES was never applied to them. Defect 5 from s13 was therefore only half fixed: the GraphQL path filtered fault/SNA/undefined, the Parallax path did not. Closed by mirroring the GraphQL policy onto the Parallax else-branch: gnssLocation exempt, invalid with a previous value keeps the previous, invalid with no previous is passed through and _note_unusable is called. Dropping the no-previous case was tried twice and reverted -- it makes the entity unavailable and takes the matching control down with it.",
+      "why_not_fixed": "RETRACTED. The original claim was that every Parallax decoder's output vocabulary was checked and none can emit a value in INVALID_SENSOR_STATES, so there was no live defect. That is false: _CLIMATE_HOLD_STATUS[4] is \"fault\" (parallax.py:653), _ALARM_SOUND_MAP[3] is \"signal_not_available\" (:881), _DRIVE_MODE_MAP[7] is \"fault\" (:909). The coordinator filter still cannot reach unspecified/unavailable on climateHoldStatus (they sit outside the constant); those stay on the entity guard at switch.py:82."
     }
   ]
 }
