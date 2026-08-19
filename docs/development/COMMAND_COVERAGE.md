@@ -104,3 +104,30 @@ tailgate strikes the garage. Disposition `not-sent-owner-prohibited-physical-haz
 this proves the send path and not a physical effect — which is why it was the cheapest candidate in
 the pool and why excluding it would have left `button.open_liftgate`'s "has not been actuated (f7)"
 justification permanently unresolvable.
+
+## How the app reads a command's result — it SUBSCRIBES, it does not poll
+
+Read off the decompilation, 2026-08-19, because `ae06ee9` added a poll on the belief that the
+subscription never delivers and that belief turned out to be false.
+
+| Field | Files in `com.rivian.android.consumer` |
+|---|---|
+| `vehicleCommandState` — the SUBSCRIPTION field | **18** |
+| `GetVehicleCommandState` — the payload `__typename` | 6 |
+| `getVehicleCommand` — the QUERY field our poll uses | **0** |
+
+Method validated against fields the app is known to use: `sendVehicleCommand` 8 files,
+`vehicleState` 219, `currentUser` 91. The grep finds real operation field names, so a zero is
+meaningful rather than an artefact.
+
+**The app never polls for a command result.** `getVehicleCommand` is a real server-side query — our
+poll works, and it answers 0.7-1.1 s sooner than the subscription frame — but it appears nowhere in
+the app. The polling in `coordinator._poll_command_state` is ours, added in `ae06ee9` on the premise
+that the subscription "never delivers". Measured three times on beta7, the subscription delivers
+every time (`docs/E2E_ACCEPTANCE.md`, "The command-state subscription DOES deliver").
+
+So the honest position is: the app's design is subscription-only, our subscription works, and the
+poll is a redundant fallback that happens to be marginally faster. Whether to keep it is a real
+trade-off — fidelity to the app and one fewer query per command, against ~1 s of perceived latency
+and a fallback if the subscription ever regresses to the behaviour `ae06ee9` believed it had. Not
+decided here; it is a live-command-path change and belongs behind its own gate.
