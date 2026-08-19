@@ -310,15 +310,44 @@ class TestWhatWeShipVersusWhatTheAppNames:
         ours = {c.value for c in VehicleCommand}
         assert ours - app_names == COMMANDS_ABSENT_FROM_THIS_APK
 
-    def test_the_sendable_commands_we_have_not_wired_are_f6s_queue(self) -> None:
+    def test_the_sendable_commands_absent_from_our_enum_are_f6s_queue(self) -> None:
+        """f2 added the two 3RD_ROW spellings, so three remain."""
         ours = {c.value for c in VehicleCommand}
         assert SENDABLE_COMMANDS - ours == {
-            "CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT",
-            "CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT",
             "OPEN_LIFTGATE",
             "OPEN_TAILGATE",
             "START_GEAR_GUARD_MASTER_SESSION",
         }
+
+    def test_being_in_the_enum_is_not_the_same_as_being_wired(self) -> None:
+        """A distinction f6 turns on.
+
+        The four third-row commands exist as enum members and back no entity. That
+        is deliberate: which spelling a given vehicle accepts is a live question,
+        and wiring both blind is how eleven dead controls were shipped before.
+        """
+        # Entity tables reach VehicleCommand through lambdas, so membership is
+        # read from the platform sources rather than from a `command` attribute.
+        platforms = "".join(
+            (REPO / "custom_components/rivian" / name).read_text()
+            for name in (
+                "select.py",
+                "switch.py",
+                "button.py",
+                "cover.py",
+                "number.py",
+                "climate.py",
+                "lock.py",
+            )
+        )
+        for unwired in (
+            "CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT",
+            "CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT",
+            "CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT",
+            "CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT",
+        ):
+            assert unwired in {c.value for c in VehicleCommand}
+            assert unwired not in platforms, f"{unwired} is now wired -- see f6"
 
     def test_we_wire_none_of_the_invalid_wrapper_commands_yet(self) -> None:
         """Not wired blind, and not declared dead either -- f6 tests them."""
@@ -359,3 +388,68 @@ class TestObservedCapabilities:
         text = matrix.read_text()
         assert "TONNEAU_CMD" in text
         assert "CHARG_PORT_DOOR_COMMAND" in text
+
+
+class TestUnpopulatedFields:
+    """The five fields the server accepts and never fills. All five stay.
+
+    See docs/development/UNPOPULATED_FIELDS.md for the recorded finding behind
+    each. "Never carried a value" is silence, not a live failure, and silence is
+    exactly what the tonneau cover falsified.
+    """
+
+    VALIDITY_FIELDS = (
+        "tirePressureStatusValidFrontLeft",
+        "tirePressureStatusValidFrontRight",
+        "tirePressureStatusValidRearLeft",
+        "tirePressureStatusValidRearRight",
+    )
+
+    def test_all_five_are_still_subscribed(self) -> None:
+        from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+
+        for field in (*self.VALIDITY_FIELDS, "cabinHoldNotification"):
+            assert field in VEHICLE_STATE_API_FIELDS, field
+
+    def test_none_of_them_is_named_by_the_app(self) -> None:
+        """Which is why each needed a recorded finding rather than a deletion."""
+        app_fields = {v["command"] for v in VAS_COMMANDS if v["command"]} | RVM_NAMES
+        for field in (*self.VALIDITY_FIELDS, "cabinHoldNotification"):
+            assert field not in app_fields
+
+    def test_the_tire_source_the_app_actually_uses_is_recorded(self) -> None:
+        """The app requests tirePressureState, an aggregate we do not subscribe to.
+
+        Recorded here so f4 adopts the right field. The four tirePressureStatus*
+        siblings ARE subscribed and DO report (live value OK on all four), so the
+        gap is specifically the aggregate.
+        """
+        from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+
+        for field in (
+            "tirePressureStatusFrontLeft",
+            "tirePressureStatusFrontRight",
+            "tirePressureStatusRearLeft",
+            "tirePressureStatusRearRight",
+        ):
+            assert field in VEHICLE_STATE_API_FIELDS
+        # f4's job, not f2's: adding a name is what killed the subscription once.
+        assert "tirePressureState" not in VEHICLE_STATE_API_FIELDS
+
+    def test_each_field_has_a_recorded_finding(self) -> None:
+        doc = REPO / "docs/development/UNPOPULATED_FIELDS.md"
+        assert doc.is_file()
+        text = doc.read_text()
+        for field in (*self.VALIDITY_FIELDS[:1], "cabinHoldNotification"):
+            assert field in text
+        assert "tirePressureState" in text
+        assert "Left in place" in text
+
+    def test_both_third_row_spellings_exist_side_by_side(self) -> None:
+        """Added alongside, never renamed. The older spelling may serve older
+        firmware, and an app-side absence is the weakest evidence there is."""
+        ours = {c.value for c in VehicleCommand}
+        assert "CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT" in ours
+        assert "CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT" in ours
+        assert "CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT" in ours
+        assert "CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT" in ours

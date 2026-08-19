@@ -231,6 +231,15 @@ class VehicleCommand(StrEnum):
     # Gen2 HVAC Controls
     CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT = "CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT"
     CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT = "CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT"
+    # The spelling app 3.15.0 actually sends (VASCommandKt). ADDED ALONGSIDE the
+    # THIRD_ROW pair above, not replacing it: the two names above appear in no
+    # decompiled file of this build, which makes them a candidate for an older
+    # firmware or an older app, and an app-side absence is the weakest evidence
+    # there is -- the tonneau commands appear in no file either and physically
+    # move the cover. Neither pair is wired to an entity yet; which one a given
+    # vehicle accepts is a live question, and f6 answers it by testing.
+    CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT = "CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT"
+    CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT = "CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT"
 
     # Closures
     LOCK_ALL_CLOSURES_FEEDBACK = "LOCK_ALL_CLOSURES_FEEDBACK"
