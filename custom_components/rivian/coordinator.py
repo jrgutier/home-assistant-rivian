@@ -1440,6 +1440,42 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # Unsubscribe from this command
             asyncio.create_task(self._unsubscribe_command_state(command_id))
 
+    async def _poll_command_state(
+        self, command_id: str, *, interval: float = 5.0, attempts: int = 7
+    ) -> None:
+        """Poll a command's result until it is terminal, or the attempts run out.
+
+        Seven attempts at five seconds covers the entity's 30 s wait with one to
+        spare. It stops as soon as the state is stored, so a command that answers
+        on the first poll costs exactly one query.
+        """
+        for _ in range(attempts):
+            await asyncio.sleep(interval)
+            if command_id in self._command_states:
+                return  # the subscription got there first
+            try:
+                response = await self.api.get_vehicle_command_state(command_id)
+                payload = await response.json()
+            except Exception:
+                _LOGGER.debug(
+                    "Polling command %s state failed", command_id, exc_info=True
+                )
+                continue
+            data = (payload.get("data") or {}).get("getVehicleCommand")
+            if not data or data.get("state") is None:
+                continue
+            _LOGGER.debug("Command %s state polled: %s", command_id, data)
+            self._command_states[command_id] = {
+                "command": data.get("command"),
+                "state": data.get("state"),
+                "responseCode": data.get("responseCode"),
+                "statusCode": data.get("statusCode"),
+                "createdAt": data.get("createdAt"),
+            }
+            if len(self._command_states) > 10:
+                self._command_states.pop(next(iter(self._command_states)))
+            return
+
     async def _subscribe_to_command_state(self, command_id: str) -> None:
         """Subscribe to command state updates."""
         if command_id in self._command_state_subscriptions:
@@ -1453,6 +1489,25 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
             self._command_state_subscriptions[command_id] = unsubscribe
             _LOGGER.debug("Subscribed to command %s state updates", command_id)
+
+            # And poll, because the subscription does not deliver.
+            #
+            # Measured on a live vehicle: the subscription is established and torn
+            # down correctly and NO message ever arrives, so every command reported
+            # TIMEOUT. The same command's result comes back from the QUERY
+            # (get_vehicle_command_state) in about five seconds. Sending was never
+            # the problem -- OPEN_TONNEAU_COVER sent outside Home Assistant
+            # returned state 0 / responseCode 288 while the identical command
+            # through the integration timed out.
+            #
+            # The subscription is kept rather than replaced: it costs nothing while
+            # silent, and if the gateway starts delivering again the poll simply
+            # loses the race. Whichever answers first wins.
+            self.config_entry.async_create_background_task(
+                self.hass,
+                self._poll_command_state(command_id),
+                name=f"rivian command state {command_id}",
+            )
 
             # Auto-unsubscribe after 60 seconds to prevent memory leaks
             async def _auto_unsubscribe():

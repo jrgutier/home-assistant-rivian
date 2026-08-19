@@ -177,7 +177,22 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                 # Check command state
                 if cmd_state := self.coordinator.get_command_state(command_id):
                     state = cmd_state.get("state")
-                    if state in ["COMPLETED_SUCCESS", "COMPLETED_ERROR", "FAILED"]:
+                    # The server answers with an INTEGER, not this string enum.
+                    # A live OPEN_TONNEAU_COVER returns state 0 / responseCode 288
+                    # / statusCode 0, and a known-good WAKE_VEHICLE returns
+                    # state 0 / responseCode None. So the string list alone never
+                    # matched anything and EVERY command timed out, even when the
+                    # vehicle had already acted on it.
+                    #
+                    # Both forms are accepted. The integer vocabulary is only
+                    # calibrated at 0, so no meaning is assigned to other values
+                    # here -- the raw state, responseCode and statusCode are
+                    # recorded on the entity and the caller can read them.
+                    if isinstance(state, int) or state in (
+                        "COMPLETED_SUCCESS",
+                        "COMPLETED_ERROR",
+                        "FAILED",
+                    ):
                         # Command completed
                         self._last_command_status = {
                             "command": command.value,
