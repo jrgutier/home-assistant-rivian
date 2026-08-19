@@ -14,7 +14,10 @@
 # wake button included -- would have failed to load. Every test passed.
 #
 # Usage: scripts/load_test.sh [venv-dir]
-#   The venv is reused if it already exists, so repeated local runs are cheap.
+#   The venv is reused when its stamp matches and `uv pip check` is clean.
+#   A reaped macOS TMPDIR venv still has bin/python, so the executable check
+#   alone is not enough; a failed import on a reused venv retries once from
+#   scratch.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -40,12 +43,36 @@ echo "load test"
 echo "  home assistant: $HA_PIN"
 echo "  manifest declares: ${REQS[*]:-<none>}"
 
-if [ ! -x "$VENV/bin/python" ]; then
-  echo "  creating $VENV"
+# Stamp format is pinned: one field per line, no blanks, no comments, LF
+# terminated. Line 1 is $HA_PIN verbatim. Lines 2..n are ${REQS[@]} sorted,
+# so reordering manifest.json does not force a rebuild. Comparison is cmp -s.
+{
+  echo "$HA_PIN"
+  if [ ${#REQS[@]} -gt 0 ]; then
+    printf '%s\n' "${REQS[@]}" | sort
+  fi
+} > "$WORK/expected-stamp"
+
+install_venv() {
+  rm -rf "$VENV"
   uv venv --python 3.14 "$VENV" -q
   VIRTUAL_ENV="$VENV" uv pip install -q "$HA_PIN" "${REQS[@]}"
+  cp "$WORK/expected-stamp" "$VENV/.load-test-stamp"
+}
+
+reused=0
+if [ ! -x "$VENV/bin/python" ]; then
+  echo "  creating $VENV"
+  install_venv
+elif ! VIRTUAL_ENV="$VENV" uv pip check; then
+  echo "  recreating (uv pip check failed)"
+  install_venv
+elif [ ! -f "$VENV/.load-test-stamp" ] || ! cmp -s "$WORK/expected-stamp" "$VENV/.load-test-stamp"; then
+  echo "  recreating (stamp mismatch)"
+  install_venv
 else
   echo "  reusing $VENV"
+  reused=1
 fi
 
 # Build the artifact the same way the release workflows do, then import what a
@@ -56,8 +83,9 @@ fi
 mkdir -p "$WORK/custom_components/rivian"
 unzip -q "$WORK/rivian.zip" -d "$WORK/custom_components/rivian"
 
-cd "$WORK"
-"$VENV/bin/python" - <<'PY'
+run_import() {
+  ( cd "$WORK"
+    "$VENV/bin/python" - <<'PY'
 import importlib, pathlib, sys
 
 root = pathlib.Path("custom_components/rivian")
@@ -78,5 +106,17 @@ for line in failed:
     print(f"    {line}")
 sys.exit(1 if failed else 0)
 PY
+  )
+}
+
+if ! run_import; then
+  if [ "$reused" -eq 1 ]; then
+    echo "  recreating (retry after import failure)"
+    install_venv
+    run_import
+  else
+    exit 1
+  fi
+fi
 
 echo "  artifact loads under the declared requirements alone"
