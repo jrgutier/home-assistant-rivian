@@ -157,3 +157,56 @@ SUPERSEDED: the instruction above previously named `VEHICLE_STATES_SUBSCRIPTION_
 is only the client-library default (`rivian_client/rivian.py:626-627`), which the coordinator
 never uses — it always passes the derived `VEHICLE_STATE_API_FIELDS` set. Following the old name
 would rebuild the wrong instrument and f8 would fail a second time for a second reason.
+
+## f8 COMPLETED 2026-08-19 ~19:00 CDT — all five delivered, all five null
+
+**Verdict: PROBED. The five fields are accepted by the subscription and return `null`.** Not absent,
+not rejected, not silent — *delivered, empty*. That is the hypothesis this document has carried since
+"Why 'accepted but empty' is not 'invalid'", now confirmed against the vehicle.
+
+```
+=== ALL FIVE TARGETS + control ===
+  [all-five] accepted; 7 field(s) in 0.4s
+      batteryLevel                     = 84.099998
+      vehicleMileage                   = 152031661
+      tirePressureStatusValidFrontLeft  = None
+      tirePressureStatusValidFrontRight = None
+      tirePressureStatusValidRearLeft   = None
+      tirePressureStatusValidRearRight  = None
+      cabinHoldNotification             = None
+
+  accepted as a document; 5/5 delivered
+```
+
+The control delivered **124 fields in 1.7 s** with real values (`wifiSignal -54`, all four windows
+`closed`, `trailerStatus TRAILER_NOT_PRESENT`), so the instrument is proven before the result is
+read — the discipline the first two attempts lacked.
+
+**No entity or field is removed.** All five keep their entities: the server accepts the names, so
+they are valid; it returns null, so this vehicle has no value for them today. A field that is
+accepted and empty is exactly the case this document was written to protect.
+
+### RETRACTION — both earlier f8 failures were my instrument, and so were two production outages
+
+The probe's callback read `data["data"]["vehicleState"]`. The frame is
+`{"id":…, "type":"next", "payload": {"data": {…}}}`, and `coordinator.py:580`, `:1074` and `:1223`
+all unwrap `payload` first. The probe was one level too shallow, so `got` stayed empty **no matter
+what arrived** and every field reported NOT DELIVERED.
+
+That single defect produced:
+
+- the first f8 run's "inconclusive — the control delivered nothing";
+- the second run's identical failure *after* the property set was corrected to
+  `VEHICLE_STATE_API_FIELDS`, which was a real fix for a real documentation error but not the cause;
+- **the reading that H4 contention was real**, filed from a subscription that was "accepted but
+  silent" — it was never silent, it was unparsed;
+- **two production outages**, taken to make the probe the sole subscriber for a contention that does
+  not exist.
+
+With the parsing fixed, the probe delivers 124 fields **while production is subscribed**. There is no
+contention on this path, f8 needs no outage, and `WS_CONTENTION.md`'s retraction notice should be read
+as covering this too: silence in that record was this bug, not the gateway.
+
+The lesson is the one this project already writes down and I failed to apply to my own tooling: an
+instrument is proved before its result is read. The control existed precisely to catch this, and it
+did catch it — twice — and twice I corrected something else.

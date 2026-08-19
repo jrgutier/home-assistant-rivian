@@ -61,7 +61,15 @@ async def attempt(client, vid, props, label, wait=25):
     ev = asyncio.Event()
 
     def cb(data):
-        vs = (data.get("data") or {}).get("vehicleState") or {}
+        # The frame is {"id":..., "type":"next", "payload": {"data": {...}}}.
+        # coordinator.py:580, :1074 and :1223 all unwrap `payload` then `data`.
+        # Two earlier revisions of this probe read data["data"] directly, one
+        # level too shallow, so `got` stayed empty no matter what arrived and the
+        # run reported every field NOT DELIVERED. That is what made f8
+        # "inconclusive" twice -- not contention, and not the property set.
+        # Accept both shapes so the probe cannot fail this way again.
+        payload = data.get("payload") or data
+        vs = (payload.get("data") or {}).get("vehicleState") or {}
         for k, v in (vs or {}).items():
             if k != "__typename":
                 got[k] = v
