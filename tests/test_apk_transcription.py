@@ -354,10 +354,28 @@ class TestWhatWeShipVersusWhatTheAppNames:
             assert unwired in {c.value for c in VehicleCommand}
             assert unwired not in platforms, f"{unwired} is now wired -- see f6"
 
-    def test_we_wire_none_of_the_invalid_wrapper_commands_yet(self) -> None:
-        """Not wired blind, and not declared dead either -- f6 tests them."""
+    def test_the_invalid_wrapper_seven_are_members_and_wired_to_nothing(self) -> None:
+        """INVERTED by owner ruling 11 (2026-08-19). Until then this asserted
+        the seven were absent from the enum. They are members so f7 can send
+        them; they back no entity -- wiring them blind is the defect that
+        shipped eleven dead controls once.
+        """
         ours = {c.value for c in VehicleCommand}
-        assert not (INVALID_WRAPPER_COMMANDS & ours)
+        assert INVALID_WRAPPER_COMMANDS <= ours
+        platforms = "".join(
+            (REPO / "custom_components/rivian" / name).read_text()
+            for name in (
+                "select.py",
+                "switch.py",
+                "button.py",
+                "cover.py",
+                "number.py",
+                "climate.py",
+                "lock.py",
+            )
+        )
+        for command in sorted(INVALID_WRAPPER_COMMANDS):
+            assert command not in platforms, f"{command} is now wired -- see f6"
 
 
 class TestObservedCapabilities:
@@ -521,9 +539,26 @@ class TestCommandCoverage:
         assert "START_GEAR_GUARD_MASTER_SESSION" not in platforms
 
     def test_the_invalid_wrapper_seven_are_still_unwired(self) -> None:
-        """Not wired blind, and not declared dead either -- f7 tests them."""
+        """INVERTED by owner ruling 11 (2026-08-19). Name kept: f6.sh lists it.
+        "Still unwired" is the surviving half -- they are members so f7 can
+        send them, and they back no entity.
+        """
         ours = {c.value for c in VehicleCommand}
-        assert not (INVALID_WRAPPER_COMMANDS & ours)
+        assert INVALID_WRAPPER_COMMANDS <= ours
+        platforms = "".join(
+            (REPO / "custom_components/rivian" / name).read_text()
+            for name in (
+                "select.py",
+                "switch.py",
+                "button.py",
+                "cover.py",
+                "number.py",
+                "climate.py",
+                "lock.py",
+            )
+        )
+        for command in sorted(INVALID_WRAPPER_COMMANDS):
+            assert command not in platforms, f"{command} is now wired -- see f6"
 
     def test_the_seven_apk_absent_commands_are_still_here(self) -> None:
         """Kept. Stamping a dated "deprecated" note on a working command writes
