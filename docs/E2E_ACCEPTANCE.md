@@ -107,3 +107,62 @@ subscription without the production integration being disabled, so either
 production was not subscribed at the time or the constraint is narrower than
 measured. Worth re-checking before relying on it — but the safe reading stands: if
 two instances contend, the second gets nothing rather than both degrading.
+
+## f3b-b — tonneau cover, 2026-08-19 ~05:15 CDT
+
+**Entity: CONFIRMED. Round trip: INCONCLUSIVE, and inconclusive is not a failure.**
+
+Pre-flight: Park, speed 0, Gear Guard armed, no door or window open, vehicle on
+the charger. Charge-port door excluded from the occupancy test — it is open
+whenever the vehicle is plugged in, which is exactly when the vehicle is awake and
+reachable, so counting it aborts every usable window. It is a closure, not an
+occupancy signal.
+
+### What was confirmed
+
+`cover.r1t_r1t_tonneau_cover` **exists** and reads `closed`. That is f3b-a's whole
+claim: the cover was gated on `TONNEAU_CMD`, a flag no server emits, so it had
+never been created for anyone. Re-gated on the field, it is there.
+
+(An earlier probe reported it absent. That probe looked for `cover.r1t_tonneau`;
+the entity id is `cover.r1t_r1t_tonneau_cover`. The doubled `r1t_r1t` prefix is
+cosmetic and also affects `button.r1t_r1t_open_tailgate`.)
+
+### What was not confirmed, and why it is not a failure
+
+| Command | Physical effect | `last_command_state` |
+|---|---|---|
+| `OPEN_TONNEAU_COVER` | none observed in 60 s | `TIMEOUT` |
+| `OPEN_TONNEAU_COVER` (retry) | none observed in 84 s | `TIMEOUT` |
+| `CLOSE_TONNEAU_COVER` (already closed — calibration) | n/a | `TIMEOUT` |
+| `LOCK_ALL_CLOSURES_FEEDBACK` (already locked — calibration) | n/a | `TIMEOUT` |
+
+**Every command times out, including two that move nothing.** `TIMEOUT` is not a
+refusal: it means `vehicleCommandState` returned no result within 30 s, so we
+learn nothing about whether the vehicle accepted the command. The calibration
+commands are what make this readable — a tonneau-specific problem would not also
+time out a lock.
+
+Network was healthy at the time (`rivian.com` resolved and returned 200 in 0.26 s
+from the HA host) and `binary_sensor.r1t_cloud_connected` was `on`, so this is not
+a connectivity outage. There was one unrelated DNS timeout 33 minutes earlier.
+
+**Under Principle -1 this changes nothing.** An inconclusive run is not a recorded
+live failure, so no entity, field or command is removed on the strength of it.
+The tonneau commands remain live-proven from the earlier successful test.
+
+### f7 not attempted
+
+f7's entire output is a per-command live result. With `vehicleCommandState`
+returning nothing for every command, f7 would fire closure-openers and record
+`TIMEOUT` against each — no evidence, and several closures opened at 05:20 with no
+reliable feedback. Deferred until the command-state path reports again.
+
+### Separate finding: two lock signals disagree
+
+`binary_sensor.r1t_locked_state` read `on` before the run and `off` after, while
+`lock.r1t_closures` read `unlocked` before and `locked` after. They disagree in
+both directions, so at least one is wrong or stale. Recorded, not chased.
+
+Final state: all closures closed except the charge-port door (plugged in), Park,
+speed 0, Gear Guard armed, `lock.r1t_closures` locked.
