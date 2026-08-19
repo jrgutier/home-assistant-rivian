@@ -1053,3 +1053,57 @@ PROCESS NOTE: I read the entity registry three times right after a restart and
 concluded the nine were not being created. They were -- HA had not finished
 platform setup and the registry flush. Wait for HA to settle before calling a
 deployment broken.
+
+--- Steps 0a/0b/0c and the Step 1 pre-flight -------------------------------
+Executed against the approved plan (.omc/plans/beta6-deploy-live-stories-archival-
+filter.md), which came through four consensus iterations. Everything below is
+recorded output, not reasoning. Nothing has touched dev.
+
+0a  eebc5ed  Five sibling-dependent gates hardened. The guard shape is PER GATE,
+    decided by what each still asserts sibling-less: note/summary/exit 0 for s03,
+    s04, s08a; an s14-shaped wrap of only the sibling block for s02 (16-37) and
+    s08b (38-40). A bare `if [ ! -d "$CLIENT" ]; then note; summary; fi` FALLS
+    THROUGH -- summary returns 0 with no failures, so set -e does not stop it, and
+    s03 still crashed exit 128. Verified. Had s02 and s08b taken skip-and-exit they
+    would have lost fourteen live assertions between them, including the repo-wide
+    ruff, pytest, both coverage floors and the dev-push-trigger check.
+    f4.sh:170 and f5.sh:101 gained the note lines they were missing.
+
+0b  f6b79e4  switch.py:82 and :30 return None for any value outside {on,off}
+    ({"on": True, "off": False}.get(...)), which also covers unspecified and
+    unavailable -- values no INVALID_SENSOR_STATES filter can reach, because they
+    are not in the set. entity.py seeds attrs = {"response_code": None,
+    "status_code": None} BEFORE the _last_command_status guard, so both are
+    readable pre-command, which is the state f7 inspects. 14 new tests.
+
+0c  b82cbb2  Seven VehicleCommand members added per owner ruling 11 (59 total),
+    with the identical lockstep commit in the sibling at 88301c0f2732 (COMMITTED,
+    NOT PUSHED -- Step 6 pushes it before archiving, or the marker below becomes a
+    dangling pointer forever).
+    The vendored-from marker was WRONG, not stale: it read vendored+3cec320254f9
+    while the vendored tree actually matched dd1dc21e5d3b -- 958 insertions apart,
+    zero drift between the trees. s14.sh only ever asserted the string "vendored+"
+    existed, which is why it survived. Corrected to vendored+88301c0f2732 and given
+    a real sha-prefix assertion, placed INSIDE the -d guard so it goes dormant with
+    the rest after the sibling is deleted. s14 is now 14/0.
+    f6.sh and two tests asserted the seven were NOT in the enum. Ruling 11 inverts
+    that half; the surviving half -- members, but backing no entity -- is now
+    asserted instead. Not deleted. The test f6.sh lists by name kept its name.
+    Arming proofs recorded: f6 exit 1 naming all seven, and 2 failed / 2 passed,
+    before the rewrite.
+
+Step 1 pre-flight, all recorded output:
+  origin/dev..dev = 0; git status --porcelain empty
+  merge-tree --write-tree origin/dev HEAD: exit 0, no CONFLICT, tree fcac5a4c4cdc,
+    manifest 1.6.0-beta5 -> CI will publish beta6. (The plan's 000924a2 hash was
+    provenance from before 0a/0b/0c moved HEAD, not a pass rule.)
+  pytest -q: 1596 passed, 0 failed, 0 skipped
+  check_coverage.py: integration 90.28% (floor 89.0), client 75.51% (floor 74.0)
+  load_test.sh: 36 modules imported, 0 failed. NOTE: a REUSED venv reports 36/36
+    failed on typing_extensions -- a stale-venv artifact, not a code failure. Use a
+    fresh path.
+  Nineteen-gate sweep: all exit 0, zero FAIL lines across all nineteen.
+
+STOPPED BEFORE STEP 2 by instruction. Step 2 is the irreversible trigger: the push
+to dev makes CI publish beta6 to HACS testers. Steps 3-6 are human -- the deploy,
+the vehicle, the GitHub Settings click.
