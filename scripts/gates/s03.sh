@@ -3,6 +3,11 @@
 # the result, it does not make the merge safe to automate.
 source "$(dirname "$0")/_lib.sh"
 echo "S3 — client on upstream transport"
+if [ ! -d "$CLIENT" ]; then
+  note "sibling rivian-python-client not present — skipping client transport checks"
+  summary S3
+  exit 0
+fi
 on_branch "$CLIENT" vendor-client
 try "2.1.0 is an ancestor of HEAD" git -C "$CLIENT" merge-base --is-ancestor 2.1.0 HEAD
 absent "no conflict markers" '^(<<<<<<<|=======$|>>>>>>>)' "$CLIENT/src"

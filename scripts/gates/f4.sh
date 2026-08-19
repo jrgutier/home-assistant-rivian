@@ -173,6 +173,8 @@ if [ -f "$MIRROR" ]; then
   else
     bad "the schema was not mirrored to the sibling repo"
   fi
+else
+  note "sibling rivian-python-client not present — skipping the schema-mirror check"
 fi
 
 # get_vehicle_state is gone, and the error-path tests were REPOINTED, not deleted.

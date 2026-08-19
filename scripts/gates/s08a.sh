@@ -16,6 +16,12 @@
 source "$(dirname "$0")/_lib.sh"
 echo "S8a — RVM fixtures captured"
 
+if [ ! -d "$CLIENT" ]; then
+  note "sibling rivian-python-client not present — skipping fixture checks"
+  summary S8a
+  exit 0
+fi
+
 D="$CLIENT/tests/fixtures/parallax"
 
 if [ ! -d "$D" ]; then

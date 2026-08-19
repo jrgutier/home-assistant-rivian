@@ -104,6 +104,8 @@ if [ -f "$MIRROR" ]; then
   else
     bad "parallax.py was not mirrored to the sibling repo"
   fi
+else
+  note "sibling rivian-python-client not present — skipping the parallax-mirror check"
 fi
 
 for t in test_field_numbers_skip_two_through_seven \
