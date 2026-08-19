@@ -312,6 +312,22 @@ no stop command in `VehicleCommand` and no state field anywhere for it, so had i
 would have been no way to end the session or observe that it had started. It is grouped with the four
 `TWO_FACTOR_DRIVE_*` commands as a no-state-surface command, not with the reversible ones.
 
+## CORRECTION to the race table below — run 1's "state 2" was NOT terminal
+
+`scripts/probe_vehicle_command.py` tested `state not in (None, "in_progress", "pending")` — a
+**string** test against a server that answers with an **integer**. Every integer therefore read as
+terminal, so run 1's `state 2` was printed as `TERMINAL` and recorded here as one. It is not:
+**2 is in the app's continue set** `{1,2,3,5}` (`C4171i`'s switch, `C2225j`'s terminality test).
+
+This is the same defect class the integration itself carried until this release — an instrument
+built to investigate a bug, carrying the bug. The probe now uses the app's integer vocabulary.
+
+**What survives the correction:** runs 2 and 3 returned **state 0**, which IS terminal. Those two
+observations — both `WAKE_VEHICLE`, both via the poll — are the only genuine terminal command states
+ever recorded in this project. The subscription has never been observed delivering one. That is
+recorded as the accepted risk of removing the poll, and it is answerable by one probe run rather
+than by field data.
+
 ## The command-state subscription DOES deliver — `ae06ee9`'s premise corrected, 2026-08-19
 
 `ae06ee9` recorded: *"the vehicleCommandState SUBSCRIPTION never delivers, so nothing populates

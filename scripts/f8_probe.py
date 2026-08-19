@@ -26,6 +26,16 @@ TARGETS = [
 ]
 CONTROL = ["batteryLevel", "vehicleMileage"]  # known-good, proves the doc works at all
 
+# The coordinator's ACTUAL property set. The first f8 run approximated it with a
+# small explicit list and the control delivered nothing, which is why that run was
+# inconclusive: the probe was not the instrument it claimed to be.
+# coordinator.py:958 passes properties=VEHICLE_STATE_API_FIELDS -- NOT
+# VEHICLE_STATES_SUBSCRIPTION_PROPERTIES, which is only the client default at
+# rivian_client/rivian.py and which the coordinator never uses.
+# Importing this pulls in homeassistant, so this script now REQUIRES the repo
+# venv: .venv/bin/python scripts/f8_probe.py
+from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+
 
 def load_env():
     env = {}
@@ -97,7 +107,8 @@ async def main():
         p = await (await c.get_user_information(True)).json()
         vid = p["data"]["currentUser"]["vehicles"][0]["id"]
         print("=== CONTROL: known-good fields only ===")
-        ok, _, ctl = await attempt(c, vid, CONTROL, "control")
+        # Control over the coordinator's real property set, not an approximation.
+        ok, _, ctl = await attempt(c, vid, sorted(VEHICLE_STATE_API_FIELDS), "control")
         if not ok or not ctl:
             print(
                 "CONTROL FAILED -- the probe itself is not a valid instrument right now. STOP."

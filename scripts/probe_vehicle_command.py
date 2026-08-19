@@ -56,6 +56,28 @@ def load_env(path: Path) -> dict[str, str]:
     return env
 
 
+# The app's own vocabulary, read off C4171i's nine-arm switch and C2225j's
+# terminality test. Continue = {1,2,3,5}; terminal = {0,4,6,7} and any unmapped
+# int. Transcribed in tests/apk/transcription.py.
+#
+# This probe previously tested `state not in (None, "in_progress", "pending")`
+# -- a STRING test against a server that answers with an INTEGER. Every integer
+# read as terminal, so it labelled a continue-state 2 "TERMINAL" and that
+# mislabelling reached docs/E2E_ACCEPTANCE.md's race table. Same defect class as
+# the one this project just fixed in entity.py: an instrument carrying the bug
+# it was built to investigate.
+COMMAND_STATE_CONTINUE = frozenset({1, 2, 3, 5})
+
+
+def _is_terminal(state) -> bool:
+    """True when the app would stop waiting on this state."""
+    if state is None:
+        return False
+    if isinstance(state, int):
+        return state not in COMMAND_STATE_CONTINUE
+    return str(state) not in ("in_progress", "pending")
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("command")
@@ -139,7 +161,7 @@ async def main() -> int:
             data = (state.get("data") or {}).get("getVehicleCommand")
             elapsed = time.monotonic() - sent_at
             print(f"  t+{elapsed:>6.2f}s  {data}")
-            if data and data.get("state") not in (None, "in_progress", "pending"):
+            if data and _is_terminal(data.get("state")):
                 print(f"TERMINAL after {elapsed:.2f}s from send")
                 break
         else:
