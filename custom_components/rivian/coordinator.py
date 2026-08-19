@@ -834,6 +834,20 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._last_update_time: datetime | None = None
         self._watchdog_task: asyncio.Task | None = None
         self._prev_charger_state: str | None = None
+        # Field names the vehicleState SUBSCRIPTION has supplied at least once.
+        #
+        # Parallax and the subscription both carry many of the same fields -- 19 of
+        # the 28 the decoders write -- and the merge below used to let Parallax
+        # overwrite whichever arrived first. Two sources for one sensor is a defect
+        # with precedent here: vehicleMileage needed a monotonic guard because the
+        # oscillation between an integer-km Parallax value and a float-metre
+        # subscription value corrupted utility meters.
+        #
+        # So the subscription wins where both supply a field, and Parallax fills
+        # only the gaps. Provenance has to be tracked rather than inferred from
+        # "is the key present", because once Parallax writes a key it IS present,
+        # and a Parallax-only field must keep updating.
+        self._subscription_keys: set[str] = set()
         # Fields already reported as unusable, so the warning fires once each.
         self._dropped_reported: set[str] = set()
         self._subscription_start_time: datetime | None = None
@@ -1033,6 +1047,22 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         if vehicle_keys:
             vehicle_updates: dict[str, Any] = {}
             for k in vehicle_keys:
+                # The subscription wins. Parallax fills gaps only.
+                #
+                # 19 of the 28 keys the decoders write are also carried by the
+                # subscription, including gearStatus, driveMode, alarmSoundStatus
+                # and trailerStatus -- fields that drive automations. The decoders
+                # are transcribed from the app's protobuf classes and asserted
+                # against constructed payloads, not against anything this vehicle
+                # has actually sent, so they must not be able to overwrite a value
+                # that is known to be right.
+                #
+                # Keys nothing else supplies -- vasAccessCanFaulted,
+                # passiveEntryUnlockFailReason, batteryCellType and six more -- are
+                # unaffected: the subscription never names them, so they are never
+                # in _subscription_keys and Parallax remains their only source.
+                if k in self._subscription_keys:
+                    continue
                 if k == "gnssLocation":
                     vehicle_updates[k] = clean[k]
                 elif k == "vehicleMileage":
@@ -1173,6 +1203,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             for k, v in vijson.items()
             if v
         }
+        # Provenance, for the Parallax gap-fill rule in _process_parallax_data.
+        self._subscription_keys |= set(items)
 
         if items:
             _LOGGER.debug("Vehicle %s updated: %s", self.vehicle_id, redact(items))

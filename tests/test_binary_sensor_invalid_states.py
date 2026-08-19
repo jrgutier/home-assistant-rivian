@@ -217,6 +217,8 @@ async def test_filter_is_reachable_on_a_first_update_with_no_history(
     coordinator = MagicMock(spec=VehicleCoordinator)
     coordinator.data = None
     coordinator._note_unusable = MagicMock()
+    # Assigned in __init__, so a spec'd mock raises AttributeError for it.
+    coordinator._subscription_keys = set()
     coordinator.charging_coordinator = MagicMock()
     coordinator.vehicle_id = "veh-1"
     coordinator._awake = MagicMock()
