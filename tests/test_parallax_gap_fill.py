@@ -201,3 +201,75 @@ def test_the_nine_parallax_only_keys_are_what_we_think_they_are() -> None:
         "vasSecureElementFaulted",
     }
     assert not (parallax_only & VEHICLE_STATE_API_FIELDS)
+
+
+class TestTheNineHaveEntities:
+    """Decoding a field and exposing it are different things.
+
+    When the gap-fill rule landed, the fourteen f5 decoders surfaced NOTHING: the
+    19 overlapping keys were blocked by the subscription, and the nine
+    Parallax-only keys had no sensor description, so they were decoded into the
+    coordinator and read by nobody. These tests are the guard against that state
+    returning.
+    """
+
+    NINE = (
+        "batteryCellType",
+        "btmOcHardwareFailureStatus",
+        "coldRangeNotification",
+        "consecutiveAlarmDisabledNotification",
+        "knownLocation",
+        "passiveEntryUnlockFailReason",
+        "secureImmobilizerStatus",
+        "vasAccessCanFaulted",
+        "vasSecureElementFaulted",
+    )
+
+    @pytest.mark.parametrize("field", NINE)
+    def test_each_backs_a_sensor(self, field: str) -> None:
+        from custom_components.rivian.const import SENSORS
+
+        fields = {d.field for group in SENSORS.values() for d in group}
+        assert field in fields, f"{field} is decoded but exposed by nothing"
+
+    @pytest.mark.parametrize("field", NINE)
+    def test_none_of_them_reaches_the_subscription(self, field: str) -> None:
+        """VEHICLE_STATE_API_FIELDS is DERIVED from the sensor descriptions, so
+        adding a sensor puts its field in the subscription automatically.
+
+        For these nine that is doubly wrong. A name the server does not know takes
+        down the WHOLE subscription -- the wheelsInstalled failure -- and a
+        subscribed field is recorded in _subscription_keys, which makes the
+        gap-fill rule skip it and pins the sensor at unknown forever.
+
+        PARALLAX_ONLY_FIELDS is what keeps them out.
+        """
+        from custom_components.rivian.const import (
+            PARALLAX_ONLY_FIELDS,
+            VEHICLE_STATE_API_FIELDS,
+        )
+
+        assert field in PARALLAX_ONLY_FIELDS
+        assert field not in VEHICLE_STATE_API_FIELDS
+
+    @pytest.mark.parametrize("field", NINE)
+    def test_each_ships_disabled_by_default(self, field: str) -> None:
+        """Fault codes and debug counters, and none has been observed arriving on
+        this vehicle. Enabling them by default would add nine entities that might
+        sit at unknown indefinitely."""
+        from custom_components.rivian.const import SENSORS
+
+        for group in SENSORS.values():
+            for description in group:
+                if description.field == field:
+                    assert description.entity_registry_enabled_default is False
+
+    def test_a_decoded_value_actually_reaches_the_coordinator(self) -> None:
+        """End to end for one of them, through the real merge."""
+        coordinator = _coordinator()
+        result = _parallax(
+            coordinator,
+            "security.access.immobilizer_state",
+            {"secureImmobilizerStatus": "authorized_to_drive"},
+        )
+        assert result["secureImmobilizerStatus"]["value"] == "authorized_to_drive"

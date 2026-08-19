@@ -75,7 +75,10 @@ if [ ! -x "$PY" ]; then bad "pytest not found"; summary f3a; exit 1; fi
 # The counts, asserted by the code rather than by this script re-deriving them
 # from the same source. The literals live in the test module so they are
 # reviewable next to what they describe; the gate checks they are still there.
-for pair in '"R1T": (90, 33)' '"R1S": (90, 29)' '"R2": (87, 27)' 'None: (87, 27)'; do
+# Raised from 90/33, 90/29, 87/27 when f5's follow-up added nine sensors for the
+# fields the new Parallax decoders are the only source for. Binary sensors are
+# unchanged, which is the check that says the addition was sensors only.
+for pair in '"R1T": (99, 33)' '"R1S": (99, 29)' '"R2": (96, 27)' 'None: (96, 27)'; do
   if grep -qF "$pair" "$T"; then ok "count asserted: $pair"
   else bad "missing numeric count assertion: $pair"; fi
 done
@@ -84,7 +87,7 @@ done
 # silently regenerated fixture cannot drift with the code.
 python3 - "$FIX" <<'PYEOF'
 import json, sys
-want = {"R1T": (90, 33), "R1S": (90, 29), "R2": (87, 27), "__absent__": (87, 27)}
+want = {"R1T": (99, 33), "R1S": (99, 29), "R2": (96, 27), "__absent__": (96, 27)}
 data = json.load(open(sys.argv[1]))
 bad = []
 for model, (ns, nb) in want.items():

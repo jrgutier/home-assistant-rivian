@@ -973,6 +973,88 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             icon="mdi:bluetooth",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
+        # The nine fields Parallax is the ONLY source for.
+        #
+        # The f5 decoders read these out of the app's protobuf messages, and the
+        # vehicleState subscription never names them -- so without a description
+        # here they would be decoded into the coordinator and read by nothing.
+        # That is exactly what happened when the gap-fill rule landed: fourteen
+        # new decoders, and not one new entity.
+        #
+        # Diagnostic and disabled by default. They are fault codes and debug
+        # counters, not things to put on a dashboard, and none has been observed
+        # arriving on this vehicle yet -- enabling them by default would add nine
+        # entities that might sit at unknown forever.
+        RivianSensorEntityDescription(
+            key="btm_oc_hardware_failure_status",
+            translation_key="btm_oc_hardware_failure_status",
+            field="btmOcHardwareFailureStatus",
+            icon="mdi:bluetooth",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="vas_secure_element_faulted",
+            translation_key="vas_secure_element_faulted",
+            field="vasSecureElementFaulted",
+            icon="mdi:key-alert",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="vas_access_can_faulted",
+            translation_key="vas_access_can_faulted",
+            field="vasAccessCanFaulted",
+            icon="mdi:key-alert",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="passive_entry_unlock_fail_reason",
+            translation_key="passive_entry_unlock_fail_reason",
+            field="passiveEntryUnlockFailReason",
+            icon="mdi:lock-alert",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="secure_immobilizer_status",
+            translation_key="secure_immobilizer_status",
+            field="secureImmobilizerStatus",
+            icon="mdi:car-key",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="consecutive_alarm_disabled_notification",
+            translation_key="consecutive_alarm_disabled_notification",
+            field="consecutiveAlarmDisabledNotification",
+            icon="mdi:alarm-light-off",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="battery_cell_type",
+            translation_key="battery_cell_type",
+            field="batteryCellType",
+            icon="mdi:battery-heart-variant",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="cold_range_notification",
+            translation_key="cold_range_notification",
+            field="coldRangeNotification",
+            icon="mdi:snowflake-alert",
+            entity_registry_enabled_default=False,
+        ),
+        RivianSensorEntityDescription(
+            key="known_location",
+            translation_key="known_location",
+            field="knownLocation",
+            icon="mdi:map-marker-check",
+            entity_registry_enabled_default=False,
+        ),
         RivianSensorEntityDescription(
             key="btm_rf_hardware_failure_status",
             translation_key="btm_rf_hardware_failure_status",
@@ -1455,6 +1537,25 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
 # the sensor still reads it out of the coordinator, which Parallax populates.
 PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "wheelsInstalled",
+    # The nine the f5 decoders are the only source for. Adding a sensor for each
+    # would otherwise put them in the subscription automatically, because
+    # VEHICLE_STATE_API_FIELDS is DERIVED from the sensor descriptions -- and that
+    # is the wheelsInstalled failure exactly: a name the server does not know takes
+    # down the WHOLE subscription, so the integration delivers nothing at all.
+    #
+    # There is a second reason, specific to the gap-fill rule. A subscribed field
+    # is recorded in VehicleCoordinator._subscription_keys, and Parallax skips
+    # anything in that set -- so subscribing to these would block their only
+    # source and pin all nine at unknown forever.
+    "batteryCellType",
+    "btmOcHardwareFailureStatus",
+    "coldRangeNotification",
+    "consecutiveAlarmDisabledNotification",
+    "knownLocation",
+    "passiveEntryUnlockFailReason",
+    "secureImmobilizerStatus",
+    "vasAccessCanFaulted",
+    "vasSecureElementFaulted",
 }
 
 VEHICLE_STATE_API_FIELDS: Final[set[str]] = {
