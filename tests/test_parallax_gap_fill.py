@@ -30,6 +30,7 @@ def _coordinator() -> MagicMock:
     coordinator = MagicMock(spec=VehicleCoordinator)
     coordinator.data = {}
     coordinator._subscription_keys = set()
+    coordinator._rvm_arrivals = {}
     coordinator._note_unusable = MagicMock()
     coordinator.charging_coordinator = MagicMock()
     coordinator.vehicle_id = "veh-1"
@@ -252,17 +253,78 @@ class TestTheNineHaveEntities:
         assert field in PARALLAX_ONLY_FIELDS
         assert field not in VEHICLE_STATE_API_FIELDS
 
-    @pytest.mark.parametrize("field", NINE)
-    def test_each_ships_disabled_by_default(self, field: str) -> None:
-        """Fault codes and debug counters, and none has been observed arriving on
-        this vehicle. Enabling them by default would add nine entities that might
-        sit at unknown indefinitely."""
+    # Which of the nine ship enabled, and WHY. The reason rides along as the
+    # parametrize id, so a failure names the ground the entity was standing on.
+    #
+    # The line is whether the message is PROVEN TO ARRIVE -- not whether a field
+    # held a value in one snapshot. A snapshot criterion flips with the weather:
+    # knownLocation reads `home` because the truck is parked at home.
+    ENABLED = [
+        ("vasAccessCanFaulted", "witness: arrived populated, proving its RVM lands"),
+        ("vasSecureElementFaulted", "same message, and armed before the fault"),
+        ("batteryCellType", "static hardware fact"),
+        ("coldRangeNotification", "user-facing, no entity_category"),
+        ("knownLocation", "user-facing, no entity_category"),
+    ]
+    STILL_DISABLED = [
+        ("btmOcHardwareFailureStatus", "vocabulary clash with its five siblings"),
+        ("passiveEntryUnlockFailReason", "arrival unwitnessed"),
+        ("secureImmobilizerStatus", "arrival unwitnessed"),
+        ("consecutiveAlarmDisabledNotification", "arrival unwitnessed"),
+    ]
+
+    @staticmethod
+    def _enabled_default(field: str) -> bool:
         from custom_components.rivian.const import SENSORS
 
         for group in SENSORS.values():
             for description in group:
                 if description.field == field:
-                    assert description.entity_registry_enabled_default is False
+                    return description.entity_registry_enabled_default
+        raise AssertionError(f"{field} backs no sensor")
+
+    @pytest.mark.parametrize(
+        "field", [f for f, _ in ENABLED], ids=[r for _, r in ENABLED]
+    )
+    def test_the_five_proven_ones_ship_enabled(self, field: str) -> None:
+        assert self._enabled_default(field) is not False
+
+    @pytest.mark.parametrize(
+        "field", [f for f, _ in STILL_DISABLED], ids=[r for _, r in STILL_DISABLED]
+    )
+    def test_the_four_unproven_ones_stay_disabled(self, field: str) -> None:
+        """Not "it would read unknown" -- that argument would condemn the five
+        enabled ones too. Three of these have no unsubscribed sibling, so absence
+        cannot be told apart from the decoder never firing; btm_oc additionally
+        speaks a different enum vocabulary than its five enabled siblings."""
+        assert self._enabled_default(field) is False
+
+    def test_the_split_covers_all_nine_exactly_once(self) -> None:
+        assert len(self.ENABLED) + len(self.STILL_DISABLED) == len(self.NINE)
+        assert {f for f, _ in self.ENABLED} | {
+            f for f, _ in self.STILL_DISABLED
+        } == set(self.NINE)
+
+    def test_absence_is_not_read_as_health(self) -> None:
+        """The correction that produced this split.
+
+        Proto3 omits zero values, but that means "healthy" only where healthy IS
+        zero. For the vas pair it is not: both maps start at 1 = no_failure with no
+        0 entry, and vasAccessCanFaulted arrived AS no_failure -- an explicit
+        non-zero value. So vasSecureElementFaulted being absent means UNSPECIFIED,
+        not healthy. It is enabled on the arming argument, not on a health claim.
+        """
+        from custom_components.rivian.rivian_client.parallax import (
+            _ACCESS_CAN_FAULTED_MAP,
+            _HARDWARE_FAILURE_MAP,
+            _SECURE_ELEMENT_FAULTED_MAP,
+        )
+
+        assert 0 not in _SECURE_ELEMENT_FAULTED_MAP
+        assert 0 not in _ACCESS_CAN_FAULTED_MAP
+        assert _SECURE_ELEMENT_FAULTED_MAP[1] == "no_failure"
+        # The one map where zero-means-healthy does hold.
+        assert _HARDWARE_FAILURE_MAP[0] == "unspecified"
 
     def test_a_decoded_value_actually_reaches_the_coordinator(self) -> None:
         """End to end for one of them, through the real merge."""
@@ -273,3 +335,81 @@ class TestTheNineHaveEntities:
             {"secureImmobilizerStatus": "authorized_to_drive"},
         )
         assert result["secureImmobilizerStatus"]["value"] == "authorized_to_drive"
+
+
+class TestRvmArrivalCounters:
+    """Counting arrival is what makes "absent" interpretable.
+
+    Without it, a missing field is ambiguous between "the message arrived and the
+    field was zero, which proto3 omits" and "the message never arrived". That
+    ambiguity is the stated reason three of the nine sensors ship disabled, so the
+    counter is load-bearing rather than instrumentation for its own sake.
+    """
+
+    def test_arrival_is_counted_even_when_every_key_is_discarded(self) -> None:
+        """The case a naive placement gets wrong.
+
+        Every field of security.access.btm is subscribed, so the merge loop drops
+        all of them. Count after that loop and this topic -- one of the exact ones
+        the counter exists to witness -- registers as never having arrived.
+        """
+        coordinator = _coordinator()
+        coordinator._subscription_keys = {
+            "btmFfHardwareFailureStatus",
+            "btmIcHardwareFailureStatus",
+        }
+        result = _parallax(
+            coordinator,
+            "security.access.btm",
+            {
+                "btmFfHardwareFailureStatus": "set",
+                "btmIcHardwareFailureStatus": "set",
+            },
+        )
+
+        assert result == {}, "every key should have been discarded"
+        assert coordinator._rvm_arrivals["security.access.btm"] == 1
+
+    def test_repeated_arrivals_accumulate(self) -> None:
+        coordinator = _coordinator()
+        for _ in range(3):
+            _parallax(coordinator, "dynamics.vehicle.gear", {"gearStatus": "park"})
+        assert coordinator._rvm_arrivals["dynamics.vehicle.gear"] == 3
+
+    def test_a_topic_that_never_arrives_is_simply_absent(self) -> None:
+        """Absent from the map, not zero -- so "never delivered" is readable."""
+        coordinator = _coordinator()
+        _parallax(coordinator, "dynamics.vehicle.gear", {"gearStatus": "park"})
+        assert "security.access.immobilizer_state" not in coordinator._rvm_arrivals
+
+    def test_an_undecodable_payload_still_counts_as_arrival(self) -> None:
+        """Arrival and decodability are different questions, and conflating them
+        would hide a topic that lands but decodes to nothing."""
+        coordinator = _coordinator()
+        _parallax(coordinator, "security.alarm.state", {})
+        assert coordinator._rvm_arrivals["security.alarm.state"] == 1
+
+    def test_diagnostics_surfaces_the_counters(self) -> None:
+        """coordinator.data would have been the wrong home: that namespace is read
+        by coordinator.get() for entity fields, and a counter there would collide.
+        """
+        import inspect
+
+        from custom_components.rivian import diagnostics
+
+        source = inspect.getsource(diagnostics)
+        assert "parallax_rvm_arrivals" in source
+        # Through the public accessor, not the private attribute -- diagnostics
+        # reads coordinator.data and the sibling coordinators the same way.
+        assert "coordinator.rvm_arrivals" in source
+        # The private ACCESS, not the substring: "parallax_rvm_arrivals" is the
+        # payload key and contains "_rvm_arrivals", so a bare substring check
+        # fails against correct code. Fourth time that shape has bitten here.
+        assert "coordinator._rvm_arrivals" not in source
+
+    def test_the_accessor_reports_never_delivered_as_absent(self) -> None:
+        coordinator = _coordinator()
+        _parallax(coordinator, "dynamics.vehicle.gear", {"gearStatus": "park"})
+        arrivals = VehicleCoordinator.rvm_arrivals.fget(coordinator)
+        assert arrivals == {"dynamics.vehicle.gear": 1}
+        assert "security.access.btm" not in arrivals

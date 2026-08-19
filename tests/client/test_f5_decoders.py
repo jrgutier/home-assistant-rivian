@@ -313,3 +313,99 @@ def test_the_double_consumer_flag_is_recorded_and_not_acted_on() -> None:
     topic = doubled[0]["rvm_name"]
     assert topic in RVM_DECODERS
     assert SUBSCRIBED_RVMS.count(topic) == 1
+
+
+class TestNetworkState:
+    """`vehicle.network.state` — the one decoder taken on an inference.
+
+    `opl` is parsed in the app but its parser `ipf.e` has NO CALLER, so nothing in
+    the decompilation says which topic feeds it. It is written anyway, on the
+    owner's decision, because the identification is corroborated by a second
+    independent source: its field names land one-to-one on the gateway schema f4
+    rebuilt from the app's own vehicleState documents.
+
+    The cost of being wrong is bounded and stated: every field here except
+    `wifiSignal` is declared in the schema but NOT subscribed, so a bad decode
+    mis-fills sensors that do not exist rather than corrupting a working one. And
+    `wifiSignal` IS subscribed, so the gap-fill rule keeps the subscription's value
+    and this decoder cannot touch it.
+    """
+
+    @staticmethod
+    def _nested(field_num: int, inner: bytes) -> str:
+        data = _varint((field_num << 3) | 2) + _varint(len(inner)) + inner
+        return base64.b64encode(data).decode()
+
+    @staticmethod
+    def _msg(**fields) -> bytes:
+        out = b""
+        for num, value in fields.items():
+            if isinstance(value, str):
+                raw = value.encode()
+                out += _varint((int(num) << 3) | 2) + _varint(len(raw)) + raw
+            else:
+                out += _varint((int(num) << 3) | 0) + _varint(value)
+        return out
+
+    def test_wifi_submessage(self) -> None:
+        from custom_components.rivian.rivian_client.parallax import decode_network_state
+
+        inner = self._msg(
+            **{"1": 2, "3": "HomeNet", "7": 5, "9": 433, "10": 5180, "12": 4}
+        )
+        assert decode_network_state(self._nested(4, inner)) == {
+            "wifiWpaStatus": "connected",
+            "wifiSsid": "HomeNet",
+            "wifiAntennaBars": "level_4",
+            "wifiLinkSpeed": 433,
+            "wifiFreq": 5180,
+            "wifiSecureStatus": "wpa2_personal",
+        }
+
+    def test_cellular_submessage(self) -> None:
+        from custom_components.rivian.rivian_client.parallax import decode_network_state
+
+        inner = self._msg(**{"1": "Rivian", "2": "LTE", "3": 3, "4": 71})
+        assert decode_network_state(self._nested(5, inner)) == {
+            "cellularCarrier": "Rivian",
+            "cellularMode": "LTE",
+            "cellularAntennaBars": "level_2",
+            "cellularSignalStrength": 71,
+        }
+
+    def test_it_is_registered(self) -> None:
+        assert "vehicle.network.state" in RVM_DECODERS
+
+    def test_every_field_it_writes_is_declared_in_the_schema(self) -> None:
+        """The corroboration that made this worth taking.
+
+        If a future schema edit drops one of these names, the inference weakens and
+        this test says so.
+        """
+        import pathlib
+        import re
+
+        schema = (
+            pathlib.Path(__file__).parents[2]
+            / "custom_components/rivian/rivian_client/schemas/gateway.graphql"
+        ).read_text()
+        block = schema.split("type VehicleState {", 1)[1].split("\n}", 1)[0]
+        declared = set(re.findall(r"^  (\w+):", block, re.MULTILINE))
+        from custom_components.rivian.rivian_client.parallax import (
+            _CELLULAR_SPEC,
+            _WIFI_SPEC,
+        )
+
+        written = {key for key, _ in (*_WIFI_SPEC.values(), *_CELLULAR_SPEC.values())}
+        assert written <= declared, sorted(written - declared)
+
+    def test_only_wifi_signal_can_collide_with_the_subscription(self) -> None:
+        """And the gap-fill rule means the subscription keeps it."""
+        from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+        from custom_components.rivian.rivian_client.parallax import (
+            _CELLULAR_SPEC,
+            _WIFI_SPEC,
+        )
+
+        written = {key for key, _ in (*_WIFI_SPEC.values(), *_CELLULAR_SPEC.values())}
+        assert written & VEHICLE_STATE_API_FIELDS == {"wifiSignal"}

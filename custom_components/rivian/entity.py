@@ -125,7 +125,10 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return entity specific state attributes."""
-        attrs = {}
+        # Seeded so both codes are readable before any command. Appending them
+        # inside the _last_command_status block leaves them absent until the
+        # first send, which is the state f7 has to inspect.
+        attrs = {"response_code": None, "status_code": None}
         if self._command_in_progress:
             attrs["current_command"] = self._command_in_progress
         if self._last_command_status:
@@ -134,6 +137,8 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                     "last_command": self._last_command_status.get("command"),
                     "last_command_state": self._last_command_status.get("state"),
                     "last_command_time": self._last_command_status.get("timestamp"),
+                    "response_code": self._last_command_status.get("response_code"),
+                    "status_code": self._last_command_status.get("status_code"),
                 }
             )
         return attrs
@@ -177,7 +182,22 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                 # Check command state
                 if cmd_state := self.coordinator.get_command_state(command_id):
                     state = cmd_state.get("state")
-                    if state in ["COMPLETED_SUCCESS", "COMPLETED_ERROR", "FAILED"]:
+                    # The server answers with an INTEGER, not this string enum.
+                    # A live OPEN_TONNEAU_COVER returns state 0 / responseCode 288
+                    # / statusCode 0, and a known-good WAKE_VEHICLE returns
+                    # state 0 / responseCode None. So the string list alone never
+                    # matched anything and EVERY command timed out, even when the
+                    # vehicle had already acted on it.
+                    #
+                    # Both forms are accepted. The integer vocabulary is only
+                    # calibrated at 0, so no meaning is assigned to other values
+                    # here -- the raw state, responseCode and statusCode are
+                    # recorded on the entity and the caller can read them.
+                    if isinstance(state, int) or state in (
+                        "COMPLETED_SUCCESS",
+                        "COMPLETED_ERROR",
+                        "FAILED",
+                    ):
                         # Command completed
                         self._last_command_status = {
                             "command": command.value,

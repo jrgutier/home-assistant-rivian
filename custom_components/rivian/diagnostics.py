@@ -47,5 +47,12 @@ async def async_get_config_entry_diagnostics(
             coor.drivers_coordinator.data for coor in vehicle_coordinators.values()
         ],
         "wallbox": wallbox_coordinator.data,
+        # Per-topic Parallax arrival counts. A topic absent from this map has
+        # never delivered, which is what distinguishes "the field was zero and
+        # proto3 omitted it" from "the decoder never fired".
+        "parallax_rvm_arrivals": {
+            vehicle_id: coordinator.rvm_arrivals
+            for vehicle_id, coordinator in vehicle_coordinators.items()
+        },
     }
     return redact(data)

@@ -61,8 +61,11 @@ if unsubscribed:
         f"registered but not subscribed: {sorted(unsubscribed)} -- SUBSCRIBED_RVMS "
         "is the intersection, so this means a topic is not in PARALLAX_RVMS"
     )
-if len(RVM_DECODERS) != 32:
-    problems.append(f"{len(RVM_DECODERS)} decoders, expected 32 (18 + 14)")
+if len(RVM_DECODERS) != 33:
+    problems.append(
+        f"{len(RVM_DECODERS)} decoders, expected 33 (18 + 14 transcribed + "
+        "vehicle.network.state, which is the one taken on an inference)"
+    )
 
 # Working decoders must not have been replaced.
 if RVM_DECODERS.get("dynamics.tires.state") is not decode_tires:
@@ -87,8 +90,13 @@ contains "unknown-topic logging is deduped" '_WARNED_UNKNOWN_RVMS' "$P"
 contains "the doc states the tests are transcription, not capture" \
          'transcription tests, not captures' "$DOC"
 contains "the doc records the second RVM enum" 'iol.java' "$DOC"
-contains "the doc records the unused double-consumer flag" \
-         'has no caller' "$DOC"
+# Was: 'has no caller'. That claim was FALSE -- a case-sensitive grep for the
+# lowercase Kotlin property missed the generated getter -- and the gate was
+# enforcing the error. It now asserts the corrected finding.
+contains "the doc records what the double-consumer flag actually routes" \
+         'flow down **both**' "$DOC"
+contains "the doc records the group subscription centre" \
+         'PVMParallaxGroupSubscriptionCenter' "$DOC"
 
 if [ -f "$MIRROR" ]; then
   if diff -q "$P" "$MIRROR" >/dev/null; then
@@ -96,6 +104,8 @@ if [ -f "$MIRROR" ]; then
   else
     bad "parallax.py was not mirrored to the sibling repo"
   fi
+else
+  note "sibling rivian-python-client not present — skipping the parallax-mirror check"
 fi
 
 for t in test_field_numbers_skip_two_through_seven \

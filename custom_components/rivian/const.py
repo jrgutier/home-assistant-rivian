@@ -500,6 +500,10 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             ],
             value_lambda=lambda v: v.replace("_", " ").title(),
         ),
+        # DISABLED, deliberately. Populated (reads `true`) and not duplicated by
+        # anything, unlike the ota_* block below -- but it is a one-time consent
+        # flag that changes once in the life of the vehicle. Recorded here because
+        # it previously carried no reason at all.
         RivianSensorEntityDescription(
             key="gear_guard_video_terms_accepted",
             translation_key="gear_guard_video_terms_accepted",
@@ -509,6 +513,16 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             entity_registry_enabled_default=False,
             value_lambda=lambda v: v.replace("_", " ").title(),
         ),
+        # The twelve ota_* version-component sensors below ship DISABLED because
+        # update.rivian_* already carries all of it and carries it better:
+        # installed_version, latest_version, the year/week/number attributes, a
+        # release-notes URL and an install button, with device_class=update. See
+        # update.py:71-93. Enabling these would add twelve worse duplicates of one
+        # good entity.
+        #
+        # They are populated -- otaCurrentVersion reads 2026.23.0 on the owner's
+        # R1T -- so "no data" is NOT the reason, and the reason was previously
+        # written down nowhere at all, which is what made this need investigating.
         RivianSensorEntityDescription(
             key="ota_available_version",
             translation_key="ota_available_version",
@@ -981,10 +995,47 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         # That is exactly what happened when the gap-fill rule landed: fourteen
         # new decoders, and not one new entity.
         #
-        # Diagnostic and disabled by default. They are fault codes and debug
-        # counters, not things to put on a dashboard, and none has been observed
-        # arriving on this vehicle yet -- enabling them by default would add nine
-        # entities that might sit at unknown forever.
+        # Five ship ENABLED and four disabled, and the line between them is
+        # whether the message is PROVEN TO ARRIVE -- not whether a field happened
+        # to hold a value in one diagnostics snapshot. A snapshot criterion flips
+        # with the weather: knownLocation reads `home` because the truck is parked
+        # at home, and coldRangeNotification reads `normal_range` because it is not
+        # cold.
+        #
+        # Arrival is only witnessable where a sibling field of the SAME message is
+        # unsubscribed. coordinator.py discards any Parallax key the subscription
+        # also supplies, so for most of these an absent value cannot be told apart
+        # from the RVM never arriving at all. Of the five RVMs behind these nine,
+        # exactly one is witnessed: security.access.vas_fault, because
+        # vasAccessCanFaulted arrived populated and neither of its fields is
+        # subscribed.
+        #
+        # A NOTE ON WHAT ABSENCE MEANS, because an earlier version of this comment
+        # got it wrong in the other direction. Proto3 omits zero values, but that
+        # only implies "healthy" where healthy IS zero. It is not, for the vas
+        # pair: _SECURE_ELEMENT_FAULTED_MAP and _ACCESS_CAN_FAULTED_MAP start at
+        # 1 = no_failure and have no 0 entry at all. vasAccessCanFaulted arrived AS
+        # no_failure -- an explicit non-zero value -- so a healthy secure element
+        # should have sent one too. Its absence means the field was left unset,
+        # i.e. UNSPECIFIED. Unknown, not healthy. The zero-means-healthy reading
+        # holds only for _HARDWARE_FAILURE_MAP, where 0 IS "unspecified".
+        # DISABLED, and not because "it would read unknown" -- three mechanical
+        # reasons, any one of which is sufficient:
+        #
+        # 1. VOCABULARY. Its five siblings (btm_ff, btm_rf, btm_ic, btm_rfd,
+        #    btm_lfd) arrive over the vehicleState subscription and read
+        #    `dtc_not_set`. This one is decoded through _HARDWARE_FAILURE_MAP
+        #    ({0: "unspecified", 1: "set"}) and can only ever read `unspecified` or
+        #    `set`. Enabling it does not give six consistent sensors; it gives five
+        #    saying dtc_not_set and a sixth speaking a different language for the
+        #    same thing. Consistency argues AGAINST enabling here.
+        # 2. It can never report healthy. Zero is omitted on the wire, so `set` --
+        #    faulted -- is the only value it can take. That is a fault latch, not a
+        #    status sensor; the right shape would be a binary_sensor with
+        #    device_class=PROBLEM, not a sensor wearing its siblings' naming.
+        # 3. NAMING. translations/en.json gives the siblings location names
+        #    ("... Door Front Left"); this one is the raw "BTM OC Hardware Failure
+        #    Status". Fix that before it is ever surfaced.
         RivianSensorEntityDescription(
             key="btm_oc_hardware_failure_status",
             translation_key="btm_oc_hardware_failure_status",
@@ -993,22 +1044,32 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
         ),
+        # ENABLED. Its message is proven to arrive (see above), and a fault
+        # sensor is worthless unless armed BEFORE the fault -- Home Assistant
+        # does not backfill, so a disabled entity records nothing at the moment
+        # one fires. It currently reads unknown; that is honest, not healthy.
         RivianSensorEntityDescription(
             key="vas_secure_element_faulted",
             translation_key="vas_secure_element_faulted",
             field="vasSecureElementFaulted",
             icon="mdi:key-alert",
             entity_category=EntityCategory.DIAGNOSTIC,
-            entity_registry_enabled_default=False,
         ),
+        # ENABLED. The witness: this arrived populated as no_failure, which is
+        # what proves security.access.vas_fault reaches us at all.
         RivianSensorEntityDescription(
             key="vas_access_can_faulted",
             translation_key="vas_access_can_faulted",
             field="vasAccessCanFaulted",
             icon="mdi:key-alert",
             entity_category=EntityCategory.DIAGNOSTIC,
-            entity_registry_enabled_default=False,
         ),
+        # DISABLED: arrival UNWITNESSED. Its message has no unsubscribed sibling,
+        # so an absent value cannot be told apart from the decoder never firing.
+        # The arming argument that enabled vas_secure_element_faulted applies only
+        # where delivery is proven; here it is not, and an entity that may never
+        # populate on any vehicle loses to the clutter it adds to every install.
+        # The RVM arrival counters in diagnostics settle this.
         RivianSensorEntityDescription(
             key="passive_entry_unlock_fail_reason",
             translation_key="passive_entry_unlock_fail_reason",
@@ -1017,6 +1078,12 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
         ),
+        # DISABLED: arrival UNWITNESSED. Its message has no unsubscribed sibling,
+        # so an absent value cannot be told apart from the decoder never firing.
+        # The arming argument that enabled vas_secure_element_faulted applies only
+        # where delivery is proven; here it is not, and an entity that may never
+        # populate on any vehicle loses to the clutter it adds to every install.
+        # The RVM arrival counters in diagnostics settle this.
         RivianSensorEntityDescription(
             key="secure_immobilizer_status",
             translation_key="secure_immobilizer_status",
@@ -1025,6 +1092,12 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
         ),
+        # DISABLED: arrival UNWITNESSED. Its message has no unsubscribed sibling,
+        # so an absent value cannot be told apart from the decoder never firing.
+        # The arming argument that enabled vas_secure_element_faulted applies only
+        # where delivery is proven; here it is not, and an entity that may never
+        # populate on any vehicle loses to the clutter it adds to every install.
+        # The RVM arrival counters in diagnostics settle this.
         RivianSensorEntityDescription(
             key="consecutive_alarm_disabled_notification",
             translation_key="consecutive_alarm_disabled_notification",
@@ -1033,27 +1106,31 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
         ),
+        # ENABLED. A static hardware fact, present in every sample to date --
+        # which is n=1, one 2022 R1T.
         RivianSensorEntityDescription(
             key="battery_cell_type",
             translation_key="battery_cell_type",
             field="batteryCellType",
             icon="mdi:battery-heart-variant",
             entity_category=EntityCategory.DIAGNOSTIC,
-            entity_registry_enabled_default=False,
         ),
+        # ENABLED. User-facing, and one of only two of the nine with no
+        # entity_category. `normal_range` today; the value worth having is the
+        # cold one.
         RivianSensorEntityDescription(
             key="cold_range_notification",
             translation_key="cold_range_notification",
             field="coldRangeNotification",
             icon="mdi:snowflake-alert",
-            entity_registry_enabled_default=False,
         ),
+        # ENABLED. User-facing. Reads unknown where the owner has configured no
+        # known locations in the Rivian app, which is an honest state.
         RivianSensorEntityDescription(
             key="known_location",
             translation_key="known_location",
             field="knownLocation",
             icon="mdi:map-marker-check",
-            entity_registry_enabled_default=False,
         ),
         RivianSensorEntityDescription(
             key="btm_rf_hardware_failure_status",

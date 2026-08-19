@@ -848,6 +848,14 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # "is the key present", because once Parallax writes a key it IS present,
         # and a Parallax-only field must keep updating.
         self._subscription_keys: set[str] = set()
+        # How many Parallax messages have arrived, per RVM topic.
+        #
+        # Without this, "the field is absent" is ambiguous between "the message
+        # arrived and the field was zero, which proto3 omits" and "the message
+        # never arrived at all". That ambiguity is why four of the nine
+        # Parallax-only sensors ship disabled: their topics have no unsubscribed
+        # sibling, so nothing witnesses arrival. A count settles it.
+        self._rvm_arrivals: dict[str, int] = {}
         # Fields already reported as unusable, so the warning fires once each.
         self._dropped_reported: set[str] = set()
         self._subscription_start_time: datetime | None = None
@@ -1019,6 +1027,17 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         await self._unsubscribe(True)
         return await super().async_shutdown()
 
+    @property
+    def rvm_arrivals(self) -> dict[str, int]:
+        """Parallax messages received per RVM topic, for diagnostics.
+
+        A topic absent from this mapping has never delivered. That is the
+        distinction the counter exists to make: a field missing from the decoded
+        payload is otherwise ambiguous between "the message arrived and the field
+        was zero, which proto3 omits" and "the message never arrived at all".
+        """
+        return dict(sorted(self._rvm_arrivals.items()))
+
     @callback
     def _process_parallax_data(self, data: dict[str, Any]) -> None:
         """Process incoming Parallax subscription messages."""
@@ -1027,6 +1046,14 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         px = pdata.get("parallaxMessages")
         if not px:
             return
+        # Count arrival FIRST -- before the decode can bail, and well before the
+        # per-key merge below drops anything the subscription also supplies. Count
+        # after that merge and this is blind to exactly the topics it exists to
+        # witness: every field of security.access.btm and security.alarm.state is
+        # subscribed, so all of them are discarded there.
+        if rvm := px.get("rvm"):
+            self._rvm_arrivals[rvm] = self._rvm_arrivals.get(rvm, 0) + 1
+
         decoded = decode_parallax_message(**px)
         if not decoded:
             return
@@ -1440,6 +1467,42 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # Unsubscribe from this command
             asyncio.create_task(self._unsubscribe_command_state(command_id))
 
+    async def _poll_command_state(
+        self, command_id: str, *, interval: float = 5.0, attempts: int = 7
+    ) -> None:
+        """Poll a command's result until it is terminal, or the attempts run out.
+
+        Seven attempts at five seconds covers the entity's 30 s wait with one to
+        spare. It stops as soon as the state is stored, so a command that answers
+        on the first poll costs exactly one query.
+        """
+        for _ in range(attempts):
+            await asyncio.sleep(interval)
+            if command_id in self._command_states:
+                return  # the subscription got there first
+            try:
+                response = await self.api.get_vehicle_command_state(command_id)
+                payload = await response.json()
+            except Exception:
+                _LOGGER.debug(
+                    "Polling command %s state failed", command_id, exc_info=True
+                )
+                continue
+            data = (payload.get("data") or {}).get("getVehicleCommand")
+            if not data or data.get("state") is None:
+                continue
+            _LOGGER.debug("Command %s state polled: %s", command_id, data)
+            self._command_states[command_id] = {
+                "command": data.get("command"),
+                "state": data.get("state"),
+                "responseCode": data.get("responseCode"),
+                "statusCode": data.get("statusCode"),
+                "createdAt": data.get("createdAt"),
+            }
+            if len(self._command_states) > 10:
+                self._command_states.pop(next(iter(self._command_states)))
+            return
+
     async def _subscribe_to_command_state(self, command_id: str) -> None:
         """Subscribe to command state updates."""
         if command_id in self._command_state_subscriptions:
@@ -1453,6 +1516,25 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
             self._command_state_subscriptions[command_id] = unsubscribe
             _LOGGER.debug("Subscribed to command %s state updates", command_id)
+
+            # And poll, because the subscription does not deliver.
+            #
+            # Measured on a live vehicle: the subscription is established and torn
+            # down correctly and NO message ever arrives, so every command reported
+            # TIMEOUT. The same command's result comes back from the QUERY
+            # (get_vehicle_command_state) in about five seconds. Sending was never
+            # the problem -- OPEN_TONNEAU_COVER sent outside Home Assistant
+            # returned state 0 / responseCode 288 while the identical command
+            # through the integration timed out.
+            #
+            # The subscription is kept rather than replaced: it costs nothing while
+            # silent, and if the gateway starts delivering again the poll simply
+            # loses the race. Whichever answers first wins.
+            self.config_entry.async_create_background_task(
+                self.hass,
+                self._poll_command_state(command_id),
+                name=f"rivian command state {command_id}",
+            )
 
             # Auto-unsubscribe after 60 seconds to prevent memory leaks
             async def _auto_unsubscribe():

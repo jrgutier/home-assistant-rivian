@@ -13,27 +13,31 @@ source "$(dirname "$0")/_lib.sh"
 
 echo "S2 — CI on vendor-client"
 
-CI="$CLIENT/.github/workflows/ci.yaml"
-have_path "client ci.yaml exists"                 "$CI"
-contains  "client ci.yaml triggers on vendor-client" 'vendor-client' "$CI"
-# NOT a grep for "--cov". The first version of this gate did exactly that and passed
-# a workflow that could never run: --cov was added while pytest-cov was absent from
-# both pyproject.toml and poetry.lock, so pytest exits 4 with "unrecognized arguments"
-# before collecting. Assert the flags and the dependency agree instead.
-# strip comments first — an explanatory comment mentioning --cov is not a flag
-if grep -v '^\s*#' "$CI" | grep -q -- '--cov'; then
-  # Lock file depends on the build backend: poetry.lock before the uv migration,
-  # uv.lock after. Check whichever exists rather than hardcoding one.
-  LOCK=""
-  [ -f "$CLIENT/uv.lock" ] && LOCK="$CLIENT/uv.lock"
-  [ -z "$LOCK" ] && [ -f "$CLIENT/poetry.lock" ] && LOCK="$CLIENT/poetry.lock"
-  if grep -q 'pytest-cov' "$CLIENT/pyproject.toml" && [ -n "$LOCK" ] && grep -qE '^name = "pytest-cov"' "$LOCK"; then
-    ok "client ci.yaml uses --cov, pytest-cov declared + locked in $(basename "$LOCK")"
+if [ -d "$CLIENT" ]; then
+  CI="$CLIENT/.github/workflows/ci.yaml"
+  have_path "client ci.yaml exists"                 "$CI"
+  contains  "client ci.yaml triggers on vendor-client" 'vendor-client' "$CI"
+  # NOT a grep for "--cov". The first version of this gate did exactly that and passed
+  # a workflow that could never run: --cov was added while pytest-cov was absent from
+  # both pyproject.toml and poetry.lock, so pytest exits 4 with "unrecognized arguments"
+  # before collecting. Assert the flags and the dependency agree instead.
+  # strip comments first — an explanatory comment mentioning --cov is not a flag
+  if grep -v '^\s*#' "$CI" | grep -q -- '--cov'; then
+    # Lock file depends on the build backend: poetry.lock before the uv migration,
+    # uv.lock after. Check whichever exists rather than hardcoding one.
+    LOCK=""
+    [ -f "$CLIENT/uv.lock" ] && LOCK="$CLIENT/uv.lock"
+    [ -z "$LOCK" ] && [ -f "$CLIENT/poetry.lock" ] && LOCK="$CLIENT/poetry.lock"
+    if grep -q 'pytest-cov' "$CLIENT/pyproject.toml" && [ -n "$LOCK" ] && grep -qE '^name = "pytest-cov"' "$LOCK"; then
+      ok "client ci.yaml uses --cov, pytest-cov declared + locked in $(basename "$LOCK")"
+    else
+      bad "client ci.yaml uses --cov but pytest-cov is not declared/locked (pytest would exit 4)"
+    fi
   else
-    bad "client ci.yaml uses --cov but pytest-cov is not declared/locked (pytest would exit 4)"
+    ok "client ci.yaml uses no coverage flags (consistent: pytest-cov is not a dependency)"
   fi
 else
-  ok "client ci.yaml uses no coverage flags (consistent: pytest-cov is not a dependency)"
+  note "sibling rivian-python-client not present — skipping client CI checks"
 fi
 
 HAWF="$HA/.github/workflows/test.yaml"

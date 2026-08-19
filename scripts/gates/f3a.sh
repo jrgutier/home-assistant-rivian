@@ -103,7 +103,7 @@ for model, (ns, nb) in want.items():
 if bad:
     print("\n".join(bad)); sys.exit(1)
 PYEOF
-check "the committed fixture holds 90/33, 90/29, 87/27, 87/27 with no duplicates" $?
+check "the committed fixture holds 99/33, 99/29, 96/27, 96/27 with no duplicates" $?
 
 for t in test_an_r2_gets_entities_at_all \
          test_no_duplicate_unique_ids \

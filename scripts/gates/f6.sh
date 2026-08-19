@@ -27,6 +27,7 @@ VENV_PY="$(resolve_python "$HA")"
 
 "$VENV_PY" - "$HA" <<'PYEOF'
 import sys
+from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 from custom_components.rivian.button import BUTTONS  # noqa: E402
 from custom_components.rivian.rivian_client import VehicleCommand  # noqa: E402
@@ -42,12 +43,30 @@ unqueued = SENDABLE_COMMANDS - ours
 if unqueued:
     problems.append(f"sendable but absent from VehicleCommand: {sorted(unqueued)}")
 
-wired_blind = INVALID_WRAPPER_COMMANDS & ours
+# INVERTED by owner ruling 11 (2026-08-19). Until then this asserted the seven
+# generateInvalidCloudDataWrapper commands were ABSENT from the enum. Ruling 11
+# adds them so f7 can send them through probe_vehicle_command.py, which raises on
+# a non-member. The half that dies is "not in the enum". The half that SURVIVES,
+# and is the real invariant, is "in the enum and wired to no entity" -- wiring
+# them blind is the defect that shipped eleven dead controls once.
+absent_members = INVALID_WRAPPER_COMMANDS - ours
+if absent_members:
+    problems.append(
+        f"invalid-wrapper commands missing from the enum: {sorted(absent_members)}. "
+        "Owner ruling 11 requires them present so f7 can send them."
+    )
+
+_platform_src = "".join(
+    (Path(sys.argv[1]) / "custom_components/rivian" / name).read_text()
+    for name in ("select.py", "switch.py", "button.py", "cover.py",
+                 "number.py", "climate.py", "lock.py")
+)
+wired_blind = sorted(c for c in INVALID_WRAPPER_COMMANDS if c in _platform_src)
 if wired_blind:
     problems.append(
-        f"invalid-wrapper commands were added to the enum: {sorted(wired_blind)}. "
-        "They are not declared dead, but they are not wired blind either -- f7 "
-        "tests them on the vehicle first."
+        f"invalid-wrapper commands were wired to an entity: {wired_blind}. "
+        "They are enum members so f7 can send them by hand; wiring them blind "
+        "is how eleven dead controls shipped once."
     )
 
 # The seven the app does not name must survive.
@@ -75,7 +94,7 @@ if problems:
     print("\n".join(problems)); sys.exit(1)
 print(f"{len(ours)} commands; all {len(SENDABLE_COMMANDS)} sendable ones present")
 PYEOF
-check "every sendable command present, none wired blind, none lost" $?
+check "every sendable command present, the seven present-but-unwired, none lost" $?
 
 # Every unwired command has a reason IN THE DOC, by name.
 "$VENV_PY" - "$HA" <<'PYEOF'

@@ -43,6 +43,10 @@ if [ -d "$SIB" ]; then
     bad "vendored client has drifted from the sibling repo in $drift file(s)"
     printf '%s\n' "$drift_list" | sed 's/^/        /' | head -5
   fi
+  sha=$(git -C "$HA/../rivian-python-client" rev-parse HEAD)
+  mark=$(sed -n 's/^__version__ = "vendored+\(.*\)"$/\1/p' "$VEN/__init__.py")
+  case "$sha" in "$mark"*) ok "vendored-from marker names the sibling's HEAD" ;;
+                 *) bad "vendored-from marker $mark is not a prefix of sibling HEAD $sha" ;; esac
 else
   note "sibling rivian-python-client not present — skipping the drift check"
 fi

@@ -27,7 +27,10 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         key="alarm",
         translation_key="alarm",
         icon="mdi:alarm-light",
-        is_on=lambda coor: coor.get("alarmSoundStatus") == "true",
+        # Unknown, not off: any value outside {true, false} (binary_sensor.py:109).
+        is_on=lambda coor: {"true": True, "false": False}.get(
+            coor.get("alarmSoundStatus")
+        ),
         command_off=VehicleCommand.PANIC_OFF,
         command_on=VehicleCommand.PANIC_ON,
     ),
@@ -79,7 +82,11 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         # Parallax, and reading the matching Parallax field keeps one source behind
         # both halves. Splitting them is what produced the two-writer conflict in
         # ChargingCoordinator. cabinHoldStatus still backs its own sensor.
-        is_on=lambda coor: coor.get("climateHoldStatus") == "on",
+        # Unknown, not off: the decoder also emits unspecified / unavailable /
+        # fault (parallax.py:648-654). Same policy as binary_sensor.py:109.
+        is_on=lambda coor: {"on": True, "off": False}.get(
+            coor.get("climateHoldStatus")
+        ),
         # Writes through comfort.cabin.climate_hold_setting -- the one Parallax
         # write the server accepts. Verified live: 08ac02 == 300s, and 0 clears.
         turn_on=lambda coor: coor.async_set_climate_hold(DEFAULT_CLIMATE_HOLD_MINUTES),

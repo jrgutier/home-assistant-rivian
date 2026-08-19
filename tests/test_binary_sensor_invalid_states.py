@@ -286,3 +286,93 @@ async def test_the_entity_set_is_exactly_what_binary_sensors_declares(
     )
     assert len(added) == expected
     assert sum(1 for e in added if e.unique_id.endswith("-cloud_connected")) == 1
+
+
+class TestLockSignalsAreComplements:
+    """`binary_sensor.*_locked_state` and `lock.*_closures` agree, always.
+
+    A finding was filed claiming they disagreed. They do not, and the mistake is
+    worth pinning: `locked_state` carries `device_class=LOCK`, and Home Assistant
+    renders that class as **`on` = Unlocked, `off` = Locked** -- the inverse of the
+    intuitive reading. Both observations that looked contradictory were consistent
+    once that is applied.
+
+    Both read the same `LOCK_STATE_ENTITIES` set, and their logic is exactly
+    complementary:
+
+        lock.is_locked      = not any(v == "unlocked")     (lock.py)
+        binary.is_on        = "unlocked" in values         (binary_sensor.py)
+    """
+
+    @staticmethod
+    def _pair(config_entry: ConfigEntry, values: dict):
+        from custom_components.rivian.const import LOCK_STATE_ENTITIES
+        from custom_components.rivian.lock import LOCKS
+
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.get = MagicMock(side_effect=values.get)
+        coordinator.data = {}
+
+        (lock_description,) = LOCKS
+        is_locked = lock_description.is_locked(coordinator)
+
+        binary = RivianBinarySensorEntity(
+            coordinator=coordinator,
+            config_entry=config_entry,
+            description=RivianBinarySensorEntityDescription(
+                key="locked_state",
+                translation_key="locked_state",
+                field=set(LOCK_STATE_ENTITIES),
+                on_value="unlocked",
+            ),
+            vehicle=VEHICLE,
+        )
+        return is_locked, binary.is_on
+
+    @pytest.mark.parametrize(
+        ("values", "expect_locked"),
+        [
+            ({"doorFrontLeftLocked": "locked", "closureFrunkLocked": "locked"}, True),
+            (
+                {"doorFrontLeftLocked": "unlocked", "closureFrunkLocked": "locked"},
+                False,
+            ),
+            (
+                {"doorFrontLeftLocked": "unlocked", "closureFrunkLocked": "unlocked"},
+                False,
+            ),
+        ],
+    )
+    async def test_they_are_exact_complements(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        values: dict,
+        expect_locked: bool,
+    ) -> None:
+        is_locked, is_on = self._pair(mock_config_entry, values)
+        assert is_locked is expect_locked
+        assert is_on is not expect_locked, (
+            "the binary sensor is on when something is UNLOCKED; with "
+            "device_class=LOCK, on renders as Unlocked"
+        )
+
+    def test_the_device_class_is_what_inverts_the_reading(self) -> None:
+        """The single assertion that would have prevented the false finding.
+
+        With `device_class=LOCK`, `off` means Locked. Reading `off` as "not
+        locked" is how two agreeing signals were recorded as contradicting.
+        """
+        from custom_components.rivian.const import BINARY_SENSORS
+        from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
+        (description,) = [d for d in BINARY_SENSORS["R1"] if d.key == "locked_state"]
+        assert description.device_class is BinarySensorDeviceClass.LOCK
+        assert description.on_value == "unlocked"
+
+    def test_both_read_the_same_field_set(self) -> None:
+        """So a future edit to one cannot desynchronise them silently."""
+        from custom_components.rivian.const import BINARY_SENSORS, LOCK_STATE_ENTITIES
+
+        (description,) = [d for d in BINARY_SENSORS["R1"] if d.key == "locked_state"]
+        assert set(description.field) == set(LOCK_STATE_ENTITIES)

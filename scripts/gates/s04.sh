@@ -2,6 +2,11 @@
 # S4 — client cleanup.
 source "$(dirname "$0")/_lib.sh"
 echo "S4 — client cleanup"
+if [ ! -d "$CLIENT" ]; then
+  note "sibling rivian-python-client not present — skipping client cleanup checks"
+  summary S4
+  exit 0
+fi
 on_branch "$CLIENT" vendor-client
 # GATE CORRECTED, and deliberately not to make it pass. Its original assertion
 # was "py<3.11 shims gone", derived from a plan step that read: drop the shims
