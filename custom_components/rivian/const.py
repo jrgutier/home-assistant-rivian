@@ -25,7 +25,7 @@ from .data_classes import (
 
 NAME = "Rivian (Unofficial)"
 DOMAIN = "rivian"
-VERSION = "1.6.0-beta6"
+VERSION = "1.6.0-beta7"
 ISSUE_URL = "https://github.com/bretterer/home-assistant-rivian/issues"
 
 # Attributes
