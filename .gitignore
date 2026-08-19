@@ -180,3 +180,8 @@ coverage.json
 # recorder DB and .storage written by an older HA, and booting a newer HA against
 # it migrates both one-way.
 config-dev/
+
+# Decompiled Rivian app. 696MB of apktool output that was committed as an orphan
+# gitlink (mode 160000) with no .gitmodules. Keep it out of the index; the plan
+# copies the handful of classes it cites into docs/development/apk/ instead.
+com.rivian.android.consumer/
