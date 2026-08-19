@@ -790,3 +790,75 @@ The gate asserts the content UNIQUE to each of the five (apj:
 tirePressureRearRight, h9l: activeDriverName, lel: consentStatus) and proves
 none of those tokens is in wcm.java -- so "I copied wcm and stubbed the rest"
 cannot pass. That is the failure that makes f4's delta 24 instead of 15.
+
+--- f0: binary sensors stop reporting error codes as states -------- PASS -------
+is_on returns None for fault/sna/signal_not_available/undefined, BEFORE the
+negate (`not False` is True, so the late form inverts into a confident True).
+unknown, not unavailable -- availability keys on field presence and the raw value
+still flows, which is what keeps the matching control operable.
+Aggregate branch untouched: its availability is any(member values), so a filter
+there would change it.
+The reachability test drives the real _build_vehicle_info_dict with EMPTY data.
+The merge carries a previous good value forward, so a field that ever reported
+well never reaches a sensor with a bad value -- only a first update does. A test
+on a hand-made coordinator dict would pass without proving the filter is
+reachable at all. 1293 -> 1314 tests.
+
+--- f3b-a: tonneau keyed on the field, not on a dead flag ---------- PASS -------
+required_field="closureTonneauClosed" on RivianCoverEntityDescription; the cover
+moved into the ungated group. Presence in coordinator.data, NOT truthiness of
+get(): the first refresh waits for the initial subscription payload before
+platforms are set up (__init__.py:108 precedes :130), and get()-truthiness both
+drops legitimately-falsy values and passes vacuously against a MagicMock.
+
+Swept the other four gates against VehicleFeature: TAILGATE_CMD, LIFTGATE_CMD,
+SIDE_BIN_NXT_ACT, CHARG_PORT_DOOR_COMMAND are all real featureNames -- kept.
+Confirmed the 19-of-64 member/featureName split, and that cover.py's
+CHARG_PORT_DOOR_COMMAND is the featureName (the MEMBER is CHARGE_PORT_DOOR_COMMAND).
+
+LESSON, cost two gate failures against a correct tree: a gate that greps raw
+source finds its own explanatory comment. Both negative assertions failed because
+the comments naming the removed flag name the removed flag. Added
+scripts/gates/helpers/py_code_only.py -- tokenize, drop COMMENT tokens and
+statement-position STRINGs. Its first draft treated NL as a statement boundary
+and stripped every quoted dict key, reporting cover.py contains no LIFTGATE_CMD;
+NL occurs inside brackets, so bracket depth is tracked. 1314 -> 1325 tests.
+
+--- f3a: R2 gets entities ------------------------------------------ PASS -------
+helpers.groups_for_model. R1T->(R1,R1T), R1S->(R1,R1S), R2->(R1,), else->(R1,).
+No ALL key: the comprehensions build LISTS and unique_id is f"{vin}-{key}", so
+ALL+R1+R1T double-adds 114 entities per vehicle -- and SET EQUALITY CANNOT SEE
+THAT, which is why the gate counts numerically and checks duplicates directly.
+No KeyError on unknown: raising removes every entity for that vehicle.
+Third site guarded: entity.py:54 feeds DeviceInfo for EVERY platform. Device name
+now falls through name -> model -> vin; None is not a valid device name.
+Committed tests/fixtures/entity_sets.json: R1T 90/33, R1S 90/29, R2 87/27,
+model-absent 87/27 -- exactly the plan's numbers. 1325 -> 1358 tests.
+
+--- f3c: tailgate documented, not removed -------------------------- PASS -------
+docs/development/MODEL_SPECIFIC_ENTITIES.md. closure_tailgate_* stays shared.
+f0 already turned the false R1S "Closed" into "unknown", so what remained was
+cosmetic against taking two entities from every R1S owner on a hardware
+inference. f3a's fixture untouched, as this story requires. 1358 -> 1366.
+
+--- f3d: long poll intervals --------------------------------------- PASS -------
+UserCoordinator and WallboxCoordinator both 900 s (were 30 s).
+900 EXACTLY, and the reason is the trap the plan flagged: _set_update_interval
+computes min(base * 2**error_count, 900) and never reassigns the base, so any
+base ABOVE 900 is used verbatim at construction, collapses to 900 on the first
+error, and never recovers. Committed a characterisation test on a synthetic
+3600 s subclass so raising the cap later goes red.
+Cost stated, not hidden: at the cap the back-off is a no-op. Acceptable -- 900 s
+is where the old 30 s base ended up after five consecutive failures anyway.
+Assertions read the EFFECTIVE update_interval after a simulated error; the class
+attribute is not what schedules anything. 1366 -> 1387 tests.
+
+Two harness lessons for later stories:
+  * MagicMock(spec=VehicleCoordinator) raises AttributeError for
+    drivers_coordinator / charging_coordinator -- they are assigned in __init__,
+    so they are not on the class spec. Set them explicitly.
+  * _set_update_interval reschedules, and pytest-homeassistant-custom-component
+    fails any test leaving a live timer -- reported as an ERROR at teardown, not
+    beside the assertion. Unschedule in a fixture.
+  * Gates that inspect the entity tables need the venv interpreter; the system
+    python3 cannot import homeassistant. _lib.sh now has resolve_python().
