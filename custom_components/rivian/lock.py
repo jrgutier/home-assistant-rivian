@@ -52,6 +52,25 @@ def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
     return not any(value == "unlocked" for value in usable)
 
 
+def _closure_coverage(coordinator: VehicleCoordinator) -> tuple[int, int]:
+    """(usable members, total members) behind the aggregate.
+
+    The aggregate ignores invalid members, so it can report a confident `locked`
+    while a member whose true state is `unlocked` reads `signal_not_available`.
+    On this R1T three of ten members read SNA live (2026-08-19), so that is the
+    normal case rather than an edge one. Exposing the count lets an automation
+    require full coverage before acting on the state; nothing in the integration
+    consumes it.
+    """
+    usable = sum(
+        1
+        for key in LOCK_STATE_ENTITIES
+        if (value := coordinator.get(key)) is not None
+        and str(value).lower() not in INVALID_SENSOR_STATES
+    )
+    return usable, len(LOCK_STATE_ENTITIES)
+
+
 LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
     RivianLockEntityDescription(
         key="closures",
@@ -89,6 +108,23 @@ class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
     def is_locked(self) -> bool | None:
         """Return true if the lock is locked."""
         return self.entity_description.is_locked(self.coordinator)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose how much of the closure set the state actually rests on.
+
+        `is_locked` ignores members holding an invalid value, so `locked` can be
+        reported while a member that is genuinely unlocked reads
+        signal_not_available. An automation acting on this entity cannot
+        otherwise tell a full reading from a partial one.
+        """
+        attrs = dict(super().extra_state_attributes or {})
+        if self.entity_description.key == "closures":
+            usable, total = _closure_coverage(self.coordinator)
+            attrs["usable_closure_count"] = usable
+            attrs["total_closure_count"] = total
+            attrs["state_is_partial"] = usable < total
+        return attrs
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the lock."""

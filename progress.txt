@@ -1277,3 +1277,42 @@ so the workspace PRD's f7/f8 passes flags stay false -- its rule is passes:true
 only on gate exit 0. These corrections are committed but NOT released; production
 runs beta7 and the only source change among them is a docstring.
 
+--- Post-run: the open questions answered ---------------------------------
+"Isn't the commanded response a subscription? Why do we need to poll?" -- the
+owner asked, and the answer corrects ae06ee9. MEASURED THREE TIMES on beta7: the
+vehicleCommandState SUBSCRIPTION delivers every time (frame at t+3.86s on run 1;
+delivered on runs 2 and 3), while the poll answers 0.7-1.1s sooner. ae06ee9
+recorded "the subscription never delivers" and added polling because of it. That
+premise does not hold. Its SECOND defect -- the wait loop comparing strings
+against an integer state -- now carries the whole explanation: the subscription
+was populating _command_states all along and the loop never recognised what it
+held. The poll is redundant for correctness. Not removed here; it touches the
+live command path and wants its own gate and beta.
+
+f7.sh and f8.sh WRITTEN, and both arm-proved rather than assumed:
+  f7 15/0 -- removing the OPEN_TAILGATE prohibition drives it to exit 1 (2 FAILs)
+  f8 11/0 -- downgrading the verdict to "deferred" drives it to exit 1
+Both are content assertions, not existence checks: f7 requires a disposition for
+each of the seven invalid-wrapper commands and asserts OPEN_TAILGATE is never
+recorded as accepted or rejected; f8 holds a CLOSED verdict vocabulary in which
+"deferred" is not a member, because a story that has been attempted cannot still
+be deferred. Writing them found two real gaps: the physical reason for the
+tailgate prohibition was missing from E2E_ACCEPTANCE.md, and three of the five f8
+field names existed only as "…FrontRight"-style abbreviations that nobody could
+grep. Both fixed.
+
+Workspace PRD f7/f8 passes flags now TRUE -- flipped on actual gate exit 0, which
+is that register's rule, with the evidence and the arming proof recorded on each
+story.
+
+lock.r1t_closures gained usable_closure_count / total_closure_count /
+state_is_partial. The aggregate still ignores invalid members (correct: the
+alternative makes the entity unknown at startup and takes the control down with
+it), but an automation can now see it is deciding on partial data. On this truck
+three of ten members read SNA, so partial is the normal case, and the Lock at
+Home automation consuming the entity had no way to tell.
+
+FINAL: 1644 tests, 0 failed. Integration 90.10% (floor 89), client 75.51% (floor
+74). TWENTY-ONE gates green, zero FAIL lines. Production runs beta7; everything
+in this section is committed on post-beta6 and NOT released.
+

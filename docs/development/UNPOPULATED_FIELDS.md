@@ -141,6 +141,12 @@ explicit property set, received nothing in either window. So:
 - A Parallax subscription on the same credentials **did** deliver during the same period, so whatever
   the cause, it is specific to the GraphQL vehicle-state path as this probe drives it.
 
+**The five fields, spelled out** — the tables above abbreviate three of them with a leading ellipsis,
+which is unsearchable. In full: `tirePressureStatusValidFrontLeft`,
+`tirePressureStatusValidFrontRight`, `tirePressureStatusValidRearLeft`,
+`tirePressureStatusValidRearRight`, `cabinHoldNotification`. All five keep their existing verdicts;
+f8 changed none of them.
+
 **What f8 needs before it is re-run:** an instrument that reproduces the integration's subscription
 rather than approximating it — the same property set the coordinator uses
 (`VEHICLE_STATES_SUBSCRIPTION_PROPERTIES`) and the same setup path — verified by the control

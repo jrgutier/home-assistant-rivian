@@ -226,6 +226,16 @@ excluded, the truck is plugged in. `pet_comfort_status` **Disabled**, `pet_comfo
 | `TWO_FACTOR_DRIVE_ENABLE` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
 | `OPEN_TAILGATE` | **not sent — owner prohibited, physical hazard** | — | — |
 
+**Why `OPEN_TAILGATE` was never sent.** Owner prohibition, 2026-08-19: the vehicle is parked where an
+opening tailgate **strikes the garage**. This is not a reversal question and not a pre-flight
+question — the command is never sent, in any phase, under any pre-flight result. Its disposition is
+`not-sent-owner-prohibited-physical-hazard`, deliberately distinct from `not-run`, so that a later
+reader cannot mistake it for something that was merely skipped.
+
+Consequence worth recording: with `OPEN_TAILGATE` prohibited and `OPEN_LIFTGATE` a no-op on an R1T,
+**f7 actuated no real closure at all**. The Pre-mortem 2 scenario — a closure left open overnight,
+Gear Guard unable to arm — was not merely avoided, it was unreachable.
+
 ### The third-row spelling question is ANSWERED
 
 `COMMAND_COVERAGE.md` recorded "two spellings exist and neither has been seen to work here; which one
@@ -291,3 +301,35 @@ this vehicle.
 no stop command in `VehicleCommand` and no state field anywhere for it, so had it been accepted there
 would have been no way to end the session or observe that it had started. It is grouped with the four
 `TWO_FACTOR_DRIVE_*` commands as a no-state-surface command, not with the reversible ones.
+
+## The command-state subscription DOES deliver — `ae06ee9`'s premise corrected, 2026-08-19
+
+`ae06ee9` recorded: *"the vehicleCommandState SUBSCRIPTION never delivers, so nothing populates
+`_command_states`"*, citing a debug log showing it *"established and torn down with no message in
+between"*, and added `_poll_command_state` alongside it. **Measured three times on beta7, it
+delivers every time.**
+
+Method: pre-warm the websocket (so subscribe latency is not dominated by connect), send
+`WAKE_VEHICLE`, subscribe to the returned `command_id`, and race the subscription against the same
+poll the coordinator runs.
+
+| Run | subscribe established | poll terminal | subscription frame |
+|---|---|---|---|
+| 1 | t+2.02 s | t+2.75 s (state 2) | **t+3.86 s** |
+| 2 | t+1.80 s | t+2.64 s (state 0) | delivered |
+| 3 | t+0.85 s | t+1.56 s (state 0) | delivered |
+
+The frame carries the full `vehicleCommandState` payload — `id`, `command`, `state`, `responseCode`,
+`statusCode`.
+
+**What this means for the fix.** `ae06ee9` found two defects and said either alone would time out
+every command. The second — the wait loop testing `state in ["COMPLETED_SUCCESS", …]`, strings,
+against an **integer** — is now the one that carries the whole explanation: the subscription was
+populating `_command_states` all along, and the loop simply never recognised what it held. The
+polling added alongside is **redundant for correctness**. It is not useless — it answers ~0.7-1.1 s
+sooner than the subscription in every run measured — but "the subscription never delivers" is not
+why commands timed out, and should not be relied on as a reason to keep the poll.
+
+Not changed here. Removing or retuning the poll touches the live command path and wants its own
+gate, its own beta and its own live confirmation. Recorded so the next change to that path starts
+from a measurement rather than from a claim that no longer holds.
