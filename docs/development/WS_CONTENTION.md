@@ -19,6 +19,15 @@ The Rivian config entry was disabled through Home Assistant's websocket API
 (`config_entries/disable`, `require_restart: false`), leaving no incumbent
 subscriber, and the identical probe was re-run.
 
+> **RETRACTION NOTICE, 2026-08-19.** The row below claiming `connection_ack` immediately
+> followed by a `next` frame when no incumbent holds the subscription **was not reproduced by f8**.
+> With the HA entry disabled and the probe as sole subscriber, `connection_ack` arrived but **no
+> data frame followed** — zero fields in 30 s, and zero again after a `WAKE_VEHICLE` that returned
+> terminal in 1.87 s. Consequently the "accepted but silent" signature does **not** distinguish
+> contention from "this client does not receive what the integration receives". See
+> `UNPOPULATED_FIELDS.md`, section "f8 attempted 2026-08-19". Do not rely on the table below to
+> interpret silence.
+
 | Condition | `connection_init` result |
 |---|---|
 | HA running (incumbent holds the subscription) | accepted, **no ack**, held ~180 s, `CLOSE 4420 Connection TTL expired` |

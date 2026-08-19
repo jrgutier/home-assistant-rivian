@@ -145,4 +145,4 @@ explicit property set, received nothing in either window. So:
 rather than approximating it — the same property set the coordinator uses
 (`VEHICLE_STATES_SUBSCRIPTION_PROPERTIES`) and the same setup path — verified by the control
 delivering before any conclusion is drawn about the five. Bisection logic is written and ready
-(`scratchpad/f8_probe.py`); only the subscription setup is wrong.
+(`scripts/f8_probe.py`, committed with this correction; it previously pointed at an ephemeral session directory nobody else could reach); only the subscription setup is wrong.

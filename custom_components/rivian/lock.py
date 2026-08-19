@@ -32,7 +32,12 @@ def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
     "unlocked")` over the whole set reports a confident Locked while this
     truck's tailgate, tonneau and right gear tunnel hold
     `signal_not_available` (live 2026-08-19 12:31 CDT). Returning None if any
-    member is invalid would make `lock.r1t_closures` permanently unknown here:
+    member is invalid would make `lock.r1t_closures` unknown here -- MEASURED at
+    ~105 s on one of three observed boots (unknown at 12:29:52, off by 12:31:37;
+    the 12:41 and 13:10 boots went straight to off). An earlier version of this
+    docstring said "permanently", which the recorder does not support. The shape
+    still stands: unknown at startup takes the matching control down with the
+    sensor. What it does NOT justify is treating the alternative as catastrophic:
     those three are genuine R1T closures, so model-scoping the member set
     does not remove them (const.py:1375, :1573; BINARY_SENSORS "R1" / "R1T").
     None only if no member has a usable value.

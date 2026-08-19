@@ -278,3 +278,16 @@ terminal, which is why every one of these reported correctly.
 
 Pet mode `Disabled` / `Default` (unchanged — both commands rejected). Park, speed 0, all closures
 closed, `lock.r1t_closures` locked, charge-port door open because it is plugged in.
+
+### Recorded limitations the table above does not carry
+
+**`OPEN_LIFTGATE` — accepted, and that is a send-path result only.** An R1T has no liftgate, so
+nothing could move and no reversal was required or performed. The recorder confirms nothing did:
+`binary_sensor.r1t_tailgate` stayed `off` across 12:29-12:38. Acceptance proves the command is
+routable and the signing material is good; it says nothing about a physical effect, and cannot on
+this vehicle.
+
+**`START_VIDEO_DOWNLOADING_SESSION` — rejected, and its reversal is undefined regardless.** There is
+no stop command in `VehicleCommand` and no state field anywhere for it, so had it been accepted there
+would have been no way to end the session or observe that it had started. It is grouped with the four
+`TWO_FACTOR_DRIVE_*` commands as a no-state-surface command, not with the reversible ones.
