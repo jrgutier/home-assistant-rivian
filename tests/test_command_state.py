@@ -13,13 +13,33 @@ Sending was never the problem, and nothing in the send path had changed -- a dif
 of `send_vehicle_command`, the HMAC signing and `vehicleCommandState` across the
 releases involved is empty.
 
-Two separate defects were behind it, and either alone is enough to time out every
-command:
+## What is broken, stated precisely
+
+**The commands work.** The vehicle acts on them. Observed on the owner's R1T with
+the code as shipped: `CLOSE_FRUNK` closed the hood, `CLOSE_ALL_WINDOWS` closed the
+windows, `LOCK_ALL_CLOSURES_FEEDBACK` locked the vehicle, and
+`OPEN_TONNEAU_COVER` unlocked the tonneau. What is broken is the **result
+reporting** -- all four of those recorded `last_command_state: TIMEOUT` anyway.
+
+That distinction matters and an earlier description of this got it wrong by
+saying the defect would "time out every command", which reads as the controls not
+working. They work. What fails is knowing that they did.
+
+The cost is not cosmetic: `_execute_command` returns `None`, so callers cannot
+tell success from failure; `EVENT_COMMAND_SUCCESS` and `EVENT_COMMAND_FAILED`
+never fire, so anything keyed off them never runs; and every control permanently
+advertises `TIMEOUT` in its attributes.
+
+Two defects, either of which alone prevents a result from ever being recorded:
 
 1. the subscription never delivers, so nothing populates `_command_states`;
 2. the wait loop tested `state in ["COMPLETED_SUCCESS", ...]` -- **strings** --
-   while the server answers with an **integer**. Even a working subscription would
-   have timed out every command.
+   while the server answers with an **integer**, so even a working subscription
+   would never have satisfied it.
+
+Note what `state: 0` does NOT mean. The tonneau returned `state 0 / responseCode
+288` and unlocked without opening, so 0 is not proof the physical action
+completed. No meaning is assigned to it here beyond "the server answered".
 """
 
 from __future__ import annotations
