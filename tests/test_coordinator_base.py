@@ -560,17 +560,19 @@ class TestTheResponseIsUnwrapped:
         assert await coordinator._async_update_data() == [{"url": "https://x/y.png"}]
 
 
-class TestInvalidStatesOnTheFirstUpdate:
-    """An invalid value with nothing to fall back to must not be published.
+class TestInvalidStatesArePublishedNotSuppressed:
+    """A value the vehicle flags unusable is still published when there is nothing
+    better, and never overwrites a good previous value.
 
-    _build_vehicle_info_dict keeps the previous value when a field arrives as
-    fault/SNA/undefined -- but that loop is only reached once self.data exists. The
-    first update returns items untouched, so an invalid state goes straight
-    through. An ENUM sensor then logs an error and appends the bad value to its own
-    options list, making it permanently "valid".
+    Suppressing it was tried and reverted. It sounds more honest -- an entity that
+    says "unavailable" beats one showing a stale reading -- but on a real R1T the
+    vehicle reports SNA at startup for the climate hold switch, both front seat
+    climate selects, the alarm, charging enabled, steering wheel heating and the
+    charge limit. Fifteen-plus entities went unavailable and stayed that way until
+    a good value happened to arrive, which for a parked vehicle can be hours.
 
-    Seen live: sensor.r1t_rear_left_seat_heating and its right-hand twin both
-    reported a literal 'SNA' on every fresh start.
+    So: publish it, and keep the substitution that matters -- once a good value
+    exists, a later SNA must not clobber it.
     """
 
     @staticmethod
@@ -581,7 +583,7 @@ class TestInvalidStatesOnTheFirstUpdate:
             hass=hass, config_entry=entry, client=MagicMock(), vehicle_id="v1"
         )
 
-    def test_an_invalid_first_value_is_dropped_not_published(
+    def test_an_invalid_first_value_is_still_published(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
         coordinator = self._coordinator(hass, mock_config_entry)
@@ -589,7 +591,39 @@ class TestInvalidStatesOnTheFirstUpdate:
         result = coordinator._build_vehicle_info_dict(
             {"seatRearLeftHeat": {"value": "SNA"}}
         )
-        assert "seatRearLeftHeat" not in result
+        assert "seatRearLeftHeat" in result
+
+    def test_a_new_key_arriving_invalid_is_still_published(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """self.data being non-empty does not mean THIS key has a previous value:
+        Parallax populates other keys first. Such a key must not vanish."""
+        coordinator = self._coordinator(hass, mock_config_entry)
+        coordinator.data = {"powerState": {"value": "ready", "history": {"ready"}}}
+        result = coordinator._build_vehicle_info_dict(
+            {"seatRearLeftHeat": {"value": "SNA"}}
+        )
+        assert "seatRearLeftHeat" in result
+        assert result["powerState"]["value"] == "ready"
+
+    def test_a_good_previous_value_survives_a_later_invalid_one(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """The guard that earns its keep: SNA must not clobber a real reading."""
+        coordinator = self._coordinator(hass, mock_config_entry)
+        coordinator.data = {
+            "seatRearLeftHeat": {"value": "Level 2", "history": {"Level 2"}}
+        }
+        result = coordinator._build_vehicle_info_dict(
+            {"seatRearLeftHeat": {"value": "SNA"}}
+        )
+        assert result["seatRearLeftHeat"]["value"] == "Level 2"
+
+    def test_sna_counts_as_invalid(self) -> None:
+        """The vehicle's abbreviation, not just the long form."""
+        from custom_components.rivian.const import INVALID_SENSOR_STATES
+
+        assert "sna" in INVALID_SENSOR_STATES
 
     def test_a_valid_first_value_is_kept(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
@@ -600,51 +634,6 @@ class TestInvalidStatesOnTheFirstUpdate:
             {"seatRearLeftHeat": {"value": "Level 1"}}
         )
         assert result["seatRearLeftHeat"]["value"] == "Level 1"
-
-    def test_gnss_location_is_still_exempt(
-        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
-    ) -> None:
-        """The existing loop exempts gnssLocation; the first-update path must not
-        quietly apply a stricter rule than the steady-state one."""
-        coordinator = self._coordinator(hass, mock_config_entry)
-        coordinator.data = None
-        result = coordinator._build_vehicle_info_dict(
-            {"gnssLocation": {"value": "undefined"}}
-        )
-        assert "gnssLocation" in result
-
-    def test_an_invalid_later_value_still_falls_back(
-        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
-    ) -> None:
-        """Existing behaviour must survive: once there IS a good previous value, an
-        invalid update keeps it rather than dropping the sensor."""
-        coordinator = self._coordinator(hass, mock_config_entry)
-        coordinator.data = {
-            "seatRearLeftHeat": {"value": "Level 2", "history": {"Level 2"}}
-        }
-        result = coordinator._build_vehicle_info_dict(
-            {"seatRearLeftHeat": {"value": "SNA"}}
-        )
-        assert result["seatRearLeftHeat"]["value"] == "Level 2"
-
-    def test_a_new_key_arriving_invalid_is_dropped_even_when_data_exists(
-        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
-    ) -> None:
-        """prev_items being non-empty does not mean THIS key has a previous value.
-
-        Parallax populates other fields first, so self.data is already truthy by the
-        time the subscription delivers a field for the first time -- the early-return
-        path is skipped and the steady-state loop sees a key that is not in
-        prev_items. This is the case that kept 'SNA' reaching the sensors after the
-        first-update path was fixed.
-        """
-        coordinator = self._coordinator(hass, mock_config_entry)
-        coordinator.data = {"powerState": {"value": "ready", "history": {"ready"}}}
-        result = coordinator._build_vehicle_info_dict(
-            {"seatRearLeftHeat": {"value": "SNA"}}
-        )
-        assert "seatRearLeftHeat" not in result
-        assert result["powerState"]["value"] == "ready"
 
 
 class TestAMissingKeyFailsLoudly:

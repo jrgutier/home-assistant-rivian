@@ -828,3 +828,57 @@ class TestRivianDriverSensorEntityEdgeCases:
         result = entity.extra_state_attributes
         # Result could be None or dict depending on super implementation
         assert result is None or isinstance(result, dict)
+
+
+class TestUnusableValuesDoNotBecomeStates:
+    """The vehicle's own "no signal" code must not become a sensor state.
+
+    Without this the ENUM branch appends the bad value to the entity's options, so
+    'SNA' silently becomes valid for the life of the process, HA logs an error at
+    every startup, and the select beside it shows 'unknown'.
+
+    Handled here rather than in the coordinator, which was tried twice and is
+    wrong: the raw value must keep flowing, because entity availability is driven
+    by the field being present. Dropping it made the matching CONTROL unavailable
+    too -- and on a real R1T the rear seat heaters report SNA whenever the vehicle
+    is parked, so you could not preheat them remotely, which is exactly when you
+    would want to.
+    """
+
+    def _sensor(self, value, options):
+        from custom_components.rivian.data_classes import RivianSensorEntityDescription
+        from custom_components.rivian.sensor import RivianSensorEntity
+
+        entity = RivianSensorEntity.__new__(RivianSensorEntity)
+        entity.entity_description = RivianSensorEntityDescription(
+            key="k",
+            field="f",
+            device_class=SensorDeviceClass.ENUM,
+            options=list(options),
+        )
+        entity._get_value = lambda field: value
+        entity.entity_id = "sensor.test"
+        return entity
+
+    @pytest.mark.parametrize(
+        "bad", ["SNA", "sna", "signal_not_available", "Fault", "undefined"]
+    )
+    def test_an_unusable_value_reads_as_unknown(self, bad: str) -> None:
+        entity = self._sensor(bad, ["Off", "Level 1"])
+        assert RivianSensorEntity.native_value.fget(entity) is None
+
+    def test_the_options_list_is_not_polluted(self) -> None:
+        """The specific harm: 'SNA' becoming a permanent valid option."""
+        entity = self._sensor("SNA", ["Off", "Level 1"])
+        RivianSensorEntity.native_value.fget(entity)
+        assert "SNA" not in entity.entity_description.options
+
+    def test_a_real_value_still_passes_through(self) -> None:
+        entity = self._sensor("Off", ["Off", "Level 1"])
+        assert RivianSensorEntity.native_value.fget(entity) == "Off"
+
+    def test_a_genuinely_unknown_option_still_reports_itself(self) -> None:
+        """Only the vehicle's no-signal codes are suppressed. A real value missing
+        from `options` is a gap in our table and must stay loud."""
+        entity = self._sensor("Level 4", ["Off", "Level 1"])
+        assert RivianSensorEntity.native_value.fget(entity) == "Level 4"

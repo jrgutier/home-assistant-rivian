@@ -93,8 +93,16 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
     @property
     def available(self) -> bool:
         """Return the availability of the entity."""
-        # Check cloud connection first
-        if not self.coordinator.is_online():
+        # A vehicle that is asleep is not "online", and every control is gated on
+        # that -- including the wake button, whose entire job is to bring it back.
+        # So from Home Assistant there was no way to wake a sleeping vehicle: the
+        # one control that would work was the one guaranteed to be unavailable.
+        # Descriptions that set available_offline opt out of this check; they must
+        # be commands the cloud accepts while the vehicle sleeps, which WAKE_VEHICLE
+        # demonstrably is.
+        if not self.coordinator.is_online() and not getattr(
+            self.entity_description, "available_offline", False
+        ):
             return False
         if not (super().available and self._get_value("gearStatus") == "park"):
             return False
