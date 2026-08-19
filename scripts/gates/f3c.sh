@@ -36,8 +36,10 @@ else
 fi
 
 # The entities themselves, checked against the source of truth rather than the
-# doc that describes it.
-python3 - "$HA" <<'PYEOF'
+# doc that describes it. Needs the venv interpreter: const.py imports Home
+# Assistant, which the system python3 does not have.
+VENV_PY="$(resolve_python "$HA")"
+"$VENV_PY" - "$HA" <<'PYEOF'
 import sys
 sys.path.insert(0, sys.argv[1])
 from custom_components.rivian.const import BINARY_SENSORS

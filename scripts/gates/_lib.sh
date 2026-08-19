@@ -119,6 +119,17 @@ resolve_pytest() {
   return 1
 }
 
+# resolve_python <repo> -- the interpreter that can import the package under test.
+# The system python3 cannot: const.py and every platform module import
+# homeassistant. A gate that shells out to `python3` to inspect the entity tables
+# therefore dies with ModuleNotFoundError, which reads as a finding and is not
+# one.
+resolve_python() {
+  local repo="$1" py
+  py="$(dirname "$(resolve_pytest "$repo")")/python"
+  if [ -x "$py" ]; then echo "$py"; else echo python3; fi
+}
+
 test_count() {
   local repo="$1" floor="$2" py n
   # Try every candidate interpreter and use the first that actually yields a count.
