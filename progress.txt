@@ -979,3 +979,35 @@ ALL 11 AUTOMATED STORIES PASS. 1293 -> 1518 tests.
 Integration coverage 90.20% (floor 89), client 75.27% (floor 74).
 Remaining: f3b-b, f7, f8 -- all human, all need the vehicle.
 ================================================================================
+
+--- Gate sweep: two gate defects, both mine --------------------------------
+Running all twelve gates end to end found two failures, neither in the code.
+
+1. f5 called check_coverage.py WITHOUT regenerating the report. coverage.json is
+   rewritten by every pytest run including a single-module one -- and a partial
+   run still imports the whole package through conftest, so it produces a report
+   covering every file at IMPORT-TIME coverage only. Integration read 38% against
+   a tree whose real figure is 90.20%. Both f2 and f5 called that a broken floor.
+   Fixed: f5 regenerates first (f4 already did).
+
+   check_coverage.py now also refuses a report older than the sources. Stated
+   honestly: that catches the STALE case only. Nothing in a coverage report
+   records which tests ran, so a partial run made just now is undetectable --
+   regenerating before checking is the real guarantee.
+
+   My FIRST attempt at that guard compared the report's file list to the modules
+   on disk. It does not work (a partial run lists every file too) and was removed
+   rather than left in looking like protection.
+
+2. f2's gate named a test f4 had renamed. A gate that names a test must be
+   updated with it.
+
+FINAL: all twelve gates pass. pf 33, f0 17, f3b-a 31, f3a 30, f3c 16, f3d 12,
+f1 25, f2 21, f4 21, f5 20, f6 17, s14 13. Suite 1518 green.
+Integration 90.20% (floor 89), client 75.32% (floor 74).
+Sibling repo: 133 passed, 10 skipped.
+Both repos pushed to vendor-client.
+
+NOT DONE: production still runs 1.6.0-beta3. vendor-client is 14 commits ahead of
+dev. Cutting beta4 and deploying is the last automated verification criterion
+("production reloads with no new ERROR lines") and needs the owner's go-ahead.
