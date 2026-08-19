@@ -1011,3 +1011,18 @@ Both repos pushed to vendor-client.
 NOT DONE: production still runs 1.6.0-beta3. vendor-client is 14 commits ahead of
 dev. Cutting beta4 and deploying is the last automated verification criterion
 ("production reloads with no new ERROR lines") and needs the owner's go-ahead.
+
+================================================================================
+OWNER DECISIONS 2026-08-19 (via /open_questions)
+================================================================================
+1. Parallax/subscription overlap -> PREFER THE SUBSCRIPTION, Parallax fills gaps
+   only. Chosen over my narrower recommendation. Implemented and committed.
+   19 of 28 decoder keys were at risk of overwriting a working sensor.
+2. Release -> publish beta4 AND deploy.
+3. Human stories -> run ALL THREE: f3b-b, f7, f8. f8 stops the integration;
+   entities go unavailable for that window. Authorised.
+4. The 24 undecoded topics -> SEARCH HARDER for bindings in the decompilation.
+   Hazard restated and still standing: semantics-matching is a GUESS and a wrong
+   binding writes wrong values into real sensors. Only a binding read off an
+   actual parse site counts as evidence. The gap-fill merge from (1) limits the
+   blast radius, but only for fields the subscription also carries.
