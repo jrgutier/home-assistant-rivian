@@ -32,6 +32,8 @@ import aiohttp
 
 from custom_components.rivian.rivian_client import Rivian, VehicleCommand
 
+from tests.apk.transcription import COMMAND_STATE_CONTINUE
+
 REQUIRED = (
     "RIVIAN_ACCESS_TOKEN",
     "RIVIAN_REFRESH_TOKEN",
@@ -56,26 +58,16 @@ def load_env(path: Path) -> dict[str, str]:
     return env
 
 
-# The app's own vocabulary, read off C4171i's nine-arm switch and C2225j's
-# terminality test. Continue = {1,2,3,5}; terminal = {0,4,6,7} and any unmapped
-# int. Transcribed in tests/apk/transcription.py.
-#
-# This probe previously tested `state not in (None, "in_progress", "pending")`
-# -- a STRING test against a server that answers with an INTEGER. Every integer
-# read as terminal, so it labelled a continue-state 2 "TERMINAL" and that
-# mislabelling reached docs/E2E_ACCEPTANCE.md's race table. Same defect class as
-# the one this project just fixed in entity.py: an instrument carrying the bug
-# it was built to investigate.
-COMMAND_STATE_CONTINUE = frozenset({1, 2, 3, 5})
-
-
+# Terminality is the app's integer vocabulary, imported from the transcription
+# coordinator.py also uses -- not a string comparison. A previous revision of
+# this probe treated any value outside a pair of English words as terminal, so
+# integer 2 (continue) was printed TERMINAL and that label reached the race
+# table. Same defect class as N1.
 def _is_terminal(state) -> bool:
     """True when the app would stop waiting on this state."""
-    if state is None:
+    if not isinstance(state, int):
         return False
-    if isinstance(state, int):
-        return state not in COMMAND_STATE_CONTINUE
-    return str(state) not in ("in_progress", "pending")
+    return state not in COMMAND_STATE_CONTINUE
 
 
 async def main() -> int:

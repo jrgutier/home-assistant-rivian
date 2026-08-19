@@ -3,18 +3,28 @@
 Bisection is not optional: the server rejects the ENTIRE subscription if one field
 name is unknown, so a single probe carrying all five cannot tell "these five are
 silent" from "one bad name killed the document" (the wheelsInstalled failure).
+
+Requires the repo venv. Bare python3 already dies on `import aiohttp`; this
+probe also imports `VEHICLE_STATE_API_FIELDS` from `custom_components.rivian.const`,
+and const.py imports homeassistant. The system interpreter has neither.
+
+    .venv/bin/python scripts/f8_probe.py [--dry-run]
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 from pathlib import Path
 import sys
 import time
 
-sys.path.insert(0, "/Users/jrgutier/src/ha-rivian/home-assistant-rivian")
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
+
 import aiohttp
 
+from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
 from custom_components.rivian.rivian_client import Rivian
 
 TARGETS = [
@@ -29,21 +39,15 @@ CONTROL = ["batteryLevel", "vehicleMileage"]  # known-good, proves the doc works
 # The coordinator's ACTUAL property set. The first f8 run approximated it with a
 # small explicit list and the control delivered nothing, which is why that run was
 # inconclusive: the probe was not the instrument it claimed to be.
-# coordinator.py:958 passes properties=VEHICLE_STATE_API_FIELDS -- NOT
+# coordinator.py passes properties=VEHICLE_STATE_API_FIELDS -- NOT
 # VEHICLE_STATES_SUBSCRIPTION_PROPERTIES, which is only the client default at
 # rivian_client/rivian.py and which the coordinator never uses.
-# Importing this pulls in homeassistant, so this script now REQUIRES the repo
-# venv: .venv/bin/python scripts/f8_probe.py
-from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
 
 
 def load_env():
     env = {}
-    for line in (
-        Path("/Users/jrgutier/src/ha-rivian/home-assistant-rivian/.env")
-        .read_text()
-        .splitlines()
-    ):
+    env_path = REPO / ".env"
+    for line in env_path.read_text().splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, v = line.split("=", 1)
@@ -95,6 +99,21 @@ async def attempt(client, vid, props, label, wait=25):
     return (True, True, delivered)
 
 
+def _dry_run() -> int:
+    """Print the subscription document without connecting.
+
+    Step 12's window must not be spent discovering a typo. The control is the
+    coordinator's real property set; batteryLevel is in it (set size 124).
+    """
+    fields = sorted(VEHICLE_STATE_API_FIELDS)
+    print(f"CONTROL document: {len(fields)} fields from VEHICLE_STATE_API_FIELDS")
+    for name in fields:
+        print(f"  {name}")
+    print(f"BISECT targets: {TARGETS}")
+    print(f"CONTROL (known-good pair kept for BISECT): {CONTROL}")
+    return 0
+
+
 async def main():
     env = load_env()
     async with aiohttp.ClientSession() as session:
@@ -132,4 +151,14 @@ async def main():
     return 0
 
 
-sys.exit(asyncio.run(main()))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the subscription document without connecting",
+    )
+    args = parser.parse_args()
+    if args.dry_run:
+        raise SystemExit(_dry_run())
+    raise SystemExit(asyncio.run(main()))
