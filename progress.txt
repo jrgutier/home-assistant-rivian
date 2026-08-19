@@ -1026,3 +1026,30 @@ OWNER DECISIONS 2026-08-19 (via /open_questions)
    binding writes wrong values into real sensors. Only a binding read off an
    actual parse site counts as evidence. The gap-fill merge from (1) limits the
    blast radius, but only for fields the subscription also carries.
+
+--- beta4 + beta5 shipped and deployed -------------------------------------
+beta4: the eleven automated stories + the gap-fill merge.
+beta5: the nine sensors for the Parallax-only fields.
+
+LIVE CONFIRMATION of f0, and it is a real correctness win. Four lock binary
+sensors report signal_not_available; on beta3 they rendered `off`, i.e. the
+integration told you the tailgate and tonneau were UNLOCKED when the vehicle had
+said it did not know. On beta5 they read `unknown`.
+
+Production: 188 registry entities (was 177), 144 reporting, zero rivian-attributed
+ERROR lines. The only errors in the log are two generic
+"Task exception was never retrieved / AssertionError" that were present on beta3
+too, and an unrelated ESPHome bluetooth-proxy warning.
+
+DEFECT I INTRODUCED AND FIXED: after the gap-fill merge the fourteen decoders
+surfaced NOTHING -- the 19 overlapping keys are blocked by design, and the nine
+Parallax-only keys had no sensor. Nine sensors added, all disabled by default,
+all in PARALLAX_ONLY_FIELDS so they cannot leak into the subscription
+(VEHICLE_STATE_API_FIELDS is DERIVED from the sensor descriptions; an unknown name
+there kills the whole subscription, and a subscribed field would be blocked from
+its only source by the gap-fill rule).
+
+PROCESS NOTE: I read the entity registry three times right after a restart and
+concluded the nine were not being created. They were -- HA had not finished
+platform setup and the registry flush. Wait for HA to settle before calling a
+deployment broken.
