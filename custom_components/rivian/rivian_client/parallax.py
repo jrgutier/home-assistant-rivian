@@ -1292,6 +1292,116 @@ def decode_known_location(payload: str) -> dict[str, Any]:
     )
 
 
+# --- vehicle.network.state ---------------------------------------------------
+#
+# The one decoder here NOT backed by a topic-to-message binding, taken on the
+# owner's decision and flagged as such rather than blended in with the others.
+#
+# `opl` is parsed in the app (`ipf`), but its parser `ipf.e` has NO CALLER
+# anywhere in the 32,941 files, so nothing in the decompilation says which topic
+# feeds it. What makes the identification strong enough to act on is that its
+# field names land one-to-one on the gateway schema f4 rebuilt from the app's own
+# documents:
+#
+#     opl.wifi.ssid            -> wifiSsid            opl.cellular.carrier  -> cellularCarrier
+#     opl.wifi.signal_quality  -> wifiAntennaBars     opl.cellular.network  -> cellularMode
+#     opl.wifi.link_speed      -> wifiLinkSpeed       opl.cellular.signal_* -> cellular*
+#     opl.wifi.frequency       -> wifiFreq
+#
+# Twelve names, all present in `type VehicleState`, matching a topic literally
+# called vehicle.network.state. That is corroboration from a second independent
+# source, not just a plausible-sounding name.
+#
+# The blast radius if it is still wrong: every field below except wifiSignal is
+# DECLARED but NOT SUBSCRIBED, so a bad decode mis-fills sensors that do not exist
+# yet rather than corrupting a working one. wifiSignal is subscribed, and the
+# gap-fill rule means the subscription keeps it -- this decoder cannot touch it.
+_CONNECTIVITY_LEVEL_MAP: Final[dict[int, str]] = {
+    1: "level_0",
+    2: "level_1",
+    3: "level_2",
+    4: "level_3",
+    5: "level_4",
+}
+_WPA_STATUS_MAP: Final[dict[int, str]] = {
+    1: "not_connected",
+    2: "connected",
+    3: "scanning",
+    4: "connecting",
+    5: "disconnecting",
+}
+_WIFI_SECURITY_MAP: Final[dict[int, str]] = {
+    1: "open",
+    2: "wpa_personal",
+    3: "wpa_enterprise",
+    4: "wpa2_personal",
+    5: "wpa2_enterprise",
+}
+
+
+def _submessage(data: bytes, spec: dict[int, tuple[str, dict[int, str] | None]]) -> dict[str, Any]:
+    """Decode a nested message's varint and string fields against `spec`."""
+    out: dict[str, Any] = {}
+    for num, wire, value in _decode_protobuf_fields(data):
+        if num not in spec:
+            continue
+        key, mapping = spec[num]
+        if wire == 2 and isinstance(value, bytes):
+            try:
+                out[key] = value.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+        elif wire == 0:
+            if mapping is None:
+                out[key] = value
+            elif value in mapping:
+                out[key] = mapping[value]
+    return out
+
+
+_WIFI_SPEC: Final[dict[int, tuple[str, dict[int, str] | None]]] = {
+    1: ("wifiWpaStatus", _WPA_STATUS_MAP),
+    3: ("wifiSsid", None),
+    7: ("wifiAntennaBars", _CONNECTIVITY_LEVEL_MAP),
+    8: ("wifiSignal", None),
+    9: ("wifiLinkSpeed", None),
+    10: ("wifiFreq", None),
+    12: ("wifiSecureStatus", _WIFI_SECURITY_MAP),
+}
+
+_CELLULAR_SPEC: Final[dict[int, tuple[str, dict[int, str] | None]]] = {
+    1: ("cellularCarrier", None),
+    2: ("cellularMode", None),
+    3: ("cellularAntennaBars", _CONNECTIVITY_LEVEL_MAP),
+    4: ("cellularSignalStrength", None),
+}
+
+
+def decode_network_state(payload: str) -> dict[str, Any]:
+    """Decode vehicle.network.state.
+
+    Returns the wifi* and cellular* fields the gateway schema declares. See the
+    block comment above for why this binding is an inference rather than a read
+    parse site, and what the cost of being wrong is.
+    """
+    if not payload:
+        return {}
+    try:
+        data = base64.b64decode(payload)
+        result: dict[str, Any] = {}
+        for field_num, wire_type, value in _decode_protobuf_fields(data):
+            if wire_type != 2 or not isinstance(value, bytes):
+                continue
+            if field_num == 4:
+                result |= _submessage(value, _WIFI_SPEC)
+            elif field_num == 5:
+                result |= _submessage(value, _CELLULAR_SPEC)
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode network state payload", exc_info=True)
+        return {}
+
+
 RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "body.closures.states": decode_closures,
     "body.locks.states": decode_locks,
@@ -1331,6 +1441,9 @@ RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "security.access.vas_fault": decode_vas_fault,
     "security.alarm.state": decode_alarm_state,
     "security.video_monitoring.state": decode_video_monitoring,
+    # Inference, not a read binding -- see the block comment on
+    # decode_network_state. Owner decision.
+    "vehicle.network.state": decode_network_state,
 }
 
 # Full list of Parallax RVMs subscribed for vehicle & charging telemetry

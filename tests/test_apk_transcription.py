@@ -228,11 +228,13 @@ class TestRvmTopicTranscription:
     def test_the_undecoded_remainder_shrank_by_exactly_what_f5_transcribed(
         self,
     ) -> None:
-        """38 when f1 measured it; f5 transcribed 14 of them from the app's
-        protobuf classes, so 24 remain. Pinned rather than left as "fewer", so
-        adding or losing a decoder is a deliberate diff."""
-        assert len(RVM_NAMES - set(RVM_DECODERS)) == 24
-        assert len(RVM_DECODERS) == 32
+        """38 when f1 measured it. f5 transcribed 14 from the app's protobuf
+        classes, and vehicle.network.state was added afterwards on an inference
+        rather than a read binding (see TestNetworkState), so 23 remain. Pinned
+        rather than left as "fewer", so adding or losing a decoder is a deliberate
+        diff."""
+        assert len(RVM_NAMES - set(RVM_DECODERS)) == 23
+        assert len(RVM_DECODERS) == 33
 
     def test_the_two_already_decoded_topics_are_not_mistaken_for_candidates(
         self,

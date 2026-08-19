@@ -37,7 +37,7 @@ and lowercased: `GEAR_PARK` → `park`, `DRIVE_MODE_OFF_ROAD_AUTO` →
 Emitting the same strings is what lets these topics feed the **existing** sensors
 rather than appending new options to them.
 
-## Transcribed (14)
+## Transcribed (14, plus one inference)
 
 `body.trailer.state`, `comfort.cabin.pet_mode_status`,
 `dynamics.vehicle.drive_mode`, `dynamics.vehicle.gear`,
@@ -47,7 +47,7 @@ rather than appending new options to them.
 `security.access.passive_entry_debug`, `security.access.vas_fault`,
 `security.alarm.state`, `security.video_monitoring.state`.
 
-18 decoders → **32**. `SUBSCRIBED_RVMS` is the intersection of the wanted topics
+18 decoders → **32**, and → **33** with `vehicle.network.state` below. `SUBSCRIBED_RVMS` is the intersection of the wanted topics
 with the ones that have a decoder, so writing the decoder is what subscribes the
 topic; no subscription code changed.
 
@@ -62,7 +62,7 @@ enum values the app declares; they do not prove the vehicle emits them. Capture
 needs sole-subscriber access to the websocket, which means stopping the production
 integration (`WS_CONTENTION.md`) — that is f8's protocol.
 
-## Not transcribed (24)
+## Not transcribed (23)
 
 No decoder for these appears in the app's dispatch files, so there is no
 topic → message binding to read off. They are **not** dropped: they stay in the
@@ -132,16 +132,34 @@ than paused.
 schema already carries `wifiSignal`, `cellularSignalStrength`, `wifiSsid` and six
 more siblings.
 
-It is **not** written, because its parser `ipf.e` has **no caller in the
-decompilation**. The identification is therefore semantic, not a binding read off
-a dispatch — the exact category recorded as a guess when this work was scoped, and
-a wrong guess writes wrong values into real sensors.
+**Written, on the owner's decision, and flagged as the one inference here.** Its
+parser `ipf.e` has **no caller in the decompilation**, so nothing says which topic
+feeds it — this is not a binding read off a dispatch.
 
-The blast radius would admittedly be small: the cellular and wifi detail fields
-are declared in the schema but not subscribed, so a bad decoder there would
-mis-fill entities that do not exist yet rather than corrupt a working sensor. That
-lowers the cost of being wrong; it does not turn a guess into evidence. Taking it
-needs an owner decision, or a captured payload from f8 to check the guess against.
+What raised it above a guess is corroboration from a second independent source.
+Its nested submessages land one-to-one on the gateway schema f4 rebuilt from the
+app's own `vehicleState` documents:
+
+| `opl` field | schema field | | `opl` field | schema field |
+|---|---|---|---|---|
+| `wifi.wpa_status` | `wifiWpaStatus` | | `cellular.carrier` | `cellularCarrier` |
+| `wifi.ssid` | `wifiSsid` | | `cellular.network` | `cellularMode` |
+| `wifi.signal_quality` | `wifiAntennaBars` | | `cellular.signal_quality` | `cellularAntennaBars` |
+| `wifi.link_speed` | `wifiLinkSpeed` | | `cellular.signal_strength` | `cellularSignalStrength` |
+| `wifi.frequency` | `wifiFreq` | | | |
+| `wifi.security` | `wifiSecureStatus` | | | |
+
+Ten names, every one declared in `type VehicleState`, on a topic literally called
+`vehicle.network.state`.
+
+**The cost of being wrong is bounded, and that is why it was takeable.** Every
+field above except `wifiSignal` is declared but **not subscribed**, so a bad
+decode mis-fills sensors that do not exist yet rather than corrupting a working
+one. `wifiSignal` *is* subscribed, and the gap-fill rule means the subscription
+keeps it — this decoder cannot touch it.
+
+A captured `vehicle.network.state` payload from f8 would still settle it either
+way, and the tests say plainly that they are transcription tests, not a capture.
 
 ## Two findings recorded rather than acted on
 
