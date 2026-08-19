@@ -432,6 +432,75 @@ class TestRivianVehicleControlEntity:
         assert attrs["last_command_state"] == "COMPLETED_SUCCESS"
         assert attrs["last_command_time"] == "2024-01-01T00:00:00Z"
 
+    async def test_extra_state_attributes_expose_codes_before_any_command(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        mock_vehicle_data: dict,
+    ) -> None:
+        """response_code and status_code are present as None before any command.
+
+        f7 reads these off the entity to distinguish a real answer (288) from
+        silence. If they only appear after the first command -- the shape you
+        get by appending them inside the _last_command_status guard -- the
+        operator cannot tell "not yet sent" from "the keys were never added".
+        """
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.get = MagicMock(return_value=None)
+
+        description = EntityDescription(key="test", name="Test")
+
+        entity = RivianVehicleControlEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=description,
+            vehicle=mock_vehicle_data,
+        )
+
+        assert entity._last_command_status == {}
+        attrs = entity.extra_state_attributes
+        assert "response_code" in attrs
+        assert "status_code" in attrs
+        assert attrs["response_code"] is None
+        assert attrs["status_code"] is None
+
+    async def test_extra_state_attributes_expose_codes_after_a_command(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        mock_vehicle_data: dict,
+    ) -> None:
+        """After a command, both codes carry the values from _last_command_status.
+
+        responseCode 288 vs None is what distinguished a real answer from
+        silence when diagnosing ae06ee9.
+        """
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.get = MagicMock(return_value=None)
+
+        description = EntityDescription(key="test", name="Test")
+
+        entity = RivianVehicleControlEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=description,
+            vehicle=mock_vehicle_data,
+        )
+
+        entity._last_command_status = {
+            "command": "OPEN_TONNEAU_COVER",
+            "state": 0,
+            "timestamp": "2026-08-19T10:30:47.896353",
+            "response_code": 288,
+            "status_code": 0,
+        }
+
+        attrs = entity.extra_state_attributes
+        assert attrs["response_code"] == 288
+        assert attrs["status_code"] == 0
+        assert attrs["last_command"] == "OPEN_TONNEAU_COVER"
+        assert attrs["last_command_state"] == 0
+
 
 class TestRivianChargingEntity:
     """Test RivianChargingEntity class."""

@@ -7,7 +7,9 @@ import pytest
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianSwitchEntityDescription
+from custom_components.rivian.rivian_client.parallax import _CLIMATE_HOLD_STATUS
 from custom_components.rivian.switch import (
+    SWITCHES,
     RivianChargingScheduleEnabledEntity,
     RivianSwitchEntity,
     async_setup_entry,
@@ -430,6 +432,70 @@ class TestRivianSwitchEntity:
 
         # Should call turn_off function
         turn_off_fn.assert_called_once_with(coordinator)
+
+
+def _switch_entity(mock_config_entry: ConfigEntry, key: str, raw: object):
+    """Build a RivianSwitchEntity against the production SWITCHES description."""
+    coordinator = MagicMock(spec=VehicleCoordinator)
+    coordinator.get = MagicMock(return_value=raw)
+    coordinator.is_online = MagicMock(return_value=True)
+    coordinator.data = {"gearStatus": {"value": "park"}}
+    vehicle = {
+        "id": "test_vehicle_123",
+        "vin": "TEST123456789",
+        "name": "Test R1T",
+        "model": "R1T",
+        "phone_identity_id": "test_phone_id",
+    }
+    description = next(d for d in SWITCHES if d.key == key)
+    return RivianSwitchEntity(
+        coordinator=coordinator,
+        config_entry=mock_config_entry,
+        description=description,
+        vehicle=vehicle,
+    )
+
+
+class TestCabinClimateHoldRendersUnknownOutsideOnOff:
+    """cabin_climate_hold must not render a confident off for a non-state.
+
+    climateHoldStatus is Parallax-only. The coordinator filter's cold-start
+    branch passes "fault" through, and unspecified/unavailable are outside
+    INVALID_SENSOR_STATES entirely. Without this guard the switch renders off
+    for all three -- the same failure class as the beta3 lock incident.
+    """
+
+    @pytest.mark.parametrize(
+        "raw",
+        sorted(set(_CLIMATE_HOLD_STATUS.values()) | {"unspecified"}),
+    )
+    def test_is_on_is_none_outside_on_off(
+        self, mock_config_entry: ConfigEntry, raw: str
+    ) -> None:
+        entity = _switch_entity(mock_config_entry, "cabin_climate_hold", raw)
+        expected = {"on": True, "off": False}.get(raw)
+        assert entity.is_on is expected, (
+            f"{raw!r} produced {entity.is_on!r}; only on/off are states, "
+            "everything else must be unknown, not a confident off"
+        )
+
+
+class TestAlarmRendersUnknownOutsideTrueFalse:
+    """alarm must not render a confident off for a value outside {true, false}."""
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["true", "false", "fault", "unavailable", "unspecified", "on", None],
+    )
+    def test_is_on_is_none_outside_true_false(
+        self, mock_config_entry: ConfigEntry, raw: str | None
+    ) -> None:
+        entity = _switch_entity(mock_config_entry, "alarm", raw)
+        expected = {"true": True, "false": False}.get(raw)
+        assert entity.is_on is expected, (
+            f"{raw!r} produced {entity.is_on!r}; only true/false are states, "
+            "everything else must be unknown, not a confident off"
+        )
 
 
 @pytest.mark.asyncio

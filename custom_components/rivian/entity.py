@@ -125,7 +125,10 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return entity specific state attributes."""
-        attrs = {}
+        # Seeded so both codes are readable before any command. Appending them
+        # inside the _last_command_status block leaves them absent until the
+        # first send, which is the state f7 has to inspect.
+        attrs = {"response_code": None, "status_code": None}
         if self._command_in_progress:
             attrs["current_command"] = self._command_in_progress
         if self._last_command_status:
@@ -134,6 +137,8 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                     "last_command": self._last_command_status.get("command"),
                     "last_command_state": self._last_command_status.get("state"),
                     "last_command_time": self._last_command_status.get("timestamp"),
+                    "response_code": self._last_command_status.get("response_code"),
+                    "status_code": self._last_command_status.get("status_code"),
                 }
             )
         return attrs
