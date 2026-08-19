@@ -1171,7 +1171,7 @@ over the existing release. It landed.
     DEFECT I INTRODUCED: my backup directory rivian.beta5.bak was placed INSIDE
     custom_components/, and the dots broke the loader -- "No module named
     'custom_components.rivian.beta5'". The integration failed setup entirely and
-    177 entities were unavailable for ~9 minutes until it was moved out. NOTE:
+    166 entities were unavailable for 9m09s (12:20:43-12:29:52) until it was moved out. NOTE:
     /config/custom_components/rivian.bak predates me and is the same shape.
 
 4   f7 RAN. The third-row spelling question is ANSWERED: CABIN_HVAC_3RD_ROW_REAR_*
@@ -1233,4 +1233,86 @@ NOT DONE, and stated rather than skipped silently: f7.sh and f8.sh were specifie
 in the plan and never written, so the workspace PRD's passes flags for f7/f8 are
 NOT flipped -- its rule is passes:true only on gate exit 0, and flipping them on no
 gate is exactly the fake completion the plan condemns. Step 7's change is committed
-but NOT deployed; production still runs beta6.
+but NOT deployed at the time this line was first written. CORRECTED: beta7 was cut
+and deployed 88 seconds later. Production runs 1.6.0-beta7, booted 13:10:55, and
+the Parallax filter IS live. The original sentence was false and is left visible
+rather than silently rewritten.
+
+--- Final verification found five record defects; all corrected -------------
+An adversarial architect pass verified the engineering (nineteen gates green on
+the now sibling-less tree with eight dormancy notes, 1637 tests, coverage 90.34/
+75.51, the beta7 zip byte-identical to source, and the vendored marker verified
+against the ARCHIVED commit's own tarball -- it names the right commit, not merely
+a real one). It found no engineering defect. It found five record defects and one
+live production hazard, all now fixed:
+
+F1 LIVE HAZARD, FIXED. /config/custom_components/rivian.bak declared
+   "domain": "rivian" in its manifest. HA keys the custom-component map by MANIFEST
+   domain, not directory name, so it collided with the real integration and the
+   real one won only by readdir order. HA was emitting two duplicate-integration
+   warnings every boot. This is the same shape as the outage I caused nine minutes
+   earlier -- luck, not a guarantee. Moved to /config/backups_rivian/rivian.bak.beta4.
+   I had recorded it as a passive aside and taken no action; that was wrong.
+F2 The FINAL line above said production still runs beta6. FALSE -- beta7 was cut
+   and deployed 88 seconds after that line was written. Corrected in place, with
+   the original left visible.
+F3 The workspace PRD's _guardrails[2] ("do not push to dev, do not tag") was
+   violated by design and never amended, and _guardrails[7]'s non-discharge for the
+   five no-state-surface commands was never recorded. Both now written. The plan
+   required these unconditionally; skipping them silently is the exact failure the
+   NOT DONE section exists to prevent, and it was not in it.
+F4 Three required known_gaps entries were never added. Added, plus a fourth the
+   verification itself surfaced: lock.r1t_closures can report a confident `locked`
+   while a member reading signal_not_available is in fact unlocked -- and the Lock
+   at Home automation on the production instance consumes that entity.
+F5 The f8 retraction lived only where it was written. WS_CONTENTION.md's table --
+   the document it retracts -- now carries the notice at the cited rows.
+F7 lock.py's docstring said the rejected fix shape would make the entity
+   "permanently" unknown. The recorder says ~105 s on one of three boots. The shape
+   is still right; the justification was overstated and is now the measured claim.
+F8 "177 entities unavailable" was 166 (= 188 registry - 22 disabled), 9m09s.
+
+STILL NOT DONE, stated plainly: f7.sh and f8.sh were specified and never written,
+so the workspace PRD's f7/f8 passes flags stay false -- its rule is passes:true
+only on gate exit 0. These corrections are committed but NOT released; production
+runs beta7 and the only source change among them is a docstring.
+
+--- Post-run: the open questions answered ---------------------------------
+"Isn't the commanded response a subscription? Why do we need to poll?" -- the
+owner asked, and the answer corrects ae06ee9. MEASURED THREE TIMES on beta7: the
+vehicleCommandState SUBSCRIPTION delivers every time (frame at t+3.86s on run 1;
+delivered on runs 2 and 3), while the poll answers 0.7-1.1s sooner. ae06ee9
+recorded "the subscription never delivers" and added polling because of it. That
+premise does not hold. Its SECOND defect -- the wait loop comparing strings
+against an integer state -- now carries the whole explanation: the subscription
+was populating _command_states all along and the loop never recognised what it
+held. The poll is redundant for correctness. Not removed here; it touches the
+live command path and wants its own gate and beta.
+
+f7.sh and f8.sh WRITTEN, and both arm-proved rather than assumed:
+  f7 15/0 -- removing the OPEN_TAILGATE prohibition drives it to exit 1 (2 FAILs)
+  f8 11/0 -- downgrading the verdict to "deferred" drives it to exit 1
+Both are content assertions, not existence checks: f7 requires a disposition for
+each of the seven invalid-wrapper commands and asserts OPEN_TAILGATE is never
+recorded as accepted or rejected; f8 holds a CLOSED verdict vocabulary in which
+"deferred" is not a member, because a story that has been attempted cannot still
+be deferred. Writing them found two real gaps: the physical reason for the
+tailgate prohibition was missing from E2E_ACCEPTANCE.md, and three of the five f8
+field names existed only as "…FrontRight"-style abbreviations that nobody could
+grep. Both fixed.
+
+Workspace PRD f7/f8 passes flags now TRUE -- flipped on actual gate exit 0, which
+is that register's rule, with the evidence and the arming proof recorded on each
+story.
+
+lock.r1t_closures gained usable_closure_count / total_closure_count /
+state_is_partial. The aggregate still ignores invalid members (correct: the
+alternative makes the entity unknown at startup and takes the control down with
+it), but an automation can now see it is deciding on partial data. On this truck
+three of ten members read SNA, so partial is the normal case, and the Lock at
+Home automation consuming the entity had no way to tell.
+
+FINAL: 1644 tests, 0 failed. Integration 90.10% (floor 89), client 75.51% (floor
+74). TWENTY-ONE gates green, zero FAIL lines. Production runs beta7; everything
+in this section is committed on post-beta6 and NOT released.
+

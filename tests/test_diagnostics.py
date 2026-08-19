@@ -258,3 +258,102 @@ class TestParallaxDiagnostics:
         }
         out = await async_get_config_entry_diagnostics(hass, mock_config_entry)
         assert out["parallax"]["v1"]["subscribed"] is False
+
+
+class TestCommandOutcomes:
+    """The last N command outcomes, including the None is_lifecycle case."""
+
+    async def test_surfaces_the_background_record(
+        self, hass, mock_config_entry
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from custom_components.rivian.const import (
+            ATTR_COORDINATOR,
+            ATTR_USER,
+            ATTR_VEHICLE,
+            ATTR_WALLBOX,
+            DOMAIN,
+        )
+        from custom_components.rivian.diagnostics import (
+            async_get_config_entry_diagnostics,
+        )
+
+        vehicle = MagicMock()
+        vehicle.data = {}
+        vehicle._unsub_parallax = None
+        vehicle.charging_coordinator = MagicMock(data={})
+        vehicle.drivers_coordinator = MagicMock(data={})
+        vehicle._command_states = {
+            "cmd-1": {
+                "command": "WAKE_VEHICLE",
+                "first_state": 5,
+                "state": 5,
+                "frames_seen": 2,
+                "is_lifecycle": True,
+                "terminal_reached": False,
+                "time_to_first_frame": 1.6,
+                "time_to_terminal": None,
+            },
+            "cmd-2": {
+                "command": "OPEN_TONNEAU_COVER",
+                "first_state": "WEIRD",
+                "state": "WEIRD",
+                "frames_seen": 1,
+                "is_lifecycle": None,
+                "terminal_reached": False,
+                "time_to_first_frame": 0.4,
+                "time_to_terminal": None,
+            },
+        }
+        hass.data[DOMAIN] = {
+            mock_config_entry.entry_id: {
+                ATTR_COORDINATOR: {
+                    ATTR_USER: MagicMock(data={}),
+                    ATTR_VEHICLE: {"v1": vehicle},
+                    ATTR_WALLBOX: MagicMock(data={}),
+                }
+            }
+        }
+        out = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        outcomes = out["command_outcomes"]["v1"]
+        assert len(outcomes) == 2
+        by_id = {row["command_id"]: row for row in outcomes}
+        assert by_id["cmd-1"]["first_state"] == 5
+        assert by_id["cmd-1"]["frames_seen"] == 2
+        assert by_id["cmd-1"]["is_lifecycle"] is True
+        assert by_id["cmd-1"]["terminal_reached"] is False
+        assert by_id["cmd-2"]["is_lifecycle"] is None
+
+    async def test_absent_records_are_an_empty_list(
+        self, hass, mock_config_entry
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from custom_components.rivian.const import (
+            ATTR_COORDINATOR,
+            ATTR_USER,
+            ATTR_VEHICLE,
+            ATTR_WALLBOX,
+            DOMAIN,
+        )
+        from custom_components.rivian.diagnostics import (
+            async_get_config_entry_diagnostics,
+        )
+
+        vehicle = MagicMock()
+        vehicle.data = {}
+        vehicle._unsub_parallax = None
+        vehicle.charging_coordinator = MagicMock(data={})
+        vehicle.drivers_coordinator = MagicMock(data={})
+        hass.data[DOMAIN] = {
+            mock_config_entry.entry_id: {
+                ATTR_COORDINATOR: {
+                    ATTR_USER: MagicMock(data={}),
+                    ATTR_VEHICLE: {"v1": vehicle},
+                    ATTR_WALLBOX: MagicMock(data={}),
+                }
+            }
+        }
+        out = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        assert out["command_outcomes"]["v1"] == []

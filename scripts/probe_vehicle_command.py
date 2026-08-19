@@ -32,6 +32,8 @@ import aiohttp
 
 from custom_components.rivian.rivian_client import Rivian, VehicleCommand
 
+from tests.apk.transcription import COMMAND_STATE_CONTINUE
+
 REQUIRED = (
     "RIVIAN_ACCESS_TOKEN",
     "RIVIAN_REFRESH_TOKEN",
@@ -54,6 +56,18 @@ def load_env(path: Path) -> dict[str, str]:
     if missing := [k for k in REQUIRED if not env.get(k)]:
         raise SystemExit(f"missing from {path}: {', '.join(missing)}")  # names only
     return env
+
+
+# Terminality is the app's integer vocabulary, imported from the transcription
+# coordinator.py also uses -- not a string comparison. A previous revision of
+# this probe treated any value outside a pair of English words as terminal, so
+# integer 2 (continue) was printed TERMINAL and that label reached the race
+# table. Same defect class as N1.
+def _is_terminal(state) -> bool:
+    """True when the app would stop waiting on this state."""
+    if not isinstance(state, int):
+        return False
+    return state not in COMMAND_STATE_CONTINUE
 
 
 async def main() -> int:
@@ -139,7 +153,7 @@ async def main() -> int:
             data = (state.get("data") or {}).get("getVehicleCommand")
             elapsed = time.monotonic() - sent_at
             print(f"  t+{elapsed:>6.2f}s  {data}")
-            if data and data.get("state") not in (None, "in_progress", "pending"):
+            if data and _is_terminal(data.get("state")):
                 print(f"TERMINAL after {elapsed:.2f}s from send")
                 break
         else:

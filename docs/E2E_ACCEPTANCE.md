@@ -226,6 +226,16 @@ excluded, the truck is plugged in. `pet_comfort_status` **Disabled**, `pet_comfo
 | `TWO_FACTOR_DRIVE_ENABLE` | **rejected** `CONFLICT/VEHICLE_COMMAND_ERROR` | — | — |
 | `OPEN_TAILGATE` | **not sent — owner prohibited, physical hazard** | — | — |
 
+**Why `OPEN_TAILGATE` was never sent.** Owner prohibition, 2026-08-19: the vehicle is parked where an
+opening tailgate **strikes the garage**. This is not a reversal question and not a pre-flight
+question — the command is never sent, in any phase, under any pre-flight result. Its disposition is
+`not-sent-owner-prohibited-physical-hazard`, deliberately distinct from `not-run`, so that a later
+reader cannot mistake it for something that was merely skipped.
+
+Consequence worth recording: with `OPEN_TAILGATE` prohibited and `OPEN_LIFTGATE` a no-op on an R1T,
+**f7 actuated no real closure at all**. The Pre-mortem 2 scenario — a closure left open overnight,
+Gear Guard unable to arm — was not merely avoided, it was unreachable.
+
 ### The third-row spelling question is ANSWERED
 
 `COMMAND_COVERAGE.md` recorded "two spellings exist and neither has been seen to work here; which one
@@ -246,6 +256,16 @@ should accept. `COMMAND_COVERAGE.md:45-47` records them as built with `generateI
 ordinary commands minutes earlier on the same credentials, is consistent with the ordinary cloud VAS
 path being **the wrong envelope** for this family. The plan declared seven rejections a passing f7 in
 advance, and that is what happened.
+
+**SUPERSEDED: the `isParallaxRequestOnly` and `appName=""` claims in the paragraph above.** Both
+halves are wrong as an explanation of these rejections.
+
+- `isParallaxRequestOnly` (`VASCommandKt.java:117-119`, 3.15.0 artifact) is true only for
+  `TWO_FACTOR_DRIVE_ENABLE` and `TWO_FACTOR_DRIVE_DISABLE`. The other five are not marked.
+- The two wrappers differ in `appName` alone — `"rshell"` by default (`VASCommand.java:157-165`)
+  versus `""` (`:395-405`). Our client sends no `appName` at all (`send_vehicle_command`,
+  `rivian.py:596-609`). The `appName=""` marker is an app-side construction detail we never
+  express, so the seven-way rejection is not attributable to the wrapper.
 
 **Nothing is removed on this evidence.** Under Principle -1 a rejection through a possibly-wrong
 transport is not a recorded live failure of the command.
@@ -278,3 +298,105 @@ terminal, which is why every one of these reported correctly.
 
 Pet mode `Disabled` / `Default` (unchanged — both commands rejected). Park, speed 0, all closures
 closed, `lock.r1t_closures` locked, charge-port door open because it is plugged in.
+
+### Recorded limitations the table above does not carry
+
+**`OPEN_LIFTGATE` — accepted, and that is a send-path result only.** An R1T has no liftgate, so
+nothing could move and no reversal was required or performed. The recorder confirms nothing did:
+`binary_sensor.r1t_tailgate` stayed `off` across 12:29-12:38. Acceptance proves the command is
+routable and the signing material is good; it says nothing about a physical effect, and cannot on
+this vehicle.
+
+**`START_VIDEO_DOWNLOADING_SESSION` — rejected, and its reversal is undefined regardless.** There is
+no stop command in `VehicleCommand` and no state field anywhere for it, so had it been accepted there
+would have been no way to end the session or observe that it had started. It is grouped with the four
+`TWO_FACTOR_DRIVE_*` commands as a no-state-surface command, not with the reversible ones.
+
+## CORRECTION to the race table below — run 1's "state 2" was NOT terminal
+
+`scripts/probe_vehicle_command.py` tested `state not in (None, "in_progress", "pending")` — a
+**string** test against a server that answers with an **integer**. Every integer therefore read as
+terminal, so run 1's `state 2` was printed as `TERMINAL` and recorded here as one. It is not:
+**2 is in the app's continue set** `{1,2,3,5}` (`C4171i`'s switch, `C2225j`'s terminality test).
+
+This is the same defect class the integration itself carried until this release — an instrument
+built to investigate a bug, carrying the bug. The probe now uses the app's integer vocabulary.
+
+**What survives the correction:** runs 2 and 3 returned **state 0**, which IS terminal. Those two
+observations — both `WAKE_VEHICLE`, both via the poll — are the only genuine terminal command states
+ever recorded in this project. The subscription has never been observed delivering one. That is
+recorded as the accepted risk of removing the poll, and it is answerable by one probe run rather
+than by field data.
+
+## The command-state subscription DOES deliver — `ae06ee9`'s premise corrected, 2026-08-19
+
+`ae06ee9` recorded: *"the vehicleCommandState SUBSCRIPTION never delivers, so nothing populates
+`_command_states`"*, citing a debug log showing it *"established and torn down with no message in
+between"*, and added `_poll_command_state` alongside it. **Measured three times on beta7, it
+delivers every time.**
+
+Method: pre-warm the websocket (so subscribe latency is not dominated by connect), send
+`WAKE_VEHICLE`, subscribe to the returned `command_id`, and race the subscription against the same
+poll the coordinator runs.
+
+| Run | subscribe established | poll terminal | subscription frame |
+|---|---|---|---|
+| 1 | t+2.02 s | t+2.75 s (state 2) | **t+3.86 s** |
+| 2 | t+1.80 s | t+2.64 s (state 0) | delivered |
+| 3 | t+0.85 s | t+1.56 s (state 0) | delivered |
+
+**What the race table does not record.** The fourth column, *"subscription frame"*, carries
+`t+3.86 s` for run 1 and the bare word **"delivered"** for runs 2 and 3. **It never records the
+`state` the delivered frames carried.** The `state` values in the table — `2`, `0`, `0` — are all
+in the **poll terminal** column, and the poll is what this plan removes. Do not read "delivered"
+as "delivered a terminal state".
+
+- **run 1's poll terminal is mislabelled.** `2` is in the continue set {1,2,3,5}. The probe's
+  string test called it terminal. Runs 2 and 3, at state `0`, are genuinely terminal — and are
+  the only observations of a terminal command state anywhere in this repository. Both came from
+  the poll.
+- therefore **no terminal state has ever been observed on the subscription**, on any run, by
+  any instrument.
+
+The raw logs do not survive. There is no race script in the tree, none in git history, and no
+captured output among the untracked/ignored files. The frames were observed by an ad-hoc script
+whose output went to a terminal that is gone. The state must be re-measured, not recovered.
+
+The frame carries the full `vehicleCommandState` payload — `id`, `command`, `state`, `responseCode`,
+`statusCode`.
+
+**What this means for the fix.** `ae06ee9` found two defects and said either alone would time out
+every command. The second — the wait loop testing `state in ["COMPLETED_SUCCESS", …]`, strings,
+against an **integer** — is now the one that carries the whole explanation: the subscription was
+populating `_command_states` all along, and the loop simply never recognised what it held. The
+polling added alongside is **redundant for correctness**. It is not useless — it answers ~0.7-1.1 s
+sooner than the subscription in every run measured — but "the subscription never delivers" is not
+why commands timed out, and should not be relied on as a reason to keep the poll.
+
+Not changed here. Removing or retuning the poll touches the live command path and wants its own
+gate, its own beta and its own live confirmation. Recorded so the next change to that path starts
+from a measurement rather than from a claim that no longer holds.
+
+### The integer states are not all terminal — the latency figures above measure the wrong thing.
+
+Read off the app, 2026-08-19, from the 3.6.0 tree. `C4171i.java:524-554` switches on the integer
+`state` from the `vehicleCommandState` subscription and builds one of nine result objects.
+`C2225j.java:147-167` then decides whether the command is finished: it keeps subscribing on
+states **1, 2, 3, 5** (continue set) and completes on states **0, 4, 6, 7** and anything
+outside 0-7 (terminal set).
+
+`entity.py:196` returns on any integer, so the integration reports a command complete on the
+first frame it catches, including the four the app keeps waiting on.
+
+**All five of the f7 latency rows are continue-set frames** — states 5, 2, 2, 2, 2 — so
+**zero of five reached a terminal state**. The existing f7 results table and its numbers are
+left unedited. Those "Send→terminal" figures measure time-to-first-frame, not time-to-terminal,
+and **terminal latency is unmeasured**.
+
+The only recorded state-0 observations in this document are the poll's terminal reads on
+`WAKE_VEHICLE` in the three-run race above. No name is assigned to any integer: the
+obfuscated class names carry no words. Terminality is asserted; meaning is not.
+
+The app special-cases `WAKE_VEHICLE` and completes on the first frame whatever the state
+(`C4171i.java:559-569`). Under the shape that ships, the integration returns on the first
+frame for every command, so that special case is subsumed rather than replicated.

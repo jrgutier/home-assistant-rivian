@@ -943,3 +943,60 @@ VAS_COMMAND_KT_NAMES: Final[frozenset[str]] = frozenset(
     for _, name, value in VAS_COMMAND_KT_CONSTANTS
     if name not in VAS_COMMAND_KT_NON_NAMES
 )
+
+# The integer `state` on GetVehicleCommandState. Transcribed from the app's own
+# switch, not from observed values. Source: the 3.6.0 tree, NOT the 3.15.0
+# artifacts -- see docs/development/apk/REGENERATION.md, "Which extraction is which".
+COMMAND_STATE_CONTINUE: Final[frozenset[int]] = frozenset({1, 2, 3, 5})
+COMMAND_STATE_TERMINAL: Final[frozenset[int]] = frozenset({0, 4, 6, 7})
+# Anything outside 0-7 hits the switch default, which the app treats as terminal.
+# Inference, not a name: 0 and 4 are the only arms whose result objects carry
+# responseCode/statusCode. Terminality is asserted; meaning is not.
+COMMAND_STATE_CARRIES_CODES: Final[frozenset[int]] = frozenset({0, 4})
+
+# isParallaxRequestOnly(VASCommand) -- VASCommandKt, 3.15.0 artifact. Cite the
+# member, not a line: f1 rejects line numbers because they drift with every
+# release, and an earlier revision of this work cited several already wrong.
+# TWO of the seven, not all seven. COMMAND_COVERAGE.md said all seven, and was wrong.
+PARALLAX_REQUEST_ONLY_COMMANDS: Final[frozenset[str]] = frozenset(
+    {"TWO_FACTOR_DRIVE_ENABLE", "TWO_FACTOR_DRIVE_DISABLE"}
+)
+
+# N8. VASCommand.generateCloudDataWrapper / generateInvalidCloudDataWrapper and
+# the appName default, 3.15.0 artifact. The two wrapper
+# generators differ in appName ALONE: "rshell" by default vs "". Recorded so the
+# claim can be re-checked; our own client sends no appName field at all, so this
+# difference is not expressible on our wire.
+CLOUD_WRAPPER_DEFAULT_APP_NAME: Final[str] = "rshell"
+INVALID_CLOUD_WRAPPER_APP_NAME: Final[str] = ""
+
+# --- Parallax send-path envelope (Step 5) -----------------------------------
+#
+# Anchored on the 3.15.0 artifacts. ParallaxAttributes.java is ABSENT from
+# those nine files. VASCommand.name() calls getPxCmdName() on a supplied
+# ParallaxAttributes; the 3.6.0 tree's class of the same name has getName()
+# and no getPxCmdName. Different classes. No mapping is taken from 3.6.0.
+#
+# ParallaxCommand's constructor takes commandId and createdAt: it models a
+# command the app RECEIVED, with parallaxAttributes supplied from outside.
+# Nothing in the 3.15.0 artifacts constructs one with a literal rvm or payload.
+# The seven invalid-wrapper commands therefore have no RVM binding to transcribe.
+
+PARALLAX_COMMAND_CONSTRUCTOR_FIELDS: Final[tuple[str, ...]] = (
+    "commandId",
+    "createdAt",
+    "cloudData",
+    "parallaxAttributes",
+    "isPxRequestOnly",
+)
+
+# The accessor VASCommand.name() calls in the 3.15.0 artifact.
+PARALLAX_ATTRIBUTES_NAME_ACCESSOR_3150: Final[str] = "getPxCmdName"
+# 3.6.0 tree CONTEXT only -- different class, different build. Not a mapping.
+PARALLAX_ATTRIBUTES_NAME_ACCESSOR_360_CONTEXT: Final[str] = "getName"
+
+# Each of the seven, from the 3.15.0 artifacts: no RVM name is bound.
+# A later derivation that fills this in is a visible addition, not a silent one.
+INVALID_WRAPPER_COMMAND_RVMS: Final[dict[str, None]] = dict.fromkeys(
+    sorted(INVALID_WRAPPER_COMMANDS)
+)

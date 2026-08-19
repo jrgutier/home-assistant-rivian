@@ -52,6 +52,35 @@ INITIAL_UPDATE_TIMEOUT = 60
 CHARGING_SCHEDULE_COOL_OFF = 10
 CHARGING_SCHEDULE_REFRESH_INTERVAL = 900
 
+# Continue-set of vehicleCommandState integers, transcribed from the app's
+# switch (C4171i / C2225j). Must stay equal to
+# tests.apk.transcription.COMMAND_STATE_CONTINUE. This module cannot import
+# that package: tests/ is not in the HACS zip, and an import would unload the
+# integration on every production install.
+COMMAND_STATE_CONTINUE: Final[frozenset[int]] = frozenset({1, 2, 3, 5})
+COMMAND_STATE_STRING_TERMINAL: Final[frozenset[str]] = frozenset(
+    {"COMPLETED_SUCCESS", "COMPLETED_ERROR", "FAILED"}
+)
+# Age invariant for _command_states. 32 is a floor, not a cap: in-window
+# entries are never evicted, even if that takes the map above 32.
+COMMAND_STATE_WINDOW = 60
+COMMAND_STATE_CAPACITY = 32
+
+
+def _command_state_is_lifecycle(state: Any) -> bool | None:
+    """Return whether a command-state frame is still in-flight.
+
+    True: int in COMMAND_STATE_CONTINUE ({1,2,3,5}).
+    False: any other int (the app's switch default is terminal too), or one of
+    the three known string enum members.
+    None: any other string or type -- unknown to us, not a guess.
+    """
+    if isinstance(state, int):
+        return state in COMMAND_STATE_CONTINUE
+    if state in COMMAND_STATE_STRING_TERMINAL:
+        return False
+    return None
+
 
 class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
     """Data update coordinator for the Rivian integration."""
@@ -831,6 +860,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._awake = asyncio.Event()
         self._command_state_subscriptions: dict[str, Callable[[], Awaitable[None]]] = {}
         self._command_states: dict[str, dict[str, Any]] = {}
+        self._command_tracking_started: dict[str, float] = {}
         self._last_update_time: datetime | None = None
         self._watchdog_task: asyncio.Task | None = None
         self._prev_charger_state: str | None = None
@@ -1420,6 +1450,34 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
             await monitor.close()
 
+    def _prune_command_states(self) -> None:
+        """Evict expired command-state records only.
+
+        An entry still inside its 60 s window is never evicted, for any reason.
+        COMMAND_STATE_CAPACITY is a floor: eviction removes only expired
+        entries, oldest-first, and only while the map exceeds 32. If more than
+        32 are simultaneously in-window, the map is allowed to grow.
+        """
+        if len(self._command_states) <= COMMAND_STATE_CAPACITY:
+            return
+        now = time.monotonic()
+        expired = [
+            cid
+            for cid, rec in self._command_states.items()
+            if cid not in self._command_state_subscriptions
+            and (now - rec.get("first_frame_at", now)) >= COMMAND_STATE_WINDOW
+        ]
+        expired.sort(key=lambda cid: self._command_states[cid].get("first_frame_at", 0))
+        overflow = len(self._command_states) - COMMAND_STATE_CAPACITY
+        for cid in expired[:overflow]:
+            self._command_states.pop(cid, None)
+        if len(self._command_states) > COMMAND_STATE_CAPACITY:
+            _LOGGER.warning(
+                "Command state map has %s in-window entries (floor is %s); none evicted",
+                len(self._command_states),
+                COMMAND_STATE_CAPACITY,
+            )
+
     @callback
     def _process_command_state(self, command_id: str, data: dict[str, Any]) -> None:
         """Process command state updates."""
@@ -1446,19 +1504,52 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             cmd_state,
         )
 
-        # Store command state
+        now = time.monotonic()
+        prior = self._command_states.get(command_id) or {}
+        frames_seen = prior.get("frames_seen", 0) + 1
+        is_lifecycle = _command_state_is_lifecycle(state)
+        if is_lifecycle is None:
+            _LOGGER.warning(
+                "Unrecognised command state %r for %s; terminality unknown",
+                state,
+                command_id,
+            )
+        terminal_reached = bool(prior.get("terminal_reached")) or (
+            is_lifecycle is False
+        )
+        first_frame_at = prior.get("first_frame_at", now)
+        started = prior.get("tracking_started_at")
+        if started is None:
+            started = self._command_tracking_started.get(command_id)
+        time_to_first_frame = prior.get("time_to_first_frame")
+        if time_to_first_frame is None and started is not None:
+            time_to_first_frame = now - started
+        terminal_at = prior.get("terminal_at")
+        time_to_terminal = prior.get("time_to_terminal")
+        if terminal_reached and terminal_at is None:
+            terminal_at = now
+            if started is not None:
+                time_to_terminal = now - started
+
         self._command_states[command_id] = {
             "command": cmd_state.get("command"),
             "state": state,
+            "first_state": prior.get("first_state", state),
             "responseCode": cmd_state.get("responseCode"),
             "statusCode": cmd_state.get("statusCode"),
             "createdAt": cmd_state.get("createdAt"),
+            "frames_seen": frames_seen,
+            "is_lifecycle": is_lifecycle,
+            "terminal_reached": terminal_reached,
+            "first_frame_at": first_frame_at,
+            "terminal_at": terminal_at,
+            "tracking_started_at": started,
+            "time_to_first_frame": time_to_first_frame,
+            "time_to_terminal": time_to_terminal,
         }
 
-        # Keep only last 10 command states
-        if len(self._command_states) > 10:
-            oldest_key = next(iter(self._command_states))
-            self._command_states.pop(oldest_key)
+        self._prune_command_states()
+        self.async_update_listeners()
 
         # Fire events based on state
         event_data = {
@@ -1483,42 +1574,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # Unsubscribe from this command
             asyncio.create_task(self._unsubscribe_command_state(command_id))
 
-    async def _poll_command_state(
-        self, command_id: str, *, interval: float = 5.0, attempts: int = 7
-    ) -> None:
-        """Poll a command's result until it is terminal, or the attempts run out.
-
-        Seven attempts at five seconds covers the entity's 30 s wait with one to
-        spare. It stops as soon as the state is stored, so a command that answers
-        on the first poll costs exactly one query.
-        """
-        for _ in range(attempts):
-            await asyncio.sleep(interval)
-            if command_id in self._command_states:
-                return  # the subscription got there first
-            try:
-                response = await self.api.get_vehicle_command_state(command_id)
-                payload = await response.json()
-            except Exception:
-                _LOGGER.debug(
-                    "Polling command %s state failed", command_id, exc_info=True
-                )
-                continue
-            data = (payload.get("data") or {}).get("getVehicleCommand")
-            if not data or data.get("state") is None:
-                continue
-            _LOGGER.debug("Command %s state polled: %s", command_id, data)
-            self._command_states[command_id] = {
-                "command": data.get("command"),
-                "state": data.get("state"),
-                "responseCode": data.get("responseCode"),
-                "statusCode": data.get("statusCode"),
-                "createdAt": data.get("createdAt"),
-            }
-            if len(self._command_states) > 10:
-                self._command_states.pop(next(iter(self._command_states)))
-            return
-
     async def _subscribe_to_command_state(self, command_id: str) -> None:
         """Subscribe to command state updates."""
         if command_id in self._command_state_subscriptions:
@@ -1531,26 +1586,16 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 callback=lambda data: self._process_command_state(command_id, data),
             )
             self._command_state_subscriptions[command_id] = unsubscribe
+            self._command_tracking_started[command_id] = time.monotonic()
             _LOGGER.debug("Subscribed to command %s state updates", command_id)
 
-            # And poll, because the subscription does not deliver.
-            #
-            # Measured on a live vehicle: the subscription is established and torn
-            # down correctly and NO message ever arrives, so every command reported
-            # TIMEOUT. The same command's result comes back from the QUERY
-            # (get_vehicle_command_state) in about five seconds. Sending was never
-            # the problem -- OPEN_TONNEAU_COVER sent outside Home Assistant
-            # returned state 0 / responseCode 288 while the identical command
-            # through the integration timed out.
-            #
-            # The subscription is kept rather than replaced: it costs nothing while
-            # silent, and if the gateway starts delivering again the poll simply
-            # loses the race. Whichever answers first wins.
-            self.config_entry.async_create_background_task(
-                self.hass,
-                self._poll_command_state(command_id),
-                name=f"rivian command state {command_id}",
-            )
+            # The poll is gone. The app never had one: vehicleCommandState
+            # appears in 18 APK files, getVehicleCommand in 0. Owner rulings
+            # 15 and 22. Accepted risk: a silent subscription now has no
+            # fallback -- TIMEOUT with zero well-formed frames is the
+            # signature, and the two malformed-payload log lines in
+            # _process_command_state distinguish that from a bad frame.
+            # scripts/probe_vehicle_command.py still polls out of band.
 
             # Auto-unsubscribe after 60 seconds to prevent memory leaks
             async def _auto_unsubscribe():
@@ -1569,6 +1614,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.debug("Unsubscribed from command %s state updates", command_id)
             except Exception as ex:  # noqa: BLE001 -- teardown: an unsubscribe failure must not mask the caller's outcome
                 _LOGGER.error("Error unsubscribing from command %s: %s", command_id, ex)
+        self._command_tracking_started.pop(command_id, None)
+        self.async_update_listeners()
 
     def get_command_state(self, command_id: str) -> dict[str, Any] | None:
         """Get the state of a specific command."""

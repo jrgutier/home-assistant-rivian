@@ -92,6 +92,7 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         super().__init__(coordinator, config_entry, description, vehicle)
         self._command_in_progress: str | None = None
         self._current_command_id: str | None = None
+        self._last_command_id: str | None = None
         self._last_command_status: dict[str, Any] = {}
 
     @property
@@ -128,7 +129,13 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         # Seeded so both codes are readable before any command. Appending them
         # inside the _last_command_status block leaves them absent until the
         # first send, which is the state f7 has to inspect.
-        attrs = {"response_code": None, "status_code": None}
+        attrs = {
+            "response_code": None,
+            "status_code": None,
+            "state_frames_seen": 0,
+            "state_is_lifecycle": None,
+            "final_command_state": None,
+        }
         if self._command_in_progress:
             attrs["current_command"] = self._command_in_progress
         if self._last_command_status:
@@ -141,24 +148,44 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                     "status_code": self._last_command_status.get("status_code"),
                 }
             )
+        # _last_command_id, NOT _current_command_id: the `finally` of
+        # _execute_command clears the latter, and the values below only exist
+        # AFTER the call has returned. Gating on _current_command_id makes
+        # every one of them permanently read its seed.
+        if self._last_command_id and (
+            live := self.coordinator.get_command_state(self._last_command_id)
+        ):
+            attrs["state_frames_seen"] = live.get("frames_seen", 0)
+            attrs["state_is_lifecycle"] = live.get("is_lifecycle")
+            attrs["final_command_state"] = live.get("state")
         return attrs
 
     async def _execute_command(
-        self, command, params: dict[str, Any] | None = None, timeout: int = 30
+        self,
+        command,
+        params: dict[str, Any] | None = None,
+        timeout: int = 30,
+        *,
+        _clock=None,
+        _sleep=None,
     ) -> dict[str, Any] | None:
         """Execute a vehicle command with state tracking.
 
         Args:
             command: The VehicleCommand to execute
             params: Optional command parameters
-            timeout: Timeout in seconds to wait for command completion
+            timeout: Timeout in seconds to wait for the first well-formed frame
+            _clock, _sleep: test seams; default to the loop clock and asyncio.sleep
 
         Returns:
-            Command state dict if successful, None otherwise
+            Command state dict of the first well-formed frame, None on timeout
         """
         import asyncio
 
         from homeassistant.util import dt as dt_util
+
+        clock = _clock or asyncio.get_event_loop().time
+        sleep = _sleep or asyncio.sleep
 
         # Set executing state
         self._command_in_progress = command.value
@@ -175,45 +202,29 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                 return None
 
             self._current_command_id = command_id
+            self._last_command_id = command_id
 
-            # Wait for command completion with timeout
-            start_time = asyncio.get_event_loop().time()
-            while (asyncio.get_event_loop().time() - start_time) < timeout:
-                # Check command state
+            # Return on the first well-formed frame. _process_command_state
+            # refuses to write a record on a malformed payload or a null state,
+            # so presence in _command_states is the arrival of a real answer.
+            # Terminality is tracked on the coordinator, in the background.
+            start_time = clock()
+            while (clock() - start_time) < timeout:
                 if cmd_state := self.coordinator.get_command_state(command_id):
-                    state = cmd_state.get("state")
-                    # The server answers with an INTEGER, not this string enum.
-                    # A live OPEN_TONNEAU_COVER returns state 0 / responseCode 288
-                    # / statusCode 0, and a known-good WAKE_VEHICLE returns
-                    # state 0 / responseCode None. So the string list alone never
-                    # matched anything and EVERY command timed out, even when the
-                    # vehicle had already acted on it.
-                    #
-                    # Both forms are accepted. The integer vocabulary is only
-                    # calibrated at 0, so no meaning is assigned to other values
-                    # here -- the raw state, responseCode and statusCode are
-                    # recorded on the entity and the caller can read them.
-                    if isinstance(state, int) or state in (
-                        "COMPLETED_SUCCESS",
-                        "COMPLETED_ERROR",
-                        "FAILED",
-                    ):
-                        # Command completed
-                        self._last_command_status = {
-                            "command": command.value,
-                            "state": state,
-                            "timestamp": dt_util.utcnow().isoformat(),
-                            "response_code": cmd_state.get("responseCode"),
-                            "status_code": cmd_state.get("statusCode"),
-                        }
-                        return cmd_state
+                    self._last_command_status = {
+                        "command": command.value,
+                        "state": cmd_state.get("state"),
+                        "timestamp": dt_util.utcnow().isoformat(),
+                        "response_code": cmd_state.get("responseCode"),
+                        "status_code": cmd_state.get("statusCode"),
+                    }
+                    return cmd_state
 
-                # Wait a bit before checking again
-                await asyncio.sleep(0.5)
+                await sleep(0.5)
 
-            # Timeout reached
+            # Timeout reached -- zero well-formed frames
             _LOGGER.warning(
-                "Command %s (ID: %s) timed out after %s seconds",
+                "Command %s (ID: %s) timed out after %s seconds with zero well-formed frames",
                 command,
                 command_id,
                 timeout,

@@ -6,9 +6,9 @@
   "_authored": "Hand-authored deliberately. Do NOT regenerate from the plan: PRD refinement is a judgement step, and the judgement being protected (never attempt mode:human stories) is prose in the same document a generator would read. Artifacts live in home-assistant-rivian/ (the surviving repo) so they are version-controlled; the workspace root is not a git repo. Only .omc-workspace stays at the root, since it must anchor state across both repos.",
   "_loop": {
     "max_iterations": 25,
-    "rule": "Work the first story with passes:false whose deps are all passes:true. Run its gate. Set passes:true ONLY on exit 0. Append findings to progress.txt. Never attempt a story with mode:human \u2014 stop and report instead.",
+    "rule": "Work the first story with passes:false whose deps are all passes:true. Run its gate. Set passes:true ONLY on exit 0. Append findings to progress.txt. Never attempt a story with mode:human — stop and report instead.",
     "reviewer": "omc ask claude --agent-prompt critic",
-    "gates": "home-assistant-rivian/scripts/gates/<id>.sh \u2014 self-locating, runnable from any cwd"
+    "gates": "home-assistant-rivian/scripts/gates/<id>.sh — self-locating, runnable from any cwd"
   },
   "_guardrails": [
     "Stay on branch vendor-client in BOTH repos; assert every iteration. pre-release.yaml fires on dev and dev-* and publishes a zip beta users install.",
@@ -63,7 +63,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Get CI onto the vendor-client branch",
-      "detail": "rivian-python-client/.github/workflows/ci.yaml EXISTS (ruff, mypy, pytest on 3.9-3.13) but triggers on main only \u2014 extend its trigger to vendor-client and add coverage. home-assistant-rivian has no test workflow at all; create one. Principle 4: CI exists before the risky work.",
+      "detail": "rivian-python-client/.github/workflows/ci.yaml EXISTS (ruff, mypy, pytest on 3.9-3.13) but triggers on main only — extend its trigger to vendor-client and add coverage. home-assistant-rivian has no test workflow at all; create one. Principle 4: CI exists before the risky work.",
       "gate": "scripts/gates/s02.sh"
     },
     {
@@ -75,7 +75,7 @@
       "mode": "auto",
       "passes": true,
       "title": "HUMAN: merge client onto upstream 2.1.0 transport",
-      "detail": "Adopt upstream's plain-string GraphQL transport and ClientResponse shape; drop gql. parallax.py is add/add with ZERO common ancestry (ours 22218 bytes, theirs 21668) \u2014 resolve by taking upstream's file as the base and appending our builder half. rivian.py: port only the ~20 methods with a reachable caller, delete the ~45 without one. Judgement call \u2014 do not automate. USER OVERRIDE (explicit): originally mode:human; the user directed the loop to attempt it autonomously with review after. Risk accepted and recorded: the merge has no test oracle \u2014 the suites are part of what is merged, so `git merge -X ours` satisfies 'no conflict markers + pytest green'. The preserved-symbol manifest in scripts/gates/s03.sh is the only real check.",
+      "detail": "Adopt upstream's plain-string GraphQL transport and ClientResponse shape; drop gql. parallax.py is add/add with ZERO common ancestry (ours 22218 bytes, theirs 21668) — resolve by taking upstream's file as the base and appending our builder half. rivian.py: port only the ~20 methods with a reachable caller, delete the ~45 without one. Judgement call — do not automate. USER OVERRIDE (explicit): originally mode:human; the user directed the loop to attempt it autonomously with review after. Risk accepted and recorded: the merge has no test oracle — the suites are part of what is merged, so `git merge -X ours` satisfies 'no conflict markers + pytest green'. The preserved-symbol manifest in scripts/gates/s03.sh is the only real check.",
       "gate": "scripts/gates/s03.sh",
       "review": "MANDATORY human review before s04"
     },
@@ -88,7 +88,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Client cleanup",
-      "detail": "Drop py<3.11 shims (stdlib StrEnum, asyncio.timeout); bump requires-python to >=3.10; give bleak an honest ceiling; fix set_climate_hold (validates temp_celsius then never sends it); correct the ten '32-byte' phone_id docstrings \u2014 the correct value is 16-byte uuid.UUID(vasPhoneId).bytes. Do NOT fix the four setters S9a deletes.",
+      "detail": "Drop py<3.11 shims (stdlib StrEnum, asyncio.timeout); bump requires-python to >=3.10; give bleak an honest ceiling; fix set_climate_hold (validates temp_celsius then never sends it); correct the ten '32-byte' phone_id docstrings — the correct value is 16-byte uuid.UUID(vasPhoneId).bytes. Do NOT fix the four setters S9a deletes.",
       "gate": "scripts/gates/s04.sh"
     },
     {
@@ -113,7 +113,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Route Parallax through the real decoders; unify get()",
-      "detail": "Delete _decode_payload (the {\"raw\": ...} stub) and its test test_decode_unknown_rvm_returns_raw \u2014 deleted, not adapted. Route to decode_parallax_message. Subscribe with an explicit DEDUPED PARALLAX_RVMS + CHARGING_RVMS list (they overlap), not rvms=None. Collapse the three conflicting get() signatures onto the base 2-arg dot-notation form. DONE 2026-08-18. ParallaxCoordinator DISSOLVED (285 lines) along with _RVM_KEY_MAP, _rvm_data and _decode_payload; VehicleCoordinator now owns the single Parallax subscription with sorted({*PARALLAX_RVMS, *CHARGING_RVMS}) -- 20 unique topics, not the 25 a naive concat would request. get() collapsed from 3 signatures to 1, unwrapping the {value,history} envelope centrally.",
+      "detail": "Delete _decode_payload (the {\"raw\": ...} stub) and its test test_decode_unknown_rvm_returns_raw — deleted, not adapted. Route to decode_parallax_message. Subscribe with an explicit DEDUPED PARALLAX_RVMS + CHARGING_RVMS list (they overlap), not rvms=None. Collapse the three conflicting get() signatures onto the base 2-arg dot-notation form. DONE 2026-08-18. ParallaxCoordinator DISSOLVED (285 lines) along with _RVM_KEY_MAP, _rvm_data and _decode_payload; VehicleCoordinator now owns the single Parallax subscription with sorted({*PARALLAX_RVMS, *CHARGING_RVMS}) -- 20 unique topics, not the 25 a naive concat would request. get() collapsed from 3 signatures to 1, unwrapping the {value,history} envelope centrally.",
       "gate": "scripts/gates/s06a.sh"
     },
     {
@@ -184,7 +184,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Prune unverified entities and builders",
-      "detail": "Remove PARALLAX_SWITCHES, PARALLAX_NUMBERS, PARALLAX_SELECTS, the parallax.* prefix routing and the rivian.set_geofences service \u2014 all target RVMs that return INTERNAL_SERVER_ERROR. Delete their translation/icon keys and their tests. Then prune parallax.py from 21 build_* functions to the 4 backing verified RVMs, and prune RVMType to match. Incidentally fixes select.py:203's KeyError.",
+      "detail": "Remove PARALLAX_SWITCHES, PARALLAX_NUMBERS, PARALLAX_SELECTS, the parallax.* prefix routing and the rivian.set_geofences service — all target RVMs that return INTERNAL_SERVER_ERROR. Delete their translation/icon keys and their tests. Then prune parallax.py from 21 build_* functions to the 4 backing verified RVMs, and prune RVMType to match. Incidentally fixes select.py:203's KeyError.",
       "gate": "scripts/gates/s09a.sh"
     },
     {
@@ -197,7 +197,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Wire the verified RVMs onto decoded data",
-      "detail": "Move cabin_climate_hold off VehicleCommand.CLIMATE_HOLD_ON/OFF onto the Parallax climate_hold_setting write \u2014 the ONE verified write \u2014 reading climate_hold_status. Add vehicle_wheels and ota_config as READ-ONLY attributes. ota_config is a Query, not a Command: do not build an OTA write, and do not route it through time.py, which is charging-only. DONE 2026-08-18. cabin_climate_hold now writes via async_set_climate_hold (the one verified Parallax write) and reads the decoded climateHoldStatus, keeping read and write on ONE source. wheels_installed ships read-only. ota_config NOT wired: dropped at s08a for want of a fixture.",
+      "detail": "Move cabin_climate_hold off VehicleCommand.CLIMATE_HOLD_ON/OFF onto the Parallax climate_hold_setting write — the ONE verified write — reading climate_hold_status. Add vehicle_wheels and ota_config as READ-ONLY attributes. ota_config is a Query, not a Command: do not build an OTA write, and do not route it through time.py, which is charging-only. DONE 2026-08-18. cabin_climate_hold now writes via async_set_climate_hold (the one verified Parallax write) and reads the decoded climateHoldStatus, keeping read and write on ONE source. wheels_installed ships read-only. ota_config NOT wired: dropped at s08a for want of a fixture.",
       "gate": "scripts/gates/s09b.sh"
     },
     {
@@ -209,7 +209,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Remove protobuf",
-      "detail": "Ten top-level google.protobuf sites: parallax.py:13, proto/vehicle_operation.py:6-7, proto/ota.py:5, and proto/{base,charging,climate,energy,navigation,security,vehicle}.py:6. They subclass _message.Message at RUNTIME so TYPE_CHECKING does not help, and proto/__init__.py imports eight of them so fixing a subset still ImportErrors on every send_vehicle_operation. DELETE proto/climate.py \u2014 the shipped write imports rivian_climate_pb2.ClimateHoldSetting; proto/climate.py holds a dead incompatible definition. Keep and rewrite proto/vehicle_operation.py. Capture golden bytes from _pb2 BEFORE deleting. Then drop protobuf from manifest requirements. DONE 2026-08-18. Golden bytes captured from the generated classes BEFORE deleting them (14-value grid incl. the 127/128 varint boundary); the hand-rolled encoder matches all of them and the live-captured 08ac02. google.protobuf.Timestamp replaced by ~20 lines, pinned against four captured encodings. Verified importing with protobuf absent entirely.",
+      "detail": "Ten top-level google.protobuf sites: parallax.py:13, proto/vehicle_operation.py:6-7, proto/ota.py:5, and proto/{base,charging,climate,energy,navigation,security,vehicle}.py:6. They subclass _message.Message at RUNTIME so TYPE_CHECKING does not help, and proto/__init__.py imports eight of them so fixing a subset still ImportErrors on every send_vehicle_operation. DELETE proto/climate.py — the shipped write imports rivian_climate_pb2.ClimateHoldSetting; proto/climate.py holds a dead incompatible definition. Keep and rewrite proto/vehicle_operation.py. Capture golden bytes from _pb2 BEFORE deleting. Then drop protobuf from manifest requirements. DONE 2026-08-18. Golden bytes captured from the generated classes BEFORE deleting them (14-value grid incl. the 127/128 varint boundary); the hand-rolled encoder matches all of them and the live-captured 08ac02. google.protobuf.Timestamp replaced by ~20 lines, pinned against four captured encodings. Verified importing with protobuf absent entirely.",
       "gate": "scripts/gates/s10.sh"
     },
     {
@@ -233,7 +233,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Devcontainer boots real HA",
-      "detail": "Install requirements_test.txt, symlink custom_components/rivian into the container HA config dir, pin the HA version (requirements says >=2025.1.0, config/.HA_VERSION is 2025.10.4, the venv has 2025.12.0 \u2014 a .storage seeded by a newer HA is unreadable by an older one). Add scripts/seed_config_entry.py reading tokens from env at runtime, never inlining a value.",
+      "detail": "Install requirements_test.txt, symlink custom_components/rivian into the container HA config dir, pin the HA version (requirements says >=2025.1.0, config/.HA_VERSION is 2025.10.4, the venv has 2025.12.0 — a .storage seeded by a newer HA is unreadable by an older one). Add scripts/seed_config_entry.py reading tokens from env at runtime, never inlining a value.",
       "gate": "scripts/gates/s12a.sh",
       "evidence": "scripts/gates/s12a.sh: 10/10. HA pinned 2026.8.2 on Python 3.14 across requirements.txt, devcontainer and CI; scripts/seed_config_entry.py seeds data+options from .env into a chmod-600, gitignored .storage without ever printing a value; tests/test_seed_config_entry.py (12 tests) builds the seeded dict as a real homeassistant ConfigEntry, so an HA schema change fails in CI rather than at container boot. Suite 1242 passed. Booting HA against the live vehicle stays in s13 (mode:human) -- one Parallax subscription per session token, so a second HA contends with production."
     },
@@ -246,7 +246,7 @@
       "mode": "auto",
       "passes": true,
       "title": "Release hardening and the remaining CI gates",
-      "detail": "Switch BOTH release.yaml:26-28 and pre-release.yaml:70-72 to a zip allowlist; pre-release fires on every dev push and matters more. Anchor release.yaml:22's sed to \"version\": \u2014 it currently rewrites every line containing 'version'. Add the artifact secret-scan and the load test (unzip into a bare HA container with only the declared requirements, start HA, fail if it does not load). Edit 'jobs:' only, never 'on:'. RELEASE ROUTE DECIDED 2026-08-18: vendor-client merges to dev, which fires pre-release.yaml and publishes a zip beta users install. Harden BOTH release.yaml and pre-release.yaml zips (allowlist, no dotfiles) and add the artifact secret-scan for that path. A HUMAN does the merge and push; the loop must never push to dev.",
+      "detail": "Switch BOTH release.yaml:26-28 and pre-release.yaml:70-72 to a zip allowlist; pre-release fires on every dev push and matters more. Anchor release.yaml:22's sed to \"version\": — it currently rewrites every line containing 'version'. Add the artifact secret-scan and the load test (unzip into a bare HA container with only the declared requirements, start HA, fail if it does not load). Edit 'jobs:' only, never 'on:'. RELEASE ROUTE DECIDED 2026-08-18: vendor-client merges to dev, which fires pre-release.yaml and publishes a zip beta users install. Harden BOTH release.yaml and pre-release.yaml zips (allowlist, no dotfiles) and add the artifact secret-scan for that path. A HUMAN does the merge and push; the loop must never push to dev.",
       "gate": "scripts/gates/s12b.sh",
       "evidence": "scripts/gates/s12b.sh: 13/13, each assertion validated by breaking it. Both release workflows moved from a bare recursive zip to an allow-list and now run scripts/scan_artifact.sh before publishing; release.yaml's unanchored `sed -i '/version/c...'` became jq on the version key, and its ::set-output (disabled by GitHub in 2023, so the step had been setting nothing) became $GITHUB_OUTPUT. scripts/load_test.sh installs only what manifest.json declares and imports every module out of the built zip -- it caught button.py importing homeassistant.components.bluetooth at module scope, which reaches homeassistant.components.usb and would have taken the whole button platform down on any install without the bluetooth integration, with all 1244 tests green. Both scripts run in CI on every push. on: blocks verified byte-identical."
     },
@@ -259,7 +259,7 @@
       "mode": "human",
       "passes": true,
       "title": "HUMAN: end-to-end against the real vehicle",
-      "detail": "The seven thresholds in the plan's Verification 6. Requires the real vehicle and live credentials \u2014 final acceptance, not automatable.",
+      "detail": "The seven thresholds in the plan's Verification 6. Requires the real vehicle and live credentials — final acceptance, not automatable.",
       "gate": "scripts/gates/s13.sh",
       "evidence": "docs/E2E_ACCEPTANCE.md. Live run 2026-08-18 against the real R1T on HA 2026.8.2/Python 3.14.6 with a seeded entry. Final run: 0 ERROR lines, 0 tracebacks, 0 GraphQL field rejections, 0 TypeError, 0 KeyError, 13 Parallax topics decoded with 0 raw payloads, charging updated 3-4 times, odometer 152031000, all four tire pressures live. Found FIVE defects that 1244 passing unit tests did not: the response envelope was never unwrapped (setup died instantly on the real API); a Parallax-only field poisoned the GraphQL subscription so it delivered nothing at all; and three enum/invalid-state vocabulary bugs. The climate hold WRITE was subsequently exercised with the owner's explicit approval: occupancy gated (all six closures closed, powerState ready), round-tripped 0 -> 300 -> 0 seconds through the live subscription in ~3s, both writes returning SendVehicleOperationSuccess, and the vehicle left exactly as found. 5 minutes encoding to exactly 300 seconds confirms s10's hand-rolled varint encoder against the real vehicle, which the golden-bytes tests could only check against the generated code it replaced."
     },
@@ -306,10 +306,54 @@
     {
       "id": "parallax-invalid-state-filter",
       "source": "architect review, 2026-08-18",
-      "severity": "low \u2014 no live defect",
+      "severity": "medium — live-reachable; the original 'no live defect' basis is RETRACTED (see why_not_fixed)",
       "status": "closed",
       "detail": "coordinator.py:_process_parallax_data merged Parallax updates with `new_data = (self.data or {}) | vehicle_updates` and called async_set_updated_data directly, so those values never passed through _build_vehicle_info_dict and INVALID_SENSOR_STATES was never applied to them. Defect 5 from s13 was therefore only half fixed: the GraphQL path filtered fault/SNA/undefined, the Parallax path did not. Closed by mirroring the GraphQL policy onto the Parallax else-branch: gnssLocation exempt, invalid with a previous value keeps the previous, invalid with no previous is passed through and _note_unusable is called. Dropping the no-previous case was tried twice and reverted -- it makes the entity unavailable and takes the matching control down with it.",
       "why_not_fixed": "RETRACTED. The original claim was that every Parallax decoder's output vocabulary was checked and none can emit a value in INVALID_SENSOR_STATES, so there was no live defect. That is false: _CLIMATE_HOLD_STATUS[4] is \"fault\" (parallax.py:653), _ALARM_SOUND_MAP[3] is \"signal_not_available\" (:881), _DRIVE_MODE_MAP[7] is \"fault\" (:909). The coordinator filter still cannot reach unspecified/unavailable on climateHoldStatus (they sit outside the constant); those stay on the entity guard at switch.py:82."
+    },
+    {
+      "id": "nine-platforms-apply-no-invalid-state-filter",
+      "source": "architect review, 2026-08-19 (final verification)",
+      "severity": "medium",
+      "detail": "Only binary_sensor.py, sensor.py and lock.py reference INVALID_SENSOR_STATES. The other platform files (switch.py, cover.py, select.py, number.py, climate.py, button.py, device_tracker.py, update.py, time.py) apply no entity-level filter, so a coordinator value they read is rendered as-is.",
+      "why_not_fixed": "CHECKABLE: `grep -L INVALID_SENSOR_STATES custom_components/rivian/*.py` lists them. switch.py no longer needs it -- its two reads use a {value: bool}.get() mapping that returns None for anything unexpected (0b), which is stronger than the constant. The rest are only reachable if a decoder or the subscription starts emitting an invalid value for a key they read; the coordinator filter now catches that on both paths first."
+    },
+    {
+      "id": "climate-hold-fields-absent-from-parallax-only-fields",
+      "source": "architect review, 2026-08-19",
+      "severity": "low — not armed",
+      "detail": "climateHoldStatus, climateHoldAvailability, climateHoldEndTime and climateHoldUnavailabilityReason are Parallax-only and absent from PARALLAX_ONLY_FIELDS (const.py:1615-1635). Adding a sensor or binary_sensor description on any of them auto-injects the name into the derived VEHICLE_STATE_API_FIELDS and Rivian rejects the WHOLE subscription -- the wheelsInstalled failure, which cost every reading in the s13 table.",
+      "why_not_fixed": "Owner declined the name-list change in ruling 1. CHECKABLE by the arming test the plan specifies (§6.1 item 8): it goes red the moment a SENSORS/BINARY_SENSORS description names one of the four, i.e. at the moment the hazard arms rather than after it fires. The four are inert until then."
+    },
+    {
+      "id": "decode-locks-and-closures-collapse-unmapped-values",
+      "source": "architect review, 2026-08-18",
+      "severity": "medium",
+      "detail": "decode_locks (parallax.py:489) is `\"locked\" if state_val == 1 else \"unlocked\"` and decode_closures (:395) is `\"closed\" if state_val == 2 else \"open\"`. Any unmapped wire value collapses into a confident OPPOSITE rather than an invalid state.",
+      "why_not_fixed": "NOT checkable by any invalid-state filter, and deliberately so: the decoder emits a WRONG value, not an invalid one, so no filter can see it. Getting the true vocabulary needs a parse site read off the decompilation; d9f1105 already searched the whole decompilation for the remaining bindings and found none, so a story would sit open indefinitely. Recorded rather than guessed."
+    },
+    {
+      "id": "closures-lock-reports-locked-on-partial-data",
+      "source": "architect final verification, 2026-08-19",
+      "severity": "medium",
+      "detail": "_closures_are_locked ignores invalid members and returns None only when NO member is usable. So lock.r1t_closures can report a confident `locked` while a member whose true state is unlocked is reading signal_not_available. The Lock at Home automation on the production instance consumes this entity.",
+      "why_not_fixed": "The alternative -- None if ANY member is invalid -- was measured worse: it makes the entity unavailable at startup and takes the matching control down with it (sensor.py:172-179, binary_sensor.py:104-108). CHECKABLE: TestClosuresIgnoreInvalidMembers pins the chosen shape. A better fix is option C from the review -- keep the shape and expose the usable-member count as an attribute so an automation can see partiality -- which is not done here."
+    },
+    {
+      "id": "command-state-terminality",
+      "source": "open-questions investigation, 2026-08-19 (N1)",
+      "severity": "high — live-reachable on the command path",
+      "status": "closed",
+      "detail": "entity.py:196 returns on any integer vehicleCommandState, so the integration reports a command complete on the first frame, including continue-set states {1,2,3,5} that the Rivian app (C4171i.java:524-554, C2225j.java:147-167) keeps waiting on. All five accepted f7 commands returned continue-set frames (5, 2, 2, 2, 2). Closed by transcribing the vocabulary and gating it; the live-path shape is ruling 22 (return on first frame, track terminality in the background).",
+      "why_not_fixed": "CHECKABLE: scripts/gates/f9.sh asserts the transcription matches coordinator.py's continue set; it goes red if either drifts."
+    },
+    {
+      "id": "sendvehicleoperation-record-missing",
+      "source": "open-questions investigation, 2026-08-19 (N7)",
+      "severity": "medium — the record justifying RVMType's 4-of-18 pruning is unreadable",
+      "status": "open",
+      "detail": "SENDVEHICLEOPERATION_TEST_RESULTS.md is cited nine times across six files and does not exist. It is the record that justifies RVMType shipping only 4 of the app's 18 RVMs. Four test files, one gate, and one vendored-client module cite it.",
+      "why_not_fixed": "CHECKABLE: scripts/gates/f9.sh fails if any tracked file cites SENDVEHICLEOPERATION_TEST_RESULTS.md while the file is absent."
     }
   ]
 }

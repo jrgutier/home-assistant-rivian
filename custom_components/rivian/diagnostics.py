@@ -13,6 +13,34 @@ from .helpers import redact
 from .rivian_client.parallax import CHARGING_RVMS, PARALLAX_RVMS, RVM_DECODERS
 
 
+def _command_outcomes(coordinator: VehicleCoordinator) -> list[dict[str, Any]]:
+    """The in-memory command-state records, for the first bug report.
+
+    TIMEOUT with frames_seen 0 is subscription silence. A malformed payload
+    never writes a record and is distinguished by the two log lines in
+    _process_command_state. is_lifecycle may be None: an unrecognised frame,
+    not a guess at terminality.
+    """
+    states = getattr(coordinator, "_command_states", None)
+    if not isinstance(states, dict):
+        return []
+    return [
+        {
+            "command_id": command_id,
+            "command": rec.get("command"),
+            "first_state": rec.get("first_state"),
+            "state": rec.get("state"),
+            "frames_seen": rec.get("frames_seen", 0),
+            "is_lifecycle": rec.get("is_lifecycle"),
+            "terminal_reached": rec.get("terminal_reached", False),
+            "time_to_first_frame": rec.get("time_to_first_frame"),
+            "time_to_terminal": rec.get("time_to_terminal"),
+        }
+        for command_id, rec in states.items()
+        if isinstance(rec, dict)
+    ]
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
@@ -52,6 +80,10 @@ async def async_get_config_entry_diagnostics(
         # proto3 omitted it" from "the decoder never fired".
         "parallax_rvm_arrivals": {
             vehicle_id: coordinator.rvm_arrivals
+            for vehicle_id, coordinator in vehicle_coordinators.items()
+        },
+        "command_outcomes": {
+            vehicle_id: _command_outcomes(coordinator)
             for vehicle_id, coordinator in vehicle_coordinators.items()
         },
     }

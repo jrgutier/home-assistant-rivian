@@ -1,4 +1,18 @@
-"""A command's result comes back from the query, not from the subscription.
+"""Command-state path, after rulings 15 and 22.
+
+SUPERSEDED: this module originally recorded that a command's result comes
+back from the query (`getVehicleCommand`), not the subscription. That was
+ae06ee9's diagnosis, and it was why `_poll_command_state` existed. Ruling 15
+drops the poll -- the app never had one: `vehicleCommandState` in 18 APK
+files, `getVehicleCommand` in 0. Ruling 22 returns on the first well-formed
+subscription frame and tracks terminality in the background.
+
+TestPolling's six tests went with the function. The ae06ee9 record is kept
+below so the diagnosis stays reconstructible.
+
+---
+
+A command's result comes back from the query, not from the subscription.
 
 Measured on the vehicle, twice, with the same credentials minutes apart:
 
@@ -44,126 +58,695 @@ completed. No meaning is assigned to it here beyond "the server answered".
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+import inspect
+import logging
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
 import pytest
 
-from custom_components.rivian.coordinator import VehicleCoordinator
+from custom_components.rivian.climate import DEFROST_DEFOG, RivianClimateEntity
+from custom_components.rivian.coordinator import (
+    COMMAND_STATE_CONTINUE,
+    VehicleCoordinator,
+)
+from custom_components.rivian.entity import RivianVehicleControlEntity
+from custom_components.rivian.rivian_client import VehicleCommand
+from homeassistant.components.climate import ATTR_TEMPERATURE, HVACMode
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityDescription
 
+from tests.apk.transcription import COMMAND_STATE_CONTINUE as TRANSCRIBED_CONTINUE
 
-def _response(payload: dict) -> MagicMock:
-    response = MagicMock()
-    response.json = AsyncMock(return_value=payload)
-    return response
+REPO = Path(__file__).parents[1]
+COORDINATOR_PY = REPO / "custom_components/rivian/coordinator.py"
+ENTITY_PY = REPO / "custom_components/rivian/entity.py"
 
-
-def _coordinator(payload: dict) -> MagicMock:
-    coordinator = MagicMock(spec=VehicleCoordinator)
-    coordinator._command_states = {}
-    coordinator.api = MagicMock()
-    coordinator.api.get_vehicle_command_state = AsyncMock(
-        return_value=_response(payload)
-    )
-    return coordinator
-
-
-LIVE = {
-    "data": {
-        "getVehicleCommand": {
-            "id": "04-abc",
-            "command": "OPEN_TONNEAU_COVER",
-            "createdAt": "2026-08-19T10:30:47.896353",
-            "state": 0,
-            "responseCode": 288,
-            "statusCode": 0,
-        }
-    }
+VEHICLE = {
+    "id": "test_vehicle_123",
+    "vin": "TEST123456789",
+    "name": "Test R1T",
+    "model": "R1T",
+    "phone_identity_id": "test_phone_id",
 }
 
+FIRST_FRAME_STATES = [0, 1, 2, 3, 4, 5, 6, 7, 42, -1]
+STRING_ENUM = ("COMPLETED_SUCCESS", "COMPLETED_ERROR", "FAILED")
 
-class TestPolling:
-    async def test_a_live_shaped_answer_is_stored(self) -> None:
-        coordinator = _coordinator(LIVE)
-        await VehicleCoordinator._poll_command_state(
-            coordinator, "04-abc", interval=0, attempts=2
-        )
-        assert coordinator._command_states["04-abc"] == {
-            "command": "OPEN_TONNEAU_COVER",
-            "state": 0,
-            "responseCode": 288,
-            "statusCode": 0,
-            "createdAt": "2026-08-19T10:30:47.896353",
+
+def _frame(state, command="WAKE_VEHICLE", **extra) -> dict:
+    return {
+        "payload": {
+            "data": {
+                "vehicleCommandState": {
+                    "command": command,
+                    "state": state,
+                    **extra,
+                }
+            }
         }
+    }
 
-    async def test_it_stops_as_soon_as_it_has_an_answer(self) -> None:
-        """One query for a command that answers on the first poll."""
-        coordinator = _coordinator(LIVE)
-        await VehicleCoordinator._poll_command_state(
-            coordinator, "04-abc", interval=0, attempts=7
+
+def _coordinator(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> VehicleCoordinator:
+    return VehicleCoordinator(
+        hass=hass,
+        config_entry=mock_config_entry,
+        client=MagicMock(),
+        vehicle_id="v1",
+    )
+
+
+def _entity(
+    hass: HomeAssistant,
+    mock_config_entry: ConfigEntry,
+    coordinator: VehicleCoordinator,
+) -> RivianVehicleControlEntity:
+    entity = RivianVehicleControlEntity(
+        coordinator=coordinator,
+        config_entry=mock_config_entry,
+        description=EntityDescription(key="test", name="Test"),
+        vehicle=VEHICLE,
+    )
+    entity.hass = hass
+    entity.async_write_ha_state = MagicMock()
+    return entity
+
+
+class _Clock:
+    """Advances only when sleep is awaited. Tests must not take 30 s each."""
+
+    def __init__(self) -> None:
+        self.t = 0.0
+        self.sleeps = 0
+
+    def __call__(self) -> float:
+        return self.t
+
+    async def sleep(self, dt: float) -> None:
+        self.sleeps += 1
+        self.t += dt
+
+
+def _deliver_on_send(
+    coordinator: VehicleCoordinator, state, command_id: str = "cmd-1"
+) -> None:
+    async def send(command, params=None):
+        coordinator._process_command_state(
+            command_id, _frame(state, command=command.value)
         )
-        assert coordinator.api.get_vehicle_command_state.await_count == 1
+        return command_id
 
-    async def test_it_yields_to_the_subscription(self) -> None:
-        """The subscription is kept; whichever answers first wins."""
-        coordinator = _coordinator(LIVE)
-        coordinator._command_states["04-abc"] = {"state": "COMPLETED_SUCCESS"}
-        await VehicleCoordinator._poll_command_state(
-            coordinator, "04-abc", interval=0, attempts=3
+    coordinator.send_vehicle_command = send
+
+
+# --- 1 / 2 / 2b [at-return] -------------------------------------------------
+
+
+class TestFirstFrameReturns:
+    """The property that carries the whole argument. [at-return]
+
+    For any well-formed frame the user gets a non-TIMEOUT answer at the same
+    speed as today -- within one sampling tick, not at the 30 s ceiling. This
+    is the test that would have caught ae06ee9, and the timing half pins
+    ruling 22 against a re-introduced blocking wait.
+    """
+
+    @pytest.mark.parametrize("state", [*FIRST_FRAME_STATES, *STRING_ENUM])
+    async def test_a_well_formed_frame_returns_on_the_first_tick(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        state,
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        _deliver_on_send(coordinator, state)
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
         )
-        coordinator.api.get_vehicle_command_state.assert_not_awaited()
-        assert coordinator._command_states["04-abc"]["state"] == "COMPLETED_SUCCESS"
 
-    async def test_a_failing_query_does_not_kill_the_command(self) -> None:
-        coordinator = _coordinator(LIVE)
-        coordinator.api.get_vehicle_command_state = AsyncMock(
-            side_effect=RuntimeError("boom")
+        assert result is not None
+        assert entity._last_command_status["state"] is not None
+        assert entity._last_command_status["state"] != "TIMEOUT"
+        assert entity._last_command_status["state"] == state
+        assert clock.sleeps == 0
+        assert clock.t < 0.5
+
+
+class TestTimeoutMeansZeroWellFormedFrames:
+    """TIMEOUT is reachable only from zero well-formed frames. [at-return]"""
+
+    async def test_no_frame_is_timeout_with_zero_frames(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
         )
-        await VehicleCoordinator._poll_command_state(
-            coordinator, "04-abc", interval=0, attempts=2
+
+        assert result is None
+        assert entity._last_command_status["state"] == "TIMEOUT"
+        assert entity.extra_state_attributes["state_frames_seen"] == 0
+        assert clock.t >= 30
+
+    @pytest.mark.parametrize("state", [*FIRST_FRAME_STATES, *STRING_ENUM])
+    async def test_any_well_formed_frame_is_never_timeout(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, state
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        _deliver_on_send(coordinator, state)
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
         )
-        assert "04-abc" not in coordinator._command_states
 
-    async def test_a_null_state_is_not_treated_as_an_answer(self) -> None:
-        """in_progress comes back with state None; polling must keep going."""
-        coordinator = _coordinator(
-            {"data": {"getVehicleCommand": {"id": "04-abc", "state": None}}}
+        assert result is not None
+        assert entity._last_command_status["state"] != "TIMEOUT"
+
+    async def test_a_malformed_payload_is_timeout_and_logs_error(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, caplog
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        with caplog.at_level(logging.ERROR):
+            coordinator._process_command_state("cmd-1", {"payload": {}})
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
         )
-        await VehicleCoordinator._poll_command_state(
-            coordinator, "04-abc", interval=0, attempts=3
+
+        assert result is None
+        assert entity._last_command_status["state"] == "TIMEOUT"
+        assert entity.extra_state_attributes["state_frames_seen"] == 0
+        assert "Received unknown command state update" in caplog.text
+
+    async def test_a_null_state_is_timeout_and_logs_warning(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, caplog
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        with caplog.at_level(logging.WARNING):
+            coordinator._process_command_state("cmd-1", {"state": None})
+            coordinator._process_command_state(
+                "cmd-1",
+                {"payload": {"data": {"vehicleCommandState": {"state": None}}}},
+            )
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
         )
-        assert "04-abc" not in coordinator._command_states
-        assert coordinator.api.get_vehicle_command_state.await_count == 3
 
-    async def test_the_store_stays_bounded(self) -> None:
-        coordinator = _coordinator(LIVE)
-        coordinator._command_states = {f"old-{i}": {} for i in range(10)}
-        await VehicleCoordinator._poll_command_state(
-            coordinator, "04-abc", interval=0, attempts=2
+        assert result is None
+        assert entity._last_command_status["state"] == "TIMEOUT"
+        assert entity.extra_state_attributes["state_frames_seen"] == 0
+        assert "Received unknown command state update" in caplog.text
+        assert "missing or null state" in caplog.text
+
+
+# --- 3 / 4 [settled] --------------------------------------------------------
+
+
+class TestBackgroundRecord:
+    async def test_continue_set_does_not_truncate_the_record(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """State 2 at t=0, state 0 at t=1. [settled]
+
+        _execute_command returns state 2 -- ruling 22 -- and once settled the
+        coordinator record has frames_seen == 2. The == 2 is meaningful only
+        because the counter lives in _process_command_state (N10).
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        _deliver_on_send(coordinator, 2)
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
         )
-        assert len(coordinator._command_states) == 10
-        assert "04-abc" in coordinator._command_states
+
+        assert result["state"] == 2
+        assert entity._last_command_status["state"] == 2
+
+        coordinator._process_command_state("cmd-1", _frame(0, command="WAKE_VEHICLE"))
+        rec = coordinator.get_command_state("cmd-1")
+        assert rec["frames_seen"] == 2
+        assert rec["terminal_reached"] is True
+        assert rec["state"] == 0
+        assert rec["is_lifecycle"] is False
+        assert rec["terminal_at"] is not None
+
+    async def test_ceiling_with_only_continue_set_states(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Only continue-set frames: first state is kept, never TIMEOUT. [settled]"""
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        _deliver_on_send(coordinator, 2)
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+        assert result["state"] == 2
+
+        coordinator._process_command_state("cmd-1", _frame(5))
+        coordinator._process_command_state("cmd-1", _frame(3))
+        await coordinator._unsubscribe_command_state("cmd-1")
+
+        rec = coordinator.get_command_state("cmd-1")
+        assert rec["is_lifecycle"] is True
+        assert rec["terminal_reached"] is False
+        assert rec["frames_seen"] == 3
+        assert entity._last_command_status["state"] == 2
+        assert entity._last_command_status["state"] != "TIMEOUT"
 
 
-class TestIntegerStateIsTerminal:
-    """The wait loop must accept what the server actually sends."""
+# --- 5a / 5b / 5c -----------------------------------------------------------
 
-    @pytest.mark.parametrize("state", [0, 1, 2])
-    def test_an_integer_state_is_terminal(self, state: int) -> None:
-        import inspect
 
-        from custom_components.rivian.entity import RivianVehicleControlEntity
+class TestAttributeSurface:
+    async def test_5a_seeds_before_any_command(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """[at-return] seeded before any command has ever been sent."""
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
 
+        attrs = entity.extra_state_attributes
+        assert "state_is_lifecycle" in attrs
+        assert "state_frames_seen" in attrs
+        assert "final_command_state" in attrs
+        assert attrs["state_is_lifecycle"] is None
+        assert attrs["state_frames_seen"] == 0
+        assert attrs["final_command_state"] is None
+
+    async def test_5b_read_through_after_the_call_has_returned(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """THE C1 TEST. Interpretation B is mandatory.
+
+        1. _execute_command returns on one frame delivered during the call.
+        2. The call has RETURNED -- entity.py:234 has run, _current_command_id
+           is None.
+        3. Only then deliver a second frame.
+        4. Then read extra_state_attributes.
+
+        Interpretation A (read during the wait) passes with C1 present and is
+        forbidden. This fails against a read-through keyed on
+        _current_command_id, which is None from the instant the call returns.
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        _deliver_on_send(coordinator, 2)
+        clock = _Clock()
+
+        await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+
+        assert entity._current_command_id is None
+        assert entity._last_command_id == "cmd-1"
+        assert entity.extra_state_attributes["state_frames_seen"] == 1
+
+        coordinator._process_command_state("cmd-1", _frame(0))
+
+        attrs = entity.extra_state_attributes
+        assert attrs["state_frames_seen"] == 2
+        assert attrs["final_command_state"] == 0
+
+    async def test_5c_evicted_record_falls_back_to_seeds(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """After the record is evicted (removed directly), attributes fall
+        back to their seeds and do not raise. NOT by advancing 60 s: the
+        record outlives the subscription. [settled]
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        _deliver_on_send(coordinator, 2)
+        clock = _Clock()
+
+        await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+        assert entity._last_command_id == "cmd-1"
+
+        coordinator._command_states.pop("cmd-1")
+
+        attrs = entity.extra_state_attributes
+        assert entity._last_command_id == "cmd-1"
+        assert coordinator.get_command_state("cmd-1") is None
+        assert attrs["state_frames_seen"] == 0
+        assert attrs["state_is_lifecycle"] is None
+        assert attrs["final_command_state"] is None
+
+
+# --- 6 / 7 / 7b -------------------------------------------------------------
+
+
+class TestPollIsGone:
+    def test_poll_is_absent_from_subscribe(self) -> None:
+        source = inspect.getsource(VehicleCoordinator._subscribe_to_command_state)
+        assert "_poll_command_state" not in source
+        assert "async_create_background_task" not in source
+        assert "_poll_command_state" not in COORDINATOR_PY.read_text()
+        assert "get_vehicle_command_state" not in COORDINATOR_PY.read_text()
+
+
+class TestVocabularyLivesWhereTheFramesArrive:
+    """The wait loop must accept what the server actually sends.
+
+    That acceptance now lives in coordinator.py, where the frames arrive.
+    """
+
+    def test_an_integer_state_is_terminal(self) -> None:
+        """Previously pinned the defect.
+
+        Asserted `isinstance(state, int)` in `_execute_command`'s source, which
+        is the N1 bug: returning on any integer including the continue set.
+        4b deletes that expression; terminality is evaluated against
+        COMMAND_STATE_CONTINUE in coordinator.py.
+        """
         source = inspect.getsource(RivianVehicleControlEntity._execute_command)
-        assert "isinstance(state, int)" in source, (
-            "the wait loop only matched the string enum, so a live answer of "
-            "state=0 never ended the wait and every command reported TIMEOUT"
-        )
+        assert "isinstance(state, int)" not in source
+        assert "COMMAND_STATE_CONTINUE" in COORDINATOR_PY.read_text()
+        from custom_components.rivian.coordinator import _command_state_is_lifecycle
+
+        helper = inspect.getsource(_command_state_is_lifecycle)
+        assert "COMMAND_STATE_CONTINUE" in helper
+        assert "{1, 2, 3, 5}" not in helper
 
     def test_the_string_enum_is_still_accepted(self) -> None:
-        import inspect
+        """The three string literals moved out of `_execute_command`.
 
-        from custom_components.rivian.entity import RivianVehicleControlEntity
-
-        source = inspect.getsource(RivianVehicleControlEntity._execute_command)
-        for value in ("COMPLETED_SUCCESS", "COMPLETED_ERROR", "FAILED"):
+        They are still accepted, now in coordinator.py's is_lifecycle rule
+        (4b's table, row 3). Rewritten to inspect coordinator.py rather than
+        deleted -- 4b would go red on a change that is working as designed.
+        """
+        source = COORDINATOR_PY.read_text()
+        for value in STRING_ENUM:
             assert value in source
+        execute = inspect.getsource(RivianVehicleControlEntity._execute_command)
+        for value in STRING_ENUM:
+            assert value not in execute
+
+    async def test_an_unrecognised_string_is_unknown_not_terminal(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """4b's fourth row: unknown string => is_lifecycle is None, and does
+        not set terminal_reached.
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        coordinator._process_command_state("cmd-1", _frame("SOME_NEW_VALUE"))
+        rec = coordinator.get_command_state("cmd-1")
+        assert rec["is_lifecycle"] is None
+        assert rec["terminal_reached"] is False
+        assert rec["frames_seen"] == 1
+
+
+# --- 8 Scenario 3 -----------------------------------------------------------
+
+
+class TestAgeInvariantEviction:
+    async def test_forty_in_window_entries_are_not_evicted(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, caplog
+    ) -> None:
+        """Drive 40 distinct ids, then a second frame for the first.
+
+        Fails an insertion-order bound of 10 and a hard cap of 32. Scenario 3
+        rule 1: the age invariant is absolute; 32 is a floor, not a cap.
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        with caplog.at_level(logging.WARNING):
+            for i in range(40):
+                coordinator._process_command_state(f"cmd-{i}", _frame(2))
+            coordinator._process_command_state("cmd-0", _frame(2))
+
+        assert len(coordinator._command_states) == 40
+        assert coordinator.get_command_state("cmd-0")["frames_seen"] == 2
+        assert "in-window entries" in caplog.text
+
+
+# --- 10b / 10c refresh ------------------------------------------------------
+
+
+class TestRefreshDoesNotDependOnTerminality:
+    async def test_continue_set_frames_refresh_the_listeners(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Three continue-set frames, no terminal -- at least three refreshes,
+        plus one more on unsubscribe. Revision 3's trigger would have been
+        called zero times, which Scenario 2 argues is the likely production
+        case.
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        coordinator.async_update_listeners = MagicMock()
+        for state in (2, 2, 5):
+            coordinator._process_command_state("cmd-1", _frame(state))
+        assert coordinator.async_update_listeners.call_count >= 3
+        count = coordinator.async_update_listeners.call_count
+        await coordinator._unsubscribe_command_state("cmd-1")
+        assert coordinator.async_update_listeners.call_count == count + 1
+
+    async def test_end_of_tracking_refresh_fires_on_every_path(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """The refresh lives in _unsubscribe_command_state, which all four
+        end-of-tracking paths call: 60 s auto, malformed-frame, string-terminal,
+        and async_shutdown.
+        """
+        import asyncio
+
+        coordinator = _coordinator(hass, mock_config_entry)
+        coordinator.api.subscribe_for_command_state = AsyncMock(
+            return_value=AsyncMock()
+        )
+        coordinator.async_update_listeners = MagicMock()
+
+        # Path 1: 60 s auto-unsubscribe.
+        real_sleep = asyncio.sleep
+
+        async def instant_sixty(dt):
+            if dt == 60:
+                return
+            await real_sleep(0)
+
+        with patch("asyncio.sleep", instant_sixty):
+            await coordinator._subscribe_to_command_state("auto")
+            await real_sleep(0)
+        assert "auto" not in coordinator._command_state_subscriptions
+        assert coordinator.async_update_listeners.call_count >= 1
+
+        # Path 2: malformed (null state) unsubscribe.
+        coordinator.async_update_listeners.reset_mock()
+        coordinator._process_command_state(
+            "malformed",
+            {"payload": {"data": {"vehicleCommandState": {"state": None}}}},
+        )
+        await real_sleep(0)
+        coordinator.async_update_listeners.assert_called()
+
+        # Path 3: string-terminal early-unsubscribe.
+        coordinator.async_update_listeners.reset_mock()
+        coordinator._process_command_state("str-term", _frame("COMPLETED_SUCCESS"))
+        await real_sleep(0)
+        coordinator.async_update_listeners.assert_called()
+
+        # Path 4: async_shutdown.
+        coordinator.async_update_listeners.reset_mock()
+        coordinator._command_state_subscriptions["shut"] = AsyncMock()
+        coordinator._unsubscribe = AsyncMock()
+        await coordinator.async_shutdown()
+        coordinator.async_update_listeners.assert_called()
+
+
+# --- 11 / 12 / 13 / 14 integration ------------------------------------------
+
+
+class TestRoundTrip:
+    async def test_returns_on_the_first_frame_and_settles_on_the_terminal(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        _deliver_on_send(coordinator, 2)
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+        assert result["state"] == 2
+        assert clock.sleeps == 0
+
+        coordinator._process_command_state("cmd-1", _frame(0))
+        attrs = entity.extra_state_attributes
+        assert attrs["final_command_state"] == 0
+        assert attrs["state_is_lifecycle"] is False
+        assert attrs["state_frames_seen"] == 2
+        assert entity._last_command_status["state"] == 2
+
+    async def test_ae06ee9_silence_is_now_timeout_with_zero_frames(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Ruling 15: the subscription delivers nothing.
+
+        Before ruling 15 the poll answered and the command completed. Now the
+        command must report TIMEOUT with state_frames_seen 0. This encodes the
+        accepted risk as an assertion, so a quietly reintroduced fallback goes
+        red.
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+
+        assert result is None
+        assert entity._last_command_status["state"] == "TIMEOUT"
+        assert entity.extra_state_attributes["state_frames_seen"] == 0
+
+    async def test_a_null_state_frame_is_timeout_without_raising(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, caplog
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        with caplog.at_level(logging.WARNING):
+            coordinator._process_command_state(
+                "cmd-1",
+                {"payload": {"data": {"vehicleCommandState": {"state": None}}}},
+            )
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+
+        assert result is None
+        assert entity._last_command_status["state"] == "TIMEOUT"
+        assert entity.extra_state_attributes["state_frames_seen"] == 0
+        assert "missing or null state" in caplog.text
+
+    async def test_subscribe_raising_does_not_propagate(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        entity = _entity(hass, mock_config_entry, coordinator)
+        coordinator.api.subscribe_for_command_state = AsyncMock(
+            side_effect=RuntimeError("boom")
+        )
+
+        async def send(command, params=None):
+            await coordinator._subscribe_to_command_state("cmd-1")
+            return "cmd-1"
+
+        coordinator.send_vehicle_command = send
+        clock = _Clock()
+
+        result = await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+        assert result is None
+        assert entity._last_command_status["state"] == "TIMEOUT"
+
+
+# --- 15 climate chained calls -----------------------------------------------
+
+
+class TestClimateChainedCalls:
+    async def test_three_chained_calls_complete_in_three_first_frame_latencies(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """climate.set_temperature's three chained calls complete in ~3
+        first-frame latencies, not ~3 ceilings. The concrete regression
+        ruling 22 exists to prevent.
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        n = 0
+
+        async def send(command, params=None):
+            nonlocal n
+            n += 1
+            command_id = f"cmd-{n}"
+            coordinator._process_command_state(
+                command_id, _frame(2, command=command.value)
+            )
+            return command_id
+
+        coordinator.send_vehicle_command = send
+        entity = RivianClimateEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=Mock(key="cabin_climate"),
+            vehicle=VEHICLE,
+        )
+        entity.hass = hass
+        entity.async_write_ha_state = MagicMock()
+
+        def values(key):
+            if key == "defrostDefogStatus":
+                return "On"
+            if key == "cabinPreconditioningType":
+                return "NONE"
+            return None
+
+        entity._get_value = MagicMock(side_effect=values)
+        clock = _Clock()
+
+        orig = entity._execute_command
+
+        async def execute(command, params=None, timeout: int = 30, **kwargs):
+            kwargs.setdefault("_clock", clock)
+            kwargs.setdefault("_sleep", clock.sleep)
+            return await orig(command, params, timeout, **kwargs)
+
+        entity._execute_command = execute
+
+        # Live properties couple these: defrost-on forces hvac HEAT, so the
+        # three awaits in async_set_temperature are not all taken together.
+        # Pin the two conditions independently so the test covers the chain
+        # the plan named (climate.py:124, :129, :132).
+        with (
+            patch.object(
+                RivianClimateEntity,
+                "preset_mode",
+                PropertyMock(return_value=DEFROST_DEFOG),
+            ),
+            patch.object(
+                RivianClimateEntity,
+                "hvac_mode",
+                PropertyMock(return_value=HVACMode.OFF),
+            ),
+        ):
+            await entity.async_set_temperature(**{ATTR_TEMPERATURE: 22})
+
+        assert n == 3
+        assert clock.sleeps == 0
+        assert clock.t < 0.5
+
+
+# --- transcribed continue set -----------------------------------------------
+
+
+def test_coordinator_continue_set_matches_the_transcription() -> None:
+    assert COMMAND_STATE_CONTINUE == TRANSCRIBED_CONTINUE

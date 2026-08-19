@@ -588,3 +588,61 @@ class TestClosuresIgnoreInvalidMembers:
         assert "closureTailgateLocked" in r1_fields
         assert "closureTonneauLocked" in r1t_fields
         assert "closureSideBinRightLocked" in r1t_fields
+
+
+class TestClosureCoverageAttribute:
+    """The aggregate must say how much of the closure set it rests on.
+
+    `_closures_are_locked` ignores invalid members, so `locked` can be reported
+    while a member that is genuinely unlocked reads signal_not_available. On the
+    production R1T three of ten members read SNA live (2026-08-19 12:31 CDT), so
+    a partial reading is the normal case. An automation consuming this entity --
+    "Lock at Home" is live on that instance -- cannot otherwise distinguish a
+    full reading from a partial one.
+    """
+
+    def test_full_coverage_is_not_partial(self) -> None:
+        from custom_components.rivian.lock import _closure_coverage
+
+        coordinator = MagicMock()
+        coordinator.get = lambda key: "locked"
+        usable, total = _closure_coverage(coordinator)
+        assert usable == total
+        assert usable == len(LOCK_STATE_ENTITIES)
+
+    def test_the_live_sna_combination_is_reported_as_partial(self) -> None:
+        from custom_components.rivian.lock import _closure_coverage
+
+        coordinator = MagicMock()
+        live = {
+            "closureTailgateLocked": "signal_not_available",
+            "closureTonneauLocked": "signal_not_available",
+            "closureSideBinRightLocked": "signal_not_available",
+        }
+        coordinator.get = lambda key: live.get(key, "locked")
+        usable, total = _closure_coverage(coordinator)
+        assert usable == total - 3
+        assert usable < total
+
+    @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
+    def test_no_usable_member_reports_zero_coverage(self, invalid: str) -> None:
+        from custom_components.rivian.lock import _closure_coverage
+
+        coordinator = MagicMock()
+        coordinator.get = lambda key: invalid
+        usable, total = _closure_coverage(coordinator)
+        assert usable == 0
+        assert total == len(LOCK_STATE_ENTITIES)
+
+    def test_coverage_and_is_locked_agree_on_when_state_is_none(self) -> None:
+        """Zero coverage is exactly the condition under which is_locked is None."""
+        from custom_components.rivian.lock import (
+            _closure_coverage,
+            _closures_are_locked,
+        )
+
+        coordinator = MagicMock()
+        coordinator.get = lambda key: "signal_not_available"
+        usable, _ = _closure_coverage(coordinator)
+        assert usable == 0
+        assert _closures_are_locked(coordinator) is None
