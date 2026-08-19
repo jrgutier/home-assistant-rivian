@@ -50,11 +50,15 @@ class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
 
         self._available = True
 
-        name = vehicle["name"]
-        model = vehicle["model"]
+        name = vehicle.get("name")
+        # The third and widest site. DeviceInfo is built for EVERY platform, so an
+        # unguarded vehicle["model"] fails device registration everywhere, not
+        # merely in the two entity comprehensions. A device must also always have
+        # a name; None is not one, hence the fall through to the VIN.
+        model = vehicle.get("model")
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, vin), (DOMAIN, vehicle["id"])},
-            name=name if name else model,
+            name=name or model or vin,
             manufacturer="Rivian",
             model=model,
             serial_number=vin,

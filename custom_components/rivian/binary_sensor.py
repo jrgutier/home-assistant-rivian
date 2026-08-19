@@ -23,6 +23,7 @@ from .const import (
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianBinarySensorEntityDescription
 from .entity import RivianVehicleEntity
+from .helpers import groups_for_model
 
 
 async def async_setup_entry(
@@ -37,7 +38,7 @@ async def async_setup_entry(
         RivianBinarySensorEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
         for model, descriptions in BINARY_SENSORS.items()
-        if model in vehicle["model"]
+        if model in groups_for_model(vehicle.get("model"))
         for description in descriptions
     ]
 
