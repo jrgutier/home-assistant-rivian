@@ -46,6 +46,24 @@ untested opener enabled puts it one tap away.
 `generateCloudDataWrapper` defaults it to `rshell` (the literal appears **once**
 in the whole app, so do not grep for it). These are also `isParallaxRequestOnly`.
 
+**SUPERSEDED (2026-08-19): provenance, `isParallaxRequestOnly`, and the `appName=""` half.**
+
+The seven-command table above was measured against the **3.15.0 pre-flight artifact**
+`docs/development/apk/VASCommand.java`, and reproduces there today at the exact lines cited
+(`:476`, `:562`, `:1409`, `:1484`, `:1500`, `:1516`, `:1539`).
+
+The 18/6/0/8/91 counts in "How the app reads a command's result" were measured against the
+**3.6.0** tree (versionCode 3989, 31,097 `.java` files), re-reproduced 2026-08-19. They are a
+different extraction.
+
+`:47`'s "These are also `isParallaxRequestOnly`" is **wrong**. `isParallaxRequestOnly` is true only for `TWO_FACTOR_DRIVE_ENABLE` and `TWO_FACTOR_DRIVE_DISABLE` (`VASCommandKt.java:117-119`). The predicate does not mention the other five.
+
+The `appName=""` half of the claim does not survive either. The two wrappers differ in
+`appName` alone — `"rshell"` by default (`VASCommand.java:157-165`) versus `""` — and
+`send_vehicle_command` (`rivian.py:596-609`) sends no `appName` field at all. The
+invalid-wrapper grouping is a real property *of the app*; it is not a property our client's
+requests can express, so it does not explain the f7 rejections.
+
 **Not wired blind, and not declared dead.** This is an *app-side routing* choice —
 a weaker signal than absence from the server's own `supportedFeatures`, which the
 tonneau already falsified. Each needs testing the way the tonneau was tested:

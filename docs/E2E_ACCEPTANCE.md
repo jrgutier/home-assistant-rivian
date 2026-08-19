@@ -257,6 +257,16 @@ ordinary commands minutes earlier on the same credentials, is consistent with th
 path being **the wrong envelope** for this family. The plan declared seven rejections a passing f7 in
 advance, and that is what happened.
 
+**SUPERSEDED: the `isParallaxRequestOnly` and `appName=""` claims in the paragraph above.** Both
+halves are wrong as an explanation of these rejections.
+
+- `isParallaxRequestOnly` (`VASCommandKt.java:117-119`, 3.15.0 artifact) is true only for
+  `TWO_FACTOR_DRIVE_ENABLE` and `TWO_FACTOR_DRIVE_DISABLE`. The other five are not marked.
+- The two wrappers differ in `appName` alone — `"rshell"` by default (`VASCommand.java:157-165`)
+  versus `""` (`:395-405`). Our client sends no `appName` at all (`send_vehicle_command`,
+  `rivian.py:596-609`). The `appName=""` marker is an app-side construction detail we never
+  express, so the seven-way rejection is not attributable to the wrapper.
+
 **Nothing is removed on this evidence.** Under Principle -1 a rejection through a possibly-wrong
 transport is not a recorded live failure of the command.
 
@@ -319,6 +329,23 @@ poll the coordinator runs.
 | 2 | t+1.80 s | t+2.64 s (state 0) | delivered |
 | 3 | t+0.85 s | t+1.56 s (state 0) | delivered |
 
+**What the race table does not record.** The fourth column, *"subscription frame"*, carries
+`t+3.86 s` for run 1 and the bare word **"delivered"** for runs 2 and 3. **It never records the
+`state` the delivered frames carried.** The `state` values in the table — `2`, `0`, `0` — are all
+in the **poll terminal** column, and the poll is what this plan removes. Do not read "delivered"
+as "delivered a terminal state".
+
+- **run 1's poll terminal is mislabelled.** `2` is in the continue set {1,2,3,5}. The probe's
+  string test called it terminal. Runs 2 and 3, at state `0`, are genuinely terminal — and are
+  the only observations of a terminal command state anywhere in this repository. Both came from
+  the poll.
+- therefore **no terminal state has ever been observed on the subscription**, on any run, by
+  any instrument.
+
+The raw logs do not survive. There is no race script in the tree, none in git history, and no
+captured output among the untracked/ignored files. The frames were observed by an ad-hoc script
+whose output went to a terminal that is gone. The state must be re-measured, not recovered.
+
 The frame carries the full `vehicleCommandState` payload — `id`, `command`, `state`, `responseCode`,
 `statusCode`.
 
@@ -333,3 +360,27 @@ why commands timed out, and should not be relied on as a reason to keep the poll
 Not changed here. Removing or retuning the poll touches the live command path and wants its own
 gate, its own beta and its own live confirmation. Recorded so the next change to that path starts
 from a measurement rather than from a claim that no longer holds.
+
+### The integer states are not all terminal — the latency figures above measure the wrong thing.
+
+Read off the app, 2026-08-19, from the 3.6.0 tree. `C4171i.java:524-554` switches on the integer
+`state` from the `vehicleCommandState` subscription and builds one of nine result objects.
+`C2225j.java:147-167` then decides whether the command is finished: it keeps subscribing on
+states **1, 2, 3, 5** (continue set) and completes on states **0, 4, 6, 7** and anything
+outside 0-7 (terminal set).
+
+`entity.py:196` returns on any integer, so the integration reports a command complete on the
+first frame it catches, including the four the app keeps waiting on.
+
+**All five of the f7 latency rows are continue-set frames** — states 5, 2, 2, 2, 2 — so
+**zero of five reached a terminal state**. The existing f7 results table and its numbers are
+left unedited. Those "Send→terminal" figures measure time-to-first-frame, not time-to-terminal,
+and **terminal latency is unmeasured**.
+
+The only recorded state-0 observations in this document are the poll's terminal reads on
+`WAKE_VEHICLE` in the three-run race above. No name is assigned to any integer: the
+obfuscated class names carry no words. Terminality is asserted; meaning is not.
+
+The app special-cases `WAKE_VEHICLE` and completes on the first frame whatever the state
+(`C4171i.java:559-569`). Under the shape that ships, the integration returns on the first
+frame for every command, so that special case is subsumed rather than replicated.

@@ -149,6 +149,11 @@ f8 changed none of them.
 
 **What f8 needs before it is re-run:** an instrument that reproduces the integration's subscription
 rather than approximating it — the same property set the coordinator uses
-(`VEHICLE_STATES_SUBSCRIPTION_PROPERTIES`) and the same setup path — verified by the control
+(`VEHICLE_STATE_API_FIELDS`, `coordinator.py:958`) and the same setup path — verified by the control
 delivering before any conclusion is drawn about the five. Bisection logic is written and ready
 (`scripts/f8_probe.py`, committed with this correction; it previously pointed at an ephemeral session directory nobody else could reach); only the subscription setup is wrong.
+
+SUPERSEDED: the instruction above previously named `VEHICLE_STATES_SUBSCRIPTION_PROPERTIES`. That
+is only the client-library default (`rivian_client/rivian.py:626-627`), which the coordinator
+never uses — it always passes the derived `VEHICLE_STATE_API_FIELDS` set. Following the old name
+would rebuild the wrong instrument and f8 would fail a second time for a second reason.

@@ -338,6 +338,22 @@
       "severity": "medium",
       "detail": "_closures_are_locked ignores invalid members and returns None only when NO member is usable. So lock.r1t_closures can report a confident `locked` while a member whose true state is unlocked is reading signal_not_available. The Lock at Home automation on the production instance consumes this entity.",
       "why_not_fixed": "The alternative -- None if ANY member is invalid -- was measured worse: it makes the entity unavailable at startup and takes the matching control down with it (sensor.py:172-179, binary_sensor.py:104-108). CHECKABLE: TestClosuresIgnoreInvalidMembers pins the chosen shape. A better fix is option C from the review -- keep the shape and expose the usable-member count as an attribute so an automation can see partiality -- which is not done here."
+    },
+    {
+      "id": "command-state-terminality",
+      "source": "open-questions investigation, 2026-08-19 (N1)",
+      "severity": "high — live-reachable on the command path",
+      "status": "closed",
+      "detail": "entity.py:196 returns on any integer vehicleCommandState, so the integration reports a command complete on the first frame, including continue-set states {1,2,3,5} that the Rivian app (C4171i.java:524-554, C2225j.java:147-167) keeps waiting on. All five accepted f7 commands returned continue-set frames (5, 2, 2, 2, 2). Closed by transcribing the vocabulary and gating it; the live-path shape is ruling 22 (return on first frame, track terminality in the background).",
+      "why_not_fixed": "CHECKABLE: scripts/gates/f9.sh asserts the transcription matches coordinator.py's continue set; it goes red if either drifts."
+    },
+    {
+      "id": "sendvehicleoperation-record-missing",
+      "source": "open-questions investigation, 2026-08-19 (N7)",
+      "severity": "medium — the record justifying RVMType's 4-of-18 pruning is unreadable",
+      "status": "open",
+      "detail": "SENDVEHICLEOPERATION_TEST_RESULTS.md is cited nine times across six files and does not exist. It is the record that justifies RVMType shipping only 4 of the app's 18 RVMs. Four test files, one gate, and one vendored-client module cite it.",
+      "why_not_fixed": "CHECKABLE: scripts/gates/f9.sh fails if any tracked file cites SENDVEHICLEOPERATION_TEST_RESULTS.md while the file is absent."
     }
   ]
 }
