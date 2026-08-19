@@ -969,3 +969,34 @@ PARALLAX_REQUEST_ONLY_COMMANDS: Final[frozenset[str]] = frozenset(
 # difference is not expressible on our wire.
 CLOUD_WRAPPER_DEFAULT_APP_NAME: Final[str] = "rshell"
 INVALID_CLOUD_WRAPPER_APP_NAME: Final[str] = ""
+
+# --- Parallax send-path envelope (Step 5) -----------------------------------
+#
+# Anchored on the 3.15.0 artifacts. ParallaxAttributes.java is ABSENT from
+# those nine files. VASCommand.name() calls getPxCmdName() on a supplied
+# ParallaxAttributes; the 3.6.0 tree's class of the same name has getName()
+# and no getPxCmdName. Different classes. No mapping is taken from 3.6.0.
+#
+# ParallaxCommand's constructor takes commandId and createdAt: it models a
+# command the app RECEIVED, with parallaxAttributes supplied from outside.
+# Nothing in the 3.15.0 artifacts constructs one with a literal rvm or payload.
+# The seven invalid-wrapper commands therefore have no RVM binding to transcribe.
+
+PARALLAX_COMMAND_CONSTRUCTOR_FIELDS: Final[tuple[str, ...]] = (
+    "commandId",
+    "createdAt",
+    "cloudData",
+    "parallaxAttributes",
+    "isPxRequestOnly",
+)
+
+# The accessor VASCommand.name() calls in the 3.15.0 artifact.
+PARALLAX_ATTRIBUTES_NAME_ACCESSOR_3150: Final[str] = "getPxCmdName"
+# 3.6.0 tree CONTEXT only -- different class, different build. Not a mapping.
+PARALLAX_ATTRIBUTES_NAME_ACCESSOR_360_CONTEXT: Final[str] = "getName"
+
+# Each of the seven, from the 3.15.0 artifacts: no RVM name is bound.
+# A later derivation that fills this in is a visible addition, not a silent one.
+INVALID_WRAPPER_COMMAND_RVMS: Final[dict[str, None]] = dict.fromkeys(
+    sorted(INVALID_WRAPPER_COMMANDS)
+)

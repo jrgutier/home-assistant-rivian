@@ -624,3 +624,38 @@ class TestCommandStateVocabulary:
                 hits.append(str(path.relative_to(REPO)))
         assert not hits
         assert INVALID_CLOUD_WRAPPER_APP_NAME == ""
+
+
+class TestParallaxEnvelopeDerivation:
+    """Step 5: the envelope is not derivable. These lock the negative so a
+    guessed RVM cannot land as a silent fill-in of the transcription."""
+
+    def test_no_rvm_is_bound_to_any_invalid_wrapper_command(self) -> None:
+        from tests.apk.transcription import INVALID_WRAPPER_COMMAND_RVMS
+
+        assert set(INVALID_WRAPPER_COMMAND_RVMS) == INVALID_WRAPPER_COMMANDS
+        assert all(v is None for v in INVALID_WRAPPER_COMMAND_RVMS.values())
+
+    def test_parallax_command_is_a_received_model(self) -> None:
+        from tests.apk.transcription import PARALLAX_COMMAND_CONSTRUCTOR_FIELDS
+
+        assert "commandId" in PARALLAX_COMMAND_CONSTRUCTOR_FIELDS
+        assert "createdAt" in PARALLAX_COMMAND_CONSTRUCTOR_FIELDS
+        assert PARALLAX_COMMAND_CONSTRUCTOR_FIELDS[0] == "commandId"
+        assert PARALLAX_COMMAND_CONSTRUCTOR_FIELDS[1] == "createdAt"
+
+    def test_the_3_15_0_accessor_is_getPxCmdName_not_getName(self) -> None:
+        """N5: the 3.15.0 artifact calls getPxCmdName; the 3.6.0 class has
+        getName. Recording both, labelled, is what stops a mapping across them.
+        """
+        from tests.apk.transcription import (
+            PARALLAX_ATTRIBUTES_NAME_ACCESSOR_360_CONTEXT,
+            PARALLAX_ATTRIBUTES_NAME_ACCESSOR_3150,
+        )
+
+        assert PARALLAX_ATTRIBUTES_NAME_ACCESSOR_3150 == "getPxCmdName"
+        assert PARALLAX_ATTRIBUTES_NAME_ACCESSOR_360_CONTEXT == "getName"
+        assert (
+            PARALLAX_ATTRIBUTES_NAME_ACCESSOR_3150
+            != PARALLAX_ATTRIBUTES_NAME_ACCESSOR_360_CONTEXT
+        )
