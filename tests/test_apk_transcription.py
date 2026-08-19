@@ -316,14 +316,11 @@ class TestWhatWeShipVersusWhatTheAppNames:
         ours = {c.value for c in VehicleCommand}
         assert ours - app_names == COMMANDS_ABSENT_FROM_THIS_APK
 
-    def test_the_sendable_commands_absent_from_our_enum_are_f6s_queue(self) -> None:
-        """f2 added the two 3RD_ROW spellings, so three remain."""
+    def test_every_sendable_command_the_app_declares_is_in_our_enum(self) -> None:
+        """f6 closed the queue. f2 added the 3RD_ROW pair; f6 added OPEN_LIFTGATE,
+        OPEN_TAILGATE and START_GEAR_GUARD_MASTER_SESSION."""
         ours = {c.value for c in VehicleCommand}
-        assert SENDABLE_COMMANDS - ours == {
-            "OPEN_LIFTGATE",
-            "OPEN_TAILGATE",
-            "START_GEAR_GUARD_MASTER_SESSION",
-        }
+        assert not SENDABLE_COMMANDS - ours
 
     def test_being_in_the_enum_is_not_the_same_as_being_wired(self) -> None:
         """A distinction f6 turns on.
@@ -465,3 +462,79 @@ class TestUnpopulatedFields:
         assert "CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT" in ours
         assert "CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT" in ours
         assert "CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT" in ours
+
+
+class TestCommandCoverage:
+    """f6: every sendable command is in the enum, and the rest are recorded.
+
+    See docs/development/COMMAND_COVERAGE.md.
+    """
+
+    def test_the_two_new_closure_openers_are_wired(self) -> None:
+        from custom_components.rivian.button import BUTTONS
+
+        keys = {d.key for group in BUTTONS.values() for d in group}
+        assert {"open_tailgate", "open_liftgate"} <= keys
+
+    def test_both_ship_disabled_by_default(self) -> None:
+        """They move a closure and have not been actuated on the vehicle.
+
+        f7 does that. Shipping an untested opener enabled puts it one tap away.
+        """
+        from custom_components.rivian.button import BUTTONS
+
+        for group in BUTTONS.values():
+            for description in group:
+                if description.key in ("open_tailgate", "open_liftgate"):
+                    assert description.entity_registry_enabled_default is False
+
+    def test_the_dedicated_commands_are_distinct_from_the_combined_one(self) -> None:
+        """OPEN_LIFTGATE_UNLATCH_TAILGATE does both; these do one each."""
+        from custom_components.rivian.button import BUTTONS
+
+        by_key = {d.key: d for group in BUTTONS.values() for d in group}
+        assert by_key["open_tailgate"].command == VehicleCommand.OPEN_TAILGATE
+        assert by_key["open_liftgate"].command == VehicleCommand.OPEN_LIFTGATE
+        assert (
+            by_key["drop_tailgate"].command
+            == VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE
+        )
+
+    def test_both_have_a_translation(self) -> None:
+        translations = json.loads(
+            (REPO / "custom_components/rivian/translations/en.json").read_text()
+        )
+        buttons = translations["entity"]["button"]
+        assert buttons["open_tailgate"]["name"] == "Open Tailgate"
+        assert buttons["open_liftgate"]["name"] == "Open Liftgate"
+
+    def test_start_gear_guard_master_session_is_declared_but_unwired(self) -> None:
+        """A streaming feature, not a control. Declared so the name is recorded."""
+        ours = {c.value for c in VehicleCommand}
+        assert "START_GEAR_GUARD_MASTER_SESSION" in ours
+        platforms = "".join(
+            (REPO / "custom_components/rivian" / name).read_text()
+            for name in ("button.py", "switch.py", "select.py", "cover.py", "number.py")
+        )
+        assert "START_GEAR_GUARD_MASTER_SESSION" not in platforms
+
+    def test_the_invalid_wrapper_seven_are_still_unwired(self) -> None:
+        """Not wired blind, and not declared dead either -- f7 tests them."""
+        ours = {c.value for c in VehicleCommand}
+        assert not (INVALID_WRAPPER_COMMANDS & ours)
+
+    def test_the_seven_apk_absent_commands_are_still_here(self) -> None:
+        """Kept. Stamping a dated "deprecated" note on a working command writes
+        false provenance and defeats the next person's instinct to re-check."""
+        ours = {c.value for c in VehicleCommand}
+        assert COMMANDS_ABSENT_FROM_THIS_APK <= ours
+
+    def test_the_coverage_decisions_are_written_down(self) -> None:
+        doc = REPO / "docs/development/COMMAND_COVERAGE.md"
+        assert doc.is_file()
+        text = doc.read_text()
+        for command in sorted(INVALID_WRAPPER_COMMANDS):
+            assert command in text, command
+        for command in sorted(COMMANDS_ABSENT_FROM_THIS_APK):
+            assert command in text, command
+        assert "START_GEAR_GUARD_MASTER_SESSION" in text

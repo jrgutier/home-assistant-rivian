@@ -518,6 +518,12 @@
       "drop_tailgate": {
         "name": "Drop Tailgate"
       },
+      "open_tailgate": {
+        "name": "Open Tailgate"
+      },
+      "open_liftgate": {
+        "name": "Open Liftgate"
+      },
       "pair": {
         "name": "Pair"
       }

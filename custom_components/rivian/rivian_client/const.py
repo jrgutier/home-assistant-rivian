@@ -256,12 +256,23 @@ class VehicleCommand(StrEnum):
     ENABLE_GEAR_GUARD_VIDEO = "ENABLE_GEAR_GUARD_VIDEO"
     DISABLE_GEAR_GUARD = "DISABLE_GEAR_GUARD"
     DISABLE_GEAR_GUARD_VIDEO = "DISABLE_GEAR_GUARD_VIDEO"
+    # VASCommand.StartGearGuardMasterSession at :1350. Declared, not wired: it
+    # starts a live camera session, which is a streaming feature this integration
+    # has no surface for, not a control. Kept so the name is recorded.
+    START_GEAR_GUARD_MASTER_SESSION = "START_GEAR_GUARD_MASTER_SESSION"
 
     # Liftgate (R1S only)
     CLOSE_LIFTGATE = "CLOSE_LIFTGATE"
 
     # Liftgate/tailgate
     OPEN_LIFTGATE_UNLATCH_TAILGATE = "OPEN_LIFTGATE_UNLATCH_TAILGATE"
+    # The two the app also sends separately (VASCommand.OpenLiftgate at :710 and
+    # VASCommand.UnlatchTailgate at :1560, both ordinary generateCloudDataWrapper
+    # commands). The combined one above opens the liftgate AND unlatches the
+    # tailgate; these two do one each, which is what an R1T owner wants for the
+    # tailgate alone.
+    OPEN_LIFTGATE = "OPEN_LIFTGATE"
+    OPEN_TAILGATE = "OPEN_TAILGATE"
 
     # Chargeport door
     OPEN_CHARGE_PORT_DOOR = "OPEN_CHARGE_PORT_DOOR"
