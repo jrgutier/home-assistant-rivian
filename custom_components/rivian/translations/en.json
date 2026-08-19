@@ -396,6 +396,33 @@
       },
       "wheels_installed": {
         "name": "Wheels installed"
+      },
+      "btm_oc_hardware_failure_status": {
+        "name": "BTM OC Hardware Failure Status"
+      },
+      "vas_secure_element_faulted": {
+        "name": "VAS Secure Element Faulted"
+      },
+      "vas_access_can_faulted": {
+        "name": "VAS Access CAN Faulted"
+      },
+      "passive_entry_unlock_fail_reason": {
+        "name": "Passive Entry Unlock Fail Reason"
+      },
+      "secure_immobilizer_status": {
+        "name": "Secure Immobilizer Status"
+      },
+      "consecutive_alarm_disabled_notification": {
+        "name": "Consecutive Alarm Disabled Notification"
+      },
+      "battery_cell_type": {
+        "name": "Battery Cell Type"
+      },
+      "cold_range_notification": {
+        "name": "Cold Range Notification"
+      },
+      "known_location": {
+        "name": "Known Location"
       }
     },
     "binary_sensor": {

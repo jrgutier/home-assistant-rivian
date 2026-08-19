@@ -57,13 +57,19 @@ FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "entity_sets.json"
 
 # Sensors and binary sensors per model. Stated as literals so the numbers are
 # reviewable here rather than recomputed from the same source they are checking.
+# Deliberately raised by f5's follow-up, which added nine sensors -- the fields
+# the new Parallax decoders are the ONLY source for. Without them the decoders
+# wrote into the coordinator and nothing read the result: fourteen new decoders
+# and not one new entity. All nine are entity_registry_enabled_default=False.
+#
+# Shared group 87 -> 96. Binary sensors are untouched.
 EXPECTED_COUNTS = {
-    "R1T": (90, 33),
-    "R1S": (90, 29),
-    "R2": (87, 27),
-    None: (87, 27),
-    "": (87, 27),
-    "R3X": (87, 27),
+    "R1T": (99, 33),
+    "R1S": (99, 29),
+    "R2": (96, 27),
+    None: (96, 27),
+    "": (96, 27),
+    "R3X": (96, 27),
 }
 
 
