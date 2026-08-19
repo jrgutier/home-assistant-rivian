@@ -721,6 +721,24 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     key = "currentUser"
 
+    # 900 s, not the base's 30. `currentUser` carries the account, its enrolled
+    # phones and the vehicle capability list -- a heavyweight query whose payload
+    # changes on the order of months, re-fetched twice a minute.
+    #
+    # 900 exactly, because _set_update_interval computes
+    # min(base * 2**error_count, 900) and never reassigns the base. Any value
+    # ABOVE 900 is used verbatim at construction and then collapses to 900 on the
+    # first error, never climbing back -- a back-off that only ever ratchets
+    # downward. Sitting at the cap makes that unreachable.
+    #
+    # The cost, stated rather than hidden: at the cap the back-off is a no-op, so
+    # an erroring coordinator keeps retrying every 15 minutes instead of
+    # stretching further. 900 s is the ceiling the old 30 s base reached anyway
+    # after five consecutive failures, and the point of the back-off was to stop a
+    # failing API being polled every 30 seconds. Starting at the ceiling does that
+    # outright.
+    _update_interval_seconds = 15 * 60  # 15 minutes
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -1564,6 +1582,11 @@ class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
     """Wallbox data update coordinator for Rivian."""
 
     key = "getRegisteredWallboxes"
+
+    # Same reasoning as UserCoordinator above: the home charger registration is a
+    # heavyweight query that changes when you buy a charger, and it was polled
+    # twice a minute. 900 s, at the cap, for the same back-off reason.
+    _update_interval_seconds = 15 * 60  # 15 minutes
 
     async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""
