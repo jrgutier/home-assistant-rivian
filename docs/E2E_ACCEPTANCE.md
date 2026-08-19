@@ -400,3 +400,45 @@ obfuscated class names carry no words. Terminality is asserted; meaning is not.
 The app special-cases `WAKE_VEHICLE` and completes on the first frame whatever the state
 (`C4171i.java:559-569`). Under the shape that ships, the integration returns on the first
 frame for every command, so that special case is subsumed rather than replicated.
+
+## Step 13 — terminal latency MEASURED on beta8, 2026-08-19 ~18:55 CDT
+
+**The subscription delivers terminal frames. The open question this release shipped with is
+answered, and the answer vindicates removing the poll.**
+
+Measured against deployed beta8, `WAKE_VEHICLE`, websocket pre-warmed so the race is fair:
+
+| Run | poll terminal | subscription frames | state | subscription terminal at |
+|---|---|---|---|---|
+| 1 | t+1.59 s (state 0) | 2 | **0 — TERMINAL** | **t+2.35 s** (second frame t+8.99 s) |
+| 2 | t+1.50 s (state 0) | 1 | **0 — TERMINAL** | **t+3.38 s** |
+
+Before this, no terminal command state had ever been observed on the subscription — the only two in
+the whole project came from the poll, and the risk accepted under ruling 15 was that removing the
+poll removed the only thing that had ever seen one. **It did not.** The subscription carries the
+terminal state, 0.8-1.9 s behind the poll.
+
+### The corrected probe changed what a measurement means
+
+The same run shows why the instrument had to be fixed first. A `WAKE_VEHICLE` on a sleeping truck:
+
+```
+t+14.66s  state 5   <- CONTINUE. The old string test printed "TERMINAL" here.
+t+15.64s  state 0   <- actually terminal
+```
+
+The old `state not in (None, "in_progress", "pending")` test would have stopped at 14.66 s and
+recorded a continue-state as the answer — off by a second, and wrong about what it had seen. Every
+latency number recorded before `f9b663e` should be read as time-to-first-frame.
+
+### What this does and does not license
+
+**Does:** it retires the accepted risk of ruling 15. The subscription is a sufficient source; the
+poll was redundant, as the app's own design implied (`vehicleCommandState` in 18 APK files,
+`getVehicleCommand` in zero).
+
+**Does not:** license lowering the 30 s ceiling. All five observations here are `WAKE_VEHICLE`, and
+the app **special-cases** exactly that command — `C4171i` completes on the first frame when the
+command is `WAKE_VEHICLE`, whatever the state. No non-wake command has been observed reaching
+terminal. The ceiling stays until one is. `f9.sh` enforces this mechanically rather than by
+convention.
