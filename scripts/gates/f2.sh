@@ -109,7 +109,7 @@ fi
 
 for t in test_all_five_are_still_subscribed \
          test_none_of_them_is_named_by_the_app \
-         test_the_tire_source_the_app_actually_uses_is_recorded \
+         test_no_offline_candidate_exists_for_the_validity_fields \
          test_each_field_has_a_recorded_finding \
          test_both_third_row_spellings_exist_side_by_side; do
   if grep -qF "def $t" "$T"; then ok "asserts: $t"

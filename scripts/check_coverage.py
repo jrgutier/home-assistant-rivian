@@ -32,6 +32,34 @@ def main() -> int:
         print("coverage.json not found -- run pytest with --cov-report=json first")
         return 2
 
+    # Refuse a report that predates the code, rather than reading a floor off it.
+    #
+    # coverage.json is rewritten by every pytest run, including a partial one, and
+    # every gate that calls this script reads whatever is on disk. A run of one
+    # test module still imports the whole package through conftest, so it produces
+    # a report covering every file at import-time coverage only -- the integration
+    # reads 38% against a tree whose real figure is 90%. Two gates reported that as
+    # a broken floor.
+    #
+    # This catches the STALE case, which is the one that bites: a report older than
+    # the sources it describes. It cannot catch a partial run made just now --
+    # nothing in the report records which tests ran -- so gates must regenerate
+    # before checking, and f4 and f5 do.
+    newest = 0.0
+    for root in (pathlib.Path("custom_components/rivian"), pathlib.Path("tests")):
+        if not root.is_dir():
+            continue
+        for path in root.rglob("*.py"):
+            if "__pycache__" in path.parts:
+                continue
+            newest = max(newest, path.stat().st_mtime)
+    if newest and report.stat().st_mtime < newest:
+        print(
+            "coverage.json is older than the code it describes -- re-run the full "
+            "suite before checking floors."
+        )
+        return 2
+
     files = json.loads(report.read_text())["files"]
     buckets = {"integration": [0, 0], "client": [0, 0]}
     for name, data in files.items():

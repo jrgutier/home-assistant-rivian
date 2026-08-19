@@ -927,3 +927,55 @@ for a name its own docstring contains). scripts/gates/helpers/py_code_only.py no
 exists for exactly this; use it for every negative grep.
 
 1387 -> 1453 tests. Integration coverage 90.20% (floor 89), client 74.46% (74).
+
+--- f5: fourteen Parallax decoders transcribed ---------------------- PASS ------
+THE BIG LESSON. My first reading concluded the app carries no protobuf schema:
+grep for GeneratedMessageLite / ProtoAdapter / parseFrom finds nothing outside
+Google's own code. WRONG. R8 renames GeneratedMessageLite to
+`com.google.protobuf.e` and every message class to two or three letters. The app
+carries 326 message classes, and R8 leaves intact exactly what a decoder needs:
+<FIELD>_FIELD_NUMBER constants (original names + numbers), the <field>_ members
+(with Java types), and protobuf enum constants (names + numbers).
+
+Topic -> message binding comes from the app's own dispatch. b7h.java + 10 siblings
+hold methods shaped:
+    if (j6e.a(str) != l6e.DYNAMICS_VEHICLE_GEAR) return null;
+    ... hk8.E(Base64.decode(payload, 0))
+Extractors committed at scripts/gates/helpers/{topic_map,proto_index,proto_schema}.py.
+
+Value vocabulary = app enum name minus its prefix, lowercased (GEAR_PARK -> park).
+NOT a guess: that is how GEAR_STATUS_MAP / DRIVE_MODE_MAP were already built from
+live values, so the new decoders feed the EXISTING sensors.
+
+18 -> 32 decoders. No subscription code changed: SUBSCRIBED_RVMS is the
+intersection, so writing a decoder subscribes its topic.
+
+Layout details a guess gets wrong: drive_mode skips fields 2-7 (booleans at 8/9);
+SecureImmoStatus has no UNSPECIFIED sentinel so 0 is NOT_ASSIGNED; six of
+security.access.btm's ten fields share one enum.
+
+Tests are TRANSCRIPTION tests and say so -- payloads are constructed, not captured.
+Capture needs sole-subscriber websocket access (production stopped) = f8.
+
+24 topics remain undecoded, each listed with its reason. Not dropped.
+
+Two findings recorded, not acted on:
+  * needDoubleConsumerSubscription: CLIMATE_HOLD_STATUS only, and its getter has
+    NO CALLER in the 32,941 files. App 3.15.0 acts on it nowhere. Duplicating the
+    topic would also contradict the subscription code's own warning.
+  * iol.java is a SECOND RVM enum: user_passcodes.passcode_types.drive_auth and a
+    THIRD spelling of passive entry. l6e is not the complete topic list.
+
+--- f6: command coverage closed ------------------------------------ PASS ------
+All 45 sendable commands now in VehicleCommand (f2 added the 3RD_ROW pair; f6
+added OPEN_LIFTGATE, OPEN_TAILGATE, START_GEAR_GUARD_MASTER_SESSION).
+button.open_tailgate / button.open_liftgate wired, entity_registry_enabled_default
+=False -- they move a closure and are untested (f7).
+The 7 invalid-wrapper commands stay unwired AND undeclared-dead.
+The 7 APK-absent commands stay. docs/development/COMMAND_COVERAGE.md.
+
+================================================================================
+ALL 11 AUTOMATED STORIES PASS. 1293 -> 1518 tests.
+Integration coverage 90.20% (floor 89), client 75.27% (floor 74).
+Remaining: f3b-b, f7, f8 -- all human, all need the vehicle.
+================================================================================
