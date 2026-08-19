@@ -954,13 +954,16 @@ COMMAND_STATE_TERMINAL: Final[frozenset[int]] = frozenset({0, 4, 6, 7})
 # responseCode/statusCode. Terminality is asserted; meaning is not.
 COMMAND_STATE_CARRIES_CODES: Final[frozenset[int]] = frozenset({0, 4})
 
-# isParallaxRequestOnly(VASCommand) -- VASCommandKt.java:117-119, 3.15.0 artifact.
-# TWO of the seven, not all seven. COMMAND_COVERAGE.md:47 said all seven and was wrong.
+# isParallaxRequestOnly(VASCommand) -- VASCommandKt, 3.15.0 artifact. Cite the
+# member, not a line: f1 rejects line numbers because they drift with every
+# release, and an earlier revision of this work cited several already wrong.
+# TWO of the seven, not all seven. COMMAND_COVERAGE.md said all seven, and was wrong.
 PARALLAX_REQUEST_ONLY_COMMANDS: Final[frozenset[str]] = frozenset(
     {"TWO_FACTOR_DRIVE_ENABLE", "TWO_FACTOR_DRIVE_DISABLE"}
 )
 
-# N8. VASCommand.java:157-165 and :395-405, 3.15.0 artifact. The two wrapper
+# N8. VASCommand.generateCloudDataWrapper / generateInvalidCloudDataWrapper and
+# the appName default, 3.15.0 artifact. The two wrapper
 # generators differ in appName ALONE: "rshell" by default vs "". Recorded so the
 # claim can be re-checked; our own client sends no appName field at all, so this
 # difference is not expressible on our wire.
