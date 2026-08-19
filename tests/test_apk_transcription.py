@@ -225,8 +225,14 @@ class TestRvmTopicTranscription:
         """
         assert set(RVM_DECODERS) <= RVM_NAMES
 
-    def test_the_undecoded_remainder_is_the_size_f5_plans_for(self) -> None:
-        assert len(RVM_NAMES - set(RVM_DECODERS)) == 38
+    def test_the_undecoded_remainder_shrank_by_exactly_what_f5_transcribed(
+        self,
+    ) -> None:
+        """38 when f1 measured it; f5 transcribed 14 of them from the app's
+        protobuf classes, so 24 remain. Pinned rather than left as "fewer", so
+        adding or losing a decoder is a deliberate diff."""
+        assert len(RVM_NAMES - set(RVM_DECODERS)) == 24
+        assert len(RVM_DECODERS) == 32
 
     def test_the_two_already_decoded_topics_are_not_mistaken_for_candidates(
         self,

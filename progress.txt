@@ -862,3 +862,68 @@ Two harness lessons for later stories:
     beside the assertion. Unschedule in a fixture.
   * Gates that inspect the entity tables need the venv interpreter; the system
     python3 cannot import homeassistant. _lib.sh now has resolve_python().
+
+--- f1: capability inventory transcribed from classes -------------- PASS -------
+tests/apk/transcription.py: VehicleFeature 64 (19 member/featureName pairs
+differ), l6e 56, VASCommand 57, VASCommandKt 24. Every count matches the plan.
+Gate-string lint: the four gates in cover.py/button.py all name real featureNames.
+
+Three extraction lessons, each of which produced a WRONG number first:
+  * l6e's fields come from the Kotlin default-arg MASK, not the literal args.
+    null in the scope position means fug.App. Reading literals loses
+    DYNAMICS_TIRES_STATE, the only Feature-scoped topic. CLIMATE_HOLD_STATUS is
+    the only needDoubleConsumerSubscription topic (f5 must honour it).
+  * Bounding VASCommand subclasses at the next `extends VASCommand` swallows the
+    Companion class, whose body DEFINES generateInvalidCloudDataWrapper -- so
+    CloseTonneauCover read as invalid-wrapped. Bound at the next class decl of
+    ANY kind. 7 invalid-wrapper commands, not 8.
+  * "Sendable" = cloud wrapper minus the INVALID_COMMAND sentinel = 45.
+
+NEW EVIDENCE, third independent measurement that the app is a lower bound:
+the server emits SEVEN supportedFeatures names app 3.15.0 declares no member for
+(CHARG_CLEAN_NRG, CLM_HOLD_AUTO_VENT, CONNECT_PLUS, PIN_KEY_DRIVE,
+PREMIUM_SPEAKER, TRIP_ADD_STOP, WATCH_GEN1_PAIRING). So the lint accepts
+featureNames UNION observed names. scripts/dump_supported_features.py; fixture
+records model+year only, no VIN.
+
+Queues established: 7 commands ours-only (KEPT), 5 sendable unwired (f6),
+38 l6e topics undecoded (f5 -- exactly the plan's number).
+
+--- f2: five unpopulated fields investigated, all kept ------------- PASS -------
+docs/development/UNPOPULATED_FIELDS.md.
+VEHICLE_STATE_SANS_TPMS_API_FIELDS converted ^ -> -. The guard now asserts the
+OPERATOR (and reads the expression out of the source), not just the result --
+the old form would have stayed green right up to the point the trap sprang.
+Both 3RD_ROW spellings added ALONGSIDE the THIRD_ROW pair. Neither is wired.
+
+--- f4: schema rebuilt, and TWO plan corrections ------------------- PASS -------
+type VehicleState = app union (137) + the 15 + the 4 already declared = 156.
+One of 81 definitions changed; the other 80 asserted byte-identical.
+
+CORRECTION 1. The plan's formula "app union UNION the fifteen" DELETES four
+declared fields, two of them load-bearing: supportedFeatures (source of every
+capability gate) and cloudConnection (backs the cloud-connected binary sensor).
+Kept and marked; recorded delta is 15 + 4.
+
+CORRECTION 2. tirePressureState DOES NOT EXIST as a field. It is the OPERATION
+NAME of apj.java's subscription. It appears nowhere else except apk_statefields.txt
+and apk_ops.txt -- the two flat extracts the plan itself retires as lossy. That is
+exactly how it reached the plan. I adopted it before catching this; the EXISTING
+guard test_every_subscribed_field_is_one_the_gateway_knows failed immediately,
+which is the only reason it cost five minutes instead of shipping. Subscribing to
+an unknown name takes the WHOLE subscription down (wheelsInstalled). Reverted in
+both repos and pinned by tests.
+
+So f2's finding is corrected too: NO offline candidate exists for the four
+tirePressureStatusValid*. apj selects exactly eight tire fields. Third outcome:
+no source found, entities left in place, probe deferred to f8.
+
+get_vehicle_state deleted; its four error-path tests REPOINTED at
+get_user_information, not deleted -- they cover __graphql_query and the client
+floor has under half a point of headroom. 74.61% -> 74.46%, floor 74.0%.
+
+Third occurrence of the self-triggering-comment defect (my own f4 test grepped
+for a name its own docstring contains). scripts/gates/helpers/py_code_only.py now
+exists for exactly this; use it for every negative grep.
+
+1387 -> 1453 tests. Integration coverage 90.20% (floor 89), client 74.46% (74).
