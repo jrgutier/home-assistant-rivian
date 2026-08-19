@@ -736,3 +736,57 @@ The gate now asserts the rule against code we author, excluding rivian_client an
 tests/client, and was fail-first validated by adding a pragma to helpers.py.
 
 1224 tests, coverage 89.71% / 74.29%, sixteen gates green.
+
+================================================================================
+PLAN 2: expose-every-entity-and-control  (ralplan revision 14, APPROVED)
+PRD: .omc/state/sessions/aa9aa56f-3249-42bd-9945-2b562707f977/prd.json
+================================================================================
+
+--- Release: 1.6.0-beta3 cut and deployed -------------------------------------
+Merged vendor-client -> dev (9d7e75d), pre-release.yaml published 1.6.0-beta3,
+deployed the PUBLISHED zip (sha256 verified end to end) to the production
+instance so the box now matches a real release rather than six hand-patched
+files. That closes the standing hazard: a HACS update would have silently
+reverted the closure-map, wake-button, SNA and seat-decoder fixes.
+
+Note: scp does NOT work against HAOS (no sftp subsystem). Stream instead:
+  ssh root@HOST 'cat > /tmp/x.zip' < local.zip
+and verify with sha256sum on both ends.
+
+Production health after restart, from the live state machine (supervisor token
+is in the ssh addon's env: curl -H "Authorization: Bearer $SUPERVISOR_TOKEN"
+http://supervisor/core/api/states):
+
+  177 registry entities | 132 reporting | 24 unavailable | 9 unknown | 12 no state
+  Zero rivian-attributed ERROR lines.
+
+Every non-reporting entity is accounted for, none of it new:
+  * 19 controls unavailable because the truck is ASLEEP (power_state = Sleep,
+    cloud_connected = off). RivianVehicleControlEntity gates on is_online().
+  * 4 tire_pressure_validity + brake_fluid_level_low + cabin_climate_hold_
+    notification -- the accepted-but-never-populated fields story f2 owns.
+  * 9 unknown: 4 charging (no session), 4 next_action, 2 rear seat heating.
+
+Two beta3 fixes confirmed live:
+  * button.r1t_wake is AVAILABLE while every other control is unavailable --
+    the available_offline flag works.
+  * left gear tunnel, right gear tunnel and tailgate each report their OWN
+    state -- CLOSURE_MAP id 6 is TAILGATE, as the app's enum says.
+
+--- pf: pre-flight APK provenance --------------------------------- PASS -------
+Copied the nine cited classes into docs/development/apk/, gitignored, with
+REGENERATION.md tracked. scripts/gates/pf.sh, 33 assertions.
+
+Found while writing the gate: the five vehicleState documents do NOT share a
+shape, so a single regex over them is wrong. wcm/cdm/apj use
+`name { timeStamp value }`; h9l is `activeDriverName { value }`; lel is
+`gnssLocation { consentStatus }`. A `(\w+) \{ timeStamp value \}` extractor
+yields wcm 125, cdm 122, apj 8, h9l 0, lel 0 -- silently dropping two whole
+documents. f4 must parse the selection set, not pattern-match it.
+
+VehicleFeature member count verified at exactly 64, as the plan states.
+
+The gate asserts the content UNIQUE to each of the five (apj:
+tirePressureRearRight, h9l: activeDriverName, lel: consentStatus) and proves
+none of those tokens is in wcm.java -- so "I copied wcm and stubbed the rest"
+cannot pass. That is the failure that makes f4's delta 24 instead of 15.
