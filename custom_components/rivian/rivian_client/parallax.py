@@ -23,13 +23,13 @@ are retained until the entities that call them are removed.
 from __future__ import annotations
 
 import base64
+from collections.abc import Callable
+from datetime import datetime, timezone
 import logging
 import struct
 import sys
+from typing import Any, Final, Protocol
 import uuid
-from collections.abc import Callable
-from datetime import datetime, timezone
-from typing import Any, Protocol
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -842,6 +842,456 @@ def decode_seat_conditioning_status(payload: str) -> dict[str, Any]:
         return {}
 
 
+# ======================================================================
+# Decoders transcribed from the app's protobuf classes (f5)
+# ======================================================================
+#
+# How these were recovered, because it is not obvious and the first attempt
+# concluded the schema was absent:
+#
+# R8 renames `GeneratedMessageLite` to `com.google.protobuf.e` and renames every
+# message class to two or three letters (`hk8`, `gxf`, `xq`), so grepping the
+# decompilation for "GeneratedMessageLite" or "ProtoAdapter" finds nothing and
+# the app looks as though it carries no protobuf schema at all. It carries 326
+# message classes. What R8 leaves alone is exactly what is needed:
+#
+#   * `<FIELD>_FIELD_NUMBER` constants, with their original names and numbers
+#   * the `<field>_` instance members, with their Java types
+#   * protobuf enum constants, with their original names and numbers
+#
+# The topic -> message binding comes from the app's own decoder dispatch
+# (`b7h.java` and ten sibling files): each decoder guards on `l6e.<TOPIC>` and
+# parses `<MessageClass>.<method>(Base64.decode(payload, 0))` in the same method
+# body, so the pair can be read off mechanically rather than guessed.
+#
+# The VALUE vocabulary is the app's enum name with its common prefix stripped and
+# lowercased -- `GEAR_PARK` -> `park`, `DRIVE_MODE_OFF_ROAD_AUTO` ->
+# `off_road_auto`. That is not an inference: it is how GEAR_STATUS_MAP and
+# DRIVE_MODE_MAP in the integration's const.py were already built from live
+# subscription values. Emitting the same strings is what lets these topics feed
+# the EXISTING sensors instead of needing new ones.
+#
+# Maps are written out rather than derived at runtime. A prefix-stripping helper
+# would be shorter and would hide a wrong field number behind plausible output.
+
+# security.alarm.state -- SoundAlarmStatus
+_ALARM_SOUND_MAP: Final[dict[int, str]] = {
+    1: "false",
+    2: "true",
+    3: "signal_not_available",
+}
+
+# body.trailer.state -- TrailerPresenceStatus
+_TRAILER_PRESENCE_MAP: Final[dict[int, str]] = {
+    1: "trailer_not_present",
+    2: "trailer_present",
+    3: "trailer_present_with_brakes",
+    4: "trailer_invalid",
+}
+
+# dynamics.vehicle.gear -- Gear
+_GEAR_MAP: Final[dict[int, str]] = {
+    0: "not_defined",
+    1: "park",
+    2: "reverse",
+    3: "neutral",
+    4: "drive",
+}
+
+# dynamics.vehicle.drive_mode -- DriveMode
+_DRIVE_MODE_MAP: Final[dict[int, str]] = {
+    1: "init_mode",
+    2: "everyday",
+    3: "off_road_snow_ice",
+    4: "off_road_sport_auto",
+    5: "off_road_sport_drift",
+    6: "sport_launch",
+    7: "fault",
+    8: "sport",
+    9: "distance",
+    10: "towing",
+    11: "off_road_auto",
+    12: "off_road_sand",
+    13: "off_road_rocks",
+    14: "off_road_mud",
+    15: "winter",
+}
+
+# dynamics.vehicle.range -- RangeThreshold and TemperatureRangeImpact
+_RANGE_THRESHOLD_MAP: Final[dict[int, str]] = {
+    1: "normal",
+    2: "low",
+    3: "red",
+    4: "critically_low",
+}
+_TEMPERATURE_IMPACT_MAP: Final[dict[int, str]] = {
+    1: "normal_range",
+    2: "cold_may_impact",
+    3: "cold_impact",
+}
+
+# energy.high_voltage.battery_characteristics -- BatteryCellType
+_BATTERY_CELL_TYPE_MAP: Final[dict[int, str]] = {
+    1: "50g",
+    2: "53g",
+    3: "g124",
+    4: "lg_4695",
+}
+
+# energy.low_voltage.battery_state -- LowVoltageBatteryHealthStatus
+_LOW_VOLTAGE_HEALTH_MAP: Final[dict[int, str]] = {
+    1: "normal",
+    2: "low",
+}
+
+# security.video_monitoring.state
+_VIDEO_MONITORING_STATUS_MAP: Final[dict[int, str]] = {
+    1: "disabled",
+    2: "enabled",
+    3: "active",
+}
+_VIDEO_MODE_MAP: Final[dict[int, str]] = {
+    0: "none",
+    1: "everywhere",
+    2: "away_from_home",
+}
+_TOS_ACCEPTANCE_MAP: Final[dict[int, str]] = {
+    1: "not_accepted",
+    2: "accepted",
+}
+
+# security.access.btm -- HardwareFailureDtcStatus, one enum shared by six fields
+_HARDWARE_FAILURE_MAP: Final[dict[int, str]] = {
+    0: "unspecified",
+    1: "set",
+}
+
+# security.access.vas_fault
+_SECURE_ELEMENT_FAULTED_MAP: Final[dict[int, str]] = {
+    1: "no_failure",
+    2: "lost_communication",
+    3: "applet_not_programmed",
+    4: "not_configured",
+    5: "attack_counter",
+    6: "ursk_decrypt_failure",
+}
+_ACCESS_CAN_FAULTED_MAP: Final[dict[int, str]] = {
+    1: "no_failure",
+    2: "failure",
+}
+
+# security.access.passive_entry_debug -- PassiveEntryUnlockFailReason
+_PASSIVE_ENTRY_FAIL_MAP: Final[dict[int, str]] = {
+    1: "not_in_park",
+    2: "at_home_disable",
+    3: "passenger_in_seat",
+    4: "device_not_enabled",
+    5: "transport_mode",
+    6: "car_wash_mode",
+    7: "camp_mode",
+    8: "active_ota",
+    9: "show_and_tell_mode",
+    10: "rcvd_rssi_pending",
+    11: "lock_only_at_home",
+    12: "car_costume_mode",
+    13: "slept_immediate",
+}
+
+# comfort.cabin.pet_mode_status
+_PET_MODE_STATE_MAP: Final[dict[int, str]] = {
+    0: "off",
+    1: "on",
+    2: "disabled",
+    3: "faulty",
+}
+_PET_MODE_TEMPERATURE_MAP: Final[dict[int, str]] = {
+    0: "default",
+    1: "cold",
+    2: "hot",
+    3: "faulty",
+}
+
+# security.access.immobilizer_state -- SecureImmoStatus. Note 0 is a REAL value
+# here ("not assigned"), not the usual UNSPECIFIED sentinel.
+_IMMOBILIZER_MAP: Final[dict[int, str]] = {
+    0: "not_assigned",
+    1: "not_authorized",
+    2: "authorized_to_drive",
+}
+
+# dynamics.vehicle.location -- KnownLocation
+_KNOWN_LOCATION_MAP: Final[dict[int, str]] = {
+    1: "unknown",
+    2: "home",
+    3: "work",
+}
+
+
+def _decode_enum_fields(
+    payload: str, spec: dict[int, tuple[str, dict[int, str] | None]], what: str
+) -> dict[str, Any]:
+    """Decode a flat message of varint fields into named values.
+
+    `spec` maps field number -> (output key, value map). A None map passes the
+    integer through; a map that has no entry for the value drops the field rather
+    than inventing a name -- an unmapped enum value is new firmware, and guessing
+    at it is how "SNA" became a valid sensor option once already.
+    """
+    if not payload:
+        return {}
+    try:
+        data = base64.b64decode(payload)
+        result: dict[str, Any] = {}
+        for field_num, wire_type, value in _decode_protobuf_fields(data):
+            if wire_type != 0 or field_num not in spec:
+                continue
+            key, mapping = spec[field_num]
+            if mapping is None:
+                result[key] = value
+            elif value in mapping:
+                result[key] = mapping[value]
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode %s payload", what, exc_info=True)
+        return {}
+
+
+def decode_gear(payload: str) -> dict[str, Any]:
+    """Decode dynamics.vehicle.gear.
+
+    Returns dict with keys:
+        - gearStatus: str
+    """
+    return _decode_enum_fields(payload, {1: ("gearStatus", _GEAR_MAP)}, "gear")
+
+
+def decode_drive_mode(payload: str) -> dict[str, Any]:
+    """Decode dynamics.vehicle.drive_mode.
+
+    Returns dict with keys:
+        - driveMode: str
+        - limitedAccelCold: bool
+        - limitedRegenCold: bool
+
+    Fields 8 and 9, not 2 and 3. The message skips 2-7 outright, which is the kind
+    of thing a hand-guessed layout gets wrong and a transcription does not.
+    """
+    return _decode_enum_fields(
+        payload,
+        {
+            1: ("driveMode", _DRIVE_MODE_MAP),
+            8: ("limitedAccelCold", None),
+            9: ("limitedRegenCold", None),
+        },
+        "drive mode",
+    )
+
+
+def decode_range(payload: str) -> dict[str, Any]:
+    """Decode dynamics.vehicle.range.
+
+    Returns dict with keys:
+        - distanceToEmpty: int (km -- the sensor's own unit, so no conversion)
+        - rangeThreshold: str
+        - coldRangeNotification: str
+    """
+    return _decode_enum_fields(
+        payload,
+        {
+            1: ("distanceToEmpty", None),
+            2: ("rangeThreshold", _RANGE_THRESHOLD_MAP),
+            3: ("coldRangeNotification", _TEMPERATURE_IMPACT_MAP),
+        },
+        "range",
+    )
+
+
+def decode_alarm_state(payload: str) -> dict[str, Any]:
+    """Decode security.alarm.state.
+
+    Returns dict with keys:
+        - alarmSoundStatus: str ("true" / "false" / "signal_not_available")
+
+    The strings are the subscription's own vocabulary, which the sensor's
+    value_lambda turns into Active/Inactive. signal_not_available is in
+    INVALID_SENSOR_STATES, so it reports as unknown rather than as Inactive.
+    """
+    return _decode_enum_fields(
+        payload,
+        {
+            1: ("alarmSoundStatus", _ALARM_SOUND_MAP),
+            2: ("consecutiveAlarmDisabledNotification", None),
+        },
+        "alarm state",
+    )
+
+
+def decode_trailer_state(payload: str) -> dict[str, Any]:
+    """Decode body.trailer.state.
+
+    Returns dict with keys:
+        - trailerStatus: str
+    """
+    return _decode_enum_fields(
+        payload, {1: ("trailerStatus", _TRAILER_PRESENCE_MAP)}, "trailer state"
+    )
+
+
+def decode_pet_mode_status(payload: str) -> dict[str, Any]:
+    """Decode comfort.cabin.pet_mode_status.
+
+    Returns dict with keys:
+        - petModeStatus: str
+        - petModeTemperatureStatus: str
+    """
+    return _decode_enum_fields(
+        payload,
+        {
+            1: ("petModeStatus", _PET_MODE_STATE_MAP),
+            2: ("petModeTemperatureStatus", _PET_MODE_TEMPERATURE_MAP),
+        },
+        "pet mode status",
+    )
+
+
+def decode_low_voltage_battery(payload: str) -> dict[str, Any]:
+    """Decode energy.low_voltage.battery_state.
+
+    Returns dict with keys:
+        - twelveVoltBatteryHealth: str
+    """
+    return _decode_enum_fields(
+        payload,
+        {1: ("twelveVoltBatteryHealth", _LOW_VOLTAGE_HEALTH_MAP)},
+        "low voltage battery",
+    )
+
+
+def decode_video_monitoring(payload: str) -> dict[str, Any]:
+    """Decode security.video_monitoring.state.
+
+    Returns dict with keys:
+        - gearGuardVideoStatus: str
+        - gearGuardVideoMode: str
+        - gearGuardVideoTermsAccepted: str
+    """
+    return _decode_enum_fields(
+        payload,
+        {
+            1: ("gearGuardVideoStatus", _VIDEO_MONITORING_STATUS_MAP),
+            2: ("gearGuardVideoMode", _VIDEO_MODE_MAP),
+            3: ("gearGuardVideoTermsAccepted", _TOS_ACCEPTANCE_MAP),
+        },
+        "video monitoring",
+    )
+
+
+def decode_battery_characteristics(payload: str) -> dict[str, Any]:
+    """Decode energy.high_voltage.battery_characteristics.
+
+    Returns dict with keys:
+        - batteryCellType: str
+
+    Fields 5 and 6 (user_total_kwh, user_max_kwh) are floats and would map to
+    batteryCapacity, but they are fixed32 on the wire and _decode_protobuf_fields
+    hands those back as raw bytes. Left undecoded rather than misdecoded: the
+    subscription already carries batteryCapacity, and a wrong kWh figure on the
+    energy sensor is worse than no second source for it.
+    """
+    return _decode_enum_fields(
+        payload,
+        {2: ("batteryCellType", _BATTERY_CELL_TYPE_MAP)},
+        "battery characteristics",
+    )
+
+
+def decode_btm_diagnosis(payload: str) -> dict[str, Any]:
+    """Decode security.access.btm.
+
+    Returns dict with keys:
+        - btmFfHardwareFailureStatus, btmIcHardwareFailureStatus,
+          btmLfdHardwareFailureStatus, btmRfHardwareFailureStatus,
+          btmRfdHardwareFailureStatus, btmOcHardwareFailureStatus: str
+
+    Six of the ten fields share one enum. Fields 7-10 are separate error counters
+    with no enum of their own; passed through as integers.
+    """
+    return _decode_enum_fields(
+        payload,
+        {
+            1: ("btmFfHardwareFailureStatus", _HARDWARE_FAILURE_MAP),
+            2: ("btmIcHardwareFailureStatus", _HARDWARE_FAILURE_MAP),
+            3: ("btmLfdHardwareFailureStatus", _HARDWARE_FAILURE_MAP),
+            4: ("btmRfHardwareFailureStatus", _HARDWARE_FAILURE_MAP),
+            5: ("btmRfdHardwareFailureStatus", _HARDWARE_FAILURE_MAP),
+            6: ("btmOcHardwareFailureStatus", _HARDWARE_FAILURE_MAP),
+        },
+        "btm diagnosis",
+    )
+
+
+def decode_vas_fault(payload: str) -> dict[str, Any]:
+    """Decode security.access.vas_fault.
+
+    Returns dict with keys:
+        - vasSecureElementFaulted: str
+        - vasAccessCanFaulted: str
+
+    Both are declared in the gateway schema and neither is subscribed, so this
+    topic is the only source for them.
+    """
+    return _decode_enum_fields(
+        payload,
+        {
+            1: ("vasSecureElementFaulted", _SECURE_ELEMENT_FAULTED_MAP),
+            2: ("vasAccessCanFaulted", _ACCESS_CAN_FAULTED_MAP),
+        },
+        "vas fault",
+    )
+
+
+def decode_passive_entry_debug(payload: str) -> dict[str, Any]:
+    """Decode security.access.passive_entry_debug.
+
+    Returns dict with keys:
+        - passiveEntryUnlockFailReason: str
+    """
+    return _decode_enum_fields(
+        payload,
+        {1: ("passiveEntryUnlockFailReason", _PASSIVE_ENTRY_FAIL_MAP)},
+        "passive entry debug",
+    )
+
+
+def decode_immobilizer_state(payload: str) -> dict[str, Any]:
+    """Decode security.access.immobilizer_state.
+
+    Returns dict with keys:
+        - secureImmobilizerStatus: str
+
+    No gateway field carries this, so it backs no entity yet -- it is decoded so
+    the topic stops being an unknown one, and so an entity can be added against
+    observed values rather than against a guess.
+    """
+    return _decode_enum_fields(
+        payload, {1: ("secureImmobilizerStatus", _IMMOBILIZER_MAP)}, "immobilizer state"
+    )
+
+
+def decode_known_location(payload: str) -> dict[str, Any]:
+    """Decode dynamics.vehicle.location.
+
+    Returns dict with keys:
+        - knownLocation: str ("unknown" / "home" / "work")
+
+    Distinct from dynamics.vehicle.gnss, which carries coordinates. This is the
+    vehicle's own coarse classification and backs no gateway field.
+    """
+    return _decode_enum_fields(
+        payload, {1: ("knownLocation", _KNOWN_LOCATION_MAP)}, "known location"
+    )
+
+
 RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "body.closures.states": decode_closures,
     "body.locks.states": decode_locks,
@@ -862,6 +1312,25 @@ RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "comfort.cabin.climate_hold_setting": decode_climate_hold_setting,
     "comfort.cabin.climate_hold_status": decode_climate_hold_status,
     "vehicle.wheels.vehicle_wheels": decode_vehicle_wheels,
+    # Transcribed from the app's protobuf classes (f5). Every one of these feeds a
+    # field the gateway schema already declares, so the existing sensors pick them
+    # up with no entity changes -- and four of them (btmOcHardwareFailureStatus,
+    # vasSecureElementFaulted, vasAccessCanFaulted, passiveEntryUnlockFailReason)
+    # are declared but NOT subscribed, so Parallax is their only source.
+    "body.trailer.state": decode_trailer_state,
+    "comfort.cabin.pet_mode_status": decode_pet_mode_status,
+    "dynamics.vehicle.drive_mode": decode_drive_mode,
+    "dynamics.vehicle.gear": decode_gear,
+    "dynamics.vehicle.location": decode_known_location,
+    "dynamics.vehicle.range": decode_range,
+    "energy.high_voltage.battery_characteristics": decode_battery_characteristics,
+    "energy.low_voltage.battery_state": decode_low_voltage_battery,
+    "security.access.btm": decode_btm_diagnosis,
+    "security.access.immobilizer_state": decode_immobilizer_state,
+    "security.access.passive_entry_debug": decode_passive_entry_debug,
+    "security.access.vas_fault": decode_vas_fault,
+    "security.alarm.state": decode_alarm_state,
+    "security.video_monitoring.state": decode_video_monitoring,
 }
 
 # Full list of Parallax RVMs subscribed for vehicle & charging telemetry
@@ -900,6 +1369,12 @@ def encode_climate_hold_setting(hold_time_duration_seconds: int) -> bytes:
     return _encode_varint_field(1, hold_time_duration_seconds)
 
 
+# Topics already reported as undecodable. Module-level rather than per-instance:
+# decode_parallax_message is a free function and the set is small and bounded by
+# the number of topics the server can push.
+_WARNED_UNKNOWN_RVMS: set[str] = set()
+
+
 def decode_parallax_message(
     rvm: str, payload: str, **kwargs: Any
 ) -> dict[str, Any] | None:
@@ -910,7 +1385,17 @@ def decode_parallax_message(
     """
     decoder = RVM_DECODERS.get(rvm)
     if decoder is None:
-        _LOGGER.warning("Unknown Parallax RVM topic %s", rvm)
+        # Once per topic, not once per message. SUBSCRIBED_RVMS only ever asks for
+        # topics that have a decoder, so reaching here means the server pushed
+        # something unrequested -- which it does repeatedly, at telemetry rates.
+        # The warning is worth seeing; a warning per message buries the log.
+        if rvm not in _WARNED_UNKNOWN_RVMS:
+            _WARNED_UNKNOWN_RVMS.add(rvm)
+            _LOGGER.warning(
+                "Unknown Parallax RVM topic %s -- no decoder; further messages on "
+                "this topic will not be logged",
+                rvm,
+            )
         return None
     return decoder(payload)
 

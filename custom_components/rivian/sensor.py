@@ -49,6 +49,7 @@ from .entity import (
     RivianVehicleEntity,
     RivianWallboxEntity,
 )
+from .helpers import groups_for_model
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ async def async_setup_entry(
         )
         for vehicle_id, vehicle in vehicles.items()
         for model, descriptions in SENSORS.items()
-        if model in vehicle["model"]
+        if model in groups_for_model(vehicle.get("model"))
         for description in descriptions
     ]
 

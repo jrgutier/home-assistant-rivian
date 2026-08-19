@@ -66,6 +66,39 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
             ),
             command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
         ),
+        # The dedicated tailgate command, as opposed to the combined one above
+        # which opens the liftgate AND unlatches the tailgate. Both are ordinary
+        # generateCloudDataWrapper commands in the app (VASCommand.UnlatchTailgate).
+        #
+        # Disabled by default because it MOVES A CLOSURE and has not been actuated
+        # on the vehicle yet -- f7 does that. Shipping it enabled would put an
+        # untested opener one tap away.
+        RivianButtonEntityDescription(
+            key="open_tailgate",
+            translation_key="open_tailgate",
+            entity_registry_enabled_default=False,
+            available=lambda coordinator: (
+                coordinator.get("closureTailgateClosed") != "open"
+            ),
+            command=VehicleCommand.OPEN_TAILGATE,
+        ),
+    ),
+    "LIFTGATE_CMD": (
+        # Same reasoning, and the same default. cover.liftgate already opens the
+        # liftgate via the combined command; this is the dedicated one.
+        #
+        # The gate string stays LIFTGATE_CMD, which is a real VehicleFeature
+        # featureName. This R1T structurally cannot report it, and that is NOT
+        # evidence the flag is dead -- it is the tonneau inference reversed.
+        RivianButtonEntityDescription(
+            key="open_liftgate",
+            translation_key="open_liftgate",
+            entity_registry_enabled_default=False,
+            available=lambda coordinator: (
+                coordinator.get("closureLiftgateClosed") != "open"
+            ),
+            command=VehicleCommand.OPEN_LIFTGATE,
+        ),
     ),
 }
 

@@ -1482,7 +1482,14 @@ VEHICLE_STATE_API_FIELDS: Final[set[str]] = {
     "seatFrontRightVent",
 } - PARALLAX_ONLY_FIELDS
 
-VEHICLE_STATE_SANS_TPMS_API_FIELDS: Final[set[str]] = VEHICLE_STATE_API_FIELDS ^ {
+# `-`, not `^`. Symmetric difference behaved as subtraction only while all four
+# tire names happened to be in the base set; the moment one left, `^` would ADD it
+# back, producing exactly the unknown-field subscription kill documented at
+# const.py:1441-1455 -- where a single name the server does not know took down the
+# entire subscription and the integration delivered nothing.
+#
+# f2 and f4 both edit the tire field set, so this is converted before either does.
+VEHICLE_STATE_SANS_TPMS_API_FIELDS: Final[set[str]] = VEHICLE_STATE_API_FIELDS - {
     "tirePressureFrontLeft",
     "tirePressureFrontRight",
     "tirePressureRearLeft",

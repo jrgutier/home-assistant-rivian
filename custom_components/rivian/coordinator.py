@@ -721,6 +721,24 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
     key = "currentUser"
 
+    # 900 s, not the base's 30. `currentUser` carries the account, its enrolled
+    # phones and the vehicle capability list -- a heavyweight query whose payload
+    # changes on the order of months, re-fetched twice a minute.
+    #
+    # 900 exactly, because _set_update_interval computes
+    # min(base * 2**error_count, 900) and never reassigns the base. Any value
+    # ABOVE 900 is used verbatim at construction and then collapses to 900 on the
+    # first error, never climbing back -- a back-off that only ever ratchets
+    # downward. Sitting at the cap makes that unreachable.
+    #
+    # The cost, stated rather than hidden: at the cap the back-off is a no-op, so
+    # an erroring coordinator keeps retrying every 15 minutes instead of
+    # stretching further. 900 s is the ceiling the old 30 s base reached anyway
+    # after five consecutive failures, and the point of the back-off was to stop a
+    # failing API being polled every 30 seconds. Starting at the ceiling does that
+    # outright.
+    _update_interval_seconds = 15 * 60  # 15 minutes
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -816,6 +834,20 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._last_update_time: datetime | None = None
         self._watchdog_task: asyncio.Task | None = None
         self._prev_charger_state: str | None = None
+        # Field names the vehicleState SUBSCRIPTION has supplied at least once.
+        #
+        # Parallax and the subscription both carry many of the same fields -- 19 of
+        # the 28 the decoders write -- and the merge below used to let Parallax
+        # overwrite whichever arrived first. Two sources for one sensor is a defect
+        # with precedent here: vehicleMileage needed a monotonic guard because the
+        # oscillation between an integer-km Parallax value and a float-metre
+        # subscription value corrupted utility meters.
+        #
+        # So the subscription wins where both supply a field, and Parallax fills
+        # only the gaps. Provenance has to be tracked rather than inferred from
+        # "is the key present", because once Parallax writes a key it IS present,
+        # and a Parallax-only field must keep updating.
+        self._subscription_keys: set[str] = set()
         # Fields already reported as unusable, so the warning fires once each.
         self._dropped_reported: set[str] = set()
         self._subscription_start_time: datetime | None = None
@@ -1015,6 +1047,22 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         if vehicle_keys:
             vehicle_updates: dict[str, Any] = {}
             for k in vehicle_keys:
+                # The subscription wins. Parallax fills gaps only.
+                #
+                # 19 of the 28 keys the decoders write are also carried by the
+                # subscription, including gearStatus, driveMode, alarmSoundStatus
+                # and trailerStatus -- fields that drive automations. The decoders
+                # are transcribed from the app's protobuf classes and asserted
+                # against constructed payloads, not against anything this vehicle
+                # has actually sent, so they must not be able to overwrite a value
+                # that is known to be right.
+                #
+                # Keys nothing else supplies -- vasAccessCanFaulted,
+                # passiveEntryUnlockFailReason, batteryCellType and six more -- are
+                # unaffected: the subscription never names them, so they are never
+                # in _subscription_keys and Parallax remains their only source.
+                if k in self._subscription_keys:
+                    continue
                 if k == "gnssLocation":
                     vehicle_updates[k] = clean[k]
                 elif k == "vehicleMileage":
@@ -1155,6 +1203,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             for k, v in vijson.items()
             if v
         }
+        # Provenance, for the Parallax gap-fill rule in _process_parallax_data.
+        self._subscription_keys |= set(items)
 
         if items:
             _LOGGER.debug("Vehicle %s updated: %s", self.vehicle_id, redact(items))
@@ -1564,6 +1614,11 @@ class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):
     """Wallbox data update coordinator for Rivian."""
 
     key = "getRegisteredWallboxes"
+
+    # Same reasoning as UserCoordinator above: the home charger registration is a
+    # heavyweight query that changes when you buy a charger, and it was polled
+    # twice a minute. 900 s, at the cap, for the same back-off reason.
+    _update_interval_seconds = 15 * 60  # 15 minutes
 
     async def _fetch_data(self) -> ClientResponse:
         """Fetch the data."""

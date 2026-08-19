@@ -600,24 +600,61 @@ class TestTheSubscriptionFieldList:
         assert "wheelsInstalled" in fields
 
     def test_the_sans_tpms_variant_is_still_a_strict_subset(self) -> None:
-        """VEHICLE_STATE_SANS_TPMS_API_FIELDS is built with ^, which ADDS any name
-        that is not already present. It is only a subtraction while every tyre field
-        really is in the base set -- so this asserts the base set, not the operator.
+        """It is built with `-` now, and this asserts the OPERATOR, not the result.
+
+        It used to be `^`, symmetric difference, which behaved as subtraction only
+        while all four tire names happened to be in the base set. The moment one
+        left -- which is exactly what editing the tire field set does -- `^` would
+        have ADDED it back, producing the unknown-field subscription kill
+        documented at const.py:1441-1455, where one name the server did not know
+        took down the whole subscription.
+
+        The old form of this test asserted only the current result, so it would
+        have stayed green right up to the point the trap sprang. The
+        synthetic-removal case below is the part that actually binds.
         """
         from custom_components.rivian.const import (
             VEHICLE_STATE_API_FIELDS,
             VEHICLE_STATE_SANS_TPMS_API_FIELDS,
         )
 
-        assert VEHICLE_STATE_SANS_TPMS_API_FIELDS < VEHICLE_STATE_API_FIELDS
-        for tyre in (
+        tires = {
             "tirePressureFrontLeft",
             "tirePressureFrontRight",
             "tirePressureRearLeft",
             "tirePressureRearRight",
-        ):
-            assert tyre in VEHICLE_STATE_API_FIELDS
-            assert tyre not in VEHICLE_STATE_SANS_TPMS_API_FIELDS
+        }
+        assert VEHICLE_STATE_SANS_TPMS_API_FIELDS < VEHICLE_STATE_API_FIELDS
+        for tire in tires:
+            assert tire in VEHICLE_STATE_API_FIELDS
+            assert tire not in VEHICLE_STATE_SANS_TPMS_API_FIELDS
+
+        # The operator itself: if a tire name is NOT in the base set, subtraction
+        # must leave it out, where symmetric difference would put it in.
+        for missing in tires:
+            base = VEHICLE_STATE_API_FIELDS - {missing}
+            assert missing not in (base - tires), (
+                f"{missing} came back -- the set is being built with ^ again"
+            )
+
+    def test_the_sans_tpms_set_uses_subtraction_in_the_source(self) -> None:
+        """Belt and braces: read the expression, not only its value.
+
+        Reconstructing the set in a test cannot catch a change to how const.py
+        builds it, because the test would rebuild it correctly either way.
+        """
+        import inspect
+
+        from custom_components.rivian import const
+
+        source = inspect.getsource(const)
+        line = next(
+            ln
+            for ln in source.splitlines()
+            if ln.startswith("VEHICLE_STATE_SANS_TPMS_API_FIELDS")
+        )
+        assert "VEHICLE_STATE_API_FIELDS - {" in line, line
+        assert "^" not in line, line
 
 
 class TestVocabularyMatchesTheVehicle:

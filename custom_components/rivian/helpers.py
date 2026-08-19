@@ -14,6 +14,39 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_USER_SESSION_TOKEN
 from .rivian_client import Rivian
 
+# Which entity groups a vehicle model receives.
+#
+# This replaces `if model in vehicle["model"]`, a SUBSTRING test over the group
+# keys that happened to work for the two models it was written against:
+#
+#     "R1"  in "R1T"  -> True     (intended)
+#     "R1"  in "R2"   -> False    <-- an R2 got ZERO entities, silently
+#     "R1T" in "R1S"  -> False    (intended)
+#
+# Deliberately no "ALL" key populated from "R1". The platform comprehensions
+# build LISTS (binary_sensor.py:30-36, sensor.py:71-78) and every description
+# shares unique_id = f"{vin}-{key}" (entity.py:49), so ALL + R1 + R1T would add
+# the shared group twice: 114 duplicate-unique-id errors per vehicle.
+VEHICLE_MODEL_GROUPS: dict[str, tuple[str, ...]] = {
+    "R1T": ("R1", "R1T"),
+    "R1S": ("R1", "R1S"),
+    "R2": ("R1",),
+}
+
+# An exact map is less forgiving than the substring test it replaces, so an
+# unrecognised or missing model must NOT raise: a KeyError here removes every
+# sensor and binary sensor for that vehicle, which is a worse failure than
+# handing it the shared group and letting per-field availability sort it out.
+DEFAULT_MODEL_GROUPS: tuple[str, ...] = ("R1",)
+
+
+def groups_for_model(model: str | None) -> tuple[str, ...]:
+    """Return the entity groups a vehicle of this model receives."""
+    if not model:
+        return DEFAULT_MODEL_GROUPS
+    return VEHICLE_MODEL_GROUPS.get(model, DEFAULT_MODEL_GROUPS)
+
+
 TO_REDACT = {
     # The three token constants are imported above and were NOT listed here.
     # Today that is latent rather than live: async_get_config_entry_diagnostics

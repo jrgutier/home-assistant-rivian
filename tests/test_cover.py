@@ -563,7 +563,14 @@ async def test_async_setup_entry_with_all_features(
 ) -> None:
     """Test cover platform setup with all supported features."""
     vehicle_coordinator = MagicMock(spec=VehicleCoordinator)
-    vehicle_coordinator.data = {}
+    # The tonneau is no longer keyed on a capability flag. TONNEAU_CMD was
+    # fabricated into supported_features here, which is the only reason this test
+    # ever saw the cover: no real vehicle emits that string, and it is in none of
+    # the app's 32,941 decompiled files. The gate is now the field the vehicle
+    # reports, so the coordinator has to carry it.
+    vehicle_coordinator.data = {
+        "closureTonneauClosed": {"value": "closed", "history": {"closed"}}
+    }
 
     vehicle_data = {
         "test_vehicle_123": {
@@ -576,7 +583,6 @@ async def test_async_setup_entry_with_all_features(
                 "CHARG_PORT_DOOR_COMMAND",
                 "LIFTGATE_CMD",
                 "FRUNK_NXT_ACT",
-                "TONNEAU_CMD",
             ],
         }
     }
@@ -597,8 +603,16 @@ async def test_async_setup_entry_with_all_features(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should have created 5 cover entities (windows + 4 feature-dependent covers)
+    # frunk, windows and tonneau unconditionally (tonneau because this vehicle
+    # reports closureTonneauClosed), plus charge_port and liftgate from the flags.
     assert len(entities_added) == 5
+    assert {e.entity_description.key for e in entities_added} == {
+        "frunk",
+        "windows",
+        "tonneau",
+        "charge_port",
+        "liftgate",
+    }
     assert all(isinstance(e, RivianCoverEntity) for e in entities_added)
 
 

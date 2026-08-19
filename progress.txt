@@ -736,3 +736,278 @@ The gate now asserts the rule against code we author, excluding rivian_client an
 tests/client, and was fail-first validated by adding a pragma to helpers.py.
 
 1224 tests, coverage 89.71% / 74.29%, sixteen gates green.
+
+================================================================================
+PLAN 2: expose-every-entity-and-control  (ralplan revision 14, APPROVED)
+PRD: .omc/state/sessions/aa9aa56f-3249-42bd-9945-2b562707f977/prd.json
+================================================================================
+
+--- Release: 1.6.0-beta3 cut and deployed -------------------------------------
+Merged vendor-client -> dev (9d7e75d), pre-release.yaml published 1.6.0-beta3,
+deployed the PUBLISHED zip (sha256 verified end to end) to the production
+instance so the box now matches a real release rather than six hand-patched
+files. That closes the standing hazard: a HACS update would have silently
+reverted the closure-map, wake-button, SNA and seat-decoder fixes.
+
+Note: scp does NOT work against HAOS (no sftp subsystem). Stream instead:
+  ssh root@HOST 'cat > /tmp/x.zip' < local.zip
+and verify with sha256sum on both ends.
+
+Production health after restart, from the live state machine (supervisor token
+is in the ssh addon's env: curl -H "Authorization: Bearer $SUPERVISOR_TOKEN"
+http://supervisor/core/api/states):
+
+  177 registry entities | 132 reporting | 24 unavailable | 9 unknown | 12 no state
+  Zero rivian-attributed ERROR lines.
+
+Every non-reporting entity is accounted for, none of it new:
+  * 19 controls unavailable because the truck is ASLEEP (power_state = Sleep,
+    cloud_connected = off). RivianVehicleControlEntity gates on is_online().
+  * 4 tire_pressure_validity + brake_fluid_level_low + cabin_climate_hold_
+    notification -- the accepted-but-never-populated fields story f2 owns.
+  * 9 unknown: 4 charging (no session), 4 next_action, 2 rear seat heating.
+
+Two beta3 fixes confirmed live:
+  * button.r1t_wake is AVAILABLE while every other control is unavailable --
+    the available_offline flag works.
+  * left gear tunnel, right gear tunnel and tailgate each report their OWN
+    state -- CLOSURE_MAP id 6 is TAILGATE, as the app's enum says.
+
+--- pf: pre-flight APK provenance --------------------------------- PASS -------
+Copied the nine cited classes into docs/development/apk/, gitignored, with
+REGENERATION.md tracked. scripts/gates/pf.sh, 33 assertions.
+
+Found while writing the gate: the five vehicleState documents do NOT share a
+shape, so a single regex over them is wrong. wcm/cdm/apj use
+`name { timeStamp value }`; h9l is `activeDriverName { value }`; lel is
+`gnssLocation { consentStatus }`. A `(\w+) \{ timeStamp value \}` extractor
+yields wcm 125, cdm 122, apj 8, h9l 0, lel 0 -- silently dropping two whole
+documents. f4 must parse the selection set, not pattern-match it.
+
+VehicleFeature member count verified at exactly 64, as the plan states.
+
+The gate asserts the content UNIQUE to each of the five (apj:
+tirePressureRearRight, h9l: activeDriverName, lel: consentStatus) and proves
+none of those tokens is in wcm.java -- so "I copied wcm and stubbed the rest"
+cannot pass. That is the failure that makes f4's delta 24 instead of 15.
+
+--- f0: binary sensors stop reporting error codes as states -------- PASS -------
+is_on returns None for fault/sna/signal_not_available/undefined, BEFORE the
+negate (`not False` is True, so the late form inverts into a confident True).
+unknown, not unavailable -- availability keys on field presence and the raw value
+still flows, which is what keeps the matching control operable.
+Aggregate branch untouched: its availability is any(member values), so a filter
+there would change it.
+The reachability test drives the real _build_vehicle_info_dict with EMPTY data.
+The merge carries a previous good value forward, so a field that ever reported
+well never reaches a sensor with a bad value -- only a first update does. A test
+on a hand-made coordinator dict would pass without proving the filter is
+reachable at all. 1293 -> 1314 tests.
+
+--- f3b-a: tonneau keyed on the field, not on a dead flag ---------- PASS -------
+required_field="closureTonneauClosed" on RivianCoverEntityDescription; the cover
+moved into the ungated group. Presence in coordinator.data, NOT truthiness of
+get(): the first refresh waits for the initial subscription payload before
+platforms are set up (__init__.py:108 precedes :130), and get()-truthiness both
+drops legitimately-falsy values and passes vacuously against a MagicMock.
+
+Swept the other four gates against VehicleFeature: TAILGATE_CMD, LIFTGATE_CMD,
+SIDE_BIN_NXT_ACT, CHARG_PORT_DOOR_COMMAND are all real featureNames -- kept.
+Confirmed the 19-of-64 member/featureName split, and that cover.py's
+CHARG_PORT_DOOR_COMMAND is the featureName (the MEMBER is CHARGE_PORT_DOOR_COMMAND).
+
+LESSON, cost two gate failures against a correct tree: a gate that greps raw
+source finds its own explanatory comment. Both negative assertions failed because
+the comments naming the removed flag name the removed flag. Added
+scripts/gates/helpers/py_code_only.py -- tokenize, drop COMMENT tokens and
+statement-position STRINGs. Its first draft treated NL as a statement boundary
+and stripped every quoted dict key, reporting cover.py contains no LIFTGATE_CMD;
+NL occurs inside brackets, so bracket depth is tracked. 1314 -> 1325 tests.
+
+--- f3a: R2 gets entities ------------------------------------------ PASS -------
+helpers.groups_for_model. R1T->(R1,R1T), R1S->(R1,R1S), R2->(R1,), else->(R1,).
+No ALL key: the comprehensions build LISTS and unique_id is f"{vin}-{key}", so
+ALL+R1+R1T double-adds 114 entities per vehicle -- and SET EQUALITY CANNOT SEE
+THAT, which is why the gate counts numerically and checks duplicates directly.
+No KeyError on unknown: raising removes every entity for that vehicle.
+Third site guarded: entity.py:54 feeds DeviceInfo for EVERY platform. Device name
+now falls through name -> model -> vin; None is not a valid device name.
+Committed tests/fixtures/entity_sets.json: R1T 90/33, R1S 90/29, R2 87/27,
+model-absent 87/27 -- exactly the plan's numbers. 1325 -> 1358 tests.
+
+--- f3c: tailgate documented, not removed -------------------------- PASS -------
+docs/development/MODEL_SPECIFIC_ENTITIES.md. closure_tailgate_* stays shared.
+f0 already turned the false R1S "Closed" into "unknown", so what remained was
+cosmetic against taking two entities from every R1S owner on a hardware
+inference. f3a's fixture untouched, as this story requires. 1358 -> 1366.
+
+--- f3d: long poll intervals --------------------------------------- PASS -------
+UserCoordinator and WallboxCoordinator both 900 s (were 30 s).
+900 EXACTLY, and the reason is the trap the plan flagged: _set_update_interval
+computes min(base * 2**error_count, 900) and never reassigns the base, so any
+base ABOVE 900 is used verbatim at construction, collapses to 900 on the first
+error, and never recovers. Committed a characterisation test on a synthetic
+3600 s subclass so raising the cap later goes red.
+Cost stated, not hidden: at the cap the back-off is a no-op. Acceptable -- 900 s
+is where the old 30 s base ended up after five consecutive failures anyway.
+Assertions read the EFFECTIVE update_interval after a simulated error; the class
+attribute is not what schedules anything. 1366 -> 1387 tests.
+
+Two harness lessons for later stories:
+  * MagicMock(spec=VehicleCoordinator) raises AttributeError for
+    drivers_coordinator / charging_coordinator -- they are assigned in __init__,
+    so they are not on the class spec. Set them explicitly.
+  * _set_update_interval reschedules, and pytest-homeassistant-custom-component
+    fails any test leaving a live timer -- reported as an ERROR at teardown, not
+    beside the assertion. Unschedule in a fixture.
+  * Gates that inspect the entity tables need the venv interpreter; the system
+    python3 cannot import homeassistant. _lib.sh now has resolve_python().
+
+--- f1: capability inventory transcribed from classes -------------- PASS -------
+tests/apk/transcription.py: VehicleFeature 64 (19 member/featureName pairs
+differ), l6e 56, VASCommand 57, VASCommandKt 24. Every count matches the plan.
+Gate-string lint: the four gates in cover.py/button.py all name real featureNames.
+
+Three extraction lessons, each of which produced a WRONG number first:
+  * l6e's fields come from the Kotlin default-arg MASK, not the literal args.
+    null in the scope position means fug.App. Reading literals loses
+    DYNAMICS_TIRES_STATE, the only Feature-scoped topic. CLIMATE_HOLD_STATUS is
+    the only needDoubleConsumerSubscription topic (f5 must honour it).
+  * Bounding VASCommand subclasses at the next `extends VASCommand` swallows the
+    Companion class, whose body DEFINES generateInvalidCloudDataWrapper -- so
+    CloseTonneauCover read as invalid-wrapped. Bound at the next class decl of
+    ANY kind. 7 invalid-wrapper commands, not 8.
+  * "Sendable" = cloud wrapper minus the INVALID_COMMAND sentinel = 45.
+
+NEW EVIDENCE, third independent measurement that the app is a lower bound:
+the server emits SEVEN supportedFeatures names app 3.15.0 declares no member for
+(CHARG_CLEAN_NRG, CLM_HOLD_AUTO_VENT, CONNECT_PLUS, PIN_KEY_DRIVE,
+PREMIUM_SPEAKER, TRIP_ADD_STOP, WATCH_GEN1_PAIRING). So the lint accepts
+featureNames UNION observed names. scripts/dump_supported_features.py; fixture
+records model+year only, no VIN.
+
+Queues established: 7 commands ours-only (KEPT), 5 sendable unwired (f6),
+38 l6e topics undecoded (f5 -- exactly the plan's number).
+
+--- f2: five unpopulated fields investigated, all kept ------------- PASS -------
+docs/development/UNPOPULATED_FIELDS.md.
+VEHICLE_STATE_SANS_TPMS_API_FIELDS converted ^ -> -. The guard now asserts the
+OPERATOR (and reads the expression out of the source), not just the result --
+the old form would have stayed green right up to the point the trap sprang.
+Both 3RD_ROW spellings added ALONGSIDE the THIRD_ROW pair. Neither is wired.
+
+--- f4: schema rebuilt, and TWO plan corrections ------------------- PASS -------
+type VehicleState = app union (137) + the 15 + the 4 already declared = 156.
+One of 81 definitions changed; the other 80 asserted byte-identical.
+
+CORRECTION 1. The plan's formula "app union UNION the fifteen" DELETES four
+declared fields, two of them load-bearing: supportedFeatures (source of every
+capability gate) and cloudConnection (backs the cloud-connected binary sensor).
+Kept and marked; recorded delta is 15 + 4.
+
+CORRECTION 2. tirePressureState DOES NOT EXIST as a field. It is the OPERATION
+NAME of apj.java's subscription. It appears nowhere else except apk_statefields.txt
+and apk_ops.txt -- the two flat extracts the plan itself retires as lossy. That is
+exactly how it reached the plan. I adopted it before catching this; the EXISTING
+guard test_every_subscribed_field_is_one_the_gateway_knows failed immediately,
+which is the only reason it cost five minutes instead of shipping. Subscribing to
+an unknown name takes the WHOLE subscription down (wheelsInstalled). Reverted in
+both repos and pinned by tests.
+
+So f2's finding is corrected too: NO offline candidate exists for the four
+tirePressureStatusValid*. apj selects exactly eight tire fields. Third outcome:
+no source found, entities left in place, probe deferred to f8.
+
+get_vehicle_state deleted; its four error-path tests REPOINTED at
+get_user_information, not deleted -- they cover __graphql_query and the client
+floor has under half a point of headroom. 74.61% -> 74.46%, floor 74.0%.
+
+Third occurrence of the self-triggering-comment defect (my own f4 test grepped
+for a name its own docstring contains). scripts/gates/helpers/py_code_only.py now
+exists for exactly this; use it for every negative grep.
+
+1387 -> 1453 tests. Integration coverage 90.20% (floor 89), client 74.46% (74).
+
+--- f5: fourteen Parallax decoders transcribed ---------------------- PASS ------
+THE BIG LESSON. My first reading concluded the app carries no protobuf schema:
+grep for GeneratedMessageLite / ProtoAdapter / parseFrom finds nothing outside
+Google's own code. WRONG. R8 renames GeneratedMessageLite to
+`com.google.protobuf.e` and every message class to two or three letters. The app
+carries 326 message classes, and R8 leaves intact exactly what a decoder needs:
+<FIELD>_FIELD_NUMBER constants (original names + numbers), the <field>_ members
+(with Java types), and protobuf enum constants (names + numbers).
+
+Topic -> message binding comes from the app's own dispatch. b7h.java + 10 siblings
+hold methods shaped:
+    if (j6e.a(str) != l6e.DYNAMICS_VEHICLE_GEAR) return null;
+    ... hk8.E(Base64.decode(payload, 0))
+Extractors committed at scripts/gates/helpers/{topic_map,proto_index,proto_schema}.py.
+
+Value vocabulary = app enum name minus its prefix, lowercased (GEAR_PARK -> park).
+NOT a guess: that is how GEAR_STATUS_MAP / DRIVE_MODE_MAP were already built from
+live values, so the new decoders feed the EXISTING sensors.
+
+18 -> 32 decoders. No subscription code changed: SUBSCRIBED_RVMS is the
+intersection, so writing a decoder subscribes its topic.
+
+Layout details a guess gets wrong: drive_mode skips fields 2-7 (booleans at 8/9);
+SecureImmoStatus has no UNSPECIFIED sentinel so 0 is NOT_ASSIGNED; six of
+security.access.btm's ten fields share one enum.
+
+Tests are TRANSCRIPTION tests and say so -- payloads are constructed, not captured.
+Capture needs sole-subscriber websocket access (production stopped) = f8.
+
+24 topics remain undecoded, each listed with its reason. Not dropped.
+
+Two findings recorded, not acted on:
+  * needDoubleConsumerSubscription: CLIMATE_HOLD_STATUS only, and its getter has
+    NO CALLER in the 32,941 files. App 3.15.0 acts on it nowhere. Duplicating the
+    topic would also contradict the subscription code's own warning.
+  * iol.java is a SECOND RVM enum: user_passcodes.passcode_types.drive_auth and a
+    THIRD spelling of passive entry. l6e is not the complete topic list.
+
+--- f6: command coverage closed ------------------------------------ PASS ------
+All 45 sendable commands now in VehicleCommand (f2 added the 3RD_ROW pair; f6
+added OPEN_LIFTGATE, OPEN_TAILGATE, START_GEAR_GUARD_MASTER_SESSION).
+button.open_tailgate / button.open_liftgate wired, entity_registry_enabled_default
+=False -- they move a closure and are untested (f7).
+The 7 invalid-wrapper commands stay unwired AND undeclared-dead.
+The 7 APK-absent commands stay. docs/development/COMMAND_COVERAGE.md.
+
+================================================================================
+ALL 11 AUTOMATED STORIES PASS. 1293 -> 1518 tests.
+Integration coverage 90.20% (floor 89), client 75.27% (floor 74).
+Remaining: f3b-b, f7, f8 -- all human, all need the vehicle.
+================================================================================
+
+--- Gate sweep: two gate defects, both mine --------------------------------
+Running all twelve gates end to end found two failures, neither in the code.
+
+1. f5 called check_coverage.py WITHOUT regenerating the report. coverage.json is
+   rewritten by every pytest run including a single-module one -- and a partial
+   run still imports the whole package through conftest, so it produces a report
+   covering every file at IMPORT-TIME coverage only. Integration read 38% against
+   a tree whose real figure is 90.20%. Both f2 and f5 called that a broken floor.
+   Fixed: f5 regenerates first (f4 already did).
+
+   check_coverage.py now also refuses a report older than the sources. Stated
+   honestly: that catches the STALE case only. Nothing in a coverage report
+   records which tests ran, so a partial run made just now is undetectable --
+   regenerating before checking is the real guarantee.
+
+   My FIRST attempt at that guard compared the report's file list to the modules
+   on disk. It does not work (a partial run lists every file too) and was removed
+   rather than left in looking like protection.
+
+2. f2's gate named a test f4 had renamed. A gate that names a test must be
+   updated with it.
+
+FINAL: all twelve gates pass. pf 33, f0 17, f3b-a 31, f3a 30, f3c 16, f3d 12,
+f1 25, f2 21, f4 21, f5 20, f6 17, s14 13. Suite 1518 green.
+Integration 90.20% (floor 89), client 75.32% (floor 74).
+Sibling repo: 133 passed, 10 skipped.
+Both repos pushed to vendor-client.
+
+NOT DONE: production still runs 1.6.0-beta3. vendor-client is 14 commits ahead of
+dev. Cutting beta4 and deploying is the last automated verification criterion
+("production reloads with no new ERROR lines") and needs the owner's go-ahead.

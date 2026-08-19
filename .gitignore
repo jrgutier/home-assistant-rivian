@@ -185,3 +185,10 @@ config-dev/
 # gitlink (mode 160000) with no .gitmodules. Keep it out of the index; the plan
 # copies the handful of classes it cites into docs/development/apk/ instead.
 com.rivian.android.consumer/
+
+# The nine decompiled classes the entity-exposure plan cites. This is a public
+# HACS repository and these are proprietary sources, so the files are kept out of
+# the index the same way the 31,105-file tree above is. They are a pre-flight
+# artifact: docs/development/apk/REGENERATION.md records how to rebuild them, and
+# every claim they support is transcribed into a test that does ship.
+docs/development/apk/*.java

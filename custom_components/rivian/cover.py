@@ -79,6 +79,27 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             command_close=VehicleCommand.CLOSE_ALL_WINDOWS,
             command_open=VehicleCommand.OPEN_ALL_WINDOWS,
         ),
+        # Gated on the field, not on TONNEAU_CMD.
+        #
+        # That flag appears in NONE of the app's 32,941 decompiled files and in no
+        # vehicle's supportedFeatures, so this cover was never created for anyone --
+        # while the commands beneath it work: tested live on an R1T,
+        # OPEN_TONNEAU_COVER physically opened the cover and CLOSE_TONNEAU_COVER
+        # returned it to closed and locked.
+        #
+        # Same shape the frunk and windows above already use, with one extra
+        # condition. On real hardware this creates the cover for any vehicle that
+        # reports the closure; the negative branch is reached only by a vehicle
+        # that genuinely lacks it, which is why the test for it is synthetic.
+        RivianCoverEntityDescription(
+            key="tonneau",
+            translation_key="tonneau",
+            device_class=CoverDeviceClass.DOOR,
+            required_field="closureTonneauClosed",
+            is_closed=lambda coor: coor.get("closureTonneauClosed") != "open",
+            command_close=VehicleCommand.CLOSE_TONNEAU_COVER,
+            command_open=VehicleCommand.OPEN_TONNEAU_COVER,
+        ),
     ),
     "CHARG_PORT_DOOR_COMMAND": (
         RivianCoverEntityDescription(
@@ -100,16 +121,6 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             command_open=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
         ),
     ),
-    "TONNEAU_CMD": (
-        RivianCoverEntityDescription(
-            key="tonneau",
-            translation_key="tonneau",
-            device_class=CoverDeviceClass.DOOR,
-            is_closed=lambda coor: coor.get("closureTonneauClosed") != "open",
-            command_close=VehicleCommand.CLOSE_TONNEAU_COVER,
-            command_open=VehicleCommand.OPEN_TONNEAU_COVER,
-        ),
-    ),
 }
 
 
@@ -128,6 +139,13 @@ async def async_setup_entry(
         for feature, descriptions in COVERS.items()
         if feature is None or feature in (vehicle.get("supported_features", []))
         for description in descriptions
+        # Presence in `data`, not the value of `get()`. The coordinator's first
+        # refresh waits for the initial subscription payload before platforms are
+        # set up (__init__.py:108 precedes :130), so by here `data` is the set of
+        # fields this vehicle actually named. A truthiness test on get() would also
+        # drop a field reporting a legitimately falsy value.
+        if description.required_field is None
+        or description.required_field in (coordinators[vehicle_id].data or {})
     ]
     async_add_entities(entities)
 

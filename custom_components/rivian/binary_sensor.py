@@ -13,10 +13,17 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ATTR_COORDINATOR, ATTR_VEHICLE, BINARY_SENSORS, DOMAIN
+from .const import (
+    ATTR_COORDINATOR,
+    ATTR_VEHICLE,
+    BINARY_SENSORS,
+    DOMAIN,
+    INVALID_SENSOR_STATES,
+)
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianBinarySensorEntityDescription
 from .entity import RivianVehicleEntity
+from .helpers import groups_for_model
 
 
 async def async_setup_entry(
@@ -31,7 +38,7 @@ async def async_setup_entry(
         RivianBinarySensorEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
         for model, descriptions in BINARY_SENSORS.items()
-        if model in vehicle["model"]
+        if model in groups_for_model(vehicle.get("model"))
         for description in descriptions
     ]
 
@@ -81,6 +88,26 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
                 self._get_value(entity_key) for entity_key in fields
             )
         if (val := self._get_value(fields)) is not None:
+            # A value the vehicle flags as unusable is not a state -- report
+            # unknown, mirroring sensor.py:183.
+            #
+            # This matters more here than it does for a sensor. A sensor showing
+            # "SNA" at least looks wrong; a binary sensor silently resolves it,
+            # because "signal_not_available" is not equal to "locked", so a door
+            # whose lock state the vehicle has just said it does not know renders
+            # as a confident Unlocked.
+            #
+            # BEFORE the negate, not after: `not False` is True, so filtering
+            # afterwards would turn an unusable value into a confident True on
+            # every negated description.
+            #
+            # Returning None yields `unknown`, NOT `unavailable` --
+            # RivianVehicleEntity.available (entity.py:64-68) keys on the field
+            # being present, and the raw value still flows. That is deliberate:
+            # suppressing the value in the coordinator instead was tried twice and
+            # reverted, because it takes the matching CONTROL down with it.
+            if str(val).lower() in INVALID_SENSOR_STATES:
+                return None
             values = self.entity_description.on_value
             values = [values] if isinstance(values, str) else values
             result = val in values

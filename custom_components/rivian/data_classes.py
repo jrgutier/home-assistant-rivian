@@ -59,6 +59,14 @@ class RivianCoverEntityDescription(CoverEntityDescription):
     """Rivian cover entity description."""
 
     is_closed: Callable[[VehicleCoordinator], bool]
+    # Create this cover only for vehicles that actually report `required_field`.
+    #
+    # The alternative -- a capability flag -- is what hid the tonneau cover from
+    # everyone: `TONNEAU_CMD` is in no vehicle's supportedFeatures and in none of
+    # the app's 32,941 decompiled files, while both tonneau commands are live-proven
+    # to move the physical cover. A field the vehicle names is evidence; a flag
+    # nothing emits is not.
+    required_field: str | None = None
     command_open: VehicleCommand | None = None
     command_open_params: dict[str, Any] | None = None
     command_close: VehicleCommand | None = None

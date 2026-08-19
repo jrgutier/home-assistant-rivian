@@ -272,7 +272,7 @@ its first contact with the real gateway.
 2. VEHICLE_STATE_API_FIELDS is derived from every sensor's field, so the
    wheels_installed sensor added in s09b injected wheelsInstalled into the GraphQL
    subscription. Rivian rejected the whole subscription, which then delivered
-   nothing -- no battery, no odometer, no tyre pressures.
+   nothing -- no battery, no odometer, no tire pressures.
 3. "Off" was missing from the preconditioning enum, though the decoder documents
    emitting it.
 4. INVALID_SENSOR_STATES listed signal_not_available but the vehicle sends SNA.
@@ -282,7 +282,7 @@ its first contact with the real gateway.
    other keys.
 
 Final run is clean: 0 errors, 0 tracebacks, 0 rejections, 13 Parallax topics with 0
-raw payloads, odometer and all four tyre pressures live.
+raw payloads, odometer and all four tire pressures live.
 
 Not done: the climate hold write. It actuates the vehicle and needs its own
 approval; running the read path is not consent to command the car.

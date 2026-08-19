@@ -231,6 +231,15 @@ class VehicleCommand(StrEnum):
     # Gen2 HVAC Controls
     CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT = "CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT"
     CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT = "CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT"
+    # The spelling app 3.15.0 actually sends (VASCommandKt). ADDED ALONGSIDE the
+    # THIRD_ROW pair above, not replacing it: the two names above appear in no
+    # decompiled file of this build, which makes them a candidate for an older
+    # firmware or an older app, and an app-side absence is the weakest evidence
+    # there is -- the tonneau commands appear in no file either and physically
+    # move the cover. Neither pair is wired to an entity yet; which one a given
+    # vehicle accepts is a live question, and f6 answers it by testing.
+    CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT = "CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT"
+    CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT = "CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT"
 
     # Closures
     LOCK_ALL_CLOSURES_FEEDBACK = "LOCK_ALL_CLOSURES_FEEDBACK"
@@ -247,12 +256,23 @@ class VehicleCommand(StrEnum):
     ENABLE_GEAR_GUARD_VIDEO = "ENABLE_GEAR_GUARD_VIDEO"
     DISABLE_GEAR_GUARD = "DISABLE_GEAR_GUARD"
     DISABLE_GEAR_GUARD_VIDEO = "DISABLE_GEAR_GUARD_VIDEO"
+    # VASCommand.StartGearGuardMasterSession at :1350. Declared, not wired: it
+    # starts a live camera session, which is a streaming feature this integration
+    # has no surface for, not a control. Kept so the name is recorded.
+    START_GEAR_GUARD_MASTER_SESSION = "START_GEAR_GUARD_MASTER_SESSION"
 
     # Liftgate (R1S only)
     CLOSE_LIFTGATE = "CLOSE_LIFTGATE"
 
     # Liftgate/tailgate
     OPEN_LIFTGATE_UNLATCH_TAILGATE = "OPEN_LIFTGATE_UNLATCH_TAILGATE"
+    # The two the app also sends separately (VASCommand.OpenLiftgate at :710 and
+    # VASCommand.UnlatchTailgate at :1560, both ordinary generateCloudDataWrapper
+    # commands). The combined one above opens the liftgate AND unlatches the
+    # tailgate; these two do one each, which is what an R1T owner wants for the
+    # tailgate alone.
+    OPEN_LIFTGATE = "OPEN_LIFTGATE"
+    OPEN_TAILGATE = "OPEN_TAILGATE"
 
     # Chargeport door
     OPEN_CHARGE_PORT_DOOR = "OPEN_CHARGE_PORT_DOOR"
