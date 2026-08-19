@@ -61,8 +61,11 @@ if unsubscribed:
         f"registered but not subscribed: {sorted(unsubscribed)} -- SUBSCRIBED_RVMS "
         "is the intersection, so this means a topic is not in PARALLAX_RVMS"
     )
-if len(RVM_DECODERS) != 32:
-    problems.append(f"{len(RVM_DECODERS)} decoders, expected 32 (18 + 14)")
+if len(RVM_DECODERS) != 33:
+    problems.append(
+        f"{len(RVM_DECODERS)} decoders, expected 33 (18 + 14 transcribed + "
+        "vehicle.network.state, which is the one taken on an inference)"
+    )
 
 # Working decoders must not have been replaced.
 if RVM_DECODERS.get("dynamics.tires.state") is not decode_tires:
