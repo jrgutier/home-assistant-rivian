@@ -328,3 +328,86 @@ class TestCommittedFixture:
         ):
             assert len(data[model]["sensors"]) == n_sensors, model
             assert len(data[model]["binary_sensors"]) == n_binaries, model
+
+
+class TestTailgateStaysShared:
+    """`closure_tailgate_*` is in the shared group, and stays there.
+
+    An R1S has a liftgate, not a tailgate, so these two entities do not apply to
+    it. That is not a reason to remove them. The functional argument -- that an
+    R1S would show a confident `Closed` for hardware it lacks -- was answered by
+    f0: a binary sensor whose field is unusable now reports `unknown`. What
+    remains is cosmetic, while the cost is two entities taken from every R1S
+    owner on a hardware inference with no recorded live failure. That is the same
+    inference the tonneau cover falsified.
+
+    See docs/development/MODEL_SPECIFIC_ENTITIES.md. Removing them requires a
+    recorded owner decision, not a passing test.
+    """
+
+    TAILGATE_KEYS = {"closure_tailgate_closed", "closure_tailgate_locked"}
+
+    def test_the_tailgate_entities_are_in_the_shared_group(self) -> None:
+        shared = {d.key for d in BINARY_SENSORS["R1"]}
+        assert self.TAILGATE_KEYS <= shared
+
+    def test_they_are_not_in_an_r1t_only_group(self) -> None:
+        """If they were, this file would be describing a removal that happened."""
+        r1t_only = {d.key for d in BINARY_SENSORS["R1T"]}
+        assert not (self.TAILGATE_KEYS & r1t_only)
+
+    @pytest.mark.parametrize("model", ["R1T", "R1S", "R2"])
+    async def test_every_model_still_receives_them(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, model: str
+    ) -> None:
+        _, binaries = await _setup(hass, mock_config_entry, model)
+        keys = {e.entity_description.key for e in _vehicle_only(binaries)}
+        assert self.TAILGATE_KEYS <= keys, model
+
+    def test_the_committed_fixture_records_them_for_the_r1s(self) -> None:
+        """The fixture is the artefact a future removal would have to edit."""
+        data = json.loads(FIXTURE.read_text())
+        assert self.TAILGATE_KEYS <= set(data["R1S"]["binary_sensors"])
+        assert self.TAILGATE_KEYS <= set(data["R2"]["binary_sensors"])
+
+    async def test_an_unusable_tailgate_field_reads_unknown_not_closed(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """The behaviour this file documents, asserted rather than asserted-about.
+
+        This is what removes the functional argument for deleting them, so it is
+        checked here and not left to f0's module alone.
+        """
+        from custom_components.rivian.binary_sensor import RivianBinarySensorEntity
+
+        (description,) = [
+            d for d in BINARY_SENSORS["R1"] if d.key == "closure_tailgate_closed"
+        ]
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.get = MagicMock(return_value="signal_not_available")
+        coordinator.data = {}
+        entity = RivianBinarySensorEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=description,
+            vehicle={
+                "id": "veh-1",
+                "vin": "TESTVIN0000000001",
+                "name": "Test R1S",
+                "model": "R1S",
+            },
+        )
+        assert entity.is_on is None
+        assert entity.available is True
+
+
+def test_the_decision_is_written_down_where_it_will_be_found() -> None:
+    """A decision that lives only in a commit message gets re-litigated."""
+    doc = (
+        pathlib.Path(__file__).parents[1]
+        / "docs/development/MODEL_SPECIFIC_ENTITIES.md"
+    )
+    assert doc.is_file()
+    text = doc.read_text()
+    assert "closure_tailgate_closed" in text
+    assert "recorded owner decision" in text
