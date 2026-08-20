@@ -12,7 +12,7 @@ source "$(dirname "$0")/_lib.sh"
 
 echo "S7 — client vendored, no top-level 'rivian' imports"
 
-on_branch "$HA" vendor-client
+not_publishing_branch "$HA"   # was: on_branch "$HA" vendor-client (branch retired; see _lib.sh)
 
 # Negative: no module imports the client as a top-level package any more.
 # ^[[:space:]]* (not ^) so indented imports inside functions and try: blocks count.

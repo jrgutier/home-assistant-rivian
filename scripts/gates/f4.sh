@@ -213,9 +213,7 @@ for t in test_the_schema_is_actually_loaded_by_something \
 done
 
 PY="$(resolve_pytest "$HA")"
-out=$(cd "$HA" && "$PY" -q --no-cov -p no:cacheprovider 2>&1 || true)
-note "$(echo "$out" | tail -1)"
-if echo "$out" | grep -qE '^FAILED '; then bad "suite has failures"; else ok "suite green"; fi
+pytest_green "$HA" "$PY" "suite"
 test_count "$HA" 1453
 
 summary f4

@@ -3,9 +3,11 @@
 Five subscribe_for_* in the client ended `except Exception: _LOGGER.error(ex);
 return None`, and five coordinator call sites branched on that None. So a dead
 real-time path looked exactly like a healthy one from every caller -- which is why
-"the Parallax websocket is broken" survived a full day of diagnosis before the
-real cause (the gateway permits one active subscription per user session) was
-found.
+"the Parallax websocket is broken" survived a full day of diagnosis. That day was
+long attributed to "the gateway permits one active subscription per user session"
+-- FALSIFIED 2026-08-20 (docs/development/WS_CONTENTION.md, claim C1s). The
+swallow is what made the diagnosis unbounded; the obligations below are justified
+independently of what the day's true cause was.
 
 Two obligations pull in opposite directions and both are pinned here:
   * the failure must SURFACE -- a caller must be able to tell

@@ -750,3 +750,168 @@ class TestClimateChainedCalls:
 
 def test_coordinator_continue_set_matches_the_transcription() -> None:
     assert COMMAND_STATE_CONTINUE == TRANSCRIBED_CONTINUE
+
+
+class TestCeilingInterlockKeysOnTheRightQuantity:
+    """f9's ceiling interlock must key on FIRST-FRAME latency, not terminal.
+
+    `entity.py`'s timeout docstring says the wait is for "the first well-formed
+    frame", and the loop returns on the first non-empty `get_command_state`. So
+    the 30 s ceiling bounds first-frame arrival and bites only at zero frames.
+
+    The interlock previously keyed on a terminal-latency measurement -- a
+    leftover from the design where `_execute_command` blocked until terminal,
+    which was superseded and never re-derived. A gate outlived its own design.
+
+    It also keyed on a lowercase English phrase that the record was expected to
+    reproduce, and survived only because `grep -qF` is case-sensitive. Both
+    replacement tokens are shaped so prose will not produce them, and relaxation
+    requires the measurement AND a separate owner ratification.
+    """
+
+    def test_the_gate_requires_both_tokens(self) -> None:
+        gate = (REPO / "scripts/gates/f9.sh").read_text()
+        assert "NON-WAKE FIRST-FRAME LATENCY MEASURED:" in gate
+        assert "CEILING RATIFIED BY OWNER" in gate
+
+    def test_the_retired_marker_is_absent_from_the_gate(self) -> None:
+        """Absent entirely -- quoting it even to explain it satisfies the grep.
+
+        That happened on the first attempt at this change: the explanatory
+        comment reintroduced the string and the acceptance criterion caught it.
+        """
+        gate = (REPO / "scripts/gates/f9.sh").read_text()
+        assert "terminal latency measured" not in gate
+        assert "terminal latency is unmeasured" not in gate
+        assert "DOC_HAS_MEASURED" not in gate
+
+    def test_the_gate_cites_the_docstring_that_fixes_the_quantity(self) -> None:
+        """REWRITTEN from an address pin to a QUANTITY pin.
+
+        This used to assert a `file:line` citation appeared in the gate. Adding the
+        two ceiling constants above `_execute_command` shifted that line, and an
+        address pin does not fail when the address goes stale -- it keeps passing
+        while asserting the wrong thing, which is the worst failure mode a gate has.
+
+        The phrase "first well-formed frame" is the governed quantity itself. It is
+        already present in both the gate and the docstring it cites, so this is
+        satisfiable today; it survives every future line shift; and it fails exactly
+        when the quantity being bounded changes, which is what the citation was for.
+        """
+        gate = (REPO / "scripts/gates/f9.sh").read_text()
+        entity = (REPO / "custom_components/rivian/entity.py").read_text()
+        assert "first well-formed frame" in gate
+        assert "first well-formed frame" in entity
+
+    def test_the_ceiling_is_now_sixty_and_one_twenty(self) -> None:
+        """INVERTED from `test_the_ceiling_is_still_thirty`, which pinned 30 s.
+
+        The ceiling is now state-dependent: 60 s awake, 120 s while SLEEPING,
+        mirroring the app's CLOUD-path give-up timeouts (`C5332Z.java:242`/`:254`,
+        selected at `:821`). It is a RAISE, and the record's rule governs *lowering*
+        -- the old pin was a direction-blind fixed string, so it fired anyway.
+
+        What earns each half is not the same. The sleeping ceiling clears the
+        record's own 4x-observed-max condition: cold first-frame max 14.66 s
+        (`docs/E2E_ACCEPTANCE.md:610`) implies a 58.6 s floor, which 120 s clears and
+        30 s did not. The awake raise does NOT come from a measurement -- the awake
+        population's max is 2.77 s (`:216-219`), which 30 s already cleared about
+        eleven times over. It is an owner decision to mirror the app, and saying so
+        is the point: attributing it to the record would be inventing a
+        justification the record does not give.
+
+        The *lowering* interlock is untouched: both ratification tokens and the
+        relaxation branch stay exactly as armed as before, pinned by
+        `test_the_gate_requires_both_tokens`.
+        """
+        entity = (REPO / "custom_components/rivian/entity.py").read_text()
+        assert entity.count("COMMAND_TIMEOUT_AWAKE: Final = 60") == 1
+        assert entity.count("COMMAND_TIMEOUT_SLEEPING: Final = 120") == 1
+        assert "timeout: int = 30" not in entity
+
+        gate = (REPO / "scripts/gates/f9.sh").read_text()
+        assert "COMMAND_TIMEOUT_AWAKE: Final = 60" in gate
+        assert "COMMAND_TIMEOUT_SLEEPING: Final = 120" in gate
+
+    def test_the_lowering_interlock_is_still_armed(self) -> None:
+        """Re-keying the pin must not have ratified anything.
+
+        `CEILING RATIFIED BY OWNER` means the owner ratified a *lowered* ceiling.
+        Nobody did, and writing it would permanently relax the interlock for every
+        future change including a genuine lowering. Raising the ceiling required
+        editing this gate; it did not require disarming it.
+        """
+        doc = (REPO / "docs/E2E_ACCEPTANCE.md").read_text()
+        assert "CEILING RATIFIED BY OWNER" not in doc
+
+
+class TestTheCeilingFollowsTheConnectivityState:
+    """60 s awake, 120 s while sleeping, and an explicit argument still wins.
+
+    The app selects between two CLOUD-path give-up timeouts on exactly this state
+    (`C5332Z.java:821`). Here the quantity is narrower -- the wait for the *first
+    well-formed frame* -- but the reason for the split is the same one this change
+    creates: the wake is dispatched and never awaited, so on the sleeping path the
+    vehicle's wake latency now lands inside the first-frame window rather than in
+    front of it.
+
+    Each test drives the loop to exhaustion on a fake clock and asserts which side of
+    the boundary the final time lands on, so a resolution wired to the wrong constant
+    fails rather than merely running longer.
+    """
+
+    async def test_an_awake_vehicle_gets_sixty(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        coordinator._is_online = True
+        coordinator.data = {"powerState": "ready"}
+        entity = _entity(hass, mock_config_entry, coordinator)
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+
+        assert 60 <= clock.t < 120
+
+    async def test_a_sleeping_vehicle_gets_the_longer_ceiling(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = _coordinator(hass, mock_config_entry)
+        coordinator._is_online = False
+        coordinator.data = {"powerState": "sleep"}
+        entity = _entity(hass, mock_config_entry, coordinator)
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
+        )
+
+        assert 120 <= clock.t < 180
+
+    async def test_an_explicit_timeout_still_wins(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """The seam callers and tests rely on is preserved.
+
+        `timeout` moved from `int = 30` to `int | None = None` rather than being
+        removed, so an explicit value -- positional or keyword -- still overrides the
+        state-derived default. No production caller passes one today; the wrapper in
+        this file's own timeout tests does, positionally.
+        """
+        coordinator = _coordinator(hass, mock_config_entry)
+        coordinator._is_online = False
+        coordinator.data = {"powerState": "sleep"}
+        entity = _entity(hass, mock_config_entry, coordinator)
+        coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
+        clock = _Clock()
+
+        await entity._execute_command(
+            VehicleCommand.WAKE_VEHICLE, None, 10, _clock=clock, _sleep=clock.sleep
+        )
+
+        # 10, not the 120 the SLEEPING state would otherwise have selected.
+        assert 10 <= clock.t < 60

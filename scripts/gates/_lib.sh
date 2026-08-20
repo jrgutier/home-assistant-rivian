@@ -93,6 +93,35 @@ on_branch() {
   else bad "branch $(basename "$repo") = $got (must be $want)"; fi
 }
 
+# not_publishing_branch <repo> -- the same guardrail, keyed to what it protects
+# rather than to a branch name that expired.
+#
+# s01/s05/s07 called `on_branch "$repo" vendor-client`. That branch is gone -- its
+# PRD (vendor-rivian-client-parallax) completed, all 20 stories passes:true -- so
+# those three gates could not pass on ANY current branch. Three permanent reds in a
+# sweep is how a real failure gets lost, which is the same defect class as the
+# `^FAILED ` verdict bug fixed alongside this.
+#
+# The NAME expired; the INTENT did not. prd.json's _guardrails give the reason:
+# "pre-release.yaml fires on dev and dev-* and publishes a zip beta users install."
+# The rule was never "be on vendor-client" -- it was "do not do this work on a
+# branch that ships to users". That is what is asserted here.
+#
+# Consequence, deliberate: running these gates on dev FAILS. Verification sweeps
+# belong on the feature branch; that is the guardrail working, not a regression.
+not_publishing_branch() {
+  local repo="$1" got
+  got=$(git -C "$repo" branch --show-current)
+  case "$got" in
+    dev|dev-*)
+      bad "branch $(basename "$repo") = $got -- dev and dev-* publish a beta zip to users" ;;
+    "")
+      bad "branch $(basename "$repo") is detached -- cannot confirm it does not publish" ;;
+    *)
+      ok "branch $(basename "$repo") = $got (does not publish)" ;;
+  esac
+}
+
 # test_count <repo> <floor> -- guards against "pytest green by deleting tests".
 # Distinguishes an unusable interpreter from a genuinely shrunken suite: reporting
 # "tests deleted" when pytest merely will not start is a false accusation, and the
@@ -153,6 +182,68 @@ test_count() {
   fi
   if [ "$n" -ge "$floor" ]; then ok "test count $n >= $floor"
   else bad "test count $n < $floor (tests deleted to go green?)"; fi
+}
+
+# pytest_green <repo> <pytest-binary> <label> [extra pytest args...]
+#
+# Runs the suite and judges it by pytest's EXIT STATUS, then checks for skips.
+# Replaces the idiom that stood in thirteen gates:
+#
+#     out=$(cd "$HA" && "$PY" -q --no-cov -p no:cacheprovider 2>&1 || true)
+#     if echo "$out" | grep -qE '^FAILED '; then bad ...; else ok "suite green"; fi
+#
+# TWO DEFECTS, both measured, both fixed here rather than thirteen times over.
+#
+# 1. `^FAILED ` CANNOT SEE A SUITE THAT NEVER RAN. A collection error prints
+#    `ERROR path/to/test.py`, `Interrupted: 1 error during collection` and
+#    `1 error in 0.14s` -- and no `FAILED ` line at all. The grep matched zero,
+#    the gate reported "suite green", and the suite had not run. Same for an
+#    import error, a bad -k, or an interrupt. The `|| true` is what made this
+#    possible: it discarded the one signal that was already correct. The exit
+#    status is now the verdict, and the output is only used for detail.
+#
+# 2. THE SKIP REGEX WAS ANCHORED AND COULD NEVER MATCH. `^[0-9]+ (skipped|
+#    deselected)` never fires, because `pytest -q` prints "22 passed, 1 skipped
+#    in 0.5s" -- the passed count comes first. Skips were tolerated silently in
+#    every gate that used it. Unanchored here, as s15 already does.
+#
+# Callers keep their own test_count floor; that check is orthogonal and catches
+# a different failure (tests deleted to go green).
+pytest_green() {
+  local repo="$1" py="$2" label="$3"; shift 3
+  local out rc
+  # No `|| true`: we WANT the status. set -e is scoped off for this one call so
+  # a red suite is reported by the gate rather than aborting it mid-run.
+  set +e
+  out=$(cd "$repo" && "$py" -q --no-cov -p no:cacheprovider "$@" 2>&1)
+  rc=$?
+  set -e
+  note "$(echo "$out" | tail -1)"
+  if [ "$rc" -eq 0 ]; then
+    ok "$label passed (pytest exit 0)"
+  else
+    bad "$label FAILED (pytest exit $rc)"
+    # Surface the reason: a collection error names no FAILED line, so printing
+    # the matching lines is the only way the operator learns which mode it was.
+    #
+    # `|| true` is LOAD-BEARING, and its absence was a real bug: pytest exit 4
+    # (a node id that no longer exists) and exit 5 (no tests ran) are non-zero
+    # but print NO matching line, so grep exited 1, pipefail propagated it, and
+    # errexit killed the whole gate right here -- every later section and the
+    # summary silently skipped, leaving one FAIL line and no verdict. A helper
+    # written to stop gates lying about failures was itself hiding them.
+    #
+    # `Interrupted` is unanchored: pytest prints it as
+    # `!!!!!!!! Interrupted: 1 error during collection !!!!!!!!`, so `^Interrupted`
+    # could never match.
+    { echo "$out" | grep -E '^(FAILED|ERROR) |Interrupted:' | head -5 || true; } \
+      | while IFS= read -r l; do note "  $l"; done
+  fi
+  if echo "$out" | grep -qE '[0-9]+ (skipped|deselected)'; then
+    bad "$label: tests skipped or deselected"
+  else
+    ok "$label: nothing skipped or deselected"
+  fi
 }
 
 summary() {

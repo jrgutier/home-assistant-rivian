@@ -11,9 +11,13 @@
 #   * rewriting a working decoder. dynamics.tires.state and
 #     vehicle.wheels.vehicle_wheels were ALREADY decoded; naming them in a queue
 #     of "undecoded topics" sends someone to redo working code.
-#   * presenting constructed payloads as captures. Capture needs sole-subscriber
-#     websocket access, i.e. production stopped. These are transcription tests and
-#     the docs say so.
+#   * presenting constructed payloads as captures. These are transcription tests
+#     and the docs say so -- because no capture has been taken, NOT because one
+#     is hard to take. The old reason ("capture needs sole-subscriber websocket
+#     access, i.e. production stopped") is FALSIFIED 2026-08-20: arm 3b received
+#     the full 33-topic RVM set with production subscribed. See
+#     docs/development/WS_CONTENTION.md, claim C8. Capture is now schedulable
+#     with no outage; until it happens these stay transcription tests.
 
 source "$(dirname "$0")/_lib.sh"
 
@@ -127,9 +131,7 @@ else
   bad "the f5 test module fails"
 fi
 
-out=$(cd "$HA" && "$PY" -q --no-cov -p no:cacheprovider 2>&1 || true)
-note "$(echo "$out" | tail -1)"
-if echo "$out" | grep -qE '^FAILED '; then bad "suite has failures"; else ok "suite green"; fi
+pytest_green "$HA" "$PY" "suite"
 # WITH coverage. The suite above runs --no-cov for speed, which leaves whatever
 # coverage.json happened to be on disk -- and a single-module run leaves a partial
 # one reporting 38%. check_coverage.py now refuses a partial report outright, but

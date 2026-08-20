@@ -221,7 +221,6 @@ async def test_filter_is_reachable_on_a_first_update_with_no_history(
     coordinator._subscription_keys = set()
     coordinator.charging_coordinator = MagicMock()
     coordinator.vehicle_id = "veh-1"
-    coordinator._awake = MagicMock()
 
     merged = VehicleCoordinator._build_vehicle_info_dict(
         coordinator, {"doorFrontLeftLocked": {"value": "SNA", "timeStamp": "t0"}}

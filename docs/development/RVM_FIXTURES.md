@@ -8,18 +8,25 @@ Captured from the live vehicle on 2026-08-18. Fixtures live in
 Two things were learned the hard way and both change the procedure:
 
 1. **The payload does not come back from the mutation.** `sendVehicleOperation`
-   selects only `{ success }` (`rivian.py:866-870`). `prd.json` s08a previously
+   selects only `{ success }` (`rivian.py:857-861`). `prd.json` s08a previously
    claimed the four RVMs were "verified-working QUERIES today, so the existing query
    path suffices" — that is false. The payload arrives *only* on the
    `parallaxMessages` websocket subscription.
 
-2. **The gateway permits exactly one active subscription per user session.** With
+2. ~~**The gateway permits exactly one active subscription per user session.** With
    Home Assistant running, a second `connection_init` on the same `u-sess` is
    accepted, never acknowledged, and closed at TTL with `4420 Connection TTL
    expired`. A *malformed* token by contrast gets `4403 Forbidden` in ~0.5 s. So
    capture must run as **sole subscriber**: disable the HA config entry
-   (`config_entries/disable`, `require_restart: false`), capture, re-enable.
-   See `WS_CONTENTION.md`.
+   (`config_entries/disable`, `require_restart: false`), capture, re-enable.~~
+
+   **RETRACTED 2026-08-20 — FALSIFIED by measurement (claim C8).** Arm 3b received
+   the **full 33-topic RVM set with production subscribed**, and arm 3c received a
+   `connection_ack` on a second connection with Home Assistant up, in 0.0 s. The
+   "accepted, never acknowledged" half is false. **Capture does NOT require sole
+   subscriber and does NOT require an outage** — it can be scheduled against a
+   running production instance. The `4420` TTL close is real but its *cause* was
+   never established. See `WS_CONTENTION.md`, claims C8, C1s, C1c and C2.
 
 Identifiers matter too. Three exist and they are not interchangeable:
 

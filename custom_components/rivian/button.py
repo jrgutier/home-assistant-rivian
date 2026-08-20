@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .connectivity import ConnectivityState
 from .const import ATTR_COORDINATOR, ATTR_USER, ATTR_VEHICLE, DOMAIN
 from .coordinator import UserCoordinator, VehicleCoordinator
 from .data_classes import RivianButtonEntityDescription
@@ -40,8 +41,9 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
             key="wake",
             translation_key="wake",
             icon="mdi:weather-night",
-            available=lambda coordinator: coordinator.get("powerState") == "sleep",
-            available_offline=True,
+            available=lambda coordinator: (
+                coordinator.connectivity_state() is ConnectivityState.SLEEPING
+            ),
             command=VehicleCommand.WAKE_VEHICLE,
         ),
     ),

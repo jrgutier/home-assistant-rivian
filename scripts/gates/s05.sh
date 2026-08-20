@@ -17,7 +17,7 @@ source "$(dirname "$0")/_lib.sh"
 
 echo "S5 — upstream 1.5.3b5 merged into home-assistant-rivian"
 
-on_branch "$HA" vendor-client
+not_publishing_branch "$HA"   # was: on_branch "$HA" vendor-client (branch retired; see _lib.sh)
 
 # 1. Upstream is genuinely in the history. Defeats "resolved" by never merging.
 try "1.5.3b5 is an ancestor of HEAD" \

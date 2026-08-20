@@ -208,7 +208,9 @@ excluded, the truck is plugged in. `pet_comfort_status` **Disabled**, `pet_comfo
 
 ### Results
 
-| Command | Disposition | Send→terminal | state |
+**Column header corrected 2026-08-20 (was `Send→terminal`).** These are time-to-first-frame figures, not terminal latencies: none of the five commands below reached a terminal state — they sit at states 5, 2, 2, 2, 2, all inside the app's *continue* set. See the standing note at `:432`: *"Every latency number recorded before `f9b663e` should be read as time-to-first-frame."*
+
+| Command | Disposition | Send→first frame | state |
 |---|---|---|---|
 | `WAKE_VEHICLE` (calibration) | accepted | **1.68 s** | 5 |
 | `LOCK_ALL_CLOSURES_FEEDBACK` (calibration, already locked) | accepted | **1.75 s** | 2 |
@@ -400,3 +402,309 @@ obfuscated class names carry no words. Terminality is asserted; meaning is not.
 The app special-cases `WAKE_VEHICLE` and completes on the first frame whatever the state
 (`C4171i.java:559-569`). Under the shape that ships, the integration returns on the first
 frame for every command, so that special case is subsumed rather than replicated.
+
+## Step 13 — terminal latency MEASURED on beta8, 2026-08-19 ~18:55 CDT
+
+**The subscription delivers terminal frames. The open question this release shipped with is
+answered, and the answer vindicates removing the poll.**
+
+Measured against deployed beta8, `WAKE_VEHICLE`, websocket pre-warmed so the race is fair:
+
+| Run | poll terminal | subscription frames | state | subscription terminal at |
+|---|---|---|---|---|
+| 1 | t+1.59 s (state 0) | 2 | **0 — TERMINAL** | **t+2.35 s** (second frame t+8.99 s) |
+| 2 | t+1.50 s (state 0) | 1 | **0 — TERMINAL** | **t+3.38 s** |
+
+Before this, no terminal command state had ever been observed on the subscription — the only two in
+the whole project came from the poll, and the risk accepted under ruling 15 was that removing the
+poll removed the only thing that had ever seen one. **It did not.** The subscription carries the
+terminal state, 0.8-1.9 s behind the poll.
+
+### The corrected probe changed what a measurement means
+
+The same run shows why the instrument had to be fixed first. A `WAKE_VEHICLE` on a sleeping truck:
+
+```
+t+14.66s  state 5   <- CONTINUE. The old string test printed "TERMINAL" here.
+t+15.64s  state 0   <- actually terminal
+```
+
+The old `state not in (None, "in_progress", "pending")` test would have stopped at 14.66 s and
+recorded a continue-state as the answer — off by a second, and wrong about what it had seen. Every
+latency number recorded before `f9b663e` should be read as time-to-first-frame.
+
+### What this does and does not license
+
+**Does:** it retires the accepted risk of ruling 15. The subscription is a sufficient source; the
+poll was redundant, as the app's own design implied (`vehicleCommandState` in 18 APK files,
+`getVehicleCommand` in zero).
+
+**Does not:** license lowering the 30 s ceiling. All five observations here are `WAKE_VEHICLE`, and
+the app **special-cases** exactly that command — `C4171i` completes on the first frame when the
+command is `WAKE_VEHICLE`, whatever the state. No non-wake command has been observed reaching
+terminal. The ceiling stays until one is. `f9.sh` enforces this mechanically rather than by
+convention.
+
+---
+
+## Step 7 — ruling 25 VERIFIED: the read-through is live, measured through Home Assistant
+
+Run date **2026-08-20**, all times UTC, production instance. Gate 5A was taken as **option (a)** by the
+owner — the truck was unlocked, and the send locks it. Every value below is from the run, not from a plan.
+
+### Gate 5A, re-measured
+
+| | |
+|---|---|
+| `lock.r1t_closures` re-measured | `unlocked` @ **`11:07:14Z`** |
+| Send | **`11:07:14Z`** — **delta 0 s** against the 600 s rule |
+| `usable_closure_count` / `total_closure_count` | **10 / 10** |
+| `state_is_partial` | **`false`** — no pre-existing partial-lock finding |
+
+The `unavailable` hazard was real and was dodged rather than designed away: the same entity was
+`unavailable` at `09:14:17Z`, ~1 h 50 m before the gate.
+
+### Route B, proved for the first time
+
+`GET /api/states/lock.r1t_closures` @ `11:05:11Z` → HTTP **200**, state `unlocked`, and all five seeded
+attributes present at their seeds (`response_code`, `status_code`, `state_frames_seen`, `state_is_lifecycle`,
+`final_command_state`). §6.2 recorded this instrument as **NEVER EXERCISED**; it is now proved, and §6.3
+row 6's Route A/Route B disagreement check was available for the first time.
+
+### The control — and the accident that made it the real evidence
+
+`button.r1t_wake` pressed through Home Assistant @ `11:05:48.609Z`, truck **asleep**
+(`powerState: 'sleep'` confirmed live @ `11:05:32Z`). Command id **`04-309bfe26c94e9a8fe2c3`**, three
+`Command <id> state update:` lines carrying that id. **Log instrument PROVED.**
+
+The control was only supposed to prove the log instrument. It proved the entire read-through:
+
+| Time | `state_frames_seen` | `state_is_lifecycle` | `final_command_state` | |
+|---|---|---|---|---|
+| `11:05:50.648` | 1 | `true` | 2 | ← **service call returns here** |
+| `11:05:51.346` | 2 | `true` | 5 | *after* the call returned |
+| `11:06:02.369` | **3** | **`false`** | **0** | *after* the call returned — **terminal** |
+
+This is ruling 22's design observed end to end: return on the first frame, track terminality in the
+background, attributes settle after the call returns, `state_is_lifecycle` flipping `true → false` exactly
+when the terminal state arrives.
+
+**A property of this control worth recording:** the wake button is **self-extinguishing on success.** At
+`11:06:03.876Z` the truck was awake, so `button.py:44-46`'s `connectivity_state() is SLEEPING` availability went false and
+the attributes collapsed to `{"friendly_name": "R1T Wake"}`. Its settled values were recoverable **only**
+from Route A. A Route-B-only run would have lost them — which is the argument for two routes, arriving from
+a direction §6.2 did not anticipate.
+
+### The one send
+
+`lock.lock` on `lock.r1t_closures` @ `11:07:14.446Z`. Command id **`04-882106fb781c57e63f88`**.
+
+```
+11:07:15.670  state 2   responseCode None  statusCode None
+11:07:17.842  state 3   responseCode None  statusCode None
+11:07:22.193  state 0   responseCode 264   statusCode 0     <- TERMINAL
+```
+
+Entity `locked` @ `11:07:21.676Z`. Settled: `state_frames_seen: 3`, `state_is_lifecycle: false`,
+`final_command_state: 0`. Post-state **`usable_closure_count: 10`, `total_closure_count: 10`,
+`state_is_partial: false`**; all ten `LOCK_STATE_ENTITIES` members `off`, **zero `unknown`** — no SNA member
+on this run, and no partial-lock finding.
+
+**Route A and Route B agree exactly** on every settled value. §6.3 row 6: no disagreement.
+
+### Verdict — §6.3 row 1
+
+`state_frames_seen ≥ 1`, `state_is_lifecycle ∈ {true,false}`, `final_command_state` an integer.
+**CRITERION 4 PASSES. THE READ-THROUGH IS LIVE.** Ruling 25 is verified. This is the one part of beta8
+whose runtime behaviour nobody had observed, and where the Critical lived — the read-through key that
+would have shipped dead. It did not ship dead.
+
+### Ruling 14 output — NON-CEILING-BEARING, n=1
+
+| Command | Path | Power state at send | Send→first frame | Send→terminal | States |
+|---|---|---|---|---|---|
+| `LOCK_ALL_CLOSURES_FEEDBACK` | integration | awake | **1.224 s** | **7.747 s** | 2 → 3 → 0 |
+| `WAKE_VEHICLE` (control) | integration | **asleep** | **1.584 s** | **13.758 s** | 2 → 5 → 0 |
+
+`LOCK_ALL_CLOSURES_FEEDBACK` is the **first non-wake command ever observed reaching a terminal state** on
+this integration; the previous record was 0 of 5, all continue states. It is **an input to nothing** and is
+not cited in the ceiling decision.
+
+### A new defect, found by this run: `response_code` and `status_code` are frozen at the first frame
+
+The terminal frame carried `responseCode: 264, statusCode: 0`. The entity reported
+**`response_code: null`, `status_code: null`** — verified on both routes.
+
+Cause, traced: `entity.py:155-160`'s live block refreshes only `state_frames_seen`, `state_is_lifecycle`
+and `final_command_state` from the coordinator record. `response_code` and `status_code` come from
+`_last_command_status`, which `entity.py:209-217` writes **once, from the first frame** — and the first
+frame is a continue state whose codes are always `None`. The background terminality tracking never
+revisits them.
+
+**The data is already present**: `coordinator.py:1538-1539` keeps `responseCode` and `statusCode` on every
+frame, terminal included. The fix is two lines in the block at `entity.py:155-160`.
+
+This defeats the stated purpose of the round-2 decision that added the two attributes — *"`responseCode 288`
+vs `None` is what distinguished a real answer from silence when diagnosing `ae06ee9`"* — because on the
+shipped code they are `null` for any command whose codes arrive after the first frame, which is every
+command observed so far. **Not fixed here** (P1: Step 7 is a measurement step). Carried to
+`.omc/plans/open-questions.md`.
+
+### Instrument honesty note — a vacuous pass, caught
+
+Criterion 9's first check returned "0 debug lines after the reset" from a window that contained **zero lines
+of any kind**, because silencing `custom_components.rivian` silenced the entire log. The count was vacuous
+and was nearly recorded as a pass. Re-proved on its positive case: the same filter returns **100** on a
+pre-reset window and **0** on the post-reset window. Criterion 9 passes on the second, arm-proved reading.
+
+This is the same failure shape as the `scripts/f8_probe.py` parsing defect that prompted ruling 23 — an
+instrument returning a clean-looking answer without ever having been shown it can return a dirty one.
+
+---
+
+## Step 8 — the ceiling decision, from first principles
+
+**Prerequisite was Step 6 only.** Ruling 27 decides this from `entity.py:180`, not from a measurement.
+
+### The rule, proposed for ratification (§5.1), re-keyed to first-frame latency
+
+The governed quantity is **first-frame arrival**, per `entity.py:180` — the timeout that waits for the
+*"first well-formed frame"* — and `entity.py:227-238`, which returns on the first non-empty
+`get_command_state`.
+
+> **The first-frame ceiling — `COMMAND_TIMEOUT_AWAKE` / `COMMAND_TIMEOUT_SLEEPING` in
+> `custom_components/rivian/entity.py`, 30 s at the time this rule was written — may be lowered only when
+> all of the following hold:**
+> 1. **n ≥ 5** first-frame observations of **non-`WAKE_VEHICLE`** commands from the shipped integration path.
+> 2. across **≥ 2 distinct commands** — one command's server-side handling is not the population.
+> 3. across **≥ 2 distinct vehicle power states** (asleep at send, awake at send).
+> 4. the proposed ceiling is **≥ 4x the observed maximum first-frame latency across both power states**.
+> 5. **zero** observations in the set failed to produce a first frame within the current ceiling.
+>
+> **If any condition fails, the ceiling stays where it is and the rule is not re-argued.**
+
+### The five conditions against the record, after Step 7
+
+| # | Condition | Status | Evidence |
+|---|---|---|---|
+| 1 | n ≥ 5 non-wake | **MET — n = 5** | `:216` 1.75 s, `:217` 2.77 s, `:218` 1.48 s, `:219` 1.47 s, **+ Step 7's `LOCK_ALL_CLOSURES_FEEDBACK` 1.224 s** |
+| 2 | ≥ 2 distinct commands | **MET** — 4 distinct | as above |
+| 3 | ≥ 2 power states | **NOT MET** | all five non-wake observations are warm-path. Step 7's send was at `11:07:14Z`, ~70 s after the truck woke |
+| 4 | proposed ≥ 4x observed max | **not evaluable** | condition 3 unmet, so the cross-power-state max is unknown |
+| 5 | zero first-frame failures | **MET** for the warm set | — |
+
+**Step 7 moved condition 1 from NOT MET to MET and did not touch condition 3, which is the one that binds.**
+
+`NON-WAKE FIRST-FRAME LATENCY MEASURED: LOCK_ALL_CLOSURES_FEEDBACK` — 1.224 s, integration path,
+2026-08-20. Recorded as the measurement only. The ceiling is **not** ratified, so `f9.sh`'s interlock
+remains pinned; it needs both tokens and has only one.
+
+### Conclusion
+
+**CEILING UNCHANGED — 30 s, first-frame ceiling, n=5 non-wake warm + 1 cold-path observation.**
+
+Stated on its ground, as a result and not as silence:
+
+- the ceiling governs **first-frame arrival only** — `entity.py:180`, `:227-238`;
+- warm-path first-frame latency is **1.224-2.77 s** across five non-wake observations;
+- cold-path first-frame latency is observed at **14.66 s** (`:425-427`), giving the 30 s ceiling **~2.05x**
+  headroom over the largest first-frame latency ever observed — *provenance limitation:* that figure is from
+  `scripts/probe_vehicle_command.py`, not the integration path;
+- therefore 30 s costs a user nothing except on a wholly silent subscription, where it is the only thing
+  that ends the wait at all.
+
+`custom_components/rivian/entity.py` is **not edited**; `timeout: int = 30` stands.
+
+**Supersedes, visibly (ruling 9 house style):** `:285`'s *"roughly 11-20x the observed latency"* compares the
+ceiling against the warm-path range alone and is wrong about the headroom. The correct figure is ~2.05x, and
+a 10 s ceiling — floated at `:288` — would have timed out the cold-path command at 14.66 s.
+
+### A cold-path datum from Step 7 that bears on the provenance limitation, n=1
+
+Step 7's control was a `WAKE_VEHICLE` sent **through the integration path** to a **sleeping** truck — the
+same command and same power state as the 14.66 s probe-path figure, differing only in path.
+
+| Observation | Path | First frame |
+|---|---|---|
+| `:425-427` `WAKE_VEHICLE`, asleep | probe | **14.66 s** |
+| Step 7 control `WAKE_VEHICLE`, asleep | **integration** | **1.584 s** |
+
+**This is not entered into the ceiling decision and changes nothing above.** It is n=1 against n=1, and
+condition 1 excludes `WAKE_VEHICLE` from the governing set precisely because the app special-cases it. It is
+recorded because it is the first evidence that the cold-path 14.66 s may be a **probe-path artefact** rather
+than a property of the vehicle — and §5.1 names "gather cold-path integration-path data and discover the
+true maximum is much lower" as one of the two honest ways to make the rule satisfiable. If that holds up
+under more observations, condition 4's implied `≥ 58.6 s` floor falls with it. **One observation is not that
+evidence.** Carried to `.omc/plans/open-questions.md`.
+
+---
+
+## Step 9 — the ceiling raised to 60 s / 120 s
+
+**This supersedes Step 8's "CEILING UNCHANGED — 30 s" conclusion, visibly (ruling 9 house style).** Step 8
+answered the question it was asked — *may the ceiling be **lowered**?* — and the answer there stands: no,
+condition 3 was never met and is not met now. This is a **raise**, which Step 8's rule does not govern. The
+rule's *implementation* in `f9.sh` was a direction-blind fixed-string pin on `timeout: int = 30`, so it fired
+on a raise anyway; it has been **re-keyed, not disarmed** (see the interlock note below).
+
+`custom_components/rivian/entity.py` now declares:
+
+```python
+COMMAND_TIMEOUT_AWAKE: Final = 60
+COMMAND_TIMEOUT_SLEEPING: Final = 120
+```
+
+resolved per the vehicle's derived connectivity state, with an explicit `timeout=` argument still winning.
+
+### (a) These are not the same quantity, and the mapping is a decision, not a measurement
+
+The quantity governed here is **first-frame arrival** inside a blocking Home Assistant service call — the
+loop returns on the first well-formed frame, so the ceiling bites only on total silence. The app's 60 s /
+120 s (`C5332Z.java:242` / `:254`, selected at `:821`; full table at `C5323P.java:110-114`) is a
+**whole-command give-up timeout**, in a UI that shows its own live progress affordance while it runs. The
+app is **silent** on first-frame ceilings.
+
+So the numbers were carried across from a different quantity **by owner decision, to mirror the app**. That
+is the whole justification and it is stated as such. No measurement in this document implies these values.
+
+### (b) The honest worst case
+
+| Path | Before | After |
+|---|---|---|
+| Awake | 30 s | **60 s** |
+| Sleeping | 30 s wake-wait + 30 s ceiling = 60 s | **120 s** |
+
+A user pressing a control against a wholly silent subscription now watches the entity spin for up to two
+minutes instead of one. Step 8's own conclusion — that the ceiling *"is the only thing that ends the wait at
+all"* — is what makes this a real cost rather than a theoretical one. It is accepted because the 30 s
+blocking wake-wait at `coordinator.py` has been deleted in the same change: wake latency now lands *inside*
+the first-frame window rather than in front of it, and the cold-path first-frame observation in this
+document is 14.66 s.
+
+### (c) Condition 4 is cleared by the sleeping ceiling only
+
+Run Step 8's condition 4 (`≥ 4x observed max first-frame`) **per power state**, which is exactly what
+condition 3 exists to force:
+
+| Path | Observed max first-frame | 4x floor | Before | After |
+|---|---|---|---|---|
+| Awake | **2.77 s** (`:216-219`, n=5, range 1.224–2.77 s) | **11.1 s** | 30 s (~11x headroom) | 60 s |
+| Sleeping (cold) | **14.66 s** (`:610`, probe-path provenance) | **58.6 s** | 30 s (~2.05x) | 120 s |
+
+**The sleeping raise is earned by the record**: 30 s did not clear its own 58.6 s floor and 120 s does.
+**The awake raise is not.** 30 s already gave roughly 11x headroom over every awake observation in this
+repo. Attributing the awake raise to condition 4 would mean applying the *cold* maximum to the *awake*
+ceiling — the precise cross-population substitution condition 3 forbids. The awake raise is for symmetry
+with the app, and nothing else.
+
+The 14.66 s figure keeps its probe-path provenance limitation, and the n=1 integration-path counter-datum
+above (1.584 s) still does not overturn it.
+
+### The interlock
+
+`f9.sh`'s ceiling interlock is **re-keyed to the new constants, never disarmed.** Both ratification-token
+greps and the relaxation branch are untouched, so the *lowering* interlock is exactly as armed as it was
+before this change: this document still does not contain the owner-ratification token, and it is not
+supposed to — nobody has ratified a lowering. Pinned by
+`tests/test_command_state.py::test_the_gate_requires_both_tokens` and
+`::test_the_lowering_interlock_is_still_armed`.

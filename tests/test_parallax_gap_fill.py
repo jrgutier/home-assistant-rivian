@@ -35,7 +35,6 @@ def _coordinator() -> MagicMock:
     coordinator._note_unusable = MagicMock()
     coordinator.charging_coordinator = MagicMock()
     coordinator.vehicle_id = "veh-1"
-    coordinator._awake = MagicMock()
     coordinator.async_set_updated_data = MagicMock()
     return coordinator
 

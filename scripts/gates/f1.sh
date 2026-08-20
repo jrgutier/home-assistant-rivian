@@ -251,14 +251,7 @@ else
   bad "the f1 test module fails"
 fi
 
-out=$(cd "$HA" && "$PY" -q --no-cov -p no:cacheprovider 2>&1 || true)
-note "$(echo "$out" | tail -1)"
-if echo "$out" | grep -qE '^FAILED '; then bad "suite has failures"; else ok "suite green"; fi
-if echo "$out" | grep -qE '^[0-9]+ (skipped|deselected)'; then
-  bad "tests skipped or deselected"
-else
-  ok "nothing skipped or deselected"
-fi
+pytest_green "$HA" "$PY" "suite"
 test_count "$HA" 1426
 
 summary f1
