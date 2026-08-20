@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, TypeVar
+from typing import Any, Final, TypeVar
 
 from homeassistant.components.zone import in_zone
 from homeassistant.config_entries import ConfigEntry
@@ -12,6 +12,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .connectivity import ConnectivityState
 from .const import ATTR_COORDINATOR, ATTR_USER, DOMAIN
 from .coordinator import (
     ChargingCoordinator,
@@ -23,6 +24,11 @@ from .coordinator import (
 
 _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T", bound=RivianDataUpdateCoordinator)
+
+# The app's CLOUD-path give-up timeouts, selected on the derived connectivity state
+# at C5332Z.java:821; declared at C5332Z.java:242 (60000L) and :254 (120000L).
+COMMAND_TIMEOUT_AWAKE: Final = 60
+COMMAND_TIMEOUT_SLEEPING: Final = 120
 
 
 class RivianEntity(CoordinatorEntity[T]):
@@ -98,16 +104,13 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
     @property
     def available(self) -> bool:
         """Return the availability of the entity."""
-        # A vehicle that is asleep is not "online", and every control is gated on
+        # A sleeping vehicle is not "online", and every control used to be gated on
         # that -- including the wake button, whose entire job is to bring it back.
-        # So from Home Assistant there was no way to wake a sleeping vehicle: the
-        # one control that would work was the one guaranteed to be unavailable.
-        # Descriptions that set available_offline opt out of this check; they must
-        # be commands the cloud accepts while the vehicle sleeps, which WAKE_VEHICLE
-        # demonstrably is.
-        if not self.coordinator.is_online() and not getattr(
-            self.entity_description, "available_offline", False
-        ):
+        # The Rivian app gates on three states and disables controls only when
+        # OFFLINE (C1611c.java:141-158 derives them; C7407k.java:112-118 shows only
+        # Offline blocks). Sleeping falls through to the remaining four gates, which
+        # all read cached data and so keep working while the vehicle sleeps.
+        if self.coordinator.connectivity_state() is ConnectivityState.OFFLINE:
             return False
         if not (super().available and self._get_value("gearStatus") == "park"):
             return False
@@ -164,7 +167,7 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         self,
         command,
         params: dict[str, Any] | None = None,
-        timeout: int = 30,
+        timeout: int | None = None,
         *,
         _clock=None,
         _sleep=None,
@@ -174,7 +177,10 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         Args:
             command: The VehicleCommand to execute
             params: Optional command parameters
-            timeout: Timeout in seconds to wait for the first well-formed frame
+            timeout: Seconds to wait for the first well-formed frame. Defaults to
+                the connectivity state's ceiling -- 120 s while SLEEPING, else 60 s
+                -- because a sleeping vehicle's first frame arrives behind a wake
+                that is dispatched but never awaited. An explicit value still wins.
             _clock, _sleep: test seams; default to the loop clock and asyncio.sleep
 
         Returns:
@@ -186,6 +192,15 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
 
         clock = _clock or asyncio.get_event_loop().time
         sleep = _sleep or asyncio.sleep
+
+        # Resolved once, here, and never inside the loop: re-resolving mid-command
+        # would let a wake landing halfway through shorten the wait it was granted.
+        if timeout is None:
+            timeout = (
+                COMMAND_TIMEOUT_SLEEPING
+                if self.coordinator.connectivity_state() is ConnectivityState.SLEEPING
+                else COMMAND_TIMEOUT_AWAKE
+            )
 
         # Set executing state
         self._command_in_progress = command.value

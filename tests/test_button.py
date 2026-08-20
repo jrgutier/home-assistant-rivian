@@ -9,6 +9,7 @@ from custom_components.rivian.button import (
     RivianPairPhoneButtonEntity,
     async_setup_entry,
 )
+from custom_components.rivian.connectivity import ConnectivityState
 from custom_components.rivian.const import (
     ATTR_COORDINATOR,
     ATTR_USER,
@@ -601,48 +602,98 @@ class TestPairingSequence:
 class TestTheWakeButtonIsUsableWhenAsleep:
     """The one control that must work on a sleeping vehicle.
 
-    RivianVehicleControlEntity.available checks coordinator.is_online() before
-    anything else, and a sleeping vehicle is not online -- so every control goes
-    unavailable, including wake. From Home Assistant there was no way to wake the
-    vehicle: the only command that would have worked was guaranteed to be
-    unavailable, and the user has to open the Rivian app instead.
+    RivianVehicleControlEntity.available used to check coordinator.is_online()
+    before anything else, and a sleeping vehicle is not online -- so every control
+    went unavailable, including wake. From Home Assistant there was no way to wake
+    the vehicle: the only command that would have worked was guaranteed to be
+    unavailable, and the user had to open the Rivian app instead.
 
     Confirmed on a real R1T: cloud_connected off, all nineteen controls
     unavailable including button.*_wake, and sending WAKE_VEHICLE over the same
     cloud API succeeded immediately -- so the command works, the gate was simply
     wrong about it.
+
+    The fix mirrors the app rather than carving out an exemption. `C1611c.java:141-158`
+    derives three states from `isOnline` + `powerState`, and `C7407k.java:112-118`
+    disables controls on Offline alone -- Sleeping falls through. So gate 1 is now an
+    OFFLINE check for every control, the per-description opt-out flag is deleted, and
+    the wake button's own guard narrows to "only while sleeping".
     """
 
-    def test_the_wake_description_opts_out_of_the_online_gate(self) -> None:
+    def test_the_wake_button_is_available_only_while_sleeping(self) -> None:
+        """REWRITTEN: the guard is now a three-state check, not an opt-out flag.
+
+        The old test read a boolean off the description. That flag is deleted, so
+        there is nothing left to read; what carries the behaviour now is the wake
+        description's own `available` lambda. It must answer True for SLEEPING and
+        False for the other two -- False on ONLINE because waking an awake vehicle is
+        a no-op the user should not be offered, and False on OFFLINE because gate 1
+        has already hidden the entity anyway.
+        """
         from custom_components.rivian.button import BUTTONS
 
         wake = next(d for d in BUTTONS[None] if d.key == "wake")
-        assert wake.available_offline is True
 
-    def test_no_other_button_opts_out(self) -> None:
-        """The exemption must stay narrow: any other command needs the vehicle
-        online, and a control that looks usable but always fails is worse than one
-        that is honestly unavailable."""
+        def _coordinator(state: ConnectivityState) -> MagicMock:
+            c = MagicMock(spec=VehicleCoordinator)
+            c.connectivity_state = MagicMock(return_value=state)
+            return c
+
+        assert wake.available(_coordinator(ConnectivityState.SLEEPING)) is True
+        assert wake.available(_coordinator(ConnectivityState.ONLINE)) is False
+        assert wake.available(_coordinator(ConnectivityState.OFFLINE)) is False
+
+    def test_no_description_declares_the_deleted_opt_out_flag(self) -> None:
+        """REWRITTEN into an absence check, so the deleted flag cannot creep back.
+
+        The old test asserted the exemption stayed narrow (exactly one description
+        carried it). It goes red now for the same reason the previous test does: the
+        field it read no longer exists. The successor assertion is stronger -- a
+        re-added flag would be a silently dead field, since `entity.py` no longer has
+        a reader for it, and a dead availability flag on a control is exactly the kind
+        of thing that gets believed.
+
+        Phrased as "no field opts a description out of a connectivity gate" rather
+        than by naming the deleted attribute, so it also catches the flag returning
+        under a new name.
+        """
         from custom_components.rivian.button import BUTTONS
 
-        offline = [
-            d.key
-            for group in BUTTONS.values()
-            for d in group
-            if getattr(d, "available_offline", False)
-        ]
-        assert offline == ["wake"]
+        declared = sorted(
+            {
+                name
+                for group in BUTTONS.values()
+                for d in group
+                for name in vars(d)
+                if name.endswith(("_offline", "_online"))
+            }
+        )
+        assert declared == []
 
     def test_an_offline_coordinator_still_hides_ordinary_controls(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
-        """The gate itself must survive: only the flagged description bypasses it."""
+        """The gate itself must survive: OFFLINE still hides every control.
+
+        REWRITTEN alongside the gate change. Cause: gate 1 no longer reads
+        `is_online()`, it reads `connectivity_state() is ConnectivityState.OFFLINE`, so
+        stubbing `is_online` no longer reaches it.
+
+        This rewrite had to land in the same edit as the gate, not later. The entity is
+        built with `__new__`, so `__init__` never runs and `_available` (assigned at
+        `entity.py:57`) does not exist; the description is `MagicMock(spec=[])`, so it
+        has no `field`. With a bare `MagicMock` coordinator, `connectivity_state()`
+        returns a MagicMock that `is not OFFLINE`, control falls through to
+        `super().available`, `getattr(..., "field", None)` skips the field guard, and
+        the property reaches `return self._available` -- AttributeError, not a clean
+        assertion failure.
+        """
         from custom_components.rivian.entity import RivianVehicleControlEntity
 
         coordinator = MagicMock()
-        coordinator.is_online.return_value = False
+        coordinator.connectivity_state.return_value = ConnectivityState.OFFLINE
         entity = RivianVehicleControlEntity.__new__(RivianVehicleControlEntity)
         entity.coordinator = coordinator
-        entity.entity_description = MagicMock(spec=[])  # no available_offline
+        entity.entity_description = MagicMock(spec=[])
         entity._config_entry = mock_config_entry
         assert RivianVehicleControlEntity.available.fget(entity) is False

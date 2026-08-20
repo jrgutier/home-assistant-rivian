@@ -49,9 +49,6 @@ class RivianButtonEntityDescription(
     command: VehicleCommand | None = None
     command_params: dict[str, Any] | None = None
     press_fn: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
-    # Skip the is_online() gate in RivianVehicleControlEntity.available. Only for
-    # commands the cloud accepts while the vehicle is asleep -- i.e. wake.
-    available_offline: bool = False
 
 
 @dataclass(kw_only=True)

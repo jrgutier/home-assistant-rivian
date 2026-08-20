@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from custom_components.rivian.connectivity import ConnectivityState
 from custom_components.rivian.coordinator import VehicleCoordinator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -43,12 +44,62 @@ class TestCloudConnection:
         coordinator._process_cloud_connection_data(_cloud(isOnline=False))
         assert coordinator._is_online is False
 
-    def test_a_missing_isOnline_is_treated_as_offline(self, coordinator) -> None:
-        """Absent must not mean 'unchanged': a payload that omits the field would
-        otherwise leave a stale online state forever."""
+    def test_a_missing_isOnline_becomes_unknown_not_stale(self, coordinator) -> None:
+        """Absent means *unknown*, and unknown must still not mean *unchanged*.
+
+        INVERTED from `test_a_missing_isOnline_is_treated_as_offline`, which asserted
+        `is False`. Cause: the `get("isOnline", False)` default was dropped so a frame
+        omitting the key derives to ONLINE, mirroring the app's `isOnline == null ->
+        Online` rule (`C1611c.java:141-158`). One rule for both spellings of unknown --
+        inventing a *different* rule for the absent case, inside a change whose entire
+        justification is mirroring, is the blend of conflicting patterns CLAUDE.md
+        Rule 7 forbids.
+
+        The invariant the old test actually defended is unchanged and still asserted
+        here: the assignment is unconditional, so a payload that omits the field can
+        never leave a stale value behind. `_is_online` is True going in and is not True
+        coming out. Only the literal it lands on moved, False -> None; the old *name*
+        overstated the body.
+        """
         coordinator._is_online = True
         coordinator._process_cloud_connection_data(_cloud())
-        assert coordinator._is_online is False
+        assert coordinator._is_online is None
+
+    def test_an_absent_key_and_an_explicit_null_agree(self, coordinator) -> None:
+        """The two spellings of "unknown" must derive identically.
+
+        This is what makes "one rule for both spellings" a rule rather than a claim:
+        a gateway that omits `isOnline` and a gateway that sends `isOnline: null` are
+        saying the same thing, and re-adding a `False` default would separate them
+        again while leaving this file's other tests green.
+        """
+        coordinator._is_online = True
+        coordinator._process_cloud_connection_data(_cloud())
+        absent = coordinator._is_online
+
+        coordinator._is_online = True
+        coordinator._process_cloud_connection_data(_cloud(isOnline=None))
+        explicit_null = coordinator._is_online
+
+        assert absent is explicit_null is None
+
+    def test_connectivity_state_reads_both_inputs(self, coordinator) -> None:
+        """The coordinator wrapper must feed the derivation both of its inputs.
+
+        Three cells are enough here -- the full 15-cell table lives in
+        `tests/test_connectivity.py`. What this pins is the wiring: `_is_online` and
+        `powerState` both reach `derive_connectivity_state`, so a wrapper that
+        hard-coded either input would fail.
+        """
+        coordinator.data = {"powerState": "sleep"}
+        coordinator._is_online = True
+        assert coordinator.connectivity_state() is ConnectivityState.SLEEPING
+
+        coordinator.data = {"powerState": "ready"}
+        assert coordinator.connectivity_state() is ConnectivityState.ONLINE
+
+        coordinator._is_online = False
+        assert coordinator.connectivity_state() is ConnectivityState.OFFLINE
 
     @pytest.mark.parametrize(
         "message", [{}, {"payload": {}}, {"payload": {"data": None}}]

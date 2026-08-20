@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .connectivity import ConnectivityState, derive_connectivity_state
 from .const import (
     ATTR_COORDINATOR,
     ATTR_USER,
@@ -80,6 +81,18 @@ def _command_state_is_lifecycle(state: Any) -> bool | None:
     if state in COMMAND_STATE_STRING_TERMINAL:
         return False
     return None
+
+
+def _online_label(value: bool | None) -> str:
+    """Render the tri-state cloud flag for the transition log.
+
+    Three labels, not two: the log line is the only record a transition leaves, and
+    rendering None as "offline" would make an investigation of a post-restart or a
+    null-payload transition read as a genuine disconnection.
+    """
+    if value is None:
+        return "unknown"
+    return "online" if value else "offline"
 
 
 class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
@@ -855,9 +868,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._unsub_handler: Callable[[], Awaitable[None]] | None = None
         self._unsub_parallax: Callable[[], Awaitable[None]] | None = None
         self._connection_unsub_handler: Callable[[], Awaitable[None]] | None = None
-        self._is_online: bool = False
+        self._is_online: bool | None = None
         self._last_sync: str | None = None
-        self._awake = asyncio.Event()
         self._command_state_subscriptions: dict[str, Callable[[], Awaitable[None]]] = {}
         self._command_states: dict[str, dict[str, Any]] = {}
         self._command_tracking_started: dict[str, float] = {}
@@ -1282,11 +1294,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         if items:
             _LOGGER.debug("Vehicle %s updated: %s", self.vehicle_id, redact(items))
 
-        if power_state := items.get("powerState"):
-            if power_state.get("value") == "sleep":
-                self._awake.clear()
-            else:
-                self._awake.set()
         if charger_status := items.get("chargerStatus"):
             raw_status = str(charger_status.get("value", "")).lower()
             is_charging = (
@@ -1375,7 +1382,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         connection_data = pdata.get("vehicleCloudConnection", {})
         prev_online = self._is_online
-        self._is_online = connection_data.get("isOnline", False)
+        self._is_online = connection_data.get("isOnline")
         self._last_sync = connection_data.get("lastSync")
 
         # Debug: Log state changes (online/offline transitions)
@@ -1383,8 +1390,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.info(
                 "Vehicle %s cloud connection state changed: %s -> %s (lastSync=%s, subscription #%d age: %.1f min)",
                 self.vehicle_id,
-                "online" if prev_online else "offline",
-                "online" if self._is_online else "offline",
+                _online_label(prev_online),
+                _online_label(self._is_online),
                 self._last_sync,
                 self._subscription_count,
                 (
@@ -1402,9 +1409,22 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self._last_sync,
             )
 
-    def is_online(self) -> bool:
-        """Return whether vehicle is online."""
+    def is_online(self) -> bool | None:
+        """Return the raw cloud-connection flag, or None when it is unknown.
+
+        The runtime domain has always included None -- an explicit GraphQL
+        `isOnline: null` survives `dict.get`, whose default fires only on a missing
+        key -- so the old `-> bool` annotation was already inaccurate. None now also
+        covers "no cloud connection frame has arrived yet", which is the state after
+        every restart. Callers that need a decision, not a flag, want
+        connectivity_state(); the one caller that wants the flag is the
+        cloud_connected binary sensor, which coerces it.
+        """
         return self._is_online
+
+    def connectivity_state(self) -> ConnectivityState:
+        """Return the three-state connectivity, per C1611c.java:141-158."""
+        return derive_connectivity_state(self._is_online, self.get("powerState"))
 
     def last_sync(self) -> str | None:
         """Return last sync timestamp."""
@@ -1631,12 +1651,19 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """
         _LOGGER.debug("Sending command %s with params: %s", command, params)
 
-        if self.get("powerState") == "sleep" and command != VehicleCommand.WAKE_VEHICLE:
+        if (
+            self.connectivity_state() is ConnectivityState.SLEEPING
+            and command != VehicleCommand.WAKE_VEHICLE
+        ):
+            # Dispatched, not waited out -- C2150e.java:212-215 builds the command
+            # flow, fires WakeVehicle, and collects without an await between them.
+            # The accommodation for a sleeping vehicle is the longer command
+            # timeout in entity.py, not a blocking wait here. The await below covers
+            # the wake's own HTTP dispatch (sub-second), not the vehicle waking up,
+            # and it sits in front of _execute_command's timing window, which does not
+            # start until the send returns. A hung wake is therefore bounded only by
+            # the client's HTTP layer, not by the command ceiling.
             await self.send_vehicle_command(VehicleCommand.WAKE_VEHICLE)
-            try:
-                await asyncio.wait_for(self._awake.wait(), 30)
-            except asyncio.TimeoutError:
-                pass  # didn't wake-up in time, but we'll try command anyway
 
         entry_data = self.hass.data[DOMAIN][self.config_entry.entry_id]
         vehicle = entry_data[ATTR_VEHICLE][self.vehicle_id]

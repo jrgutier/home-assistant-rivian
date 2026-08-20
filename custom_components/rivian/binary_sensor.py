@@ -155,7 +155,17 @@ class RivianCloudConnectionBinarySensor(RivianVehicleEntity, BinarySensorEntity)
     @property
     def is_on(self) -> bool:
         """Return true if vehicle is connected to cloud."""
-        return self.coordinator.is_online()
+        # bool(), because _is_online is tri-state upstream (None = no cloud frame yet,
+        # or a frame whose isOnline was null). HA renders a None from is_on as
+        # `unknown`, not `off`, and `unknown` does not fire a `to: "off"` state trigger
+        # -- so an automation on this sensor would silently stop firing at every
+        # restart. This is the MINIMAL change, not a no-op: the common path (startup ->
+        # off) is preserved exactly, and one path never seen in the field record (an
+        # explicit `isOnline: null` frame, which already renders `unknown` today)
+        # collapses to `off`. Giving the sensor honest tri-state semantics is a
+        # separate story -- in HA the right shape for "we have heard nothing" is
+        # available = False, not is_on = None.
+        return bool(self.coordinator.is_online())
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:

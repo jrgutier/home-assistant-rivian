@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, PropertyMock
 import pytest
 
 from custom_components.rivian.button import RivianButtonEntity
+from custom_components.rivian.connectivity import ConnectivityState
 from custom_components.rivian.const import DOMAIN
 from custom_components.rivian.coordinator import (
     ChargingCoordinator,
@@ -225,15 +226,30 @@ class TestRivianVehicleControlEntity:
         assert entity._current_command_id is None
         assert entity._last_command_status == {}
 
-    async def test_available_offline(
+    async def test_unavailable_when_offline(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
         mock_vehicle_data: dict,
     ) -> None:
-        """Test entity unavailable when offline."""
+        """A control on an OFFLINE vehicle is unavailable.
+
+        RENAMED: the old name repeated the per-description opt-out flag that this
+        change deletes, rather than the behaviour being asserted. Cause: gate 1 now
+        reads `connectivity_state() is ConnectivityState.OFFLINE` instead of
+        `not is_online()`, so `connectivity_state` is what must be stubbed.
+
+        Note this test does NOT go red if the rewrite is skipped -- it goes
+        green-but-vacuous. With a spec'd coordinator whose `get` returns None, an
+        unrewritten version still returns False, but at the *park* gate
+        (`gearStatus is None != "park"`), never reaching the connectivity gate. The
+        rename is what makes the assertion mean what its name says; s15 §9's
+        `grep "def <name>"` is what catches a skipped rename.
+        """
         coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=False)
+        coordinator.connectivity_state = MagicMock(
+            return_value=ConnectivityState.OFFLINE
+        )
         coordinator.get = MagicMock(return_value=None)
 
         description = EntityDescription(key="test", name="Test")
@@ -244,6 +260,69 @@ class TestRivianVehicleControlEntity:
             description=description,
             vehicle=mock_vehicle_data,
         )
+
+        assert entity.available is False
+
+    async def test_available_when_sleeping(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        mock_vehicle_data: dict,
+    ) -> None:
+        """A parked, SLEEPING vehicle keeps its controls. This is the whole change.
+
+        Before this, `available` gated on `is_online()`, and a sleeping vehicle is not
+        online -- so every control disappeared, including the wake button whose entire
+        job is to bring it back. The app disables controls only on Offline
+        (`C7407k.java:112-118`); Sleeping falls through. The remaining four gates all
+        read cached data, so they keep answering while the vehicle sleeps.
+        """
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.connectivity_state = MagicMock(
+            return_value=ConnectivityState.SLEEPING
+        )
+        coordinator.get = MagicMock(return_value="park")
+
+        description = EntityDescription(key="test", name="Test")
+
+        entity = RivianVehicleControlEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=description,
+            vehicle=mock_vehicle_data,
+        )
+        entity.hass = hass
+
+        assert entity.available is True
+
+    async def test_sleeping_does_not_bypass_the_park_gate(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        mock_vehicle_data: dict,
+    ) -> None:
+        """SLEEPING relaxes gate 1 only. The other four gates are untouched.
+
+        Pins the change's boundary against a later "while we're here" widening: making
+        a sleeping vehicle's controls available must not also make a *driving*
+        vehicle's controls available. `gearStatus == "park"` was explicitly rejected as
+        a target in the interview's Round 1 and is a stated Non-Goal.
+        """
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.connectivity_state = MagicMock(
+            return_value=ConnectivityState.SLEEPING
+        )
+        coordinator.get = MagicMock(return_value="drive")
+
+        description = EntityDescription(key="test", name="Test")
+
+        entity = RivianVehicleControlEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=description,
+            vehicle=mock_vehicle_data,
+        )
+        entity.hass = hass
 
         assert entity.available is False
 

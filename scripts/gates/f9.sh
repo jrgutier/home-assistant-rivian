@@ -116,16 +116,39 @@ else bad "coordinator.py increments frames_seen on both a read and a write"
 fi
 
 # --- 7 + 8. ceiling interlock -----------------------------------------------
-# Pin the 30 s ceiling. Two things changed here, both from owner ruling 27.
+# Pin the ceiling. Two things changed here originally, both from owner ruling 27;
+# a third change re-keyed the pin from 30 s to 60/120 s (see RE-KEYED below).
 #
-# WHAT THE CEILING ACTUALLY BOUNDS. entity.py:176's docstring block (the
-# timeout: line itself is entity.py:177) says the timeout waits for "the
-# first well-formed frame", and the loop returns on the first non-empty
-# get_command_state. So the ceiling bounds FIRST-FRAME arrival and bites
-# only at zero frames. The previous premise -- that it should move on
-# a terminal-latency measurement -- was a leftover from ruling 15's blocking
-# wait, which ruling 22 superseded and nobody re-derived. A gate outlived its
-# own design and kept enforcing a rule about a quantity the code no longer uses.
+# WHAT THE CEILING ACTUALLY BOUNDS. The timeout: argument's docstring block in
+# entity.py says the timeout waits for "the first well-formed frame", and the
+# loop returns on the first non-empty get_command_state. So the ceiling bounds
+# FIRST-FRAME arrival and bites only at zero frames. The previous premise -- that
+# it should move on a terminal-latency measurement -- was a leftover from ruling
+# 15's blocking wait, which ruling 22 superseded and nobody re-derived. A gate
+# outlived its own design and kept enforcing a rule about a quantity the code no
+# longer uses.
+#
+# The citation above is by PHRASE, not by line number. It used to be a file:line
+# address, which the 60/120 change shifted -- and a gate that cites a line number
+# degrades into a green lie the moment the file above it grows. The address is
+# deliberately not written here even to explain itself, for the same reason the
+# retired marker is not: the test asserting it is gone greps this file, and
+# quoting it would satisfy the grep and defeat the check. "first well-formed
+# frame" fails exactly when the governed quantity changes, which is what the
+# citation exists to protect.
+#
+# RE-KEYED to 60 s awake / 120 s sleeping. This is a RAISE, and the record's rule
+# (docs/E2E_ACCEPTANCE.md, "may be lowered only when...") governs LOWERING; the
+# fixed-string pin was direction-blind and fired anyway. The raise mirrors the
+# app's CLOUD-path give-up timeouts (C5332Z.java:242/:254, selected at :821) by
+# owner decision -- it is NOT derived from a measurement. Specifically: the
+# record's 4x-observed-max condition is cleared by the SLEEPING ceiling only
+# (cold max 14.66 s -> a 58.6 s floor, which 120 s clears and 30 s did not); the
+# awake population's max is 2.77 s, which 30 s already cleared eleven times over,
+# so the awake raise buys symmetry with the app and nothing measured. See
+# docs/E2E_ACCEPTANCE.md "Step 9". The interlock below is re-keyed, never
+# disarmed: both token checks and the relaxation branch are untouched, so the
+# LOWERING interlock is exactly as armed as it was before.
 #
 # WHY THE MARKER IS REPLACED, NOT AND-ED. The retired marker was a lowercase
 # English phrase naming the wrong quantity, and docs/E2E_ACCEPTANCE.md already
@@ -153,7 +176,9 @@ else
     note "first-frame latency recorded, but the ceiling is not ratified -- still pinned"
   fi
   ok "the ceiling interlock is pinned"
-  contains "the 30 s ceiling is still 30" "timeout: int = 30" "$E"
+  contains "awake ceiling is 60" 'COMMAND_TIMEOUT_AWAKE: Final = 60' "$E"
+  contains "sleeping ceiling is 120" 'COMMAND_TIMEOUT_SLEEPING: Final = 120' "$E"
+  try "the 30 s default is gone" bash -c "! grep -qF 'timeout: int = 30' '$E'"
 fi
 
 # --- 9. the poll is gone and stays gone -------------------------------------
