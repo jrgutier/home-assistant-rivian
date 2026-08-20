@@ -191,3 +191,57 @@ substring search over the whole document, and P1 keeps every retracted
 `INCONCLUSIVE` verdict in the record permanently. So `INCONCLUSIVE` is in that
 document forever, the branch is permanently taken, and the `sole subscriber`
 requirement is permanently live.
+
+---
+
+# Re-verification, 2026-08-20 — owner ruling 23
+
+Run with `scripts/ws_contention_probe.py`, production up throughout, **no outage taken**: the
+`Starting Home Assistant` count was 6 before and 6 after, and `Web socket rejected by the server`
+returned 0 at baseline and 0 after every arm. Arms 3d and 3e were dropped by ruling 28 — they
+provoke close codes 4401/4403, which `ws_monitor` turns into a permanent silent stop with no
+self-heal, and the no-harm criteria could not have detected it.
+
+## What the arms found
+
+| Arm | Claim | Verdict |
+|---|---|---|
+| **3a** | C1c — a second `vehicleState` subscription on one user session | **ACCEPTED.** Control passed: ≥100 fields delivered with `batteryLevel` and `vehicleMileage` non-null, while production was subscribed. `LIVENESS OK`. |
+| **3b** | C8 — a Parallax subscription concurrent with production's | **PARALLAX CONCURRENT — sole subscriber NOT required.** Received the full RVM topic set (33 topics, `body.locks.states` through `vehicle.wheels.vehicle_wheels`) with production subscribed. `LIVENESS OK`. |
+| **3c** | C1c vs client — a hand-rolled `connection_init` in the same session | **INIT ACKED IN SESSION**, elapsed 0.0 s. `LIVENESS OK`. |
+| **C6, C7** | close-code behaviour | **UNVERIFIED — arms dropped by ruling 28.** Not omitted, not carried forward as verified. |
+
+## C1 was two claims wearing one sentence, and the static half was already false
+
+`:12` says "exactly one active **subscription** per user session token"; `:13` then says "Every local
+probe was therefore a second **connection**." Those are different claims, and the conflation is the
+original defect.
+
+**C1-as-subscription (C1s) is FALSIFIED STATICALLY — no probe needed.** `rivian.py` builds one
+`WebSocketMonitor` per client and multiplexes a `_subscriptions` dict over it; `coordinator.py` runs
+`subscribe_for_vehicle_updates`, `subscribe_for_parallax_messages` and
+`subscribe_for_cloud_connection` on that one client concurrently, and `diagnostics.py` ships
+`"subscribed": coor._unsub_parallax is not None` — the code asserts a Parallax subscription
+coexisting with the vehicle-state one. **Production has run three concurrent subscriptions on one
+user session every day since the feature shipped.**
+
+**C1-as-connection (C1c) is the claim that was actually open, and arms 3a and 3c answer it: a second
+connection is accepted and acked.**
+
+## What this retires
+
+The **sole-subscriber prerequisite** — cited in `prd.json`, `RVM_FIXTURES.md` and the f8 outage plan
+— **is retired for Parallax by arm 3b.** Capturing an RVM payload does not require stopping the
+integration.
+
+That matters beyond bookkeeping. Two production outages were taken this session to make a probe the
+sole subscriber, for a contention that does not exist. The probe was never contended; its callback
+read `data["data"]` where the frame is `{"payload": {"data": …}}`, so it parsed nothing and the
+silence was read as contention. Arm 3b now shows the outages were unnecessary twice over: the
+parsing was broken *and* the prerequisite was false.
+
+## The retraction notice above is itself unreliable
+
+It reports "no data frame followed" — from the same callback that could not see data frames at all.
+It may be retracting a true row for a false reason. Treated as superseded by this section rather
+than trusted.
