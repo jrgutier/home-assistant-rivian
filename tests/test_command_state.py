@@ -750,3 +750,46 @@ class TestClimateChainedCalls:
 
 def test_coordinator_continue_set_matches_the_transcription() -> None:
     assert COMMAND_STATE_CONTINUE == TRANSCRIBED_CONTINUE
+
+
+class TestCeilingInterlockKeysOnTheRightQuantity:
+    """f9's ceiling interlock must key on FIRST-FRAME latency, not terminal.
+
+    `entity.py`'s timeout docstring says the wait is for "the first well-formed
+    frame", and the loop returns on the first non-empty `get_command_state`. So
+    the 30 s ceiling bounds first-frame arrival and bites only at zero frames.
+
+    The interlock previously keyed on a terminal-latency measurement -- a
+    leftover from the design where `_execute_command` blocked until terminal,
+    which was superseded and never re-derived. A gate outlived its own design.
+
+    It also keyed on a lowercase English phrase that the record was expected to
+    reproduce, and survived only because `grep -qF` is case-sensitive. Both
+    replacement tokens are shaped so prose will not produce them, and relaxation
+    requires the measurement AND a separate owner ratification.
+    """
+
+    def test_the_gate_requires_both_tokens(self) -> None:
+        gate = (REPO / "scripts/gates/f9.sh").read_text()
+        assert "NON-WAKE FIRST-FRAME LATENCY MEASURED:" in gate
+        assert "CEILING RATIFIED BY OWNER" in gate
+
+    def test_the_retired_marker_is_absent_from_the_gate(self) -> None:
+        """Absent entirely -- quoting it even to explain it satisfies the grep.
+
+        That happened on the first attempt at this change: the explanatory
+        comment reintroduced the string and the acceptance criterion caught it.
+        """
+        gate = (REPO / "scripts/gates/f9.sh").read_text()
+        assert "terminal latency measured" not in gate
+        assert "terminal latency is unmeasured" not in gate
+        assert "DOC_HAS_MEASURED" not in gate
+
+    def test_the_gate_cites_the_docstring_that_fixes_the_quantity(self) -> None:
+        gate = (REPO / "scripts/gates/f9.sh").read_text()
+        assert "entity.py:176" in gate
+
+    def test_the_ceiling_is_still_thirty(self) -> None:
+        """Pinned until both tokens appear. Nothing in this change moves it."""
+        entity = (REPO / "custom_components/rivian/entity.py").read_text()
+        assert entity.count("timeout: int = 30") == 1

@@ -111,3 +111,83 @@ then `config_entries/reload`, then as a last resort `ha core stop` → edit
 `disabled_by: null` in `/config/.storage/core.config_entries` → `ha core start`.
 That order matters: Home Assistant holds config entries in memory and flushes them
 on shutdown, so a graceful restart would overwrite a hand-edit before reading it.
+
+## Claim register
+
+Every claim in this document, split, classified, and counted. Added 2026-08-19
+per ruling 23; existing rows above are not edited (P1). Arithmetic is against
+**fifteen** rows: C1 split into C1s (subscription) and C1c (connection) per
+ruling 28.
+
+| ID | Claim (line) | Verdict | Route |
+|---|---|---|---|
+| **C1s** | `:12` gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor; `coordinator.py:986`, `:997`, `:1017` three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py:56-57` | Static, done |
+| **C1c** | `:13` every local probe was a *second* **connection**, accepted, never acked, closed at TTL | **OPEN.** The real question. f8's 124 fields are suggestive but uninstrumented (§4.0.2) | Live, arms 3a-3c |
+| **C1b** | `:13` *"Home Assistant holds it"* — that the gateway designates one connection as holder | **UNFALSIFIABLE AS WRITTEN.** No server-side introspection exists; the claim ascribes an internal policy observable only by its effects | Not testable — rewrite as observation, not mechanism |
+| **C2** | `:33` HA running → accepted, **no ack**, held ~180 s, `CLOSE 4420` | **OPEN — causal label in doubt.** The observation is plausible; the *because* is not established | Live, arm 3c |
+| **C3** | `:34` HA disabled → `connection_ack` immediately, then a `next` frame, twice | **UNVERIFIED — NEEDS AN OUTAGE.** | Not taken |
+| **C3R** | `:22-29` the retraction: sole subscriber, ack but zero data frames in 30 s | **SUSPECT — reported by the broken parser.** | **NEEDS AN OUTAGE** — not taken; may be retired without one if C1c falls |
+| **C4** | `:41-48` twenty header/token variants, all unacknowledged | **UNFALSIFIABLE AS WRITTEN.** (§4.0.4) | Supersede with a non-reproducibility note |
+| **C5** | `:50-52` the `.env` `u-sess` is byte-identical (SHA-256) to the instance's | **VERIFIED — plan-time (iteration 1).** sha256[:16] `f24719019dbe68e0` both sides, length 36 | Static; **re-run at execution** |
+| **C6** | `:55-60` close codes 4401 / 4403 / 4408 / 4420 and their meanings | **UNVERIFIED — NOT TESTED.** Ruling 28 drops arm 3e as its accepted cost | Live-testable in principle; **not this round** |
+| **C7** | `:64-70` 4401 carried no information; malformed token → 4403 in ~0.5 s; valid-but-duplicate → silence | **UNVERIFIED — NOT TESTED.** Ruling 28 drops arms 3d/3e as its accepted cost | Live-testable in principle; **not this round** |
+| **C8** | `:74-76` *"Fixture capture must run as sole subscriber. `s08a` cannot be done from a dev machine while Home Assistant is running."* | **IN DOUBT.** Falls automatically if C1c falls for `parallaxMessages` | Live, **arm 3b — the highest-value single test in this plan** |
+| **C9** | `:77-81` `sendVehicleOperation` selects only `{ success }`; payload arrives only on `parallaxMessages` | **VERIFIED (SUBSTANCE) — CITATION STALE.** Selection at `rivian.py:857-861`; `:866-870` has no `success` | Static, done — fix three citations |
+| **C10** | `:83-95` three non-interchangeable identifiers; `phone_id` from `vasPhoneId`; default user query omits `enrolledPhones` | **VERIFIED.** `probe_vehicle_command.py:105`, `:138` | Static, done |
+| **C11** | `:99-104` `ws_monitor.py` distinguishes the codes; 4401/4403 stop the monitor, 4420 is routine | **VERIFIED.** `ws_monitor.py:37` `AUTH_CLOSE_CODES = frozenset({4401, 4403})`, `:41` `TTL_CLOSE_CODE = 4420`, `:165-176` | Static, done |
+| **C12** | `:106-113` reproduction recipe; HA flushes config entries on shutdown so a graceful restart overwrites a hand-edit | **VERIFIED BY USE.** The f8 outage followed exactly this order (`UNPOPULATED_FIELDS.md:121-123`). *Iteration 1 left this row's route column blank; it is classified here; and its own line range was stale — the recipe block is `:106-113`, not `:106-112`.* | Verified by prior use; no re-test |
+
+The census, which must add to fifteen:
+
+| Category | Count | IDs |
+|---|---|---|
+| Static (falsified or verified without connecting) | **5** | C1s, C5, C9, C10, C11 |
+| Live-testable with production up | **5** | C1c, C2, C6, C7, C8 |
+| Needs an outage | **2** | C3, C3R |
+| Unfalsifiable as written | **2** | C1b, C4 |
+| Verified by prior use | **1** | C12 |
+| **Total** | **15** | |
+
+Answer to ruling 23's "which need an outage": **two** — C3 and C3R, and C3R is already retracted.
+
+## Downstream citation map
+
+What a failure invalidates downstream. First column is unbolded `If C1s falls` /
+`If C1c falls` / `If C8 falls` / `If C1c and C8 both hold` so it cannot collide
+with the register's row anchor (`| **C…** |`). Scoping the register parsers to
+this document's `## Claim register` block is sufficient; the reformat is
+redundancy.
+
+| If this falls | These stop being true | Files |
+|---|---|---|
+| If C1s falls — already fallen, statically | the diagnostics comment shipped to users; the s06c gate's header reasoning; the `prd.json:153` narrative | `custom_components/rivian/diagnostics.py:56-57`, `scripts/gates/s06c.sh:7`, `tests/test_subscription_failures.py:7`, `prd.json:153`. **The subscription-failure-typing gap itself survives** — typed failures are justified independently of why the day was lost. Change the narrative, not the gap |
+| If C1c falls | `WS_CONTENTION.md:13`'s "second connection" account of every past probe failure; C2, C7's second half, and C4's entire premise become explicable without gateway policy | `docs/development/WS_CONTENTION.md` only — the downstream files cite the *subscription* claim, which is C1s |
+| If C8 falls | the s08a prerequisite; the RVM fixture protocol; the standing excuse that the f5 decoders are transcription-only | `prd.json:163`, `docs/development/RVM_FIXTURES.md:16-22`, `docs/development/PARALLAX_DECODERS.md:62-63` and `:158-162`, `tests/client/test_f5_decoders.py:26-28`. **Positive downstream effect:** a real captured `vehicle.network.state` payload becomes schedulable with no outage, which `docs/development/PARALLAX_DECODERS.md:161-162` says "would still settle it either way" |
+| If C8 falls | **two** gates enforce the obsolete protocol, not one: `scripts/gates/f8.sh:39` requires the literal `sole subscriber` in the record, and `scripts/gates/f5.sh:14-16` states it as the reason the decoders are transcription tests | Both need rewording in the same commit that changes the protocol, never before |
+| If C1c and C8 both hold | nothing changes downstream; the f8 result is then explained by something other than contention and **the parse bug's second explanation is still owed** | PM-1 |
+
+Explicitly NOT invalidated by any outcome here: the f8 result itself (all five
+delivered, null). It was measured with a proved control on the shipped code path.
+
+The thirteen downstream citation sites across ten files (D1):
+
+1. `prd.json:153`
+2. `prd.json:163`
+3. `custom_components/rivian/diagnostics.py:56-57`
+4. `docs/development/RVM_FIXTURES.md:16-22`
+5. `docs/development/PARALLAX_DECODERS.md:62-63`
+6. `docs/development/PARALLAX_DECODERS.md:158-162`
+7. `docs/development/UNPOPULATED_FIELDS.md:122` — drifted pointer, same failure mode as C9; Step 9 repairs it
+8. `tests/client/test_f5_decoders.py:26-28`
+9. `tests/test_subscription_failures.py:7`
+10. `scripts/gates/s06c.sh:7`
+11. `scripts/gates/f8.sh:8`
+12. `scripts/gates/f8.sh:39`
+13. `scripts/gates/f5.sh:14-16`
+
+Note on `scripts/gates/f8.sh:36-41`. The `sole subscriber` requirement is
+*conditional on the verdict containing `INCONCLUSIVE`*. `found` is built by
+substring search over the whole document, and P1 keeps every retracted
+`INCONCLUSIVE` verdict in the record permanently. So `INCONCLUSIVE` is in that
+document forever, the branch is permanently taken, and the `sole subscriber`
+requirement is permanently live.

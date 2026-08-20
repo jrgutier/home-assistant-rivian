@@ -6,7 +6,8 @@
 # the frame counter is a real increment, not an overwrite; the subscription
 # chain is wired callback -> _command_states -> get_command_state; TIMEOUT
 # is reachable only from zero well-formed frames (via the named unit tests);
-# the 30 s ceiling was not lowered on a first-frame measurement; the
+# the 30 s ceiling is not lowered without BOTH a non-wake first-frame
+# measurement AND the owner's ratification; the
 # observability attributes exist AND are keyed on the id that outlives the
 # call; the UI refresh is not gated on an event that may never occur.
 #
@@ -115,19 +116,42 @@ else bad "coordinator.py increments frames_seen on both a read and a write"
 fi
 
 # --- 7 + 8. ceiling interlock -----------------------------------------------
-# Pin the 30 s ceiling until the record carries a terminal-latency measurement.
-# "terminal latency measured" is NOT a substring of "terminal latency is unmeasured".
-DOC_HAS_MEASURED=0
-DOC_HAS_UNMEASURED=0
-grep -qF "terminal latency measured" "$DOC" && DOC_HAS_MEASURED=1
-grep -qF "terminal latency is unmeasured" "$DOC" && DOC_HAS_UNMEASURED=1
+# Pin the 30 s ceiling. Two things changed here, both from owner ruling 27.
+#
+# WHAT THE CEILING ACTUALLY BOUNDS. entity.py:176's docstring block says the
+# timeout waits for "the first well-formed frame", and the loop returns on the
+# first non-empty get_command_state. So the ceiling bounds FIRST-FRAME arrival
+# and bites only at zero frames. The previous premise -- that it should move on
+# a terminal-latency measurement -- was a leftover from ruling 15's blocking
+# wait, which ruling 22 superseded and nobody re-derived. A gate outlived its
+# own design and kept enforcing a rule about a quantity the code no longer uses.
+#
+# WHY THE MARKER IS REPLACED, NOT AND-ED. The retired marker was a lowercase
+# English phrase naming the wrong quantity, and docs/E2E_ACCEPTANCE.md already
+# carries that same phrase in a heading with different casing -- the interlock
+# survived ONLY because grep -qF is case-sensitive. A marker that ordinary prose
+# is expected to reproduce is not a marker. Both tokens below are shaped so
+# prose will not produce them.
+#
+# The retired phrase is deliberately not written anywhere in this file, not even
+# to explain itself: the acceptance criterion for this change is that the string
+# is absent from the gate, and quoting it here would satisfy the grep and defeat
+# the check. (It did, on the first attempt at this edit.)
+#
+# Relaxation needs BOTH: the measurement (of the right quantity, naming the
+# command) AND the owner's separate ratification. Measure, then decide -- P3.
+DOC_HAS_FIRSTFRAME=0
+DOC_HAS_RATIFIED=0
+grep -qF "NON-WAKE FIRST-FRAME LATENCY MEASURED:" "$DOC" && DOC_HAS_FIRSTFRAME=1
+grep -qF "CEILING RATIFIED BY OWNER" "$DOC" && DOC_HAS_RATIFIED=1
 
-if [ "$DOC_HAS_MEASURED" -eq 0 ] && [ "$DOC_HAS_UNMEASURED" -eq 0 ]; then
-  bad "E2E_ACCEPTANCE.md names neither unmeasured nor measured terminal latency"
-elif [ "$DOC_HAS_MEASURED" -eq 1 ]; then
-  ok "terminal latency measured -- 30 s ceiling interlock relaxed"
+if [ "$DOC_HAS_FIRSTFRAME" -eq 1 ] && [ "$DOC_HAS_RATIFIED" -eq 1 ]; then
+  ok "non-wake first-frame latency measured AND ceiling ratified -- interlock relaxed"
 else
-  ok "terminal latency is unmeasured"
+  if [ "$DOC_HAS_FIRSTFRAME" -eq 1 ]; then
+    note "first-frame latency recorded, but the ceiling is not ratified -- still pinned"
+  fi
+  ok "the ceiling interlock is pinned"
   contains "the 30 s ceiling is still 30" "timeout: int = 30" "$E"
 fi
 
