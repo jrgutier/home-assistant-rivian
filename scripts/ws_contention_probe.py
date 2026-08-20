@@ -291,24 +291,79 @@ async def arm_3c(client) -> dict:
 
 
 def dry_run() -> int:
+    """Print the exact document or frame each arm would send. Nothing connects."""
+    from custom_components.rivian.rivian_client.parallax import PARALLAX_RVMS
+    from custom_components.rivian.rivian_client.rivian import (
+        APOLLO_CLIENT_NAME,
+        GRAPHQL_WEBSOCKET,
+    )
+
+    client = Rivian()  # no session, no tokens -- fragment builder only
     print("=== DRY RUN — nothing connects ===\n")
+
+    print("=== arm 3a — library path, vehicleState ===")
+    print("CONTROL: batteryLevel + vehicleMileage non-null, >=100 fields delivered")
+    print("frame unwrap: payload -> data -> vehicleState")
+    frag = client._build_vehicle_state_fragment(set(VEHICLE_STATE_API_FIELDS))
     print(
-        f"arm 3a  vehicleState subscription, {len(VEHICLE_STATE_API_FIELDS)} properties"
+        json.dumps(
+            {
+                "operationName": "VehicleState",
+                "query": (
+                    "subscription VehicleState($vehicleID: String!) { "
+                    f"vehicleState(id: $vehicleID) {frag} }}"
+                ),
+                "variables": {"vehicleID": "<vehicle id>"},
+            },
+            indent=2,
+        )
     )
+    print()
+
+    print("=== arm 3b — library path, parallaxMessages ===")
+    print("CONTROL: at least one RVM frame in 45 s")
     print(
-        "        CONTROL: batteryLevel + vehicleMileage non-null, >=100 fields delivered"
+        json.dumps(
+            {
+                "operationName": "ParallaxMessages",
+                "query": (
+                    "subscription ParallaxMessages($vehicleId: String!, $rvms: [String!]) { "
+                    "parallaxMessages(vehicleId: $vehicleId, rvms: $rvms) { "
+                    "payload timestamp rvm } }"
+                ),
+                "variables": {
+                    "vehicleId": "<vehicle id>",
+                    "rvms": list(PARALLAX_RVMS),
+                },
+            },
+            indent=2,
+        )
     )
-    print("        frame unwrap: payload -> data -> vehicleState\n")
-    print("arm 3b  parallaxMessages subscription, client default RVM set")
-    print("        CONTROL: at least one RVM frame in 45 s")
-    print("        verdicts: PARALLAX CONCURRENT — sole subscriber NOT required")
-    print("                | PARALLAX REFUSED — sole subscriber required\n")
-    print("arm 3c  hand-rolled connection_init on the same session as 3a/3b")
-    print("        CONTROL: 3a and 3b must both have passed control and liveness\n")
+    print()
+
+    print("=== arm 3c — connection_init (same session as 3a/3b) ===")
+    print("CONTROL: 3a and 3b must both have passed control and liveness")
+    print(f"url: {GRAPHQL_WEBSOCKET}")
+    print('headers: {"sec-websocket-protocol": "graphql-transport-ws"}')
+    print(
+        json.dumps(
+            {
+                "type": "connection_init",
+                "payload": {
+                    "client-name": APOLLO_CLIENT_NAME,
+                    "client-version": "1.13.0-1494",
+                    "dc-cid": "m-ios-<uuid>",
+                    "u-sess": "<RIVIAN_USER_SESSION_TOKEN, not printed>",
+                },
+            },
+            indent=2,
+        )
+    )
+    print()
     print(f"liveness  entity {LIVENESS_ENTITY}; W = min(max(4 * A0, 600), 900)")
     print(f"          reject text: {REJECT_TEXT!r}")
     print("          verdicts: LIVENESS OK | LIVENESS FAILED | LIVENESS INDETERMINATE")
-    print("\narms 3d and 3e: DROPPED by ruling 28; absent from this file by name.")
+    print("\nDropped arms are absent from this file by name (ruling 28).")
     return 0
 
 

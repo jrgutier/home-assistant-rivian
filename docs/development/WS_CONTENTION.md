@@ -122,7 +122,7 @@ below), not the plan-time OPEN / IN DOUBT predictions.
 
 | ID | Claim (line) | Verdict | Route |
 |---|---|---|---|
-| **C1s** | `:12` gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor; `coordinator.py:986`, `:997`, `:1017` three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py:56-57` | Static, done |
+| **C1s** | `:12` gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor multiplexing `:146` `_subscriptions`; `coordinator.py:986`, `:997`, `:1017` three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py:56-57`. Re-confirmed 2026-08-20 | Static, done |
 | **C1c** | `:13` every local probe was a *second* **connection**, accepted, never acked, closed at TTL | **VERIFIED.** Arm 3a: a second `vehicleState` subscription was ACCEPTED; control passed (≥100 fields, `batteryLevel` and `vehicleMileage` non-null) with production subscribed. Arm 3c: INIT ACKED IN SESSION, elapsed 0.0 s. Both LIVENESS OK. The original "never acked, closed at TTL" half is false. | Live, arms 3a-3c — done |
 | **C1b** | `:13` *"Home Assistant holds it"* — that the gateway designates one connection as holder | **UNFALSIFIABLE AS WRITTEN.** No server-side introspection exists; the claim ascribes an internal policy observable only by its effects | Not testable — rewrite as observation, not mechanism |
 | **C2** | `:33` HA running → accepted, **no ack**, held ~180 s, `CLOSE 4420` | **OPEN — causal label in doubt.** The observation is plausible; the *because* is not established | Live, arm 3c |

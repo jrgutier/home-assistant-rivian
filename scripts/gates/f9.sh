@@ -118,10 +118,11 @@ fi
 # --- 7 + 8. ceiling interlock -----------------------------------------------
 # Pin the 30 s ceiling. Two things changed here, both from owner ruling 27.
 #
-# WHAT THE CEILING ACTUALLY BOUNDS. entity.py:176's docstring block says the
-# timeout waits for "the first well-formed frame", and the loop returns on the
-# first non-empty get_command_state. So the ceiling bounds FIRST-FRAME arrival
-# and bites only at zero frames. The previous premise -- that it should move on
+# WHAT THE CEILING ACTUALLY BOUNDS. entity.py:176's docstring block (the
+# timeout: line itself is entity.py:177) says the timeout waits for "the
+# first well-formed frame", and the loop returns on the first non-empty
+# get_command_state. So the ceiling bounds FIRST-FRAME arrival and bites
+# only at zero frames. The previous premise -- that it should move on
 # a terminal-latency measurement -- was a leftover from ruling 15's blocking
 # wait, which ruling 22 superseded and nobody re-derived. A gate outlived its
 # own design and kept enforcing a rule about a quantity the code no longer uses.
