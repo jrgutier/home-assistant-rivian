@@ -300,18 +300,7 @@ done
 if [ ! -x "$PYTEST" ]; then
   bad "pytest not found"
 else
-  out=$(cd "$HA" && "$PYTEST" -q --no-cov -p no:cacheprovider "${NODES[@]}" 2>&1 || true)
-  note "$(echo "$out" | tail -1)"
-  if echo "$out" | grep -qE '^FAILED '; then
-    bad "named f9 tests failed"
-  else
-    ok "named f9 tests passed"
-  fi
-  if echo "$out" | grep -qE '^[0-9]+ (skipped|deselected)'; then
-    bad "named f9 tests skipped or deselected"
-  else
-    ok "named f9 tests: nothing skipped or deselected"
-  fi
+  pytest_green "$HA" "$PYTEST" "named f9 tests" "${NODES[@]}"
 fi
 
 # --- 15. pre-flight artifacts, skipped without FAIL when absent -------------

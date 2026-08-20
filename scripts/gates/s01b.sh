@@ -16,23 +16,15 @@ echo "S1b — suite green in a full run"
 PY="$(resolve_pytest "$HA")"   # never hardcode venv/: see resolve_pytest
 if [ ! -x "$PY" ]; then bad "pytest not found at $PY"; summary S1b; exit 1; fi
 
-out=$(cd "$HA" && "$PY" -q -p no:cacheprovider --no-cov 2>&1 || true)
-line=$(echo "$out" | tail -1)
-note "$line"
-
-fails=$(echo "$out" | { grep -cE '^FAILED ' || true; })
-if [ "$fails" -eq 0 ]; then ok "no failures in a full run"
-else bad "$fails failing tests in a full run"; fi
+pytest_green "$HA" "$PY" "full run"
 
 # The root cause must be gone, not worked around by reordering or skipping.
 absent "no module-level sys.modules assignment in tests" \
        '^[[:space:]]*sys\.modules\[' "$HA/tests"
 
-if echo "$out" | grep -qE '^[0-9]+ (skipped|deselected)'; then
-  bad "tests skipped/deselected — not a legitimate fix"
-else
-  ok "nothing skipped or deselected"
-fi
+# The skip check that stood here read `$out`, which pytest_green now owns; it
+# also used the anchored regex that could never match. pytest_green does this
+# check for every gate -- see _lib.sh.
 
 # Ordering independence: the pair that currently breaks must pass together.
 if (cd "$HA" && "$PY" tests/test_update.py tests/test_coordinator_base.py \

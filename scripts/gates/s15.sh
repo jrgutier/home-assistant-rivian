@@ -210,22 +210,10 @@ done
 if [ ! -x "$PYTEST" ]; then
   bad "pytest not found"
 else
-  out=$(cd "$HA" && "$PYTEST" -q --no-cov -p no:cacheprovider "${NODES[@]}" 2>&1 || true)
-  note "$(echo "$out" | tail -1)"
-  if echo "$out" | grep -qE '^FAILED '; then
-    bad "named s15 tests failed"
-  else
-    ok "named s15 tests passed"
-  fi
-  # UNANCHORED, deliberately. `pytest -q` prints "22 passed, 1 skipped in 0.5s" --
-  # the passed count comes first, so an anchored `^[0-9]+ skipped` matches only
-  # when EVERY named node skipped and one skip among many slips straight through.
-  # Any skip among these nodes is a defect by definition, not a judgement call.
-  if echo "$out" | grep -qE '[0-9]+ skipped'; then
-    bad "named s15 tests: something was skipped"
-  else
-    ok "named s15 tests: nothing skipped"
-  fi
+  # Exit status, not a `^FAILED ` grep: a collection error prints no FAILED line
+  # at all. The unanchored skip check that used to live here moved into
+  # pytest_green, so every gate gets it. See _lib.sh.
+  pytest_green "$HA" "$PYTEST" "named s15 tests" "${NODES[@]}"
 fi
 
 # --- 10. full suite, skip count, and lint ----------------------------------
@@ -236,12 +224,20 @@ SKIP_BASELINE=0
 if [ ! -x "$PYTEST" ]; then
   bad "pytest not found for the full suite"
 else
-  full=$(cd "$HA" && "$PYTEST" tests/ -q --no-cov -p no:cacheprovider 2>&1 || true)
+  # Exit status, not `^FAILED `: a collection error prints no FAILED line, so the
+  # old grep reported "full suite passes" on a suite that never ran. `set +e`
+  # because a red suite must be reported, not abort the gate.
+  set +e
+  full=$(cd "$HA" && "$PYTEST" tests/ -q --no-cov -p no:cacheprovider 2>&1)
+  full_rc=$?
+  set -e
   note "$(echo "$full" | tail -1)"
-  if echo "$full" | grep -qE '^FAILED '; then
-    bad "full suite passes"
+  if [ "$full_rc" -eq 0 ]; then
+    ok "full suite passes (pytest exit 0)"
   else
-    ok "full suite passes"
+    bad "full suite FAILED (pytest exit $full_rc)"
+    echo "$full" | grep -E '^(FAILED|ERROR) |^Interrupted' | head -5 \
+      | while IFS= read -r l; do note "  $l"; done
   fi
   skipped=$(echo "$full" | grep -oE '[0-9]+ skipped' | head -1 | grep -oE '^[0-9]+' || true)
   skipped="${skipped:-0}"

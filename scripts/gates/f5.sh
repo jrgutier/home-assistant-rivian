@@ -131,9 +131,7 @@ else
   bad "the f5 test module fails"
 fi
 
-out=$(cd "$HA" && "$PY" -q --no-cov -p no:cacheprovider 2>&1 || true)
-note "$(echo "$out" | tail -1)"
-if echo "$out" | grep -qE '^FAILED '; then bad "suite has failures"; else ok "suite green"; fi
+pytest_green "$HA" "$PY" "suite"
 # WITH coverage. The suite above runs --no-cov for speed, which leaves whatever
 # coverage.json happened to be on disk -- and a single-module run leaves a partial
 # one reporting 38%. check_coverage.py now refuses a partial report outright, but

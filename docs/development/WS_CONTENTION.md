@@ -40,9 +40,34 @@ answer — and the claim register below falsifies both of its halves:
   production still subscribed. Arm 3c: init **acked in-session**, elapsed 0.0 s.
 
 Both are kept visible above rather than rewritten away, because the point of this document
-is how the reasoning went wrong — and it went wrong twice, in the same direction, by
-inferring a server-side policy from a client-side symptom. The trap that is "still there
-for the next person" is that inference, not the specific claim.
+is how the reasoning went wrong.
+
+**And the way it went wrong is not subtle: the instrument was broken.** From `759123d`:
+
+> Both earlier f8 failures were a single defect in the probe: the callback read
+> `data["data"]["vehicleState"]` while the frame is `{"payload": {"data": {…}}}`, which
+> `coordinator.py:580/:1074/:1223` all unwrap. One level too shallow, so nothing was ever
+> parsed and every field reported NOT DELIVERED regardless of what arrived.
+>
+> That defect also produced the H4 contention reading — **the subscription was never silent,
+> it was unparsed** — and the **two production outages** taken to escape a contention that
+> does not exist. … The control caught this twice and twice I corrected something else.
+
+So the trap is not "a subtle server behaviour". It is this: **a broken instrument produced a
+false reading, and each time the false reading was explained by inventing a server-side
+policy instead of checking the instrument.** Twice. Past a control that flagged it both
+times. At a cost of two real outages.
+
+Two things would each have ended it immediately, and neither needed the network:
+
+- **C1s was refutable statically.** `coordinator.py:986`, `:997` and `:1017` open three
+  concurrent subscriptions on one `u-sess` every day this integration runs. Reading the
+  client we already ship refutes "one subscription per session" without connecting to
+  anything.
+- **The control was already failing.** It said the instrument was wrong. It was believed
+  about the vehicle and disbelieved about itself.
+
+The lesson, in the commit's own words: **"Prove the instrument before reading the result."**
 
 ## The experiment
 
@@ -59,17 +84,27 @@ subscriber, and the identical probe was re-run.
 > `UNPOPULATED_FIELDS.md`, section "f8 attempted 2026-08-19". Do not rely on the table below to
 > interpret silence.
 
-| Condition | `connection_init` result |
-|---|---|
-| HA running (incumbent holds the subscription) | accepted, **no ack**, held ~180 s, `CLOSE 4420 Connection TTL expired` |
-| HA entry disabled (no incumbent) | **`connection_ack` immediately**, then a `next` frame — twice, consecutively |
+| Condition | `connection_init` result | Verdict |
+|---|---|---|
+| HA running (incumbent holds the subscription) | ~~accepted, **no ack**, held ~180 s, `CLOSE 4420 Connection TTL expired`~~ | **C2 — no-ack half FALSIFIED.** Arm 3c received `connection_ack` with production up, elapsed 0.0 s. The `4420` TTL close is real; its *cause* was never established |
+| HA entry disabled (no incumbent) | ~~**`connection_ack` immediately**, then a `next` frame — twice, consecutively~~ | **C3 — UNVERIFIED, and retracted below.** f8 did not reproduce the `next` frame: ack arrived, zero data frames in 30 s |
+
+Neither row survives as written. Both are kept because the point of this document is
+the reasoning, and both readings were produced by the same broken probe (`759123d`).
 
 The entry was re-enabled in a `finally` block; it returned to `state=loaded` and
 telemetry resumed within ~25 s.
 
 ## What was ruled out first
 
-Twenty variants, all still unacknowledged while HA held the subscription:
+> **C4 — UNFALSIFIABLE AS WRITTEN.** All twenty variants were judged by the probe whose
+> callback read `data["data"]["vehicleState"]` against a `{"payload": {"data": {…}}}` frame
+> and therefore parsed **nothing regardless of what arrived** (`759123d`). "Unacknowledged"
+> was the instrument, not the server. The sweep cannot distinguish a rejected header from an
+> accepted one, so it rules nothing out. Kept as a record of what was tried, not of what was
+> learned.
+
+Twenty variants, all reported unacknowledged while HA held the subscription:
 
 - a freshly minted `a-sess` from `create_csrf_token`, plus `csrf-token`
 - reusing the same `aiohttp` session so cookies carried over
@@ -81,29 +116,49 @@ Twenty variants, all still unacknowledged while HA held the subscription:
 The `u-sess` in `.env` is byte-identical (SHA-256) to the one the working
 instance uses, so credentials were never the discriminator.
 
-## Close codes, measured rather than assumed
+## Close codes — the `Meaning` column is NOT measured
 
-| Code | Reason | Meaning |
+> **The heading here used to read "Close codes, measured rather than assumed."** It was
+> wrong in the same way as everything above it. The **codes** were observed; the
+> **`Meaning` column is interpretation**, and claims **C6** and **C7** — which cover this
+> table and the two bullets under it — are both **UNVERIFIED**: the arms that would have
+> tested them (3d/3e) were **dropped by ruling 28**, because provoking 4401/4403 puts
+> `ws_monitor` into a permanent silent stop with no self-heal that the no-harm criteria
+> could not have detected. Read the table as a hypothesis that has not been paid for.
+
+| Code | Reason | Meaning (UNVERIFIED — C6) |
 |---|---|---|
 | 4401 | `Unauthorized` | something was sent before `connection_ack` |
 | 4403 | `Forbidden` | malformed `u-sess`, ~0.5 s after init |
 | 4408 | `Connection initialization timeout` | no `connection_init` arrived |
 | 4420 | `Connection TTL expired` | routine recycling of a healthy connection |
 
-Two of these misled the original diagnosis:
+Two of these misled the original diagnosis — **claim C7, also UNVERIFIED**:
 
 - **4401 was read as "our credentials are rejected."** It is the
   graphql-transport-ws response to sending any message before the ack — which the
   probe deliberately did. It carried no information at all.
 - **A *malformed* token gets 4403 in half a second, while a valid-but-duplicate
   connection gets silence.** That asymmetry is what made "expired credentials"
-  look plausible. It is really "the session resolves, but it already has a
-  subscriber."
+  look plausible. ~~It is really "the session resolves, but it already has a
+  subscriber."~~
+
+  **That last sentence is the FALSIFIED C1s policy restated.** There is no
+  one-subscriber rule to resolve into: `coordinator.py:986/:997/:1017` open three
+  concurrent subscriptions on one `u-sess` every day. And the "silence" it explains
+  was not silence — the probe's callback read one level too shallow and parsed
+  nothing (`759123d`). The asymmetry may well be real; the explanation attached to
+  it is not, and no measurement of it survives.
 
 ## Consequences
 
-**Fixture capture must run as sole subscriber.** `s08a` cannot be done from a dev
-machine while Home Assistant is running. Disable the entry, capture, re-enable.
+> ~~**Fixture capture must run as sole subscriber.** `s08a` cannot be done from a dev
+> machine while Home Assistant is running. Disable the entry, capture, re-enable.~~
+>
+> **FALSIFIED — claim C8.** Arm 3b received the **full 33-topic RVM set with production
+> subscribed**. Capture requires neither a sole subscriber nor an outage; it can be
+> scheduled against a running production instance. The two outages taken to obtain
+> "sole subscriber" access bought nothing — see `UNPOPULATED_FIELDS.md` and `759123d`.
 
 **`sendVehicleOperation` does not return the payload.** Its mutation selects only
 `{ success }` (`rivian.py:857-861`), so the RVM payload arrives *only* on the

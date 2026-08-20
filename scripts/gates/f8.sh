@@ -5,9 +5,16 @@
 # anything, and an existence check ("the doc mentions f8") would pass on a stub,
 # on a deferral, and on a run that reported five absent fields it never actually
 # measured. So the verdict vocabulary is closed -- the record must say either that
-# the five were probed as sole subscriber, or that the run was inconclusive AND
-# why the instrument failed. "Deferred" is not in the vocabulary: a story that has
-# been attempted cannot still be deferred.
+# the five were probed, or that the run was inconclusive AND why the instrument
+# failed. "Deferred" is not in the vocabulary: a story that has been attempted
+# cannot still be deferred.
+#
+# "as sole subscriber" was struck from that sentence 2026-08-20. Claim C8 is
+# FALSIFIED: arm 3b received the full 33-topic RVM set with production subscribed,
+# so a probe run does not require sole-subscriber access and demanding evidence of
+# it demanded evidence for a protocol that no longer applies. The "why the
+# instrument failed" half stays, and is better justified than ever -- the f8
+# failures WERE the instrument (759123d).
 
 source "$(dirname "$0")/_lib.sh"
 
@@ -36,7 +43,11 @@ if not found:
 if "INCONCLUSIVE" in found:
     # An inconclusive run must say why the instrument failed, or it is
     # indistinguishable from not having run.
-    for needed in ("control", "sole subscriber"):
+    # "sole subscriber" removed: claim C8 FALSIFIED, see the header. "control"
+    # stays -- an inconclusive run that does not say the control was proved is
+    # indistinguishable from not having run, which is exactly how the f8 parse
+    # bug survived two rounds.
+    for needed in ("control",):
         if needed.lower() not in doc.lower():
             print(f"inconclusive recorded without '{needed}' -- reason not given")
             sys.exit(1)
