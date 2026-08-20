@@ -117,21 +117,22 @@ on shutdown, so a graceful restart would overwrite a hand-edit before reading it
 Every claim in this document, split, classified, and counted. Added 2026-08-19
 per ruling 23; existing rows above are not edited (P1). Arithmetic is against
 **fifteen** rows: C1 split into C1s (subscription) and C1c (connection) per
-ruling 28.
+ruling 28. C1c, C8, C6 and C7 record the 2026-08-20 live run (Re-verification
+below), not the plan-time OPEN / IN DOUBT predictions.
 
 | ID | Claim (line) | Verdict | Route |
 |---|---|---|---|
 | **C1s** | `:12` gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor; `coordinator.py:986`, `:997`, `:1017` three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py:56-57` | Static, done |
-| **C1c** | `:13` every local probe was a *second* **connection**, accepted, never acked, closed at TTL | **OPEN.** The real question. f8's 124 fields are suggestive but uninstrumented (§4.0.2) | Live, arms 3a-3c |
+| **C1c** | `:13` every local probe was a *second* **connection**, accepted, never acked, closed at TTL | **VERIFIED.** Arm 3a: a second `vehicleState` subscription was ACCEPTED; control passed (≥100 fields, `batteryLevel` and `vehicleMileage` non-null) with production subscribed. Arm 3c: INIT ACKED IN SESSION, elapsed 0.0 s. Both LIVENESS OK. The original "never acked, closed at TTL" half is false. | Live, arms 3a-3c — done |
 | **C1b** | `:13` *"Home Assistant holds it"* — that the gateway designates one connection as holder | **UNFALSIFIABLE AS WRITTEN.** No server-side introspection exists; the claim ascribes an internal policy observable only by its effects | Not testable — rewrite as observation, not mechanism |
 | **C2** | `:33` HA running → accepted, **no ack**, held ~180 s, `CLOSE 4420` | **OPEN — causal label in doubt.** The observation is plausible; the *because* is not established | Live, arm 3c |
 | **C3** | `:34` HA disabled → `connection_ack` immediately, then a `next` frame, twice | **UNVERIFIED — NEEDS AN OUTAGE.** | Not taken |
 | **C3R** | `:22-29` the retraction: sole subscriber, ack but zero data frames in 30 s | **SUSPECT — reported by the broken parser.** | **NEEDS AN OUTAGE** — not taken; may be retired without one if C1c falls |
 | **C4** | `:41-48` twenty header/token variants, all unacknowledged | **UNFALSIFIABLE AS WRITTEN.** (§4.0.4) | Supersede with a non-reproducibility note |
 | **C5** | `:50-52` the `.env` `u-sess` is byte-identical (SHA-256) to the instance's | **VERIFIED — plan-time (iteration 1).** sha256[:16] `f24719019dbe68e0` both sides, length 36 | Static; **re-run at execution** |
-| **C6** | `:55-60` close codes 4401 / 4403 / 4408 / 4420 and their meanings | **UNVERIFIED — NOT TESTED.** Ruling 28 drops arm 3e as its accepted cost | Live-testable in principle; **not this round** |
-| **C7** | `:64-70` 4401 carried no information; malformed token → 4403 in ~0.5 s; valid-but-duplicate → silence | **UNVERIFIED — NOT TESTED.** Ruling 28 drops arms 3d/3e as its accepted cost | Live-testable in principle; **not this round** |
-| **C8** | `:74-76` *"Fixture capture must run as sole subscriber. `s08a` cannot be done from a dev machine while Home Assistant is running."* | **IN DOUBT.** Falls automatically if C1c falls for `parallaxMessages` | Live, **arm 3b — the highest-value single test in this plan** |
+| **C6** | `:55-60` close codes 4401 / 4403 / 4408 / 4420 and their meanings | **UNVERIFIED — arms dropped by ruling 28.** Arm 3e would provoke close codes 4401/4403, which `ws_monitor` turns into a permanent silent stop with no self-heal, and the no-harm criteria could not have detected it. | Live-testable in principle; **not this round** |
+| **C7** | `:64-70` 4401 carried no information; malformed token → 4403 in ~0.5 s; valid-but-duplicate → silence | **UNVERIFIED — arms dropped by ruling 28.** Arms 3d/3e would provoke 4401/4403, which `ws_monitor` turns into a permanent silent stop with no self-heal, and the no-harm criteria could not have detected it. | Live-testable in principle; **not this round** |
+| **C8** | `:74-76` *"Fixture capture must run as sole subscriber. `s08a` cannot be done from a dev machine while Home Assistant is running."* | **VERIFIED.** Arm 3b: PARALLAX CONCURRENT — sole subscriber NOT required. Full 33-topic RVM set received with production subscribed. LIVENESS OK. | Live, arm 3b — done |
 | **C9** | `:77-81` `sendVehicleOperation` selects only `{ success }`; payload arrives only on `parallaxMessages` | **VERIFIED (SUBSTANCE) — CITATION STALE.** Selection at `rivian.py:857-861`; `:866-870` has no `success` | Static, done — fix three citations |
 | **C10** | `:83-95` three non-interchangeable identifiers; `phone_id` from `vasPhoneId`; default user query omits `enrolledPhones` | **VERIFIED.** `probe_vehicle_command.py:105`, `:138` | Static, done |
 | **C11** | `:99-104` `ws_monitor.py` distinguishes the codes; 4401/4403 stop the monitor, 4420 is routine | **VERIFIED.** `ws_monitor.py:37` `AUTH_CLOSE_CODES = frozenset({4401, 4403})`, `:41` `TTL_CLOSE_CODE = 4420`, `:165-176` | Static, done |
