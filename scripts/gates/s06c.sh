@@ -4,8 +4,10 @@
 # The defect: five subscribe_for_* ended `except Exception: return None`, and
 # every call site branched on that None. A dead real-time path was therefore
 # indistinguishable from a healthy one -- which is why "the websocket is broken"
-# survived a full day of diagnosis before the real cause (one active subscription
-# per user session) was found.
+# survived a full day of diagnosis. That day was long attributed to "one active
+# subscription per user session" -- FALSIFIED 2026-08-20, see WS_CONTENTION.md
+# claim C1s. The swallow is what made the diagnosis unbounded, and that is what
+# this gate pins, whatever the day's true cause turns out to have been.
 #
 # Asserts BEHAVIOUR, not greps: a grep for the swallow is satisfied by moving it
 # one frame down, and an absence is always satisfiable by deleting.

@@ -1,6 +1,18 @@
-# The Parallax subscription gateway allows one connection per user session
+# Parallax websocket contention — and two superseded accounts of it
 
-**Measured 2026-08-18** against `wss://api.rivian.com/gql-consumer-subscriptions/graphql`.
+**Measured 2026-08-18** against `wss://api.rivian.com/gql-consumer-subscriptions/graphql`,
+re-measured 2026-08-20.
+
+> **This document's own title used to read "The Parallax subscription gateway allows one
+> connection per user session."** That is claims **C1s** and **C1c**, and the register
+> below **FALSIFIES both** — see their rows in §"the claim register". The gateway does
+> *not* limit a user session to one subscription, and a second connection is *not*
+> silently dropped. The title is corrected here rather than deleted, because a document
+> whose headline asserts what its own table refutes is worse than one that says it
+> changed its mind.
+>
+> Cited by claim ID, not line number, deliberately: this edit moved every row below it,
+> which is the failure mode `scripts/gates/f9.sh` was re-keyed to avoid.
 
 ## Why this document exists
 
@@ -9,9 +21,28 @@ connects but is never acknowledged, so the integration's entire real-time path i
 dead." **That conclusion was wrong**, and the way it was wrong is worth recording,
 because the same trap is still there for the next person.
 
-The gateway permits **exactly one active subscription per user session token**.
-Home Assistant holds it. Every local probe was therefore a *second* connection,
-which the server accepts, never acknowledges, and closes at TTL.
+The replacement account was:
+
+> The gateway permits **exactly one active subscription per user session token**.
+> Home Assistant holds it. Every local probe was therefore a *second* connection,
+> which the server accepts, never acknowledges, and closes at TTL.
+
+**That account is also wrong.** It is the second superseded explanation, not the
+answer — and the claim register below falsifies both of its halves:
+
+- **C1s** — *one active subscription per user-session token*. **FALSIFIED, statically.**
+  `rivian.py:145` runs a single monitor multiplexing `rivian.py:146` `_subscriptions`, and
+  `coordinator.py:986`, `:997` and `:1017` open three concurrent subscriptions on one
+  `u-sess` every day this integration runs.
+- **C1c** — *every local probe was a second connection, accepted, never acked, closed at
+  TTL*. **FALSIFIED live.** Arm 3a: a second `vehicleState` subscription was **accepted**
+  and control passed (≥100 fields, `batteryLevel` and `vehicleMileage` non-null) with
+  production still subscribed. Arm 3c: init **acked in-session**, elapsed 0.0 s.
+
+Both are kept visible above rather than rewritten away, because the point of this document
+is how the reasoning went wrong — and it went wrong twice, in the same direction, by
+inferring a server-side policy from a client-side symptom. The trap that is "still there
+for the next person" is that inference, not the specific claim.
 
 ## The experiment
 
@@ -75,7 +106,7 @@ Two of these misled the original diagnosis:
 machine while Home Assistant is running. Disable the entry, capture, re-enable.
 
 **`sendVehicleOperation` does not return the payload.** Its mutation selects only
-`{ success }` (`rivian.py:866-870`), so the RVM payload arrives *only* on the
+`{ success }` (`rivian.py:857-861`), so the RVM payload arrives *only* on the
 `parallaxMessages` subscription. `prd.json` s08a previously claimed the four RVMs
 were "verified-working QUERIES today, so the existing query path suffices"; that
 was false and has been corrected.
@@ -122,9 +153,9 @@ below), not the plan-time OPEN / IN DOUBT predictions.
 
 | ID | Claim (line) | Verdict | Route |
 |---|---|---|---|
-| **C1s** | `:12` gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor multiplexing `:146` `_subscriptions`; `coordinator.py:986`, `:997`, `:1017` three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py:56-57`. Re-confirmed 2026-08-20 | Static, done |
-| **C1c** | `:13` every local probe was a *second* **connection**, accepted, never acked, closed at TTL | **FALSIFIED.** The claim is that a second connection is *never acked*. Arm 3a: a second `vehicleState` subscription was ACCEPTED; control passed (≥100 fields, `batteryLevel` and `vehicleMileage` non-null) with production subscribed. Arm 3c: INIT ACKED IN SESSION, elapsed 0.0 s. Both LIVENESS OK. The original "never acked, closed at TTL" half is false. | Live, arms 3a-3c — done |
-| **C1b** | `:13` *"Home Assistant holds it"* — that the gateway designates one connection as holder | **UNFALSIFIABLE AS WRITTEN.** No server-side introspection exists; the claim ascribes an internal policy observable only by its effects | Not testable — rewrite as observation, not mechanism |
+| **C1s** | *(superseded account, §"Why this document exists")* gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor multiplexing `:146` `_subscriptions`; `coordinator.py:986`, `:997`, `:1017` three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py:56-57`. Re-confirmed 2026-08-20 | Static, done |
+| **C1c** | *(superseded account, ibid.)* every local probe was a *second* **connection**, accepted, never acked, closed at TTL | **FALSIFIED.** The claim is that a second connection is *never acked*. Arm 3a: a second `vehicleState` subscription was ACCEPTED; control passed (≥100 fields, `batteryLevel` and `vehicleMileage` non-null) with production subscribed. Arm 3c: INIT ACKED IN SESSION, elapsed 0.0 s. Both LIVENESS OK. The original "never acked, closed at TTL" half is false. | Live, arms 3a-3c — done |
+| **C1b** | *(superseded account, ibid.)* *"Home Assistant holds it"* — that the gateway designates one connection as holder | **UNFALSIFIABLE AS WRITTEN.** No server-side introspection exists; the claim ascribes an internal policy observable only by its effects | Not testable — rewrite as observation, not mechanism |
 | **C2** | `:33` HA running → accepted, **no ack**, held ~180 s, `CLOSE 4420` | **FALSIFIED (the no-ack half) — causal label still in doubt.** Arm 3c received `connection_ack` with production up. The TTL close is untouched; the *because* is not established | Live, arm 3c |
 | **C3** | `:34` HA disabled → `connection_ack` immediately, then a `next` frame, twice | **UNVERIFIED — NEEDS AN OUTAGE.** | Not taken |
 | **C3R** | `:22-29` the retraction: sole subscriber, ack but zero data frames in 30 s | **SUPERSEDED — reported by the broken parser, and its premise is falsified by C8.** | **NEEDS AN OUTAGE** — not taken; may be retired without one if C1c falls |
@@ -214,8 +245,8 @@ self-heal, and the no-harm criteria could not have detected it.
 
 ## C1 was two claims wearing one sentence, and the static half was already false
 
-`:12` says "exactly one active **subscription** per user session token"; `:13` then says "Every local
-probe was therefore a second **connection**." Those are different claims, and the conflation is the
+The superseded account in §"Why this document exists" says "exactly one active **subscription** per
+user session token", then says "Every local probe was therefore a second **connection**." Those are different claims, and the conflation is the
 original defect.
 
 **C1-as-subscription (C1s) is FALSIFIED STATICALLY — no probe needed.** `rivian.py` builds one

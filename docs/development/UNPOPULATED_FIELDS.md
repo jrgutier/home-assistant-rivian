@@ -119,7 +119,7 @@ live question, and f6 answers it by testing rather than by grepping.
 live failure, so all five fields keep their entities and their existing verdicts.
 
 The integration was disabled (`ha core stop` -> edit `disabled_by` -> `ha core start`, that order
-because HA flushes config entries on shutdown, `WS_CONTENTION.md:101-104`), making the probe the sole
+because HA flushes config entries on shutdown, `WS_CONTENTION.md:110-113`), making the probe the sole
 subscriber. Outage 12:38-12:41:38 CDT, ~3.5 minutes. Re-enabled and verified recovered:
 `disabled_by: None`, and fresh recorder rows at 12:41:38 for battery SoC, lock, gear and odometer.
 

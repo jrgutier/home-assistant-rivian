@@ -53,8 +53,14 @@ async def async_get_config_entry_diagnostics(
     # than a store of its own, so its DATA already appears below. What is not
     # otherwise visible -- and what every diagnosis in this area has needed -- is
     # whether the subscription is actually live and which topics it asked for.
-    # The gateway allows one active subscription per user session, so "connected
-    # but receiving nothing" is a real and non-obvious state.
+    # "connected but receiving nothing" is a real and non-obvious state, which
+    # is why `subscribed` is reported separately from the data itself.
+    # This comment previously justified that with "the gateway allows one active
+    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:145 runs a
+    # single monitor multiplexing rivian.py:146 `_subscriptions`, and
+    # coordinator.py:986, :997 and :1017 open three concurrent subscriptions on
+    # one u-sess every day. The diagnostic is still worth reporting; the reason
+    # given for it was false. See docs/development/WS_CONTENTION.md, claim C1s.
     parallax = {
         vehicle_id: {
             "subscribed": coor._unsub_parallax is not None,
