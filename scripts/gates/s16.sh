@@ -27,6 +27,7 @@ DOC="$HA/docs/development/WS_CONTENTION.md"
 RVM="$HA/docs/development/RVM_FIXTURES.md"
 PRD="$HA/prd.json"
 GATES="$HA/scripts/gates"
+PY_BIN="$(resolve_python "$HA")"
 
 have_path "the claim register exists" "$DOC"
 have_path "the fixture record exists" "$RVM"
@@ -67,14 +68,34 @@ fi
 check_labelled() {
   local desc="$1" phrase="$2" file="$3" bare
   if [ ! -f "$file" ]; then bad "$desc  (missing: $file)"; return; fi
-  # `|| true`: grep exits 1 on zero matches, which set -e would treat as fatal.
-  # Every stage needs `|| true`: _lib.sh sets -euo pipefail, and BOTH greps exit 1
-  # on zero matches -- the second one does so precisely in the success case, when
-  # every mention was labelled. Without this the gate aborts instead of passing.
-  bare=$( { grep -nF -- "$phrase" "$file" || true; } \
-          | { grep -vE 'FALSIFIED|SUPERSEDED|RETRACT|UNVERIFIED|used to read|attributed|~~|NOT measured|superseded account' || true; } \
-          | { grep -vE '^[0-9]+:[[:space:]]*>' || true; } \
-          | wc -l | tr -d ' ')
+  # Windowed, not line-local. Two wrong versions preceded this one:
+  #
+  #   * exempting EVERY `>` line unconditionally -- which masks a bare assertion
+  #     written as a blockquote, the natural markdown form for a "note", so a
+  #     re-asserted falsified claim would pass silently;
+  #   * requiring the label ON the line -- which flags the legitimate case where a
+  #     superseded account is quoted verbatim and labelled by the prose around it
+  #     ("The replacement account was:" / "That account is also wrong.").
+  #
+  # A mention is labelled if a label appears within 3 lines either side of it.
+  # python3, not grep: gates already shell out to it (see f8.sh) and a windowed
+  # test is not expressible in a line-based pipeline.
+  bare=$(PHRASE="$phrase" "$PY_BIN" - "$file" <<'EOF'
+import io, os, re, sys
+phrase = os.environ["PHRASE"]
+labels = re.compile(r"FALSIFIED|SUPERSEDED|RETRACT|UNVERIFIED|used to read|attributed"
+                    r"|~~|NOT measured|superseded account|replacement account|also wrong")
+lines = io.open(sys.argv[1], encoding="utf-8").read().split("\n")
+bare = 0
+for i, line in enumerate(lines):
+    if phrase not in line:
+        continue
+    window = "\n".join(lines[max(0, i - 3): i + 4])
+    if not labels.search(window):
+        bare += 1
+print(bare)
+EOF
+)
   if [ "$bare" -eq 0 ]; then ok "$desc"
   else bad "$desc  ($bare unlabelled)"; fi
 }
@@ -91,8 +112,19 @@ check_labelled "C8: 'must run as sole subscriber' is labelled in the register" \
 # --- 3. the register still carries the verdicts these checks rest on --------
 # If a verdict is deleted, the checks above go quiet for the wrong reason.
 contains "C1s is still recorded FALSIFIED"     'FALSIFIED — STATIC' "$DOC"
-contains "C8 is still recorded FALSIFIED"      '**C8**'             "$DOC"
-contains "C6 is still recorded UNVERIFIED"     '**C6**'             "$DOC"
+# Pin the VERDICT, not just the row label. Pinning '**C8**' alone meant the row
+# could be flipped to VERIFIED and s16 would still print
+# "PASS  C8 is still recorded FALSIFIED" -- which is precisely the
+# "register said VERIFIED where the arms FALSIFIED" failure (commit 121b71e),
+# and this gate is the only thing guarding it.
+contains "C8 is still recorded FALSIFIED" \
+         '| **C8** | `:74-76`' "$DOC"
+contains "C8's verdict is still FALSIFIED, not flipped" \
+         'sole subscriber. `s08a` cannot be done from a dev machine while Home Assistant is running."* | **FALSIFIED.**' "$DOC"
+contains "C6 is still recorded UNVERIFIED" \
+         '| **C6** | `:55-60` close codes' "$DOC"
+contains "C6's verdict is still UNVERIFIED, not flipped" \
+         'their meanings | **UNVERIFIED — arms dropped by ruling 28.**' "$DOC"
 contains "the instrument defect is cited"      '759123d'            "$DOC"
 
 # --- 4. the title no longer asserts what the register refutes ---------------

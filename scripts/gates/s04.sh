@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
+#
+# RETIRED 2026-08-20 -- this gate can no longer assert anything, by design.
+#
+# It gated the story "client cleanup" in PRD
+# vendor-rivian-client-parallax, which is COMPLETE: all 20 stories show
+# passes:true, and its branch `vendor-client` no longer exists.
+#
+# Every check below is conditional on the sibling repo rivian-python-client being
+# present. It is not, and it will not be again: story s07 VENDORED the client into
+# custom_components/rivian/rivian_client/, which is exactly what this gate helped
+# verify. So S4 now skips and reports "0 passed, 0 failed" -- it exits 0 without
+# checking anything.
+#
+# It is kept, not deleted, because it is the executable record of how the vendoring
+# was verified. Read its exit 0 as "not applicable", NEVER as "verified". A sweep
+# that counts this as a pass is counting a check that cannot fail -- the same defect
+# s16.sh exists to catch elsewhere.
+#
 # S4 — client cleanup.
 source "$(dirname "$0")/_lib.sh"
 echo "S4 — client cleanup"

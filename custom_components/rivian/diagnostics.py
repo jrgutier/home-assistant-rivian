@@ -58,7 +58,8 @@ async def async_get_config_entry_diagnostics(
     # This comment previously justified that with "the gateway allows one active
     # subscription per user session". FALSIFIED 2026-08-20: rivian.py:145 runs a
     # single monitor multiplexing rivian.py:146 `_subscriptions`, and
-    # coordinator.py:986, :997 and :1017 open three concurrent subscriptions on
+    # subscribe_for_vehicle_updates, subscribe_for_parallax_messages and
+    # subscribe_for_cloud_connection in coordinator.py open three concurrent on
     # one u-sess every day. The diagnostic is still worth reporting; the reason
     # given for it was false. See docs/development/WS_CONTENTION.md, claim C1s.
     parallax = {

@@ -2,7 +2,7 @@
 # S1 — real coverage baseline recorded and wired into pytest.ini as the ratchet floor.
 source "$(dirname "$0")/_lib.sh"
 echo "S1 — coverage baseline"
-on_branch "$HA" vendor-client
+not_publishing_branch "$HA"   # was: on_branch "$HA" vendor-client (branch retired; see _lib.sh)
 have_path "docs/COVERAGE_BASELINE.md written" "$HA/docs/COVERAGE_BASELINE.md"
 # The ratchet moved in s11. --cov-fail-under is a single global number and cannot
 # express two populations -- the integration code we own and the vendored client --
@@ -19,7 +19,15 @@ if [ -x "$HA/scripts/check_coverage.py" ] || [ -f "$HA/scripts/check_coverage.py
     else bad "$name floor is '${val:-unset}' — a zero or missing floor is not a ratchet"; fi
   done
   # A floor is only a ratchet if it is actually met right now.
-  if (cd "$HA" && .venv/bin/python scripts/check_coverage.py >/dev/null 2>&1); then
+  # REGENERATE first. This assertion was ORDER-DEPENDENT: thirteen gates run
+  # `pytest --no-cov`, each of which leaves whatever coverage.json was already on
+  # disk, so s01 passed when run alone and failed when run after any of them --
+  # a gate whose verdict depends on what ran before it reports nothing about the
+  # code. (Order-dependence is the exact defect s01b's own story was written to
+  # fix, in the test suite.) f5.sh already regenerates for this reason; this
+  # follows that precedent.
+  if (cd "$HA" && .venv/bin/pytest -q -p no:cacheprovider >/dev/null 2>&1 \
+      && .venv/bin/python scripts/check_coverage.py >/dev/null 2>&1); then
     ok "both floors currently met"
   else
     bad "check_coverage.py does not pass against the current coverage.json"

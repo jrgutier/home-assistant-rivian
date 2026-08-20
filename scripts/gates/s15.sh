@@ -236,7 +236,10 @@ else
     ok "full suite passes (pytest exit 0)"
   else
     bad "full suite FAILED (pytest exit $full_rc)"
-    echo "$full" | grep -E '^(FAILED|ERROR) |^Interrupted' | head -5 \
+    # `|| true` load-bearing -- see _lib.sh's pytest_green: exit 4/5 print no
+    # matching line, and without the guard pipefail+errexit killed the gate
+    # before the skip baseline, ruff and test_count below ever ran.
+    { echo "$full" | grep -E '^(FAILED|ERROR) |Interrupted:' | head -5 || true; } \
       | while IFS= read -r l; do note "  $l"; done
   fi
   skipped=$(echo "$full" | grep -oE '[0-9]+ skipped' | head -1 | grep -oE '^[0-9]+' || true)

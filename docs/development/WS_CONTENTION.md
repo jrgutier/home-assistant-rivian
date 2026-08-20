@@ -32,7 +32,7 @@ answer — and the claim register below falsifies both of its halves:
 
 - **C1s** — *one active subscription per user-session token*. **FALSIFIED, statically.**
   `rivian.py:145` runs a single monitor multiplexing `rivian.py:146` `_subscriptions`, and
-  `coordinator.py:986`, `:997` and `:1017` open three concurrent subscriptions on one
+  `subscribe_for_vehicle_updates`, `subscribe_for_parallax_messages` and `subscribe_for_cloud_connection` in `coordinator.py` open three concurrent subscriptions on one
   `u-sess` every day this integration runs.
 - **C1c** — *every local probe was a second connection, accepted, never acked, closed at
   TTL*. **FALSIFIED live.** Arm 3a: a second `vehicleState` subscription was **accepted**
@@ -60,7 +60,7 @@ times. At a cost of two real outages.
 
 Two things would each have ended it immediately, and neither needed the network:
 
-- **C1s was refutable statically.** `coordinator.py:986`, `:997` and `:1017` open three
+- **C1s was refutable statically.** `subscribe_for_vehicle_updates`, `subscribe_for_parallax_messages` and `subscribe_for_cloud_connection` in `coordinator.py` open three
   concurrent subscriptions on one `u-sess` every day this integration runs. Reading the
   client we already ship refutes "one subscription per session" without connecting to
   anything.
@@ -144,7 +144,7 @@ Two of these misled the original diagnosis — **claim C7, also UNVERIFIED**:
   subscriber."~~
 
   **That last sentence is the FALSIFIED C1s policy restated.** There is no
-  one-subscriber rule to resolve into: `coordinator.py:986/:997/:1017` open three
+  one-subscriber rule to resolve into: `subscribe_for_vehicle_updates`, `subscribe_for_parallax_messages` and `subscribe_for_cloud_connection` in `coordinator.py` open three
   concurrent subscriptions on one `u-sess` every day. And the "silence" it explains
   was not silence — the probe's callback read one level too shallow and parsed
   nothing (`759123d`). The asymmetry may well be real; the explanation attached to
@@ -208,7 +208,7 @@ below), not the plan-time OPEN / IN DOUBT predictions.
 
 | ID | Claim (line) | Verdict | Route |
 |---|---|---|---|
-| **C1s** | *(superseded account, §"Why this document exists")* gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor multiplexing `:146` `_subscriptions`; `coordinator.py:986`, `:997`, `:1017` three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py:56-57`. Re-confirmed 2026-08-20 | Static, done |
+| **C1s** | *(superseded account, §"Why this document exists")* gateway permits exactly one active **subscription** per user-session token | **FALSIFIED — STATIC.** `rivian.py:145` one monitor multiplexing `:146` `_subscriptions`; the three subscribe_for_* call sites in coordinator.py three concurrent subscriptions on one `u-sess`; shipped to users at `diagnostics.py's `subscribed` field`. Re-confirmed 2026-08-20 | Static, done |
 | **C1c** | *(superseded account, ibid.)* every local probe was a *second* **connection**, accepted, never acked, closed at TTL | **FALSIFIED.** The claim is that a second connection is *never acked*. Arm 3a: a second `vehicleState` subscription was ACCEPTED; control passed (≥100 fields, `batteryLevel` and `vehicleMileage` non-null) with production subscribed. Arm 3c: INIT ACKED IN SESSION, elapsed 0.0 s. Both LIVENESS OK. The original "never acked, closed at TTL" half is false. | Live, arms 3a-3c — done |
 | **C1b** | *(superseded account, ibid.)* *"Home Assistant holds it"* — that the gateway designates one connection as holder | **UNFALSIFIABLE AS WRITTEN.** No server-side introspection exists; the claim ascribes an internal policy observable only by its effects | Not testable — rewrite as observation, not mechanism |
 | **C2** | `:33` HA running → accepted, **no ack**, held ~180 s, `CLOSE 4420` | **FALSIFIED (the no-ack half) — causal label still in doubt.** Arm 3c received `connection_ack` with production up. The TTL close is untouched; the *because* is not established | Live, arm 3c |
@@ -247,7 +247,7 @@ redundancy.
 
 | If this falls | These stop being true | Files |
 |---|---|---|
-| If C1s falls — already fallen, statically | the diagnostics comment shipped to users; the s06c gate's header reasoning; the `prd.json:153` narrative | `custom_components/rivian/diagnostics.py:56-57`, `scripts/gates/s06c.sh:7`, `tests/test_subscription_failures.py:7`, `prd.json:153`. **The subscription-failure-typing gap itself survives** — typed failures are justified independently of why the day was lost. Change the narrative, not the gap |
+| If C1s falls — already fallen, statically | the diagnostics comment shipped to users; the s06c gate's header reasoning; the `prd.json:153` narrative | `custom_components/rivian/diagnostics.py's `subscribed` field`, `scripts/gates/s06c.sh:7`, `tests/test_subscription_failures.py:7`, `prd.json:153`. **The subscription-failure-typing gap itself survives** — typed failures are justified independently of why the day was lost. Change the narrative, not the gap |
 | If C1c falls | `WS_CONTENTION.md:13`'s "second connection" account of every past probe failure; C2, C7's second half, and C4's entire premise become explicable without gateway policy | `docs/development/WS_CONTENTION.md` only — the downstream files cite the *subscription* claim, which is C1s |
 | If C8 falls | the s08a prerequisite; the RVM fixture protocol; the standing excuse that the f5 decoders are transcription-only | `prd.json:163`, `docs/development/RVM_FIXTURES.md:16-22`, `docs/development/PARALLAX_DECODERS.md:62-63` and `:158-162`, `tests/client/test_f5_decoders.py:26-28`. **Positive downstream effect:** a real captured `vehicle.network.state` payload becomes schedulable with no outage, which `docs/development/PARALLAX_DECODERS.md:161-162` says "would still settle it either way" |
 | If C8 falls | **two** gates enforce the obsolete protocol, not one: `scripts/gates/f8.sh:39` requires the literal `sole subscriber` in the record, and `scripts/gates/f5.sh:14-16` states it as the reason the decoders are transcription tests | Both need rewording in the same commit that changes the protocol, never before |
@@ -260,7 +260,7 @@ The thirteen downstream citation sites across ten files (D1):
 
 1. `prd.json:153`
 2. `prd.json:163`
-3. `custom_components/rivian/diagnostics.py:56-57`
+3. `custom_components/rivian/diagnostics.py's `subscribed` field`
 4. `docs/development/RVM_FIXTURES.md:16-22`
 5. `docs/development/PARALLAX_DECODERS.md:62-63`
 6. `docs/development/PARALLAX_DECODERS.md:158-162`
