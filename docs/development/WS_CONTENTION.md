@@ -246,3 +246,26 @@ parsing was broken *and* the prerequisite was false.
 It reports "no data frame followed" — from the same callback that could not see data frames at all.
 It may be retracting a true row for a false reason. Treated as superseded by this section rather
 than trusted.
+
+## Correction to this document's own commit history, 2026-08-20
+
+`3fe5eaa`'s message says a *crashed* worker left an uncommitted register draft and that **Step 4's**
+commit swept it in. Both halves are false, and the record is the decision here, so the true sequence
+is recorded rather than the tidy one:
+
+- `17343e0` (Step 6) is where the first register block was committed — swept in by `git add -A` while
+  a **live** worker had it in progress. Step 6's subject is the `f9.sh` interlock; the register had
+  nothing to do with it.
+- `610182f` (Step 4) added the re-verification section and **no** register block — verified: it adds
+  zero `## Claim register` lines.
+- `ebbaf39` was that worker committing its own Step 1, editing the register already in the tree.
+- `3fe5eaa` then appended a second register, deleted the first, **and swept in the same worker's
+  uncommitted `scripts/gates/f9.sh` and `scripts/ws_contention_probe.py` edits** — 75 insertions to
+  the probe, including its dry-run document printer.
+
+That is three `git add -A` collisions with a concurrently-running worker in one session. The
+mechanism is always the same: stage everything, and another agent's half-finished work rides along
+under an unrelated subject. `git add <paths>` is the fix and it was available every time.
+
+The **content** of the register is unaffected — one block, fifteen rows, verdicts taken after the
+arms ran, all three criteria arm-proved in both directions. Only the provenance narrative was wrong.
