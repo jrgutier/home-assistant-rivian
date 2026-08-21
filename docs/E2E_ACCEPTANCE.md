@@ -708,3 +708,73 @@ before this change: this document still does not contain the owner-ratification 
 supposed to — nobody has ratified a lowering. Pinned by
 `tests/test_command_state.py::test_the_gate_requires_both_tokens` and
 `::test_the_lowering_interlock_is_still_armed`.
+
+---
+
+# s17 — the sleeping-vehicle wake path, actuated live
+
+**Run:** 2026-08-21 05:51 CDT, production Home Assistant at `root@192.168.1.5`, integration
+`1.6.0-beta9` deployed from the published release artifact (md5 verified byte-identical to
+the zip HACS installs). Vehicle: R1T, MY2022, genuinely asleep.
+
+**Verdict: PASS.**
+
+## Why this run had to happen
+
+Every other claim in beta9 is proven in-process: 1735 unit tests, a 15-cell truth table for
+`derive_connectivity_state`, and sixteen gates. **One was not.** That the cloud accepts a
+command sent immediately behind an *unconfirmed* `WAKE_VEHICLE` rested entirely on
+inference from the decompiled app (`C2150e.java:212-215`), never on observation. The code
+shipped to beta users with that gap named and tracked rather than papered over.
+
+## What was observed
+
+Verbatim, `custom_components.rivian` at debug:
+
+```
+05:51:23.739  Sending command LOCK_ALL_CLOSURES_FEEDBACK with params: None
+05:51:23.739  Sending command WAKE_VEHICLE with params: None
+05:51:24.834  WAKE_VEHICLE command sent with ID: 04-244cc6e33394ca8012ea
+05:51:25.658  Command 04-244cc6e33394ca8012ea state update: {...}
+05:51:25.859  LOCK_ALL_CLOSURES_FEEDBACK command sent with ID: 04-5441431def843f24873e
+05:51:26.188  Command 04-5441431def843f24873e state update: {...}
+05:51:27.253  Command 04-5441431def843f24873e state update: {...}
+05:51:38.656  Command 04-5441431def843f24873e state update: {...}
+05:51:38.910  Vehicle 01-276948064 data update gap: 2.0 minutes (powerState: sleep)
+05:51:39.766  Command 04-5441431def843f24873e state update: {...}
+```
+
+| Threshold | Result |
+|---|---|
+| The vehicle was actually asleep | **yes** — the coordinator's own watchdog line reads `(powerState: sleep)` |
+| Connectivity resolved `SLEEPING`, not `ONLINE` | **yes** — otherwise no wake would have been dispatched at all |
+| The wake is dispatched without blocking | **yes** — both `Sending command` lines carry the **identical** timestamp `05:51:23.739` |
+| No ~30 s stall (the pre-beta9 blocking wait) | **confirmed absent** — press to command-on-the-wire was **2.1 s** |
+| The cloud accepted the command behind an unconfirmed wake | **yes** — first state frame for the lock at `05:51:26.188`, four frames total |
+| The vehicle woke | **yes** — `powerState` went `sleep` → `standby` (`10:51:35.899Z`) → `ready` (`10:51:41.100Z`) |
+
+## The ordering, which is better than the app's
+
+The wake's send *returned* at `05:51:24.834`; the lock went out at `05:51:25.859`. The Python
+awaits the wake's own HTTP round trip before signing the requested command, so **the wake
+provably reaches the cloud first**. `C2150e.java:212-219` builds the command flow, fires the
+wake, and collects with no await between them — no ordering guarantee at all. This
+implementation is strictly safer than the one it mirrors, a point raised in code review and
+now confirmed on the wire.
+
+## What this run does NOT establish
+
+- The 120 s `COMMAND_TIMEOUT_SLEEPING` ceiling was never approached — the first frame arrived
+  in 0.3 s, so the raised ceiling remains exercised only by unit tests. That is the expected
+  outcome, not a gap: the ceiling exists for the slow case, and this was not one.
+- One command, one vehicle, one sleep state. It is an existence proof that the cloud accepts
+  the sequence, not a distribution.
+
+## Incident during setup, recorded rather than omitted
+
+The beta8 backup was first written to `/config/custom_components/rivian.beta8.bak`. Home
+Assistant scans that directory and parsed the dots as a module path, so setup failed with
+`ModuleNotFoundError: No module named 'custom_components.rivian.beta8'` and **the integration
+was down from 21:07 to 21:19** (~12 minutes) on the production instance. Moving the backup to
+`/config/rivian_backups/` and restarting restored it. A backup belongs outside any directory
+Home Assistant enumerates; `custom_components/` is exactly such a directory.
