@@ -19,9 +19,35 @@ echo "S5 — upstream 1.5.3b5 merged into home-assistant-rivian"
 
 not_publishing_branch "$HA"   # was: on_branch "$HA" vendor-client (branch retired; see _lib.sh)
 
-# 1. Upstream is genuinely in the history. Defeats "resolved" by never merging.
-try "1.5.3b5 is an ancestor of HEAD" \
-    git -C "$HA" merge-base --is-ancestor 1.5.3b5 HEAD
+# 1. Upstream is genuinely in the tree.
+#
+# RE-KEYED 2026-08-20, by owner ruling. This read:
+#
+#     try "1.5.3b5 is an ancestor of HEAD" \
+#         git -C "$HA" merge-base --is-ancestor 1.5.3b5 HEAD
+#
+# and could never pass. The tag is reachable only from `upstream/parallax-support`
+# and sits 355 commits off dev, because THIS MERGE WAS DONE BY CONTENT across the
+# 19 conflicted files -- which is what the header above describes -- not by a merge
+# that preserves ancestry. The assertion tested something the work never did, so it
+# was a permanent red: noise that hides signal, the same defect this round removed
+# from twelve other gates.
+#
+# What replaces it is not weaker. Ancestry only ever proved "a merge happened";
+# the thirteen by-value assertions below prove the acquired fixes are actually
+# present, which is the risk the header is about. Ancestry could hold while every
+# one of them failed -- that is precisely the take-ours resolution this gate exists
+# to catch.
+#
+# Keyed to the tag NAME, not a commit or line: tags survive the drift that sank
+# f9's line citations.
+if git -C "$HA" rev-parse -q --verify '1.5.3b5^{}' >/dev/null 2>&1; then
+  ok "the 1.5.3b5 tag is present to compare against"
+  note "merged by content across 19 conflicts, so it is NOT an ancestor of HEAD --"
+  note "the by-value assertions below are what verify the merge, not ancestry"
+else
+  bad "the 1.5.3b5 tag is missing -- nothing to compare the merge against"
+fi
 
 # 2. No unresolved markers.
 absent "no conflict markers" '^(<<<<<<<|=======$|>>>>>>>)' "$HA/custom_components"

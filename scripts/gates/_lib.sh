@@ -211,13 +211,18 @@ test_count() {
 # a different failure (tests deleted to go green).
 pytest_green() {
   local repo="$1" py="$2" label="$3"; shift 3
-  local out rc
-  # No `|| true`: we WANT the status. set -e is scoped off for this one call so
+  local out rc had_e skips allowed
+  # Save the caller's errexit rather than assuming it. `set -e` was previously
+  # restored unconditionally, which silently re-enabled it for a caller that had
+  # deliberately turned it off. Every gate sources this file (which sets -e), so
+  # this is latent -- but it was the one asymmetry in the toggle.
+  case "$-" in *e*) had_e=1 ;; *) had_e=0 ;; esac
+  # No `|| true`: we WANT the status. errexit is scoped off for this one call so
   # a red suite is reported by the gate rather than aborting it mid-run.
   set +e
   out=$(cd "$repo" && "$py" -q --no-cov -p no:cacheprovider "$@" 2>&1)
   rc=$?
-  set -e
+  [ "$had_e" -eq 1 ] && set -e
   note "$(echo "$out" | tail -1)"
   if [ "$rc" -eq 0 ]; then
     ok "$label passed (pytest exit 0)"
@@ -239,10 +244,28 @@ pytest_green() {
     { echo "$out" | grep -E '^(FAILED|ERROR) |Interrupted:' | head -5 || true; } \
       | while IFS= read -r l; do note "  $l"; done
   fi
-  if echo "$out" | grep -qE '[0-9]+ (skipped|deselected)'; then
-    bad "$label: tests skipped or deselected"
+  # Skips are compared against a BASELINE, not forbidden outright.
+  #
+  # All thirteen callers now fail on any skip, but tests/client/test_ble_gen2.py
+  # is `skipif(not HAS_BLE)`. On a venv built without the BLE extra the suite is
+  # genuinely green and every gate would report FAIL -- a verdict that depends on
+  # venv contents rather than on the code. PYTEST_GREEN_ALLOWED_SKIPS names the
+  # expected number so the exemption is explicit and greppable.
+  #
+  # Read from the ENVIRONMENT, not a positional: callers pass pytest args through
+  # "$@", so a fourth positional would collide with them.
+  #
+  # Default 0 -- the exemption must be asked for. `|| true` on both greps: each
+  # exits 1 on no match, and pipefail would make that fatal.
+  allowed="${PYTEST_GREEN_ALLOWED_SKIPS:-0}"
+  skips=$( { echo "$out" | grep -oE '[0-9]+ (skipped|deselected)' || true; } \
+           | { grep -oE '^[0-9]+' || true; } | head -1)
+  skips="${skips:-0}"
+  if [ "$skips" -le "$allowed" ]; then
+    if [ "$allowed" -eq 0 ]; then ok "$label: nothing skipped or deselected"
+    else ok "$label: skips $skips <= allowed $allowed"; fi
   else
-    ok "$label: nothing skipped or deselected"
+    bad "$label: $skips skipped or deselected (allowed $allowed)"
   fi
 }
 
