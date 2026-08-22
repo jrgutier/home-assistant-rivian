@@ -109,7 +109,7 @@ def rejection_count() -> int:
         return 0
 
 
-def liveness(
+async def liveness(
     a0: float, w: float, t_close: float, baseline_rejects: int
 ) -> tuple[str, dict]:
     """One of three verdicts, after every arm, before the next begins.
@@ -118,18 +118,27 @@ def liveness(
     rejection line, which means the monitor stopped; the second is silence,
     which cannot distinguish a stopped monitor from a vehicle gone quiet. The
     step records that rather than guessing.
+
+    ASYNC, and every blocking part offloaded, because this waits up to W = 900 s
+    between arms while the aiohttp session and the client's websocket monitor
+    from arms 3a/3b are still open. `time.sleep` plus a synchronous `ssh`
+    subprocess held the event loop for that whole window, so the monitor could
+    not read or answer a keepalive -- and arm 3c, whose entire question is
+    whether the init is acked in the SAME session 3a/3b used, would then be
+    measuring a session this probe itself starved. An instrument artifact
+    reported as a refusal is exactly the failure this file exists to stop.
     """
     deadline = time.time() + w
     first_row = None
     while time.time() < deadline:
-        if rejection_count() > baseline_rejects:
+        if await asyncio.to_thread(rejection_count) > baseline_rejects:
             return "LIVENESS FAILED", {"reason": REJECT_TEXT, "a0": a0, "w": w}
-        ts = newest_row_ts()
+        ts = await asyncio.to_thread(newest_row_ts)
         if ts and ts > t_close:
             first_row = ts
             break
-        time.sleep(10)
-    rejects = rejection_count()
+        await asyncio.sleep(10)
+    rejects = await asyncio.to_thread(rejection_count)
     if rejects > baseline_rejects:
         return "LIVENESS FAILED", {"rejects": rejects, "a0": a0, "w": w}
     if first_row is None:
@@ -405,7 +414,7 @@ async def main() -> int:
             r = await fn(client, vid)
             results.append(r)
             print(json.dumps(r, indent=2, default=str))
-            verdict, detail = liveness(a0, w, r["t_close"], baseline)
+            verdict, detail = await liveness(a0, w, r["t_close"], baseline)
             r["liveness"] = verdict
             print(f"  -> {verdict}  {detail}\n")
             if verdict != "LIVENESS OK":
@@ -426,7 +435,7 @@ async def main() -> int:
         r = await arm_3c(client)
         results.append(r)
         print(json.dumps(r, indent=2, default=str))
-        verdict, detail = liveness(a0, w, r["t_close"], baseline)
+        verdict, detail = await liveness(a0, w, r["t_close"], baseline)
         r["liveness"] = verdict
         print(f"  -> {verdict}  {detail}\n")
 

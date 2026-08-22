@@ -255,12 +255,19 @@ pytest_green() {
   # Read from the ENVIRONMENT, not a positional: callers pass pytest args through
   # "$@", so a fourth positional would collide with them.
   #
-  # Default 0 -- the exemption must be asked for. `|| true` on both greps: each
-  # exits 1 on no match, and pipefail would make that fatal.
+  # Default 0 -- the exemption must be asked for. `|| true` on the grep: it exits
+  # 1 on no match, and pipefail would make that fatal.
+  #
+  # SUMMED, not `head -1`. pytest's summary carries both counts and their order is
+  # not fixed: "1690 passed, 5 deselected, 3 skipped" and "3 skipped, 5 deselected"
+  # are both possible, so reading the first match alone judged whichever number
+  # happened to come first and never looked at the other. With the BLE exemption
+  # set (PYTEST_GREEN_ALLOWED_SKIPS=N) that let N deselections satisfy a budget
+  # meant for skips while real skips went unexamined. awk sums and prints 0 on no
+  # input, so the no-match case needs no separate guard.
   allowed="${PYTEST_GREEN_ALLOWED_SKIPS:-0}"
   skips=$( { echo "$out" | grep -oE '[0-9]+ (skipped|deselected)' || true; } \
-           | { grep -oE '^[0-9]+' || true; } | head -1)
-  skips="${skips:-0}"
+           | awk '{ s += $1 } END { print s + 0 }')
   if [ "$skips" -le "$allowed" ]; then
     if [ "$allowed" -eq 0 ]; then ok "$label: nothing skipped or deselected"
     else ok "$label: skips $skips <= allowed $allowed"; fi

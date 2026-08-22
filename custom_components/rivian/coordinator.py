@@ -1692,6 +1692,18 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 if self._subscription_start_time
                 else 0,
             )
+            # Push the transition to the entities. This callback writes
+            # `_is_online`, which is half of connectivity_state() -- and
+            # connectivity_state() is now gate 1 of every control's availability
+            # AND the cloud_connected sensor's state. Nothing else refreshes it:
+            # `_async_update_data` returns `self.data` unchanged and the
+            # coordinator is constructed with `always_update=False`, so the
+            # scheduled refresh notifies nobody, and the only other notifier is a
+            # vehicleState/Parallax frame -- which a vehicle that just went
+            # offline has stopped sending. Without this, a vehicle going OFFLINE
+            # leaves every control showing as available and cloud_connected
+            # showing `on` until the vehicle comes back and speaks again.
+            self.async_update_listeners()
         else:
             _LOGGER.debug(
                 "Vehicle %s cloud connection: online=%s, lastSync=%s",

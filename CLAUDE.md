@@ -8,6 +8,29 @@ This is an unofficial Home Assistant custom integration for Rivian vehicles. It 
 
 ## Development Commands
 
+### Environment setup
+
+```bash
+bash scripts/setup_dev_env.sh   # builds .venv/, then: .venv/bin/pytest -q
+```
+
+**`python3 -m venv` does not work here, and the way it fails is misleading.**
+`requirements_test.txt` pins `pytest-homeassistant-custom-component`, which pins
+`homeassistant==2026.8.2`, which requires **Python >= 3.14.2**. Distros ship 3.10-3.13,
+and pip's response to a too-old interpreter is not an error about the interpreter --
+it filters the index by `Requires-Python` and reports the newest version that *does*
+match (`2024.3.3` on 3.11), which reads as a stale or broken package index. It is
+not: PyPI is fine, the interpreter is too old. The script fetches 3.14 with `uv`,
+mirroring `.github/workflows/test.yaml` so local and CI cannot drift.
+
+`uv` being merely present is not enough either: a `uv` predating the 3.14 release
+installs `3.14.0rc2`, which is *below* 3.14.2 under PEP 440, and the only symptom is
+an unresolvable `homeassistant` pin. The script checks the interpreter uv can
+actually produce and upgrades uv when it cannot.
+
+Web sessions run this automatically -- `.claude/hooks/session-start.sh`, synchronous
+so the venv exists before the first turn. Local checkouts are left alone.
+
 ### Linting and Formatting
 
 The project uses Ruff for both linting and formatting:
