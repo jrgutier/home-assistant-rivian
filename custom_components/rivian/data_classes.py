@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription
 from homeassistant.components.button import ButtonEntityDescription
+from homeassistant.components.climate import ClimateEntityDescription
 from homeassistant.components.cover import CoverEntityDescription
 from homeassistant.components.lock import LockEntityDescription
 from homeassistant.components.number import NumberEntityDescription
@@ -31,7 +32,46 @@ class RivianVehicleControlAvailableMixin:
 
 
 @dataclass(kw_only=True)
-class RivianBinarySensorEntityDescription(BinarySensorEntityDescription):
+class RivianGateMixin:
+    """The three EVIDENCE fields `helpers.py`'s `vehicle_supports()` reads.
+
+    s19 §A: plumbing only. Nothing constructs a description with any of these
+    set yet, and nothing calls `vehicle_supports()` outside its own tests --
+    switching a platform's `async_setup_entry` over to it is a later story.
+    Every field defaults to `None`, so adding this mixin changes no existing
+    description's behaviour.
+
+    Deliberately NO `required_field`. `RivianCoverEntityDescription
+    .required_field` (below) is a fourth, SEPARATE gate this mixin does not
+    touch: "does the vehicle report a usable value for this field", which
+    docs/development/GATE_FIELD_EVIDENCE.md found inverted on real hardware
+    (an R1T reads a usable value for one of its three liftgate fields,
+    hardware it does not have) and is why field-presence was never
+    generalised into this mixin.
+
+    feature: the server's `supportedFeatures[].name` string (or several, ANY
+        of which counts) -- `vehicle["supported_features"]`
+        (coordinator.py:825-829), NOT this integration's own group/key names.
+    option_code: an entry in the vehicle's option codes. Matched by
+        CONTAINMENT, never equality -- the Rivian app itself checks with
+        Kotlin `contains`, so `"LFGT" in "XLFGTY"` is meant to match. No
+        vehicle dict populates option codes yet (`vehicle.get("option_codes")`
+        reads as absent for every vehicle today), so this evidence source
+        never fires until a later story wires it in.
+    legacy_group: one of `legacy_grants.py`'s group names ("R1T", "R1S",
+        "LIFTGATE", ...), matched against what `groups_for_model()` returns
+        for the vehicle. The permanent floor -- see that module's docstring.
+    """
+
+    feature: str | tuple[str, ...] | None = None
+    option_code: str | None = None
+    legacy_group: str | None = None
+
+
+@dataclass(kw_only=True)
+class RivianBinarySensorEntityDescription(
+    BinarySensorEntityDescription, RivianGateMixin
+):
     """Describes a Rivian binary sensor."""
 
     field: str | set[str]
@@ -42,7 +82,7 @@ class RivianBinarySensorEntityDescription(BinarySensorEntityDescription):
 
 @dataclass(kw_only=True)
 class RivianButtonEntityDescription(
-    ButtonEntityDescription, RivianVehicleControlAvailableMixin
+    ButtonEntityDescription, RivianVehicleControlAvailableMixin, RivianGateMixin
 ):
     """Rivian button entity description."""
 
@@ -52,7 +92,18 @@ class RivianButtonEntityDescription(
 
 
 @dataclass(kw_only=True)
-class RivianCoverEntityDescription(CoverEntityDescription):
+class RivianClimateEntityDescription(ClimateEntityDescription, RivianGateMixin):
+    """Rivian climate entity description.
+
+    So climate.py's single CLIMATE description goes through the same
+    RivianGateMixin call path as every other platform, even though it is
+    ungated today (`available` is unset, so `vehicle_supports()` would
+    return `{"ungated"}` for it -- see that function's docstring).
+    """
+
+
+@dataclass(kw_only=True)
+class RivianCoverEntityDescription(CoverEntityDescription, RivianGateMixin):
     """Rivian cover entity description."""
 
     is_closed: Callable[[VehicleCoordinator], bool]
@@ -73,7 +124,7 @@ class RivianCoverEntityDescription(CoverEntityDescription):
 
 
 @dataclass(kw_only=True)
-class RivianLockEntityDescription(LockEntityDescription):
+class RivianLockEntityDescription(LockEntityDescription, RivianGateMixin):
     """Rivian lock entity description."""
 
     is_locked: Callable[[VehicleCoordinator], bool | None]
@@ -86,7 +137,7 @@ class RivianLockEntityDescription(LockEntityDescription):
 
 
 @dataclass(kw_only=True)
-class RivianNumberEntityDescription(NumberEntityDescription):
+class RivianNumberEntityDescription(NumberEntityDescription, RivianGateMixin):
     """Rivian number entity description."""
 
     field: str
@@ -94,7 +145,7 @@ class RivianNumberEntityDescription(NumberEntityDescription):
 
 
 @dataclass(kw_only=True)
-class RivianSelectEntityDescription(SelectEntityDescription):
+class RivianSelectEntityDescription(SelectEntityDescription, RivianGateMixin):
     """Rivian select entity description."""
 
     field: str
@@ -102,7 +153,7 @@ class RivianSelectEntityDescription(SelectEntityDescription):
 
 
 @dataclass(kw_only=True)
-class RivianSensorEntityDescription(SensorEntityDescription):
+class RivianSensorEntityDescription(SensorEntityDescription, RivianGateMixin):
     """Rivian Sensor Entity Description"""
 
     field: str
@@ -112,7 +163,7 @@ class RivianSensorEntityDescription(SensorEntityDescription):
 
 @dataclass(kw_only=True)
 class RivianSwitchEntityDescription(
-    SwitchEntityDescription, RivianVehicleControlAvailableMixin
+    SwitchEntityDescription, RivianVehicleControlAvailableMixin, RivianGateMixin
 ):
     """Rivian switch entity description."""
 
@@ -126,19 +177,24 @@ class RivianSwitchEntityDescription(
 
 
 @dataclass(kw_only=True)
-class RivianTrackerEntityDescription(EntityDescription):
+class RivianTrackerEntityDescription(EntityDescription, RivianGateMixin):
     """Rivian tracker entity Description."""
 
 
 @dataclass(kw_only=True)
-class RivianWallboxSensorEntityDescription(SensorEntityDescription):
-    """A class that describes Rivian wallbox sensor entities."""
+class RivianWallboxSensorEntityDescription(SensorEntityDescription, RivianGateMixin):
+    """A class that describes Rivian wallbox sensor entities.
+
+    Carries RivianGateMixin for consistency with every other description
+    class, even though `vehicle_supports()` is a vehicle-gate predicate and a
+    wallbox is not a vehicle -- these three fields simply stay unset here.
+    """
 
     field: str
 
 
 @dataclass(kw_only=True)
-class RivianTimeEntityDescription(TimeEntityDescription):
+class RivianTimeEntityDescription(TimeEntityDescription, RivianGateMixin):
     """Rivian time entity description."""
 
     value_fn: Callable[[VehicleCoordinator], Any]

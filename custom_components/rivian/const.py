@@ -1539,8 +1539,8 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
     # liftgate; an R1T has none. Keyed on the capability rather than folded
     # into "R1S" so an R2 can receive it without also receiving the R1S-only
     # third-row seat heaters above, which an R2 does not have (no third-row
-    # seat option exists on any R2 configuration). See helpers.py's
-    # VEHICLE_MODEL_GROUPS for which models get this group.
+    # seat option exists on any R2 configuration). See legacy_grants.py's
+    # VEHICLE_MODEL_GRANTS for which models get this group.
     "LIFTGATE": (
         RivianSensorEntityDescription(
             key="closure_liftgate_next_action",

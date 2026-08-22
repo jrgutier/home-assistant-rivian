@@ -8,7 +8,6 @@ from typing import Any, Final
 from homeassistant.components.climate import (
     PRECISION_WHOLE,
     ClimateEntity,
-    ClimateEntityDescription,
     ClimateEntityFeature,
     HVACMode,
 )
@@ -19,12 +18,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
+from .data_classes import RivianClimateEntityDescription
 from .entity import RivianVehicleControlEntity
 from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 
-CLIMATE: Final[ClimateEntityDescription] = ClimateEntityDescription(
+CLIMATE: Final[RivianClimateEntityDescription] = RivianClimateEntityDescription(
     key="cabin_climate", translation_key="cabin_climate"
 )
 
@@ -49,6 +49,8 @@ async def async_setup_entry(
 
 class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
     """Representation of a Rivian climate entity."""
+
+    entity_description: RivianClimateEntityDescription
 
     _attr_hvac_mode = HVACMode.OFF
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL, HVACMode.HEAT]

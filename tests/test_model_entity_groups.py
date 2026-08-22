@@ -33,7 +33,9 @@ state to go with it: it could open a liftgate it couldn't see the position of.
 Those three descriptions moved to their own "LIFTGATE" group in const.py, and
 both "R1S" and "R2" now include it. Rejected: `R2 -> ("R1", "R1S")`, which
 would also hand the R2 the two third-row seat heaters in "R1S" -- no R2
-configuration has a third row. See helpers.py's VEHICLE_MODEL_GROUPS comment.
+configuration has a third row. See legacy_grants.py's VEHICLE_MODEL_GRANTS
+comment (moved there from helpers.py in the s19 SECTION A follow-up; groups_for_model
+itself is still imported from helpers.py, unchanged).
 """
 
 from __future__ import annotations

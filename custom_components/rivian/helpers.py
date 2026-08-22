@@ -12,58 +12,105 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_USER_SESSION_TOKEN
+from .legacy_grants import DEFAULT_MODEL_GRANTS, VEHICLE_MODEL_GRANTS
 from .rivian_client import Rivian
-
-# Which entity groups a vehicle model receives.
-#
-# This replaces `if model in vehicle["model"]`, a SUBSTRING test over the group
-# keys that happened to work for the two models it was written against:
-#
-#     "R1"  in "R1T"  -> True     (intended)
-#     "R1"  in "R2"   -> False    <-- an R2 got ZERO entities, silently
-#     "R1T" in "R1S"  -> False    (intended)
-#
-# Deliberately no "ALL" key populated from "R1". The platform comprehensions
-# build LISTS (binary_sensor.py:40, sensor.py:71-78) and every description
-# shares unique_id = f"{vin}-{key}" (entity.py:54), so ALL + R1 + R1T would add
-# the shared group twice: 114 duplicate-unique-id errors per vehicle.
-#
-# R2 also carries "LIFTGATE": an R2 is an SUV with a liftgate, but the three
-# liftgate state descriptions (const.py:1538 SENSORS["LIFTGATE"],
-# const.py:1815 BINARY_SENSORS["LIFTGATE"]) used to live in "R1S" only. R2 was
-# ("R1",), so it got the liftgate CONTROL (cover.py:114, button.py:88 -- gated
-# on the LIFTGATE_CMD feature flag, not on this map) with no way to read
-# whether the liftgate was open or locked: it could open a door it couldn't
-# see the state of.
-#
-# Rejected: folding R2 into the "R1S" group outright (R2 -> ("R1", "R1S")).
-# One line, but "R1S" also carries the third-row seat heaters
-# (seat_third_row_left_heat / seat_third_row_right_heat), and no R2
-# configuration has a third row -- that would fabricate two entities no R2
-# owns. Pulling the liftgate descriptions into their own "LIFTGATE" group and
-# giving it to both "R1S" and "R2" grants exactly the capability that's
-# shared (liftgate) without the one that isn't (third row). "R1S"'s and
-# "R1T"'s entity sets are unchanged by this: R1S trades "R1S" membership in
-# the liftgate keys for "LIFTGATE" membership in the same keys, a relabel,
-# not a removal. Pinned by tests/fixtures/entity_sets.json.
-VEHICLE_MODEL_GROUPS: dict[str, tuple[str, ...]] = {
-    "R1T": ("R1", "R1T"),
-    "R1S": ("R1", "R1S", "LIFTGATE"),
-    "R2": ("R1", "LIFTGATE"),
-}
-
-# An exact map is less forgiving than the substring test it replaces, so an
-# unrecognised or missing model must NOT raise: a KeyError here removes every
-# sensor and binary sensor for that vehicle, which is a worse failure than
-# handing it the shared group and letting per-field availability sort it out.
-DEFAULT_MODEL_GROUPS: tuple[str, ...] = ("R1",)
 
 
 def groups_for_model(model: str | None) -> tuple[str, ...]:
-    """Return the entity groups a vehicle of this model receives."""
+    """Return the entity groups a vehicle of this model receives.
+
+    See legacy_grants.py's VEHICLE_MODEL_GRANTS for the map and its reasoning
+    -- this function is the one call path onto it, kept here (rather than
+    moved alongside the map) because sensor.py and binary_sensor.py already
+    import it from `helpers`.
+    """
     if not model:
-        return DEFAULT_MODEL_GROUPS
-    return VEHICLE_MODEL_GROUPS.get(model, DEFAULT_MODEL_GROUPS)
+        return DEFAULT_MODEL_GRANTS
+    return VEHICLE_MODEL_GRANTS.get(model, DEFAULT_MODEL_GRANTS)
+
+
+# GateEvidence: every source that grants an entity to a vehicle, as a set of
+# names rather than a bool. A subset of {"ungated", "legacy", "feature",
+# "option"} -- plain alias, not a NewType, so see TestNoBoolComparisonLint in
+# tests/test_vehicle_supports.py for why nothing may compare its result to a
+# bool.
+GateEvidence = frozenset[str]
+
+
+def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
+    """Every source that grants `description` to `vehicle`. Non-empty -> create it.
+
+    s19 SECTION A: plumbing only. Nothing calls this outside its own tests yet --
+    sensor.py, binary_sensor.py and the other platforms keep calling
+    groups_for_model() directly. Wiring a platform's async_setup_entry over
+    to this predicate is a later story; this function's job today is only to
+    exist correctly, proven by its own truth-table tests plus
+    dump_entity_sets.py --check showing landing it moved zero entities.
+
+    UNION, never intersection. Two recorded failures of this codebase, in
+    opposite directions, are why:
+
+      * `TONNEAU_CMD` gated a cover behind a supportedFeatures flag that
+        appears in no vehicle's feed and in none of the app's 32,941
+        decompiled files, while both tonneau commands are live-proven to
+        move the physical cover (data_classes.py's RivianCoverEntityDescription
+        docstring). Requiring that flag meant the cover existed for nobody.
+      * The project's own live R1T advertises NONE of LIFTGATE_CMD,
+        FRUNK_NXT_ACT, or HEATED_SEATS in supportedFeatures, yet the frunk,
+        windows, and heated-seat controls all work on it. Requiring a feature
+        flag present would delete working controls from a real vehicle.
+
+    Intersecting evidence sources would reproduce one of those two failures
+    for every description with more than one gating field set. Union means
+    ANY source granting the entity is enough, and a source that stays silent
+    (an unset field, or a vehicle that reports nothing for it) simply
+    contributes nothing -- it can never veto a grant another source made.
+
+    Evidence sources:
+
+      * "legacy" -- description.legacy_group is one of the groups
+        groups_for_model(vehicle.get("model")) returns. The permanent floor;
+        see legacy_grants.py.
+      * "feature" -- description.feature (a string, or a tuple of which ANY
+        one counts) is present in vehicle.get("supported_features", []).
+      * "option" -- description.option_code is a CONTAINED substring (never
+        an equal element -- the Rivian app itself matches with Kotlin
+        `contains`) of some entry in vehicle.get("option_codes", []). No
+        vehicle dict populates that key yet, so this source cannot fire
+        until a later story wires it in.
+
+    An "empty gate" -- a description with all three fields unset, i.e. it
+    carries no gating criteria to evaluate at all -- yields {"ungated"}:
+    unconditional creation, the same default behaviour an ungated description
+    already has today. That is different from a description WITH gating
+    fields set that simply do not match this vehicle, which yields the empty
+    frozenset (excluded).
+    """
+    evidence: set[str] = set()
+
+    legacy_group = getattr(description, "legacy_group", None)
+    if legacy_group is not None and legacy_group in groups_for_model(
+        vehicle.get("model")
+    ):
+        evidence.add("legacy")
+
+    feature = getattr(description, "feature", None)
+    if feature is not None:
+        wanted = (feature,) if isinstance(feature, str) else feature
+        supported = vehicle.get("supported_features") or []
+        if any(f in supported for f in wanted):
+            evidence.add("feature")
+
+    option_code = getattr(description, "option_code", None)
+    if option_code is not None:
+        option_codes = vehicle.get("option_codes") or []
+        if any(option_code in oc for oc in option_codes):
+            evidence.add("option")
+
+    if legacy_group is None and feature is None and option_code is None:
+        return frozenset({"ungated"})
+
+    return frozenset(evidence)
 
 
 TO_REDACT = {
