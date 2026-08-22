@@ -150,22 +150,36 @@ environmental or auth failure. The retry after a successful wake also rules out
 one of the seven `generateInvalidCloudDataWrapper` commands above, so its
 rejection was already explainable by the "wrong envelope" theory (`appName=""`,
 `isParallaxRequestOnly`, possibly needing the Parallax path instead of ordinary
-VAS). `HONK_AND_FLASH_LIGHTS` is **not** one of the seven — it builds its
-`cloudData` through the ordinary `generateCloudDataWrapper`, the same wrapper
-`WAKE_VEHICLE` uses, and it is *sendable* by the same definition the rest of the
-45-command enum uses. It was expected to work: enum member, present in the app,
-ordinary wrapper, no `TONNEAU_CMD`-style theoretical objection anywhere. It was
-refused anyway.
+VAS). `HONK_AND_FLASH_LIGHTS` is **not** one of the seven, and it is genuinely
+absent from `VAS_COMMANDS` — the app's own 57-entry cloud-command table
+(`tests/apk/transcription.py`) has no entry for it. **Its only occurrences
+anywhere in the decompile are `case HONK_AND_FLASH_LIGHTS_VALUE:` switch
+labels** handling a protobuf enum value (`com.rivian.android.consumer/java_src/p950p5/C18463s.java:123`,
+among many others across the tree, including ones in generic
+library/protobuf switches unrelated to Rivian at all) — siblings in those
+switches are ordinary status codes, not evidence of a cloud-command path. An
+earlier revision of this section claimed it "builds its `cloudData` through
+the ordinary `generateCloudDataWrapper`, the same wrapper `WAKE_VEHICLE`
+uses" — that claim was **unsourced** and does not hold up: nothing in the
+decompile ties `HONK_AND_FLASH_LIGHTS` to `generateCloudDataWrapper`,
+`cloudData`, or any `VASCommand` subclass at all. **There is no evidence
+anywhere in the decompile that the app sends `HONK_AND_FLASH_LIGHTS` as a
+cloud command.**
 
-**So the wrapper classification does not predict server acceptance, and the
-tonneau lesson does not run in reverse.** "Absence from `supportedFeatures` is
-not evidence a capability is absent" remains true — that is what the tonneau
-proved. It does **not** license the converse: enum presence, app presence and an
-ordinary wrapper are not evidence the *server* accepts a command. Only sending
-it and reading the result is. `button.honk_and_flash` (commit `5059674`) was
-reverted (commit `e803e49`) on this evidence rather than shipped disabled, since
-there is no live path by which it would ever work for anyone — unlike
-`OPEN_LIFTGATE`/`OPEN_TAILGATE`, which are accepted and simply unactuated.
+**So absence from `VAS_COMMANDS` *was* the correct signal here — this is
+narrower than "offline signals failed to predict the refusal."** The prior
+framing (enum presence + app presence + ordinary wrapper, refused anyway)
+mistook enum-membership and decompile-presence for evidence of sendability,
+when the one signal that actually mattered — presence in `VAS_COMMANDS` — was
+never checked. That keeps the tonneau precedent intact on its own axis:
+"absence from `supportedFeatures` is not evidence a capability is absent"
+remains true, and does not run in reverse here either, since the refusal is
+explained by a real, checkable absence (`VAS_COMMANDS`), not by enum/app
+presence turning out to be worthless. `button.honk_and_flash` (commit
+`5059674`) was reverted (commit `e803e49`) on the live-probe evidence rather
+than shipped disabled, since there is no live path by which it would ever
+work for anyone — unlike `OPEN_LIFTGATE`/`OPEN_TAILGATE`, which are accepted
+and simply unactuated.
 
 `PET_COMFORT_ON`/`OFF` remain unwired, per the existing seven-command rule
 above and `tests/test_apk_transcription.py`'s `INVALID_WRAPPER_COMMANDS` guard
