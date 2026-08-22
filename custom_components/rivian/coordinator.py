@@ -1660,7 +1660,19 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     # way until a good value happened to arrive. The cost of passing
                     # it through is one log line per ENUM sensor at startup.
                     self._note_unusable(key, value)
-            new_data[key]["history"] |= prev_items.get(key, {}).get("history", set())
+            # Structured fields (gnssError, and anything else the gateway sends
+            # without a top-level `value`) never got a "history" key above -- it is
+            # attached only when `"value" in v`. gnssLocation is filtered out of
+            # this loop, so before s18 it was the only such field and this line was
+            # safe. s18's field-parity work added gnssError to the subscription,
+            # which is NOT filtered here, and every frame carrying it raised
+            # KeyError: 'history' -- observed live on beta13. Guard on presence
+            # rather than extending the gnssLocation filter, so the next structured
+            # field the gateway adds does not reintroduce this.
+            if "history" in new_data[key]:
+                new_data[key]["history"] |= prev_items.get(key, {}).get(
+                    "history", set()
+                )
 
         return new_data
 
