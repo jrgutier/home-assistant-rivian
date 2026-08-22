@@ -17,18 +17,22 @@
 #
 # Two corpora, different standing (see citations.py's module docstring):
 #   in-code    (default) -- custom_components/, committed, CI-runnable.
-#   plan       (--corpus plan) -- a local audit over the plan document at
-#              PLAN_MD, outside the repo and outside CI. Lighter-weight: it
-#              lists citations and flags out-of-bounds ones, but carries no
-#              hand-authored anchor sidecar (a plan document is prose that
-#              gets rewritten wholesale, not code with a stable AST) -- so it
-#              cannot distinguish "moved" from "was always imprecise" the
-#              way the code corpus's citations.py --check can.
+#   plan       (--corpus plan) -- a local audit over BOTH plan documents
+#              below, neither of which is in the repo's committed tree (one
+#              under ~/.claude/plans/, one under gitignored .omc/plans/), so
+#              this half is machine-local and never wired into CI or
+#              pre-commit. It is bounds-checking, not content verification
+#              (see plan_citations.py's module docstring for why, and for
+#              the 11+ drifted-but-in-bounds citations a hand audit found
+#              that this mode cannot see) -- its output is always labelled
+#              UNVERIFIED, never PASS, so a clean run can't be misread as
+#              "these citations are correct".
 
 source "$(dirname "$0")/_lib.sh"
 
 HELPERS="$(dirname "$0")/helpers"
-PLAN_MD="${PLAN_MD:-$HOME/.claude/plans/lets-emulate-the-apk-memoized-summit.md}"
+PLAN_MD_1="${PLAN_MD_1:-$HOME/.claude/plans/lets-emulate-the-apk-memoized-summit.md}"
+PLAN_MD_2="${PLAN_MD_2:-/Users/jrgutier/src/ha-rivian/.omc/plans/ralplan-audit-apk-parity-plan.md}"
 VENV_PY="$(resolve_python "$HA")"
 
 MODE="--check"
@@ -57,18 +61,34 @@ if [ ! -x "$VENV_PY" ] && ! command -v "$VENV_PY" >/dev/null 2>&1; then
 fi
 
 if [ "$CORPUS" = "plan" ]; then
-  echo "f11 --corpus plan -- local audit, NOT CI-bound (criterion 21 binds corpus 1 only)"
-  if [ ! -f "$PLAN_MD" ]; then
-    note "plan document not found at $PLAN_MD -- arm skipped (machine-local path)"
+  echo "f11 --corpus plan -- local audit, NOT CI-bound (bounds-only; never a correctness signal)"
+  plan_files=()
+  for p in "$PLAN_MD_1" "$PLAN_MD_2"; do
+    if [ -f "$p" ]; then
+      plan_files+=("$p")
+    else
+      note "plan document not found at $p -- skipped (machine-local path)"
+    fi
+  done
+  if [ "${#plan_files[@]}" -eq 0 ]; then
+    note "no plan documents found -- arm skipped entirely"
     summary F11
     exit 0
   fi
   set +e
-  "$VENV_PY" "$HELPERS/plan_citations.py" "$PLAN_MD"
+  out=$("$VENV_PY" "$HELPERS/plan_citations.py" "${plan_files[@]}")
   rc=$?
   set -e
-  [ "$rc" -eq 0 ] && ok "plan-document citation audit: no out-of-bounds citations" \
-    || bad "plan-document citation audit found out-of-bounds citations (see above)"
+  while IFS=$'\t' read -r tag loc target detail; do
+    case "$tag" in
+      UNRESOLVED|OUT-OF-BOUNDS) bad "$tag $loc $target :: $detail" ;;
+      CENSUS) note "$loc" ;;
+      UNVERIFIED) note "UNVERIFIED -- $loc" ;; # never `ok`: see plan_citations.py's docstring
+    esac
+  done <<< "$out"
+  if [ "$rc" -eq 0 ]; then
+    note "0 unresolved/out-of-bounds across ${#plan_files[@]} plan document(s) -- NOT evidence the citations are accurate, only that none are mechanically impossible"
+  fi
   summary F11
   exit 0
 fi

@@ -503,6 +503,8 @@ def run_fix() -> int:
         touched_idx: set[int] = set()
         for c, row in items:
             cited_path = resolve_cited_file(c.citing_file, c.cited_file_token, c.spec)
+            if cited_path is None:
+                continue  # resolved during the scan pass above; re-checked here for safety
             anchor_re = re.compile(re.escape(row.anchor))
             target_lines = cited_path.read_text(encoding="utf-8").splitlines()
             hits = [
