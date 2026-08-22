@@ -229,6 +229,25 @@ USER_INFORMATION_RESPONSE = {
         }
     }
 }
+SUPPORTED_FEATURES_RESPONSE = {
+    "data": {
+        "currentUser": {
+            "vehicles": [
+                {
+                    "id": "vehicle_id",
+                    "vehicle": {
+                        "vehicleState": {
+                            "supportedFeatures": [
+                                {"name": "CHARG_NTW_EA", "status": "AVAILABLE"},
+                                {"name": "TESLA_NACS", "status": "UPDATE_FIRMWARE"},
+                            ]
+                        }
+                    },
+                }
+            ]
+        }
+    }
+}
 WALLBOXES_RESPONSE = {
     "data": {
         "getRegisteredWallboxes": [

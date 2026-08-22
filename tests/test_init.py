@@ -14,6 +14,7 @@ from custom_components.rivian import (
 from custom_components.rivian.const import (
     ATTR_API,
     ATTR_COORDINATOR,
+    ATTR_SUPPORTED_FEATURES,
     ATTR_USER,
     ATTR_VEHICLE,
     ATTR_WALLBOX,
@@ -85,6 +86,16 @@ def mock_wallbox_coordinator():
     return coordinator
 
 
+@pytest.fixture
+def mock_features_coordinator():
+    """Return a mocked SupportedFeaturesCoordinator."""
+    coordinator = MagicMock()
+    coordinator.async_refresh = AsyncMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+    coordinator.data = {"vehicles": []}
+    return coordinator
+
+
 class TestAsyncSetupEntry:
     """Test async_setup_entry function."""
 
@@ -96,6 +107,7 @@ class TestAsyncSetupEntry:
         mock_user_coordinator,
         mock_vehicle_coordinator,
         mock_wallbox_coordinator,
+        mock_features_coordinator,
     ) -> None:
         """Test successful setup of config entry."""
         with (
@@ -114,6 +126,10 @@ class TestAsyncSetupEntry:
             patch(
                 "custom_components.rivian.WallboxCoordinator",
                 return_value=mock_wallbox_coordinator,
+            ),
+            patch(
+                "custom_components.rivian.SupportedFeaturesCoordinator",
+                return_value=mock_features_coordinator,
             ),
             patch.object(
                 hass.config_entries, "async_forward_entry_setups"
@@ -135,6 +151,12 @@ class TestAsyncSetupEntry:
             mock_vehicle_coordinator.drivers_coordinator.async_config_entry_first_refresh.assert_called_once()
             mock_wallbox_coordinator.async_config_entry_first_refresh.assert_called_once()
 
+            # SupportedFeaturesCoordinator uses async_refresh(), never
+            # async_config_entry_first_refresh() -- a capability feed
+            # failure must never raise ConfigEntryNotReady and block setup.
+            mock_features_coordinator.async_refresh.assert_called_once()
+            mock_features_coordinator.async_config_entry_first_refresh.assert_not_called()
+
             # Verify platforms were forwarded
             mock_forward.assert_called_once()
 
@@ -143,6 +165,57 @@ class TestAsyncSetupEntry:
             assert ATTR_API in entry_data
             assert ATTR_VEHICLE in entry_data
             assert ATTR_COORDINATOR in entry_data
+            assert (
+                entry_data[ATTR_COORDINATOR][ATTR_SUPPORTED_FEATURES]
+                is mock_features_coordinator
+            )
+
+    async def test_setup_succeeds_when_the_features_feed_genuinely_fails(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        mock_rivian_api,
+        mock_user_coordinator,
+        mock_vehicle_coordinator,
+        mock_wallbox_coordinator,
+    ) -> None:
+        """End-to-end, with a REAL SupportedFeaturesCoordinator (not a mock
+        of its methods) whose client call raises -- so this exercises
+        DataUpdateCoordinator.async_refresh()'s real error-swallowing
+        behaviour, not just that __init__.py calls the right method name.
+        """
+        mock_rivian_api.get_supported_features = AsyncMock(
+            side_effect=Exception("gateway 500")
+        )
+
+        with (
+            patch(
+                "custom_components.rivian.get_rivian_api_from_entry",
+                return_value=mock_rivian_api,
+            ),
+            patch(
+                "custom_components.rivian.UserCoordinator",
+                return_value=mock_user_coordinator,
+            ),
+            patch(
+                "custom_components.rivian.VehicleCoordinator",
+                return_value=mock_vehicle_coordinator,
+            ),
+            patch(
+                "custom_components.rivian.WallboxCoordinator",
+                return_value=mock_wallbox_coordinator,
+            ),
+            patch.object(hass.config_entries, "async_forward_entry_setups"),
+        ):
+            result = await async_setup_entry(hass, mock_config_entry)
+
+        assert result is True
+
+        entry_data = hass.data[DOMAIN][mock_config_entry.entry_id]
+        features_coordinator = entry_data[ATTR_COORDINATOR][ATTR_SUPPORTED_FEATURES]
+        assert features_coordinator.last_update_success is False
+        assert features_coordinator.data is None
+        mock_rivian_api.get_supported_features.assert_called_once()
 
     async def test_setup_entry_api_error(
         self,

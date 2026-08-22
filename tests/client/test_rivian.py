@@ -3,6 +3,7 @@
 # pylint: disable=protected-access
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import aiohttp
@@ -27,6 +28,7 @@ from .responses import (
     OTP_TOKEN_RESPONSE,
     SEND_LOCATION_TO_VEHICLE_RESPONSE,
     SET_CHARGING_SCHEDULES_RESPONSE,
+    SUPPORTED_FEATURES_RESPONSE,
     USER_INFORMATION_RESPONSE,
     VEHICLE_CHARGING_SCHEDULES_RESPONSE,
     WALLBOXES_RESPONSE,
@@ -161,6 +163,41 @@ async def test_get_registered_wallboxes(aresponses: ResponsesMockServer) -> None
             response_json["data"]["getRegisteredWallboxes"][0]["wallboxId"]
             == "W1-1113-3RV7-1-1234-00012"
         )
+        await rivian.close()
+
+
+async def test_get_supported_features(aresponses: ResponsesMockServer) -> None:
+    """Test get_supported_features sends the app's operation string
+    byte-identically, and that AVAILABLE/UPDATE_FIRMWARE both parse.
+
+    `body_pattern` makes aresponses itself reject any request whose body
+    does not contain this exact text -- so if the query drifts, this test
+    fails at the mock (no matching route), not on a weaker downstream
+    assertion.
+    """
+    exact_query = (
+        "query SupportedFeatures { currentUser { vehicles { id vehicle "
+        "{ vehicleState { supportedFeatures { name status } } } } } }"
+    )
+    aresponses.add(
+        "rivian.com",
+        "/api/gql/gateway/graphql",
+        "POST",
+        response=SUPPORTED_FEATURES_RESPONSE,
+        body_pattern=re.compile(re.escape(exact_query)),
+    )
+    async with aiohttp.ClientSession():
+        rivian = Rivian(
+            csrf_token="token", app_session_token="token", user_session_token="token"
+        )
+        response = await rivian.get_supported_features()
+        response_json = await response.json()
+        assert response.status == 200
+        vehicles = response_json["data"]["currentUser"]["vehicles"]
+        assert len(vehicles) == 1
+        features = vehicles[0]["vehicle"]["vehicleState"]["supportedFeatures"]
+        assert {"name": "CHARG_NTW_EA", "status": "AVAILABLE"} in features
+        assert {"name": "TESLA_NACS", "status": "UPDATE_FIRMWARE"} in features
         await rivian.close()
 
 

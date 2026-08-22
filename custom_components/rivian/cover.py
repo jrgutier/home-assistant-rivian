@@ -141,7 +141,7 @@ async def async_setup_entry(
         for description in descriptions
         # Presence in `data`, not the value of `get()`. The coordinator's first
         # refresh waits for the initial subscription payload before platforms are
-        # set up (__init__.py:108 precedes :130), so by here `data` is the set of
+        # set up (__init__.py:114 precedes :149), so by here `data` is the set of
         # fields this vehicle actually named. A truthiness test on get() would also
         # drop a field reporting a legitimately falsy value.
         if description.required_field is None

@@ -415,6 +415,38 @@ class Rivian:
         """
         return self._option_codes_available
 
+    async def get_supported_features(self) -> ClientResponse:
+        """Get the SupportedFeatures feed: every vehicle's capability list.
+
+        The app fetches this as its own standalone query rather than relying
+        on the supportedFeatures fragment embedded in getUserInfo's
+        vehicleState (get_user_information above, `vehicles_fragment`).
+        operationName "SupportedFeatures", sent byte-identical to
+        com.rivian.android.consumer/java_src/sh/C19514J9.java:48 as given by
+        the caller -- that decompile tree is not checked into this repo and
+        was not present in the environment this method was written in, so
+        the query below could not be independently verified against it.
+
+        `status` is documented as taking only AVAILABLE or UPDATE_FIRMWARE.
+        This is one additive capability signal among several, never a
+        filter: feature absence here is not evidence of absent capability
+        (see coordinator.py's SupportedFeaturesCoordinator docstring).
+        """
+        url = GRAPHQL_GATEWAY
+
+        headers = BASE_HEADERS | {
+            "A-Sess": self._app_session_token,
+            "U-Sess": self._user_session_token,
+        }
+
+        graphql_json = {
+            "operationName": "SupportedFeatures",
+            "query": "query SupportedFeatures { currentUser { vehicles { id vehicle { vehicleState { supportedFeatures { name status } } } } } }",
+            "variables": None,
+        }
+
+        return await self.__graphql_query(headers, url, graphql_json)
+
     async def get_registered_wallboxes(self) -> ClientResponse:
         """Get registered wallboxes."""
         url = GRAPHQL_CHARGING

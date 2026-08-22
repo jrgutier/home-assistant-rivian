@@ -19,6 +19,7 @@ from homeassistant.helpers.issue_registry import (
 from .const import (
     ATTR_API,
     ATTR_COORDINATOR,
+    ATTR_SUPPORTED_FEATURES,
     ATTR_USER,
     ATTR_VEHICLE,
     ATTR_WALLBOX,
@@ -27,7 +28,12 @@ from .const import (
     ISSUE_URL,
     VERSION,
 )
-from .coordinator import UserCoordinator, VehicleCoordinator, WallboxCoordinator
+from .coordinator import (
+    SupportedFeaturesCoordinator,
+    UserCoordinator,
+    VehicleCoordinator,
+    WallboxCoordinator,
+)
 from .helpers import get_rivian_api_from_entry, redact_text
 from .rivian_client import Rivian
 
@@ -117,6 +123,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     await wallbox_coordinator.async_config_entry_first_refresh()
 
+    # The SupportedFeatures feed is purely observational (see
+    # SupportedFeaturesCoordinator's docstring) -- never
+    # async_config_entry_first_refresh(), which would raise
+    # ConfigEntryNotReady and fail integration setup over a capability feed.
+    # async_refresh() swallows its own failure and just leaves .data None;
+    # the embedded supportedFeatures fallback already in `vehicles` above
+    # (via UserCoordinator.get_vehicles()) covers that case.
+    features_coordinator = SupportedFeaturesCoordinator(
+        hass=hass, config_entry=entry, client=client
+    )
+    await features_coordinator.async_refresh()
+
     hass.data[DOMAIN][entry.entry_id] = {
         ATTR_API: client,
         ATTR_VEHICLE: vehicles,
@@ -124,6 +142,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ATTR_USER: coordinator,
             ATTR_VEHICLE: vehicle_coordinators,
             ATTR_WALLBOX: wallbox_coordinator,
+            ATTR_SUPPORTED_FEATURES: features_coordinator,
         },
     }
 

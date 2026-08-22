@@ -10,13 +10,19 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     ATTR_COORDINATOR,
+    ATTR_SUPPORTED_FEATURES,
     ATTR_USER,
     ATTR_VEHICLE,
     ATTR_WALLBOX,
     DOMAIN,
     VEHICLE_STATE_SUBSCRIPTION_FIELDS,
 )
-from .coordinator import UserCoordinator, VehicleCoordinator, WallboxCoordinator
+from .coordinator import (
+    SupportedFeaturesCoordinator,
+    UserCoordinator,
+    VehicleCoordinator,
+    WallboxCoordinator,
+)
 from .helpers import redact
 from .rivian_client.parallax import CHARGING_RVMS, PARALLAX_RVMS, RVM_DECODERS
 
@@ -148,14 +154,75 @@ def _command_outcomes(coordinator: VehicleCoordinator) -> list[dict[str, Any]]:
     ]
 
 
+def _feature_diagnostics(
+    features_coordinator: SupportedFeaturesCoordinator | None,
+    static_vehicles: dict[str, dict[str, Any]],
+    vehicle_id: str,
+) -> dict[str, Any]:
+    """Which source answered for one vehicle's SupportedFeatures, and every
+    status it carried -- not just AVAILABLE, so UPDATE_FIRMWARE is visible
+    rather than silently dropped by the AVAILABLE-only filter everything
+    else (available_features(), get_vehicles()) uses.
+
+    "feed" wins whenever SupportedFeaturesCoordinator has data for this
+    vehicle id at all, even an empty features list -- that is a real answer
+    from the feed, not a failure. Only when the feed has nothing for this
+    vehicle does this fall back to the supportedFeatures fragment already
+    embedded in getUserInfo (UserCoordinator.get_vehicles()'s
+    "supported_features" list, AVAILABLE-only by construction there).
+    """
+    feed_status: dict[str, str] | None = None
+    if features_coordinator is not None:
+        try:
+            feed_status = features_coordinator.features_by_status().get(vehicle_id)
+        except Exception:  # noqa: BLE001 -- diagnostics must never raise
+            feed_status = None
+
+    if feed_status is not None:
+        return {
+            "feature_source": "feed",
+            "features_available": sorted(
+                name for name, status in feed_status.items() if status == "AVAILABLE"
+            ),
+            "features_by_status": feed_status,
+        }
+
+    fallback = static_vehicles.get(vehicle_id, {}).get("supported_features") or []
+    if fallback:
+        return {
+            "feature_source": "static_fallback",
+            "features_available": sorted(fallback),
+            "features_by_status": {name: "AVAILABLE" for name in fallback},
+        }
+
+    return {
+        "feature_source": "none",
+        "features_available": [],
+        "features_by_status": {},
+    }
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    coordinators = hass.data[DOMAIN][entry.entry_id][ATTR_COORDINATOR]
+    entry_data = hass.data[DOMAIN][entry.entry_id]
+    coordinators = entry_data[ATTR_COORDINATOR]
     user_coordinator: UserCoordinator = coordinators[ATTR_USER]
     vehicle_coordinators: dict[str, VehicleCoordinator] = coordinators[ATTR_VEHICLE]
     wallbox_coordinator: WallboxCoordinator = coordinators[ATTR_WALLBOX]
+    # Absent from fixtures/tests that predate the feed and from any config
+    # entry set up before this story shipped -- .get() rather than [...], so
+    # neither crashes the download (see module docstring above).
+    features_coordinator: SupportedFeaturesCoordinator | None = coordinators.get(
+        ATTR_SUPPORTED_FEATURES
+    )
+    # The embedded supportedFeatures fallback: `vehicles` (top-level, static
+    # metadata from UserCoordinator.get_vehicles()) is a different dict from
+    # `vehicle_coordinators` above despite sharing ATTR_VEHICLE as a key at
+    # two different nesting levels -- see __init__.py's hass.data[DOMAIN][...]
+    # assembly.
+    static_vehicles: dict[str, dict[str, Any]] = entry_data.get(ATTR_VEHICLE, {})
     # Parallax now feeds the vehicle and charging coordinators directly rather
     # than a store of its own, so its DATA already appears below. What is not
     # otherwise visible -- and what every diagnosis in this area has needed -- is
@@ -220,6 +287,16 @@ async def async_get_config_entry_diagnostics(
         "provenance": {
             vehicle_id: _provenance_diagnostics(coordinator)
             for vehicle_id, coordinator in vehicle_coordinators.items()
+        },
+        # SupportedFeatures feed (s19): "feed" or "static_fallback" per
+        # vehicle, plus every status the winning source carried -- see
+        # _feature_diagnostics's docstring for why the fallback is per
+        # vehicle rather than all-or-nothing for the whole entry.
+        "supported_features": {
+            vehicle_id: _feature_diagnostics(
+                features_coordinator, static_vehicles, vehicle_id
+            )
+            for vehicle_id in vehicle_coordinators
         },
     }
     return redact(data)

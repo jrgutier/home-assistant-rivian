@@ -862,6 +862,71 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         }
 
 
+class SupportedFeaturesCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
+    """SupportedFeatures feed coordinator for Rivian.
+
+    A standalone query the app fetches separately from getUserInfo (see
+    Rivian.get_supported_features), rather than the supportedFeatures
+    fragment UserCoordinator.get_vehicles() already reads out of
+    getUserInfo's embedded vehicleState. `key = "currentUser"` because that
+    is this query's root too; the 15-minute interval matches UserCoordinator
+    for the same reason given on its `_update_interval_seconds` -- a
+    heavyweight, slow-changing query with no business being polled fast.
+
+    ADDITIVE SIGNAL, NOT A FILTER. Feature absence here is not evidence of
+    absent capability: TONNEAU_CMD appears in no vehicle's supportedFeatures
+    and in none of the app's decompiled files, yet both tonneau commands
+    physically move the cover (docs/development/MODEL_SPECIFIC_ENTITIES.md,
+    around lines 9-15). Nothing gates on this coordinator's output; it exists
+    to make the feed observable (diagnostics) alongside the embedded
+    fallback in UserCoordinator.get_vehicles(), which stays in place and is
+    used by __init__.py when this feed is unavailable.
+    """
+
+    key = "currentUser"
+    _update_interval_seconds = 15 * 60  # 15 minutes, see UserCoordinator above
+
+    async def _fetch_data(self) -> ClientResponse:
+        """Fetch the data."""
+        return await self.api.get_supported_features()
+
+    def available_features(self) -> dict[str, frozenset[str]]:
+        """Return AVAILABLE feature names per vehicle id."""
+        if not self.data:
+            return {}
+        return {
+            vehicle["id"]: frozenset(
+                feature["name"]
+                for feature in vehicle.get("vehicle", {})
+                .get("vehicleState", {})
+                .get("supportedFeatures", [])
+                if feature.get("status") == "AVAILABLE"
+            )
+            for vehicle in self.data.get("vehicles", [])
+        }
+
+    def features_by_status(self) -> dict[str, dict[str, str]]:
+        """Return {feature_name: status} per vehicle id, every status included.
+
+        AVAILABLE and UPDATE_FIRMWARE both survive here -- unlike
+        available_features() above, which is AVAILABLE-only -- so
+        diagnostics can surface UPDATE_FIRMWARE instead of silently
+        dropping it.
+        """
+        if not self.data:
+            return {}
+        return {
+            vehicle["id"]: {
+                feature["name"]: feature["status"]
+                for feature in vehicle.get("vehicle", {})
+                .get("vehicleState", {})
+                .get("supportedFeatures", [])
+                if feature.get("name") and feature.get("status")
+            }
+            for vehicle in self.data.get("vehicles", [])
+        }
+
+
 class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     """Vehicle data update coordinator for Rivian."""
 

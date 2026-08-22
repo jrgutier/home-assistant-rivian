@@ -33,6 +33,7 @@ ISSUE_URL = "https://github.com/bretterer/home-assistant-rivian/issues"
 # Attributes
 ATTR_API = "api"
 ATTR_COORDINATOR = "coordinator"
+ATTR_SUPPORTED_FEATURES = "supported_features"
 ATTR_USER = "user"
 ATTR_VEHICLE = "vehicle"
 ATTR_WALLBOX = "wallbox"
