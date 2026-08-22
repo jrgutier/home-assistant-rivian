@@ -13,7 +13,9 @@ import asyncio
 import logging
 import platform
 import secrets
+from typing import Any
 
+from . import ble_trace
 from .utils import generate_ble_command_hmac
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,7 +42,6 @@ PHONE_NONCE_VEHICLE_NONCE_UUID = GEN1_PHONE_NONCE_VEHICLE_NONCE_UUID
 # Gen 2 (PRE_CCC) BLE Characteristic UUIDs
 GEN2_PLAIN_DATA_IN_UUID = "0823DA14-040B-4914-BF7C-450AFA2850DA"
 GEN2_PLAIN_DATA_OUT_UUID = "29919A3C-A697-4A6F-BD3B-D14860CC9BCE"
-GEN2_ENCRYPTED_DATA_IN_UUID = "9A69AEFF-E3FE-4E79-BB7D-5AE12272FD14"
 GEN2_ENCRYPTED_DATA_OUT_UUID = "5EAA65C0-57EE-4CF4-A3D5-A4AAE20CBB0B"
 
 CONNECT_TIMEOUT = 10.0
@@ -74,11 +75,20 @@ async def create_notification_handler(
     return response
 
 
-async def detect_vehicle_generation(device: BLEDevice) -> int:
+async def detect_vehicle_generation(
+    device: BLEDevice, vehicle_id: str | None = None
+) -> int:
     """Detect vehicle generation (1 or 2) based on available BLE characteristics.
 
     Args:
         device: BLE device to check
+        vehicle_id: HA/Rivian internal vehicle id, used ONLY to key the BLE
+            diagnostic trace (rivian_client.ble_trace.get_trace). Optional
+            and defaults to None so existing callers -- and every Gen 1 test
+            in tests/client/test_ble.py, which calls this with a single
+            positional argument -- are unaffected. When omitted, GATT
+            capture below is skipped entirely; the detection logic itself
+            never changes either way.
 
     Returns:
         1 for Gen 1 (LEGACY), 2 for Gen 2 (PRE_CCC), 0 if unknown
@@ -93,9 +103,25 @@ async def detect_vehicle_generation(device: BLEDevice) -> int:
             # Get all available services and characteristics
             services = client.services
             char_uuids = set()
+            discovered: list[dict[str, Any]] = []
             for service in services:
                 for char in service.characteristics:
                     char_uuids.add(char.uuid.upper())
+                    if vehicle_id is not None:
+                        discovered.append(
+                            {"uuid": char.uuid.upper(), "properties": sorted(char.properties)}
+                        )
+
+            if vehicle_id is not None:
+                # UUIDs and properties only, never characteristic values --
+                # this is the single highest-value unknown from the delta
+                # report: it settles whether the four Gen 2 UUIDs this
+                # integration guesses at are even the right ones.
+                trace = ble_trace.get_trace(vehicle_id)
+                trace.record_services(discovered)
+                mtu = getattr(client, "mtu_size", None)
+                if mtu is not None:
+                    trace.record_mtu(mtu)
 
             _LOGGER.debug("Found %d characteristics", len(char_uuids))
 
@@ -132,6 +158,7 @@ async def pair_phone(
     vehicle_key: str,
     private_key: str,
     force_generation: int | None = None,
+    vehicle_id: str | None = None,
 ) -> bool:
     """Pair a phone locally via BLE (supports Gen 1 and Gen 2).
 
@@ -148,6 +175,12 @@ async def pair_phone(
         vehicle_key: Vehicle public key (for Gen 2) or shared key (for Gen 1)
         private_key: Phone's private key (PEM format)
         force_generation: Force specific generation (1 or 2), or None for auto-detect
+        vehicle_id: HA/Rivian internal vehicle id, used ONLY to key the BLE
+            diagnostic trace (rivian_client.ble_trace). Optional and defaults
+            to None so every existing caller -- including the Gen 1 tests in
+            tests/client/test_ble.py, which call this positionally -- is
+            unaffected. When omitted, no trace is recorded down either the
+            detection or the Gen 2 pairing path.
 
     Returns:
         True if pairing succeeded, False otherwise
@@ -158,7 +191,7 @@ async def pair_phone(
     # Detect vehicle generation if not forced
     if force_generation is None:
         try:
-            generation = await detect_vehicle_generation(device)
+            generation = await detect_vehicle_generation(device, vehicle_id=vehicle_id)
         except Exception as ex:  # noqa: BLE001  # BLE pairing state machine; changing exception semantics here is out of scope for a transport merge
             _LOGGER.error("Failed to detect vehicle generation: %s", ex)
             return False
@@ -190,7 +223,7 @@ async def pair_phone(
             return False
 
         return await pair_phone_gen2(
-            device, phone_id, vas_vehicle_id, vehicle_key, private_key
+            device, phone_id, vas_vehicle_id, vehicle_key, private_key, vehicle_id
         )
 
 

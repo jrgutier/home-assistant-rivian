@@ -21,7 +21,10 @@ from custom_components.rivian.coordinator import (
     VehicleCoordinator,
 )
 from custom_components.rivian.data_classes import RivianButtonEntityDescription
-from custom_components.rivian.rivian_client import VehicleCommand as _RealVehicleCommand
+from custom_components.rivian.rivian_client import (
+    VehicleCommand as _RealVehicleCommand,
+    ble_trace,
+)
 from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, HomeAssistantError
@@ -575,6 +578,123 @@ class TestPairingSequence:
             await entity.async_press()
         assert entity._pairing is False
         assert entity._available is not False
+
+    async def test_a_failed_gen2_pair_raises_the_beta_feedback_issue(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """A Gen 2 pairing failure must surface a repairs card.
+
+        No maintainer owns a Gen 2 vehicle, so a tester's diagnostics download is
+        the only evidence that will ever settle the UNPROVEN parts of the
+        protocol. If the card does not appear, the failure is silent and the
+        feedback channel does not exist -- the integration simply looks broken.
+        """
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.device = MagicMock()
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+
+        # Gen 2 is identified by what pair_phone recorded on the trace, not by a
+        # second BLE round trip -- see ble_gen2.pair_phone_gen2, which stamps
+        # generation as soon as it starts. Stamping it from the mock's side
+        # effect (rather than before the press) is what the real code does:
+        # async_press calls trace.reset() first, which would clear anything set
+        # in advance.
+        async def _fail_as_gen2(*args, **kwargs):
+            ble_trace.get_trace(coordinator.vehicle_id).generation = 2
+            return False
+
+        raised = MagicMock()
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch(
+                "custom_components.rivian.rivian_client.ble.pair_phone",
+                AsyncMock(side_effect=_fail_as_gen2),
+            ),
+            patch(
+                "custom_components.rivian.button.async_create_gen2_pairing_issue",
+                raised,
+            ),
+        ):
+            await entity.async_press()
+
+        raised.assert_called_once()
+        assert raised.call_args.args[1] == coordinator.vehicle_id
+
+    async def test_a_failed_gen1_pair_raises_no_beta_issue(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Gen 1 works and has real users. Its pairing failures are ordinary user
+        error -- wrong vehicle, "Set Up" not selected -- and a beta-feedback card
+        there would be noise that trains people to ignore the card entirely.
+        """
+        entity, _ = self._entity(hass, mock_config_entry)
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.device = MagicMock()
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+
+        # No side effect stamping generation: a Gen 1 pair never sets it, and
+        # async_press's own reset() clears whatever a prior press left behind.
+
+        raised = MagicMock()
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch(
+                "custom_components.rivian.rivian_client.ble.pair_phone",
+                AsyncMock(return_value=False),
+            ),
+            patch(
+                "custom_components.rivian.button.async_create_gen2_pairing_issue",
+                raised,
+            ),
+        ):
+            await entity.async_press()
+
+        raised.assert_not_called()
+
+    async def test_a_confirmed_pair_clears_any_previous_beta_issue(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Otherwise a tester who eventually succeeds is nagged forever by a card
+        about a failure they already fixed -- the failure mode the existing
+        2fa_missing pattern avoids by deleting in its else branch.
+        """
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        coordinator.drivers_coordinator.get_device_details = MagicMock(
+            return_value={"isPaired": True}
+        )
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.device = MagicMock()
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+
+        cleared = MagicMock()
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch(
+                "custom_components.rivian.rivian_client.ble.pair_phone",
+                AsyncMock(return_value=True),
+            ),
+            patch("asyncio.sleep", AsyncMock()),
+            patch(
+                "custom_components.rivian.button.async_delete_gen2_pairing_issue",
+                cleared,
+            ),
+        ):
+            await entity.async_press()
+
+        cleared.assert_called_once()
 
     async def test_the_right_key_failing_to_pair_stops_the_loop(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry

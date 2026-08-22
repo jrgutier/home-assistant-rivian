@@ -55,6 +55,53 @@ PLATFORMS: list[Platform] = [
     Platform.UPDATE,
 ]
 
+# Gen 2 (2025+) BLE phone-key pairing is beta: there is no Gen 2 hardware to test
+# against, so a failed pairing attempt is reported by asking the tester to press
+# a button, exactly like every other repairs issue -- nothing is sent off the
+# instance automatically. The issue links to a prefilled GitHub issue-forms
+# template that asks for the (already redacted) diagnostics download.
+GEN2_PAIRING_ISSUE_URL = (
+    "https://github.com/jrgutier/home-assistant-rivian/issues/new"
+    "?template=gen2_beta.yml"
+)
+
+
+def _gen2_pairing_issue_id(vehicle_id: str) -> str:
+    """Build the issue-registry id for a vehicle's Gen 2 pairing issue.
+
+    Keyed per vehicle_id (not per config entry) so a multi-vehicle account
+    doesn't have one vehicle's successful pairing clear another's still-open
+    failure report, and not by VIN/vas_vehicle_id/BLE MAC, which are
+    resolvable to a physical vehicle and must not appear in the issue
+    registry (see helpers.TO_REDACT and the diagnostics redaction rules).
+    """
+    return f"gen2_pairing_failed_{vehicle_id}"
+
+
+def async_create_gen2_pairing_issue(hass: HomeAssistant, vehicle_id: str) -> None:
+    """Raise a repairs issue after a Gen 2 phone-key pairing attempt fails.
+
+    Mirrors the 2fa_missing pattern above: local-only, not auto-fixable, and
+    cleared with async_delete_gen2_pairing_issue once pairing succeeds. The
+    `learn_more_url` is the only place this points off-instance, and it is a
+    link the user clicks themselves -- nothing is posted automatically.
+    """
+    async_create_issue(
+        hass,
+        DOMAIN,
+        _gen2_pairing_issue_id(vehicle_id),
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.WARNING,
+        translation_key="gen2_pairing_failed",
+        learn_more_url=GEN2_PAIRING_ISSUE_URL,
+    )
+
+
+def async_delete_gen2_pairing_issue(hass: HomeAssistant, vehicle_id: str) -> None:
+    """Clear a vehicle's Gen 2 pairing-failure issue, e.g. after it pairs."""
+    async_delete_issue(hass, DOMAIN, _gen2_pairing_issue_id(vehicle_id))
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Load the saved entries."""

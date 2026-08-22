@@ -116,16 +116,6 @@ The VehicleCoordinator uses GraphQL subscriptions via WebSocket for real-time ve
 - `RivianChargingEntity`: For charging-specific entities
 - `RivianWallboxEntity`: For wallbox entities
 
-### Platform Files
-
-Each Home Assistant platform is implemented in its own file:
-- `binary_sensor.py`, `sensor.py`: Read-only state sensors
-- `button.py`, `switch.py`, `cover.py`, `lock.py`, `number.py`, `select.py`, `climate.py`: Control entities
-- `device_tracker.py`: GPS location tracking
-- `update.py`: OTA software update status
-- `image.py`: Vehicle images
-- `notify.py`: Navigation service for sending destinations to vehicles
-
 ### Entity Definitions
 
 Entity definitions are centralized in `const.py`:
@@ -195,24 +185,6 @@ Commands are sent via `VehicleCoordinator.send_vehicle_command()` which:
 2. OTP/MFA validation if enabled
 3. Options flow for vehicle control setup (Bluetooth pairing), zone restrictions, and vehicle image style
 
-## File Structure
-
-```
-custom_components/rivian/
-├── __init__.py          # Integration setup, coordinator initialization
-├── manifest.json        # Integration metadata and dependencies
-├── const.py            # Entity definitions, constants, sensor configurations
-├── coordinator.py      # Data update coordinators (real-time subscriptions + polling)
-├── entity.py           # Base entity classes with shared logic
-├── data_classes.py     # Custom entity description dataclasses
-├── config_flow.py      # Config and options flows
-├── helpers.py          # Utility functions
-├── diagnostics.py      # Debug data collection
-├── recorder.py         # Database recorder configuration
-├── notify.py           # Navigation service implementation
-└── [platform].py       # Platform implementations (sensor, switch, etc.)
-```
-
 ## Key Concepts
 
 ### Vehicle State Fields
@@ -255,6 +227,3 @@ Vehicle commands require a one-time Bluetooth pairing:
 - Invalid sensor states (`fault`, `signal_not_available`, `undefined`) are filtered using history on both the GraphQL and Parallax coordinator paths. Dropping an invalid value with no previous was tried twice and reverted -- it makes the entity unavailable and takes the matching control down with it. `sensor.py` and `binary_sensor.py` also filter at the entity; the other platforms do not.
 - When adding new sensors, update both `SENSORS`/`BINARY_SENSORS` in `const.py` AND `VEHICLE_STATE_API_FIELDS`
 
-## Development Branch
-
-The `dev` branch is the main development branch.

@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import async_create_gen2_pairing_issue, async_delete_gen2_pairing_issue
 from .connectivity import ConnectivityState
 from .const import ATTR_COORDINATOR, ATTR_USER, ATTR_VEHICLE, DOMAIN
 from .coordinator import UserCoordinator, VehicleCoordinator
@@ -182,7 +183,7 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
             from homeassistant.components import bluetooth
             from homeassistant.components.bluetooth import BluetoothScanningMode
 
-            from .rivian_client import ble as rivian_ble
+            from .rivian_client import ble as rivian_ble, ble_trace
         except ImportError as err:
             self._pairing = False
             raise HomeAssistantError(
@@ -231,7 +232,16 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 )
                 return None
 
+        # ONE trace per press, not per retry: reset() here, before the loop, so
+        # every attempt this press makes lands in the same trace. start_attempt()
+        # below marks each attempt's boundary within it -- resetting per attempt
+        # instead would destroy the informative early failure and keep only the
+        # least useful last one (see ble_trace.py's module docstring).
+        trace = ble_trace.get_trace(self.coordinator.vehicle_id)
+        trace.reset()
+
         while search_result := await _find_phone_key():
+            trace.start_attempt()
             if platform.system() == "Linux":
                 _LOGGER.debug("Making sure BT controller can be paired")
                 # TODO: find out how BT proxy presents itself to avoid invalid warnings
@@ -245,6 +255,7 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 vehicle["vas_id"],
                 vehicle["public_key"],
                 self._config_entry.options.get("private_key"),
+                vehicle_id=self.coordinator.vehicle_id,
             ):
                 _LOGGER.debug("Querying API to validate vehicle pairing was successful")
                 await asyncio.sleep(10)
@@ -253,6 +264,9 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                     device := coor.get_device_details(phone_info[1].get(vehicle["id"]))
                 ) and device["isPaired"]:
                     _LOGGER.debug("Success, pairing is now complete")
+                    async_delete_gen2_pairing_issue(
+                        self.hass, self.coordinator.vehicle_id
+                    )
                     self._available = False
                     self.async_write_ha_state()
                     return
@@ -269,6 +283,14 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 break
 
         _LOGGER.debug("Unable to complete pairing")
+        if trace.generation == 2:
+            # Gen 2 only, deliberately: Gen 1 works today, its failures are
+            # ordinary user error (wrong vehicle, "Set Up" not selected), and
+            # a beta-feedback card there would train people to ignore it.
+            # trace.generation, not a redetect: pair_phone_gen2 sets it as
+            # soon as it starts, at zero extra BLE cost -- pair_phone's own
+            # return value is otherwise just True/False either generation.
+            async_create_gen2_pairing_issue(self.hass, self.coordinator.vehicle_id)
         self._pairing = False
 
     def _handle_driver_update(self) -> None:

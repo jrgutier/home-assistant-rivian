@@ -97,6 +97,63 @@ async def test_async_get_config_entry_diagnostics(
 
 
 @pytest.mark.asyncio
+async def test_ble_traces_from_another_config_entry_are_not_leaked(
+    hass: HomeAssistant,
+    mock_config_entry: ConfigEntry,
+) -> None:
+    """A diagnostics download must carry only THIS entry's vehicle traces.
+
+    `ble_trace.all_traces_as_dict()` reads a module-level registry that is not
+    scoped to any config entry, so an unfiltered dump would put another
+    account's vehicle trace into this bundle. That matters more than usual
+    here: testers are asked to attach this download to a PUBLIC, PERMANENT
+    GitHub issue, so a leak is not recoverable by deleting a file.
+    """
+    from custom_components.rivian.rivian_client import ble_trace
+
+    mine = ble_trace.get_trace("vehicle_1")
+    mine.reset()
+    mine.record_frame("write", "UUID-MINE", b"\x01")
+
+    foreign = ble_trace.get_trace("someone-elses-vehicle")
+    foreign.reset()
+    foreign.record_frame("write", "UUID-FOREIGN", b"\x02")
+
+    # Both are visible in the unscoped registry -- if they were not, this test
+    # would pass without the filter doing anything.
+    assert "someone-elses-vehicle" in ble_trace.all_traces_as_dict()
+
+    user_coordinator = MagicMock(spec=UserCoordinator)
+    user_coordinator.data = {"userId": "user_123"}
+    vehicle_coordinator = MagicMock(spec=VehicleCoordinator, rvm_arrivals={})
+    vehicle_coordinator._unsub_parallax = None
+    vehicle_coordinator.data = {"vin": "VIN1"}
+    vehicle_coordinator.charging_coordinator = MagicMock(spec=ChargingCoordinator)
+    vehicle_coordinator.charging_coordinator.data = {}
+    vehicle_coordinator.drivers_coordinator = MagicMock(spec=DriverKeyCoordinator)
+    vehicle_coordinator.drivers_coordinator.data = {}
+    wallbox_coordinator = MagicMock(spec=WallboxCoordinator)
+    wallbox_coordinator.data = {}
+
+    hass.data[DOMAIN] = {
+        mock_config_entry.entry_id: {
+            ATTR_COORDINATOR: {
+                ATTR_USER: user_coordinator,
+                ATTR_VEHICLE: {"vehicle_1": vehicle_coordinator},
+                ATTR_WALLBOX: wallbox_coordinator,
+            }
+        }
+    }
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+    assert "vehicle_1" in diagnostics["ble_trace"]
+    assert "someone-elses-vehicle" not in diagnostics["ble_trace"], (
+        "another config entry's vehicle trace leaked into this download"
+    )
+    assert "UUID-FOREIGN" not in str(diagnostics)
+
+
 async def test_async_get_config_entry_diagnostics_multiple_vehicles(
     hass: HomeAssistant,
     mock_config_entry: ConfigEntry,

@@ -1,0 +1,76 @@
+name: "Gen 2 BLE pairing beta feedback"
+description: "Report a Gen 2 (2025+) phone-key pairing attempt, working or not."
+title: "[Gen 2 beta] "
+labels:
+  - "gen2-beta"
+  - "bluetooth"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Gen 2 phone-key pairing. There is no Gen 2 vehicle
+        available to develop against, so real reports like this one are the
+        only way to fix it. This should take a couple of minutes.
+
+        **Before you submit:** attaching a diagnostics download is required
+        (see below). It is redacted, but **please open the file and skim it
+        yourself first** -- GitHub issues are public and permanent.
+
+  - type: input
+    id: vehicle_model
+    attributes:
+      label: Vehicle model and year
+      placeholder: "e.g. R1S, 2025"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: is_gen2
+    attributes:
+      label: Is this a Gen 2 (2025+) vehicle?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "e.g. 2026.8.2"
+    validations:
+      required: true
+
+  - type: input
+    id: integration_version
+    attributes:
+      label: Rivian integration version
+      placeholder: "e.g. 1.6.0-beta14"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened when you tried to pair?
+      description: >-
+        Include what you expected, what actually happened, and where it
+        stopped (e.g. "vehicle never showed up", "found the vehicle but
+        pairing button in HA errored", "pairing said success but controls
+        still don't work").
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics download
+      description: >-
+        Required. In Home Assistant: Settings > Devices & Services > Rivian
+        > (three-dot menu) > Download diagnostics. Review the file yourself,
+        then drag it into this box to attach it.
+      placeholder: "Drag and drop the diagnostics JSON file here"
+    validations:
+      required: true

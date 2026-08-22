@@ -159,6 +159,57 @@ TO_REDACT = {
     "vin",
     "wallboxId",
     "wifiSsid",
+    # Gen 2 BLE pairing (ble_trace.py) surfaces a raw pairing trace through
+    # diagnostics for beta testers to attach to a PUBLIC, PERMANENT GitHub
+    # issue. NOTE the fingerprints are stored under "_fp"-suffixed keys
+    # ("phone_id_fp" etc.) precisely so these entries do NOT clobber them --
+    # async_redact_data matches by key name without inspecting the value, so a
+    # fingerprint under a bare name would be replaced by a placeholder and the
+    # within-bundle correlation it exists for would be lost. Do not "tidy" the
+    # suffix away; tests/test_ble_trace_redaction.py pins this.
+    # `BleTrace.record_identifiers()` already fingerprints "phone_id",
+    # "vas_vehicle_id" and "address" (blake2s, per-process salt, never
+    # serialized -- see ble_trace.py's THE SALT INVARIANT) before they ever
+    # reach `identifiers` / `as_dict()`, so listing the same key names here
+    # is a second, independent line of defence, not a substitute for that
+    # one: it is what catches a future record_* call that forgets to
+    # fingerprint, or a raw value that reaches diagnostics some other way
+    # (e.g. logged and re-attached) -- the exact "forgot to redact" case the
+    # token-constant comment above already describes. Currently LATENT for
+    # that reason: as of this writing every path that puts one of these
+    # under its own key name has already hashed it first, so there is no
+    # live leak, only pre-emptive coverage for the day that stops being true.
+    #   - "phone_id": the enrolled phone's UUID (verbatim param name across
+    #     ble.py, ble_gen2.py, rivian.py, and the ble_trace.py identifiers
+    #     key) -- resolvable to one person's phone.
+    #   - "vas_vehicle_id" / "vas_id": the VAS vehicle id (the former is
+    #     both the pair_phone*() parameter name and the ble_trace.py
+    #     identifiers key; the latter is the flattened key button.py reads
+    #     the same value under as vehicle["vas_id"]) -- broadcast in the BLE
+    #     advertisement's service_uuids, so it is resolvable by anyone near
+    #     the vehicle, unlike the internal `vehicleId` above.
+    #   - "address": the Rivian Phone Key's BLE MAC (bleak's
+    #     `service_info.address`, button.py:207; same key name in
+    #     ble_trace.py's identifiers dict) -- sniffable at short range and
+    #     only 48 bits, so it would be trivially enumerable if it ever
+    #     reached a bundle unhashed. NOTE this key name is not BLE-specific:
+    #     it also matches the unrelated charging-station and user postal
+    #     address fields in gateway.graphql / charging.graphql, which are
+    #     not otherwise redacted today. Redacting those too is a strict
+    #     privacy improvement, not a regression, so the collision is
+    #     accepted rather than worked around with a narrower key.
+    # MECHANIC, not just a footnote: async_redact_data (helpers.redact) only
+    # matches by key NAME, at any depth -- it never inspects or redacts dict
+    # KEYS. A payload keyed BY one of these raw identifiers (e.g. a trace
+    # dict of the form {vas_vehicle_id: {...}}) leaks that identifier
+    # regardless of what is listed here. That is exactly why the trace in
+    # ble_trace.py is keyed by the internal `vehicle_id` and not by
+    # `vas_vehicle_id`, VIN, or the BLE MAC -- see get_trace()'s docstring
+    # and diagnostics.py's own per-vehicle_id filtering of "ble_trace".
+    "phone_id",
+    "vas_vehicle_id",
+    "vas_id",
+    "address",
 }
 
 

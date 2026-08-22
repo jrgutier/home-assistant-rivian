@@ -24,6 +24,7 @@ from .coordinator import (
     WallboxCoordinator,
 )
 from .helpers import redact
+from .rivian_client.ble_trace import all_traces_as_dict
 from .rivian_client.parallax import CHARGING_RVMS, PARALLAX_RVMS, RVM_DECODERS
 
 # Every read below is via getattr(..., default) rather than a bare attribute
@@ -247,6 +248,20 @@ async def async_get_config_entry_diagnostics(
 
     data = {
         "parallax": parallax,
+        # Gen 2 BLE pairing trace (beta): what a tester's pairing attempt
+        # actually did on the wire, for the UNPROVEN unknowns in
+        # GEN2_BLE_DELTA.md that only a real capture can settle. Filtered to
+        # this entry's own vehicle_ids -- all_traces_as_dict() reads from a
+        # module-level dict that is not scoped to any one config entry, so
+        # an unfiltered dump would leak another account's vehicle trace
+        # into this download on a multi-entry install. Redacted below like
+        # every other key in this payload; see helpers.TO_REDACT for what
+        # is masked and why nonce/MAC bytes are deliberately left as hex.
+        "ble_trace": {
+            vehicle_id: trace
+            for vehicle_id, trace in all_traces_as_dict().items()
+            if vehicle_id in vehicle_coordinators
+        },
         "user": user_coordinator.data,
         "vehicle": [coor.data for coor in vehicle_coordinators.values()],
         "charging": [
