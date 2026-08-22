@@ -192,3 +192,6 @@ com.rivian.android.consumer/
 # artifact: docs/development/apk/REGENERATION.md records how to rebuild them, and
 # every claim they support is transcribed into a test that does ship.
 docs/development/apk/*.java
+
+# gh-sweep: salt for community fixture vehicle-fingerprint digests (never commit)
+tests/fixtures/community/.salt

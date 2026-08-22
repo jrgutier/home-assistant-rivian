@@ -1,0 +1,1593 @@
+{
+ "home_assistant": {
+  "installation_type": "Home Assistant OS",
+  "version": "2024.8.0",
+  "dev": false,
+  "hassio": true,
+  "virtualenv": false,
+  "python_version": "3.12.4",
+  "docker": true,
+  "arch": "x86_64",
+  "timezone": "America/New_York",
+  "os_name": "Linux",
+  "os_version": "6.6.33-haos",
+  "supervisor": "2024.08.0",
+  "host_os": "Home Assistant OS 12.4",
+  "docker_version": "26.1.4",
+  "chassis": "embedded",
+  "run_as_root": true
+ },
+ "custom_components": {
+  "dyson_cloud": {
+   "documentation": "https://github.com/libdyson-wg/ha-dyson-cloud",
+   "version": "0.19.1",
+   "requirements": []
+  },
+  "alexa_media": {
+   "documentation": "https://github.com/alandtse/alexa_media_player/wiki",
+   "version": "4.12.7",
+   "requirements": [
+    "alexapy==1.28.2",
+    "packaging>=20.3",
+    "wrapt>=1.14.0"
+   ]
+  },
+  "google_home": {
+   "documentation": "https://github.com/leikoilja/ha-google-home",
+   "version": "1.11.1",
+   "requirements": [
+    "glocaltokens==0.7.1"
+   ]
+  },
+  "sonoff": {
+   "documentation": "https://github.com/AlexxIT/SonoffLAN",
+   "version": "3.7.3",
+   "requirements": [
+    "pycryptodome>=3.6.6"
+   ]
+  },
+  "webrtc": {
+   "documentation": "https://github.com/AlexxIT/WebRTC",
+   "version": "v3.5.2",
+   "requirements": []
+  },
+  "ble_monitor": {
+   "documentation": "https://github.com/custom-components/ble_monitor",
+   "version": "12.14.0",
+   "requirements": [
+    "pycryptodomex>=3.19.1",
+    "janus>=1.0.0",
+    "aioblescan>=0.2.14",
+    "btsocket>=0.2.0",
+    "pyric>=0.1.6.3"
+   ]
+  },
+  "jlrincontrol": {
+   "documentation": "https://github.com/msp1974/homeassistant-jlrincontrol/blob/master/README.md",
+   "version": "2.2.7",
+   "requirements": [
+    "jlrpy==1.7.0"
+   ]
+  },
+  "rivian": {
+   "documentation": "https://github.com/bretterer/home-assistant-rivian",
+   "version": "1.3.1",
+   "requirements": [
+    "rivian-python-client[ble]==1.2.1"
+   ]
+  },
+  "magic_areas": {
+   "documentation": "https://github.com/jseidl/hass-magic_areas/wiki",
+   "version": "4.0.1",
+   "requirements": []
+  },
+  "sonos_cloud": {
+   "documentation": "https://github.com/jjlawren/sonos_cloud/",
+   "version": "0.3.5",
+   "requirements": []
+  },
+  "samsungtv_tizen": {
+   "documentation": "https://github.com/jaruba/ha-samsungtv-tizen",
+   "version": "1.6.1",
+   "requirements": [
+    "websocket-client>=0.56.0",
+    "wakeonlan>=2.0.0",
+    "numpy>=1.19.2"
+   ]
+  },
+  "dwains_dashboard": {
+   "documentation": "https://dwainscheeren.github.io/dwains-lovelace-dashboard/",
+   "version": "3.7.1",
+   "requirements": []
+  },
+  "lightener": {
+   "documentation": "https://github.com/fredck/lightener/blob/master/README.md",
+   "version": "v2.3.0",
+   "requirements": []
+  },
+  "simpleicons": {
+   "documentation": "https://github.com/vigonotion/hass-simpleicons",
+   "version": "v2.2.0",
+   "requirements": [
+    "simpleicons==7.14.0"
+   ]
+  },
+  "waste_management": {
+   "documentation": "https://github.com/dcmeglio/homeassistant-waste_management/blob/master/README.md",
+   "version": "0.1.6",
+   "requirements": [
+    "waste-management==3.1.1"
+   ]
+  },
+  "lovelace_gen": {
+   "documentation": "",
+   "version": "0.1.2",
+   "requirements": [
+    "jinja2"
+   ]
+  },
+  "ytube_music_player": {
+   "documentation": "https://github.com/KoljaWindeler/ytube_music_player",
+   "version": "20240709.01",
+   "requirements": [
+    "ytmusicapi==1.7.4",
+    "pytube==15.0.0",
+    "integrationhelper==0.2.2"
+   ]
+  },
+  "browser_mod": {
+   "documentation": "https://github.com/thomasloven/hass-browser_mod/blob/master/README.md",
+   "version": "2.3.1",
+   "requirements": []
+  },
+  "switchbot_press": {
+   "documentation": "https://www.home-assistant.io/integrations/switchbot_press",
+   "version": "0.8.2",
+   "requirements": [
+    "PySwitchbot==0.14.0"
+   ]
+  },
+  "teamtracker": {
+   "documentation": "https://github.com/vasqued2/ha-teamtracker",
+   "version": "0.1",
+   "requirements": [
+    "arrow",
+    "aiofiles"
+   ]
+  },
+  "astroweather": {
+   "documentation": "https://github.com/mawinkler/astroweather",
+   "version": "0.50.4",
+   "requirements": [
+    "pyastroweatherio==0.50.4"
+   ]
+  },
+  "azure_openai_conversation": {
+   "documentation": "https://github.com/joselcaguilar/azure-openai-ha",
+   "version": "v1.1.0",
+   "requirements": [
+    "openai==0.27.8"
+   ]
+  },
+  "spotcast": {
+   "documentation": "https://github.com/fondberg/spotcast",
+   "version": "v3.8.0",
+   "requirements": []
+  },
+  "entity_controller": {
+   "documentation": "https://github.com/danobot/entity-controller/blob/master/README.md",
+   "version": "9.7.6",
+   "requirements": [
+    "transitions==0.8.8"
+   ]
+  },
+  "icloud3": {
+   "documentation": "https://gcobb321.github.io/icloud3_v3_docs/#/",
+   "version": "3.0.5.7",
+   "requirements": []
+  },
+  "magicswitchbot": {
+   "documentation": "https://github.com/ec-blaster/magicswitchbot-homeassistant/blob/main/README.md",
+   "version": "1.1.1",
+   "requirements": [
+    "pyMagicSwitchbot==1.1.4"
+   ]
+  },
+  "hacs": {
+   "documentation": "https://hacs.xyz/docs/configuration/start",
+   "version": "1.34.0",
+   "requirements": [
+    "aiogithubapi>=22.10.1"
+   ]
+  },
+  "ui_lovelace_minimalist": {
+   "documentation": "https://ui-lovelace-minimalist.github.io/UI/",
+   "version": "v1.3.10",
+   "requirements": [
+    "aiofiles==0.8.0",
+    "aiogithubapi>=22.2.4"
+   ]
+  },
+  "dyson_local": {
+   "documentation": "https://github.com/libdyson-wg/ha-dyson",
+   "version": "1.3.11",
+   "requirements": []
+  },
+  "nest_protect": {
+   "documentation": "https://github.com/imicknl/ha-nest-protect",
+   "version": "0.4.0b4",
+   "requirements": []
+  },
+  "scheduler": {
+   "documentation": "https://github.com/nielsfaber/scheduler-component",
+   "version": "v0.0.0",
+   "requirements": []
+  },
+  "mail_and_packages": {
+   "documentation": "https://github.com/moralmunky/Home-Assistant-Mail-And-Packages",
+   "version": "0.4.0",
+   "requirements": [
+    "beautifulsoup4",
+    "Pillow>=9.0",
+    "dateparser"
+   ]
+  },
+  "huesyncbox": {
+   "documentation": "https://github.com/mvdwetering/huesyncbox",
+   "version": "2.2.3",
+   "requirements": [
+    "aiohuesyncbox==0.0.28"
+   ]
+  },
+  "watchman": {
+   "documentation": "https://github.com/dummylabs/thewatchman",
+   "version": "0.6.3",
+   "requirements": [
+    "prettytable==3.10.0"
+   ]
+  },
+  "yi_hack": {
+   "documentation": "https://github.com/roleoroleo/yi-hack_ha_integration",
+   "version": "0.5.2",
+   "requirements": []
+  },
+  "adaptive_lighting": {
+   "documentation": "https://github.com/basnijholt/adaptive-lighting#readme",
+   "version": "1.22.0",
+   "requirements": [
+    "ulid-transform"
+   ]
+  },
+  "samsungtv_smart": {
+   "documentation": "https://github.com/ollo69/ha-samsungtv-smart",
+   "version": "0.13.5",
+   "requirements": [
+    "websocket-client!=1.4.0,>=0.58.0",
+    "wakeonlan>=2.0.0",
+    "aiofiles>=0.8.0",
+    "casttube>=0.2.1"
+   ]
+  },
+  "mass": {
+   "documentation": "https://music-assistant.io",
+   "version": "2024.6.2",
+   "requirements": [
+    "music-assistant==2.0.6"
+   ]
+  },
+  "frigate": {
+   "documentation": "https://github.com/blakeblackshear/frigate",
+   "version": "5.3.0",
+   "requirements": [
+    "pytz"
+   ]
+  }
+ },
+ "integration_manifest": {
+  "domain": "rivian",
+  "name": "Rivian (Unofficial)",
+  "after_dependencies": [
+   "bluetooth_adapters"
+  ],
+  "codeowners": [
+   "bretterer"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/bretterer/home-assistant-rivian",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/bretterer/home-assistant-rivian/issues",
+  "loggers": [
+   "custom_components.rivian",
+   "rivian"
+  ],
+  "requirements": [
+   "rivian-python-client[ble]==1.2.1"
+  ],
+  "version": "1.3.1",
+  "is_built_in": false
+ },
+ "setup_times": {
+  "null": {
+   "setup": 1.736590638756752e-05
+  },
+  "b1e6bf6a2d764dc3504cd5186f9560fa": {
+   "wait_import_platforms": -0.023506963159888983,
+   "wait_base_component": -0.0008863788098096848,
+   "config_entry_setup": 4.629379789810628
+  }
+ },
+ "data": {
+  "user": {
+   "__typename": "User",
+   "id": "**REDACTED**",
+   "vehicles": [
+    {
+     "id": "**REDACTED**",
+     "vin": "**REDACTED**",
+     "name": null,
+     "vas": "**REDACTED**",
+     "roles": [
+      "driver"
+     ],
+     "state": null,
+     "createdAt": "2023-05-12T15:16:03.589278",
+     "updatedAt": null,
+     "vehicle": {
+      "__typename": "Vehicle",
+      "id": "**REDACTED**",
+      "vin": "**REDACTED**",
+      "modelYear": 2023,
+      "make": "RIVIAN",
+      "model": "R1T",
+      "expectedBuildDate": "2023-05-17",
+      "plannedBuildDate": null,
+      "expectedGeneralAssemblyStartDate": null,
+      "actualGeneralAssemblyDate": "2023-05-19",
+      "vehicleState": {
+       "supportedFeatures": [
+        {
+         "__typename": "SupportedFeature",
+         "name": "ADDR_SHR",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "ADDR_SHR_TXT",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "ADDR_SHR_YLP",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "CAR_WASH_MODE",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "CHARG_CMD",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "CHARG_SCHED",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "CHARG_SLIDER",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "DEFROST_DEFOG",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "FRUNK_NXT_ACT",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "GEAR_GUARD_VIDEO_SETTING",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "HEATED_SEATS",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "HEATED_WHEEL",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "PET_MODE",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "PRECON_CMD_RESP",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "PRECON_SCRN_PROT",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "RENAME_VEHICLE",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "SCHED_DPRT",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "SCHED_OTA",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "SD_CHARG_ENDS_AT",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "SET_TEMP_CMD",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "SIDE_BIN_NXT_ACT",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TAILGATE_CMD",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TAILGATE_NXT_ACT",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TESLA_NACS",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TRAILER_STATUS",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TRIP_ADD_STOP",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TRIP_PLANNER",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TRIP_PLANNER_DRIVE_MODE",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "TRIP_PLANNER_TRAILERS",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "VENTED_SEATS",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "WIN_CALIB_STS",
+         "status": "AVAILABLE"
+        },
+        {
+         "__typename": "SupportedFeature",
+         "name": "WIN_NXT_ACT",
+         "status": "AVAILABLE"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "registrationChannels": [
+    {
+     "type": "TEXT"
+    }
+   ],
+   "enrolledPhones": [
+    {
+     "__typename": "UserEnrolledPhone",
+     "vas": "**REDACTED**",
+     "enrolled": [
+      {
+       "__typename": "UserEnrolledPhoneEntry",
+       "deviceType": "phone/rivian",
+       "deviceName": "Home",
+       "vehicleId": "**REDACTED**",
+       "identityId": "**REDACTED**",
+       "shortName": ""
+      }
+     ]
+    }
+   ]
+  },
+  "vehicle": [
+   {
+    "closureTonneauClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "batteryLevel": {
+     "timeStamp": "2024-08-08T19:27:53.980Z",
+     "value": 98.5,
+     "history": [
+      98.5,
+      98.599998
+     ]
+    },
+    "closureTailgateClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "limitedRegenCold": {
+     "timeStamp": "2024-08-08T19:40:50.532Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "gnssBearing": {
+     "timeStamp": "2024-08-08T19:43:43.006Z",
+     "value": 352.5112,
+     "history": [
+      352.5082,
+      352.5154,
+      352.501,
+      352.492,
+      352.5095,
+      352.5023,
+      352.5139,
+      352.5098,
+      352.4977,
+      352.5049,
+      352.5115,
+      352.5043,
+      352.4997,
+      352.498,
+      352.5089,
+      352.5152,
+      352.5052,
+      352.5187,
+      352.5196,
+      352.5116,
+      352.5237,
+      352.5165,
+      352.5093,
+      352.5119,
+      352.515,
+      352.5078,
+      352.5222,
+      352.5104,
+      352.5032,
+      352.5176,
+      352.5148,
+      352.5161,
+      352.5128,
+      352.5056,
+      352.5159,
+      352.5113,
+      352.5185,
+      352.5041,
+      352.51,
+      352.5054,
+      352.5163,
+      352.5091,
+      352.5126,
+      352.4982,
+      352.5117,
+      352.5146,
+      352.5172,
+      352.5109,
+      352.5026,
+      352.4967,
+      352.5183,
+      352.5039,
+      352.5255,
+      352.5155,
+      352.5037,
+      352.5135,
+      352.5063,
+      352.5179,
+      352.5035,
+      352.5017,
+      352.5264,
+      352.5048,
+      352.5192,
+      352.5034,
+      352.5207,
+      352.5133,
+      352.508,
+      352.5106,
+      352.5137,
+      352.4988,
+      352.5292,
+      352.5058,
+      352.503,
+      352.5164,
+      352.5074,
+      352.5105,
+      352.5177,
+      352.519,
+      352.5046,
+      352.5118,
+      352.5059,
+      352.4987,
+      352.5131,
+      352.5203,
+      352.5144,
+      352.5072,
+      352.5247,
+      352.5103,
+      352.5175,
+      352.5085,
+      352.5013,
+      352.5174,
+      352.5246,
+      352.5102,
+      352.5157,
+      352.5229,
+      352.5111,
+      352.5065,
+      352.5166,
+      352.4976,
+      352.512,
+      352.5057,
+      352.5129,
+      352.517,
+      352.507,
+      352.5142,
+      352.5173,
+      352.5083,
+      352.5011,
+      352.5186,
+      352.5114,
+      352.4983,
+      352.5199,
+      352.5055,
+      352.5127,
+      352.5068,
+      352.514,
+      352.4996,
+      352.5153,
+      352.5009,
+      352.5081,
+      352.5184,
+      352.5094,
+      352.5022,
+      352.5269,
+      352.5125,
+      352.5112,
+      352.5226,
+      352.5198,
+      352.5108,
+      352.5036,
+      352.5107,
+      352.5233,
+      352.5124,
+      352.5197,
+      352.5224,
+      352.5138,
+      352.4963,
+      352.521,
+      352.5079,
+      352.5151,
+      352.5182,
+      352.5092,
+      352.502,
+      352.5123,
+      352.5033,
+      352.5064,
+      352.5005,
+      352.5077,
+      352.5149,
+      352.518,
+      352.5162,
+      352.509,
+      352.5121,
+      352.5193,
+      352.5031,
+      352.5087,
+      352.5069,
+      352.4995,
+      352.5067,
+      352.5096,
+      352.5168,
+      352.5122,
+      352.505,
+      352.5004,
+      352.5076,
+      352.5062,
+      352.5003,
+      352.5061,
+      352.5147,
+      352.5075,
+      352.5191,
+      352.5029,
+      352.506,
+      352.5204,
+      352.5132,
+      352.5042,
+      352.5073,
+      352.5001,
+      352.5145,
+      352.5205,
+      352.5086,
+      352.5158,
+      352.5044,
+      352.4942,
+      352.5189,
+      352.5027,
+      352.5099,
+      352.5171,
+      352.4955,
+      352.513,
+      352.5202,
+      352.4968,
+      352.504,
+      352.5215,
+      352.5143,
+      352.5084,
+      352.5012,
+      352.5228,
+      352.5156,
+      352.5188,
+      352.5097,
+      352.5169,
+      352.52,
+      352.5038,
+      352.511,
+      352.5213,
+      352.5051
+     ]
+    },
+    "closureSideBinRightClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "closureFrunkLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "locked",
+     "history": [
+      "locked"
+     ]
+    },
+    "btmRfdHardwareFailureStatus": {
+     "timeStamp": "2024-08-08T19:43:11.298Z",
+     "value": "dtc_not_set",
+     "history": [
+      "dtc_not_set"
+     ]
+    },
+    "doorRearRightLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "locked",
+     "history": [
+      "locked"
+     ]
+    },
+    "limitedAccelCold": {
+     "timeStamp": "2024-08-08T19:40:50.532Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "doorRearLeftClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "seatThirdRowRightHeat": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "gnssSpeed": {
+     "timeStamp": "2024-08-08T19:43:43.006Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "otaCurrentVersionYear": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 2024,
+     "history": [
+      2024
+     ]
+    },
+    "distanceToEmpty": {
+     "timeStamp": "2024-08-08T01:03:25.174Z",
+     "value": 508,
+     "history": [
+      508
+     ]
+    },
+    "windowRearLeftClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "gearGuardLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "unlocked",
+     "history": [
+      "unlocked"
+     ]
+    },
+    "closureLiftgateLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "locked",
+     "history": [
+      "locked"
+     ]
+    },
+    "seatThirdRowLeftHeat": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "cabinPreconditioningType": {
+     "timeStamp": "2024-08-08T19:01:17.590Z",
+     "value": "NONE",
+     "history": [
+      "NONE"
+     ]
+    },
+    "otaInstallType": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": "Convenience",
+     "history": [
+      "Convenience"
+     ]
+    },
+    "windowFrontRightClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "tirePressureStatusFrontRight": {
+     "timeStamp": "2024-08-08T07:19:43.843Z",
+     "value": "OK",
+     "history": [
+      "OK"
+     ]
+    },
+    "vehicleMileage": {
+     "timeStamp": "2024-08-08T01:03:21.487Z",
+     "value": 2778824,
+     "history": [
+      2778824
+     ]
+    },
+    "otaAvailableVersionWeek": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "gnssLocation": {
+     "latitude": "**REDACTED**",
+     "longitude": "**REDACTED**",
+     "timeStamp": "2024-08-08T19:15:48.026Z"
+    },
+    "chargerDerateStatus": {
+     "timeStamp": "2024-08-08T01:03:21.305Z",
+     "value": "NONE",
+     "history": [
+      "NONE"
+     ]
+    },
+    "closureFrunkClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "otaCurrentVersionWeek": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 19,
+     "history": [
+      19
+     ]
+    },
+    "windowRearLeftCalibrated": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "Calibrated",
+     "history": [
+      "Calibrated"
+     ]
+    },
+    "closureSideBinRightLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "closureLiftgateNextAction": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "SNA",
+     "history": [
+      "SNA"
+     ]
+    },
+    "trailerStatus": {
+     "timeStamp": "2024-08-08T19:43:14.784Z",
+     "value": "TRAILER_NOT_PRESENT",
+     "history": [
+      "TRAILER_NOT_PRESENT"
+     ]
+    },
+    "otaCurrentVersion": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": "2024.19.06",
+     "history": [
+      "2024.19.06"
+     ]
+    },
+    "defrostDefogStatus": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "seatRearLeftHeat": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "SNA",
+     "history": [
+      "SNA"
+     ]
+    },
+    "alarmSoundStatus": {
+     "timeStamp": "2024-08-08T02:24:17.277Z",
+     "value": "false",
+     "history": [
+      "false"
+     ]
+    },
+    "chargePortState": {
+     "timeStamp": "2024-08-08T01:03:27.606Z",
+     "value": "close",
+     "history": [
+      "close"
+     ]
+    },
+    "otaAvailableVersionGitHash": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": "",
+     "history": [
+      ""
+     ]
+    },
+    "otaInstallTime": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "rangeThreshold": {
+     "timeStamp": "2024-08-08T01:03:25.174Z",
+     "value": "vehicle_range_normal",
+     "history": [
+      "vehicle_range_normal"
+     ]
+    },
+    "otaCurrentVersionGitHash": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": "ae6498dd",
+     "history": [
+      "ae6498dd"
+     ]
+    },
+    "chargerState": {
+     "timeStamp": "2024-08-08T01:03:21.305Z",
+     "value": "charging_ready",
+     "history": [
+      "charging_ready"
+     ]
+    },
+    "otaInstallReady": {
+     "timeStamp": "2024-08-08T15:55:27.777Z",
+     "value": "ota_available",
+     "history": [
+      "ota_available"
+     ]
+    },
+    "closureTailgateLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "batteryCapacity": {
+     "timeStamp": "2024-08-08T19:27:53.980Z",
+     "value": 129.940002,
+     "history": [
+      129.940002,
+      129.944992,
+      129.949997,
+      129.955002,
+      129.959991,
+      129.970001
+     ]
+    },
+    "otaCurrentVersionNumber": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 6,
+     "history": [
+      6
+     ]
+    },
+    "petModeTemperatureStatus": {
+     "timeStamp": "2024-08-08T02:01:59.714Z",
+     "value": "Default",
+     "history": [
+      "Default"
+     ]
+    },
+    "tirePressureStatusFrontLeft": {
+     "timeStamp": "2024-08-08T07:19:43.843Z",
+     "value": "OK",
+     "history": [
+      "OK"
+     ]
+    },
+    "seatFrontRightHeat": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "gearStatus": {
+     "timeStamp": "2024-08-08T19:43:14.784Z",
+     "value": "park",
+     "history": [
+      "park"
+     ]
+    },
+    "windowFrontLeftCalibrated": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "Calibrated",
+     "history": [
+      "Calibrated"
+     ]
+    },
+    "gearGuardVideoTermsAccepted": {
+     "timeStamp": "2024-08-08T01:03:25.475Z",
+     "value": "true",
+     "history": [
+      "true"
+     ]
+    },
+    "doorRearRightClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "seatRearRightHeat": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "SNA",
+     "history": [
+      "SNA"
+     ]
+    },
+    "cabinClimateDriverTemperature": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": 22,
+     "history": [
+      22
+     ]
+    },
+    "closureSideBinLeftClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "driveMode": {
+     "timeStamp": "2024-08-08T19:01:17.250Z",
+     "value": "everyday",
+     "history": [
+      "everyday"
+     ]
+    },
+    "doorRearLeftLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "locked",
+     "history": [
+      "locked"
+     ]
+    },
+    "windowFrontLeftClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "batteryLimit": {
+     "timeStamp": "2024-08-08T01:03:21.305Z",
+     "value": 100,
+     "history": [
+      100
+     ]
+    },
+    "gearGuardVideoStatus": {
+     "timeStamp": "2024-08-08T01:03:25.475Z",
+     "value": "Enabled",
+     "history": [
+      "Enabled"
+     ]
+    },
+    "otaCurrentStatus": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": "Install_Success",
+     "history": [
+      "Install_Success"
+     ]
+    },
+    "btmFfHardwareFailureStatus": {
+     "timeStamp": "2024-08-08T19:43:15.478Z",
+     "value": "dtc_not_set",
+     "history": [
+      "dtc_not_set"
+     ]
+    },
+    "otaAvailableVersionYear": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "carWashMode": {
+     "timeStamp": "2024-08-08T15:55:27.677Z",
+     "value": "off",
+     "history": [
+      "off"
+     ]
+    },
+    "seatFrontLeftVent": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "otaInstallProgress": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "tirePressureStatusRearRight": {
+     "timeStamp": "2024-08-08T07:19:43.843Z",
+     "value": "OK",
+     "history": [
+      "OK"
+     ]
+    },
+    "batteryHvThermalEvent": {
+     "timeStamp": "2024-08-08T04:17:05.147Z",
+     "value": "off",
+     "history": [
+      "off"
+     ]
+    },
+    "doorFrontLeftLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "locked",
+     "history": [
+      "locked"
+     ]
+    },
+    "seatFrontRightVent": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "chargerStatus": {
+     "timeStamp": "2024-08-08T01:03:21.305Z",
+     "value": "chrgr_sts_not_connected",
+     "history": [
+      "chrgr_sts_not_connected"
+     ]
+    },
+    "seatFrontLeftHeat": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "timeToEndOfCharge": {
+     "timeStamp": "2024-08-08T01:03:21.305Z",
+     "value": 65535,
+     "history": [
+      65535
+     ]
+    },
+    "windowsNextAction": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "Open_Allowed",
+     "history": [
+      "Open_Allowed"
+     ]
+    },
+    "btmLfdHardwareFailureStatus": {
+     "timeStamp": "2024-08-08T19:39:23.295Z",
+     "value": "dtc_not_set",
+     "history": [
+      "dtc_not_set"
+     ]
+    },
+    "remoteChargingAvailable": {
+     "timeStamp": "2024-08-08T01:03:21.305Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "tirePressureRearLeft": {
+     "timeStamp": "2024-08-06T23:46:48.767Z",
+     "value": 3.225,
+     "history": [
+      3.225
+     ]
+    },
+    "steeringWheelHeat": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": "Off",
+     "history": [
+      "Off"
+     ]
+    },
+    "otaStatus": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": "Idle",
+     "history": [
+      "Idle"
+     ]
+    },
+    "gearGuardVideoMode": {
+     "timeStamp": "2024-08-08T01:03:25.475Z",
+     "value": "Away_From_Home",
+     "history": [
+      "Away_From_Home"
+     ]
+    },
+    "doorFrontRightClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "otaDownloadProgress": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "cabinClimateInteriorTemperature": {
+     "timeStamp": "2024-08-08T13:53:01.813Z",
+     "value": 23,
+     "history": [
+      23
+     ]
+    },
+    "otaInstallDuration": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "serviceMode": {
+     "timeStamp": "2024-08-08T15:55:27.677Z",
+     "value": "off",
+     "history": [
+      "off"
+     ]
+    },
+    "otaAvailableVersion": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": "0.0.0",
+     "history": [
+      "0.0.0"
+     ]
+    },
+    "windowRearRightCalibrated": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "Calibrated",
+     "history": [
+      "Calibrated"
+     ]
+    },
+    "twelveVoltBatteryHealth": {
+     "timeStamp": "2024-08-08T19:42:14.483Z",
+     "value": "NORMAL_OPERATION",
+     "history": [
+      "NORMAL_OPERATION"
+     ]
+    },
+    "btmRfHardwareFailureStatus": {
+     "timeStamp": "2024-08-08T19:42:33.100Z",
+     "value": "dtc_not_set",
+     "history": [
+      "dtc_not_set"
+     ]
+    },
+    "closureSideBinLeftLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "closureTonneauLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "cabinPreconditioningStatus": {
+     "timeStamp": "2024-08-08T15:55:37.759Z",
+     "value": "undefined",
+     "history": [
+      "undefined"
+     ]
+    },
+    "windowRearRightClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "btmIcHardwareFailureStatus": {
+     "timeStamp": "2024-08-08T19:43:03.493Z",
+     "value": "dtc_not_set",
+     "history": [
+      "dtc_not_set"
+     ]
+    },
+    "closureLiftgateClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "signal_not_available",
+     "history": [
+      "signal_not_available"
+     ]
+    },
+    "windowFrontRightCalibrated": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "Calibrated",
+     "history": [
+      "Calibrated"
+     ]
+    },
+    "wiperFluidState": {
+     "timeStamp": "2024-08-08T01:03:21.321Z",
+     "value": "normal",
+     "history": [
+      "normal"
+     ]
+    },
+    "tirePressureFrontRight": {
+     "timeStamp": "2024-08-06T23:46:48.767Z",
+     "value": 3.175,
+     "history": [
+      3.175
+     ]
+    },
+    "batteryHvThermalEventPropagation": {
+     "timeStamp": "2024-08-08T19:42:14.483Z",
+     "value": "nominal",
+     "history": [
+      "nominal"
+     ]
+    },
+    "tirePressureStatusRearLeft": {
+     "timeStamp": "2024-08-08T07:19:43.843Z",
+     "value": "OK",
+     "history": [
+      "OK"
+     ]
+    },
+    "tirePressureRearRight": {
+     "timeStamp": "2024-08-06T23:46:48.767Z",
+     "value": 3.15,
+     "history": [
+      3.15
+     ]
+    },
+    "doorFrontRightLocked": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "locked",
+     "history": [
+      "locked"
+     ]
+    },
+    "otaAvailableVersionNumber": {
+     "timeStamp": "2024-08-08T01:03:57.633Z",
+     "value": 0,
+     "history": [
+      0
+     ]
+    },
+    "gnssAltitude": {
+     "timeStamp": "2024-08-08T19:43:43.006Z",
+     "value": 62.383,
+     "history": [
+      62.383
+     ]
+    },
+    "powerState": {
+     "timeStamp": "2024-08-08T19:43:14.804Z",
+     "value": "sleep",
+     "history": [
+      "sleep",
+      "ready",
+      "standby"
+     ]
+    },
+    "doorFrontLeftClosed": {
+     "timeStamp": "2024-08-08T07:19:43.142Z",
+     "value": "closed",
+     "history": [
+      "closed"
+     ]
+    },
+    "tirePressureFrontLeft": {
+     "timeStamp": "2024-08-06T23:46:48.767Z",
+     "value": 3.225,
+     "history": [
+      3.225
+     ]
+    },
+    "petModeStatus": {
+     "timeStamp": "2024-08-08T02:01:59.714Z",
+     "value": "Disabled",
+     "history": [
+      "Disabled"
+     ]
+    }
+   }
+  ],
+  "charging": [
+   {
+    "__typename": "LiveSessionData",
+    "power": {
+     "__typename": "FloatValueRecord",
+     "value": 0,
+     "updatedAt": "2024-08-08T01:03:21.305Z"
+    },
+    "kilometersChargedPerHour": {
+     "__typename": "FloatValueRecord",
+     "value": 0,
+     "updatedAt": "2024-08-08T02:01:19.179Z"
+    },
+    "totalChargedEnergy": {
+     "__typename": "FloatValueRecord",
+     "value": 46,
+     "updatedAt": "2024-08-08T01:03:21.305Z"
+    },
+    "currentPrice": null,
+    "timeElapsed": null,
+    "startTime": null,
+    "currentCurrency": null,
+    "rangeAddedThisSession": {
+     "__typename": "FloatValueRecord",
+     "value": 0,
+     "updatedAt": "2024-08-08T02:01:19.179Z"
+    }
+   }
+  ],
+  "drivers": [
+   {
+    "__typename": "Vehicle",
+    "id": "**REDACTED**",
+    "vin": "**REDACTED**",
+    "invitedUsers": [
+     {
+      "__typename": "ProvisionedUser",
+      "firstName": "Home",
+      "lastName": "Assistant",
+      "email": "**REDACTED**",
+      "roles": [
+       "driver"
+      ],
+      "userId": "**REDACTED**",
+      "devices": [
+       {
+        "type": "phone/rivian",
+        "mappedIdentityId": "**REDACTED**",
+        "id": "**REDACTED**",
+        "hrid": null,
+        "deviceName": "Home",
+        "isPaired": true,
+        "isEnabled": true
+       },
+       {
+        "type": "nfc_card/rivian",
+        "mappedIdentityId": "**REDACTED**",
+        "id": "**REDACTED**",
+        "hrid": "**REDACTED**",
+        "deviceName": "Rivian NFC Card",
+        "isPaired": true,
+        "isEnabled": true
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "wallbox": []
+ }
+}
