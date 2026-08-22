@@ -56,7 +56,7 @@ exclude = [
 # tests/test_gateway_schema.py:38 does sys.path.insert(REPO/"scripts/gates/helpers")
 # and imports apk_vehicle_state_fields at :163 and :266. Pyright cannot follow a
 # runtime sys.path mutation, so the path is declared here instead.
-extraPaths = ["scripts/gates/helpers"]
+extraPaths = ["scripts/gates/helpers", "scripts"]
 
 # These two import `rivian.parallax` from the SIBLING repo jrgutier/rivian-python-client,
 # which is not checked out in this workspace (the integration vendors its own copy under
