@@ -1,5 +1,8 @@
 {
   "R1S": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
     "binary_sensors": [
       "car_wash_mode",
       "charge_port_state",
@@ -30,6 +33,45 @@
       "window_front_right_closed",
       "window_rear_left_closed",
       "window_rear_right_closed"
+    ],
+    "buttons": [
+      "wake"
+    ],
+    "climate": [
+      "cabin_climate"
+    ],
+    "covers": [
+      "frunk",
+      "windows"
+    ],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [
+      "closures"
+    ],
+    "numbers": [
+      "battery_limit",
+      "charging_schedule_amperage"
+    ],
+    "selects": [
+      "seat_front_left_heat_vent",
+      "seat_front_right_heat_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat"
+    ],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
     ],
     "sensors": [
       "active_driver_name",
@@ -156,9 +198,246 @@
       "window_rear_right_calibrated",
       "windows_next_action",
       "wiper_fluid_state"
+    ],
+    "switches": [
+      "alarm",
+      "cabin_climate_hold",
+      "charging_enabled",
+      "charging_schedule_enabled",
+      "gear_guard_video",
+      "steering_wheel_heat"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
+    ]
+  },
+  "R1S_full_hardware": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
+    "binary_sensors": [
+      "car_wash_mode",
+      "charge_port_state",
+      "closure_frunk_closed",
+      "closure_frunk_locked",
+      "closure_liftgate_closed",
+      "closure_liftgate_locked",
+      "closure_state",
+      "closure_tailgate_closed",
+      "closure_tailgate_locked",
+      "door_front_left_closed",
+      "door_front_left_locked",
+      "door_front_right_closed",
+      "door_front_right_locked",
+      "door_rear_left_closed",
+      "door_rear_left_locked",
+      "door_rear_right_closed",
+      "door_rear_right_locked",
+      "door_state",
+      "gear_guard_locked",
+      "locked_state",
+      "tire_pressure_status_valid_front_left",
+      "tire_pressure_status_valid_front_right",
+      "tire_pressure_status_valid_rear_left",
+      "tire_pressure_status_valid_rear_right",
+      "use_state",
+      "window_front_left_closed",
+      "window_front_right_closed",
+      "window_rear_left_closed",
+      "window_rear_right_closed"
+    ],
+    "buttons": [
+      "open_liftgate",
+      "wake"
+    ],
+    "climate": [
+      "cabin_climate"
+    ],
+    "covers": [
+      "charge_port",
+      "frunk",
+      "liftgate",
+      "windows"
+    ],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [
+      "closures"
+    ],
+    "numbers": [
+      "battery_limit",
+      "charging_schedule_amperage"
+    ],
+    "selects": [
+      "seat_front_left_heat_vent",
+      "seat_front_right_heat_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat"
+    ],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
+    ],
+    "sensors": [
+      "active_driver_name",
+      "alarm_sound_status",
+      "battery_capacity",
+      "battery_cell_type",
+      "battery_hv_thermal_event",
+      "battery_hv_thermal_event_propagation",
+      "battery_level",
+      "battery_limit",
+      "battery_needs_lfp_calibration",
+      "brake_fluid_low",
+      "btm_ff_hardware_failure_status",
+      "btm_ic_hardware_failure_status",
+      "btm_lfd_hardware_failure_status",
+      "btm_oc_hardware_failure_status",
+      "btm_rf_hardware_failure_status",
+      "btm_rfd_hardware_failure_status",
+      "cabin_climate_driver_temperature",
+      "cabin_climate_interior_temperature",
+      "cabin_hold_notification",
+      "cabin_hold_status",
+      "cabin_preconditioning_status",
+      "cabin_preconditioning_type",
+      "cellular_antenna_bars",
+      "cellular_carrier",
+      "cellular_mode",
+      "cellular_signal_strength",
+      "charger_derate_status",
+      "charger_state",
+      "charger_status",
+      "charging_disabled_ac_fault_state",
+      "charging_disabled_all",
+      "charging_time_estimation_validity",
+      "charging_trip_target_mins_remaining",
+      "charging_trip_target_soc",
+      "closure_charge_port_door_next_action",
+      "closure_frunk_next_action",
+      "closure_liftgate_next_action",
+      "cold_range_notification",
+      "consecutive_alarm_disabled_notification",
+      "defrost_defog_status",
+      "distance_to_empty",
+      "drive_mode",
+      "gear_guard_video_mode",
+      "gear_guard_video_status",
+      "gear_guard_video_terms_accepted",
+      "gear_status",
+      "geo_location",
+      "gnss_altitude",
+      "gnss_bearing",
+      "gnss_error_bearing",
+      "gnss_error_position_horizontal",
+      "gnss_error_position_vertical",
+      "gnss_error_speed",
+      "gnss_speed",
+      "known_location",
+      "limited_accel_cold",
+      "limited_regen_cold",
+      "ota_available_version",
+      "ota_available_version_git_hash",
+      "ota_available_version_number",
+      "ota_available_version_week",
+      "ota_available_version_year",
+      "ota_current_status",
+      "ota_current_version",
+      "ota_current_version_git_hash",
+      "ota_current_version_number",
+      "ota_current_version_week",
+      "ota_current_version_year",
+      "ota_deployment_intent",
+      "ota_download_progress",
+      "ota_install_duration",
+      "ota_install_progress",
+      "ota_install_ready",
+      "ota_install_time",
+      "ota_install_type",
+      "ota_software_category",
+      "ota_status",
+      "passive_entry_unlock_fail_reason",
+      "pet_mode_status",
+      "pet_mode_temperature_status",
+      "power_state",
+      "range_threshold",
+      "rear_hitch_status",
+      "remote_charging_available",
+      "seat_front_left_heat",
+      "seat_front_left_vent",
+      "seat_front_right_heat",
+      "seat_front_right_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat",
+      "seat_third_row_left_heat",
+      "seat_third_row_right_heat",
+      "secure_immobilizer_status",
+      "service_mode",
+      "steering_wheel_heat",
+      "time_to_end_of_charge",
+      "tire_pressure_front_left",
+      "tire_pressure_front_right",
+      "tire_pressure_rear_left",
+      "tire_pressure_rear_right",
+      "tire_pressure_status_front_left",
+      "tire_pressure_status_front_right",
+      "tire_pressure_status_rear_left",
+      "tire_pressure_status_rear_right",
+      "trailer_status",
+      "twelve_volt_battery_health",
+      "vas_access_can_faulted",
+      "vas_secure_element_faulted",
+      "vehicle_mileage",
+      "wheels_installed",
+      "wifi_antenna_bars",
+      "wifi_freq",
+      "wifi_link_speed",
+      "wifi_secure_status",
+      "wifi_signal",
+      "wifi_ssid",
+      "wifi_sta_disabled_reason",
+      "wifi_wpa_status",
+      "window_front_left_calibrated",
+      "window_front_right_calibrated",
+      "window_rear_left_calibrated",
+      "window_rear_right_calibrated",
+      "windows_next_action",
+      "wiper_fluid_state"
+    ],
+    "switches": [
+      "alarm",
+      "cabin_climate_hold",
+      "charging_enabled",
+      "charging_schedule_enabled",
+      "gear_guard_video",
+      "steering_wheel_heat"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
     ]
   },
   "R1T": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
     "binary_sensors": [
       "car_wash_mode",
       "charge_port_state",
@@ -193,6 +472,45 @@
       "window_front_right_closed",
       "window_rear_left_closed",
       "window_rear_right_closed"
+    ],
+    "buttons": [
+      "wake"
+    ],
+    "climate": [
+      "cabin_climate"
+    ],
+    "covers": [
+      "frunk",
+      "windows"
+    ],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [
+      "closures"
+    ],
+    "numbers": [
+      "battery_limit",
+      "charging_schedule_amperage"
+    ],
+    "selects": [
+      "seat_front_left_heat_vent",
+      "seat_front_right_heat_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat"
+    ],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
     ],
     "sensors": [
       "active_driver_name",
@@ -319,9 +637,253 @@
       "window_rear_right_calibrated",
       "windows_next_action",
       "wiper_fluid_state"
+    ],
+    "switches": [
+      "alarm",
+      "cabin_climate_hold",
+      "charging_enabled",
+      "charging_schedule_enabled",
+      "gear_guard_video",
+      "steering_wheel_heat"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
+    ]
+  },
+  "R1T_full_hardware": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
+    "binary_sensors": [
+      "car_wash_mode",
+      "charge_port_state",
+      "closure_frunk_closed",
+      "closure_frunk_locked",
+      "closure_side_bin_left_closed",
+      "closure_side_bin_left_locked",
+      "closure_side_bin_right_closed",
+      "closure_side_bin_right_locked",
+      "closure_state",
+      "closure_tailgate_closed",
+      "closure_tailgate_locked",
+      "closure_tonneau_closed",
+      "closure_tonneau_locked",
+      "door_front_left_closed",
+      "door_front_left_locked",
+      "door_front_right_closed",
+      "door_front_right_locked",
+      "door_rear_left_closed",
+      "door_rear_left_locked",
+      "door_rear_right_closed",
+      "door_rear_right_locked",
+      "door_state",
+      "gear_guard_locked",
+      "locked_state",
+      "tire_pressure_status_valid_front_left",
+      "tire_pressure_status_valid_front_right",
+      "tire_pressure_status_valid_rear_left",
+      "tire_pressure_status_valid_rear_right",
+      "use_state",
+      "window_front_left_closed",
+      "window_front_right_closed",
+      "window_rear_left_closed",
+      "window_rear_right_closed"
+    ],
+    "buttons": [
+      "drop_tailgate",
+      "open_gear_tunnel_left",
+      "open_gear_tunnel_right",
+      "open_tailgate",
+      "wake"
+    ],
+    "climate": [
+      "cabin_climate"
+    ],
+    "covers": [
+      "charge_port",
+      "frunk",
+      "tonneau",
+      "windows"
+    ],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [
+      "closures"
+    ],
+    "numbers": [
+      "battery_limit",
+      "charging_schedule_amperage"
+    ],
+    "selects": [
+      "seat_front_left_heat_vent",
+      "seat_front_right_heat_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat"
+    ],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
+    ],
+    "sensors": [
+      "active_driver_name",
+      "alarm_sound_status",
+      "battery_capacity",
+      "battery_cell_type",
+      "battery_hv_thermal_event",
+      "battery_hv_thermal_event_propagation",
+      "battery_level",
+      "battery_limit",
+      "battery_needs_lfp_calibration",
+      "brake_fluid_low",
+      "btm_ff_hardware_failure_status",
+      "btm_ic_hardware_failure_status",
+      "btm_lfd_hardware_failure_status",
+      "btm_oc_hardware_failure_status",
+      "btm_rf_hardware_failure_status",
+      "btm_rfd_hardware_failure_status",
+      "cabin_climate_driver_temperature",
+      "cabin_climate_interior_temperature",
+      "cabin_hold_notification",
+      "cabin_hold_status",
+      "cabin_preconditioning_status",
+      "cabin_preconditioning_type",
+      "cellular_antenna_bars",
+      "cellular_carrier",
+      "cellular_mode",
+      "cellular_signal_strength",
+      "charger_derate_status",
+      "charger_state",
+      "charger_status",
+      "charging_disabled_ac_fault_state",
+      "charging_disabled_all",
+      "charging_time_estimation_validity",
+      "charging_trip_target_mins_remaining",
+      "charging_trip_target_soc",
+      "closure_charge_port_door_next_action",
+      "closure_frunk_next_action",
+      "closure_side_bin_left_next_action",
+      "closure_side_bin_right_next_action",
+      "closure_tailgate_next_action",
+      "cold_range_notification",
+      "consecutive_alarm_disabled_notification",
+      "defrost_defog_status",
+      "distance_to_empty",
+      "drive_mode",
+      "gear_guard_video_mode",
+      "gear_guard_video_status",
+      "gear_guard_video_terms_accepted",
+      "gear_status",
+      "geo_location",
+      "gnss_altitude",
+      "gnss_bearing",
+      "gnss_error_bearing",
+      "gnss_error_position_horizontal",
+      "gnss_error_position_vertical",
+      "gnss_error_speed",
+      "gnss_speed",
+      "known_location",
+      "limited_accel_cold",
+      "limited_regen_cold",
+      "ota_available_version",
+      "ota_available_version_git_hash",
+      "ota_available_version_number",
+      "ota_available_version_week",
+      "ota_available_version_year",
+      "ota_current_status",
+      "ota_current_version",
+      "ota_current_version_git_hash",
+      "ota_current_version_number",
+      "ota_current_version_week",
+      "ota_current_version_year",
+      "ota_deployment_intent",
+      "ota_download_progress",
+      "ota_install_duration",
+      "ota_install_progress",
+      "ota_install_ready",
+      "ota_install_time",
+      "ota_install_type",
+      "ota_software_category",
+      "ota_status",
+      "passive_entry_unlock_fail_reason",
+      "pet_mode_status",
+      "pet_mode_temperature_status",
+      "power_state",
+      "range_threshold",
+      "rear_hitch_status",
+      "remote_charging_available",
+      "seat_front_left_heat",
+      "seat_front_left_vent",
+      "seat_front_right_heat",
+      "seat_front_right_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat",
+      "secure_immobilizer_status",
+      "service_mode",
+      "steering_wheel_heat",
+      "time_to_end_of_charge",
+      "tire_pressure_front_left",
+      "tire_pressure_front_right",
+      "tire_pressure_rear_left",
+      "tire_pressure_rear_right",
+      "tire_pressure_status_front_left",
+      "tire_pressure_status_front_right",
+      "tire_pressure_status_rear_left",
+      "tire_pressure_status_rear_right",
+      "trailer_status",
+      "twelve_volt_battery_health",
+      "vas_access_can_faulted",
+      "vas_secure_element_faulted",
+      "vehicle_mileage",
+      "wheels_installed",
+      "wifi_antenna_bars",
+      "wifi_freq",
+      "wifi_link_speed",
+      "wifi_secure_status",
+      "wifi_signal",
+      "wifi_ssid",
+      "wifi_sta_disabled_reason",
+      "wifi_wpa_status",
+      "window_front_left_calibrated",
+      "window_front_right_calibrated",
+      "window_rear_left_calibrated",
+      "window_rear_right_calibrated",
+      "windows_next_action",
+      "wiper_fluid_state"
+    ],
+    "switches": [
+      "alarm",
+      "cabin_climate_hold",
+      "charging_enabled",
+      "charging_schedule_enabled",
+      "gear_guard_video",
+      "steering_wheel_heat"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
     ]
   },
   "R2": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
     "binary_sensors": [
       "car_wash_mode",
       "charge_port_state",
@@ -352,6 +914,45 @@
       "window_front_right_closed",
       "window_rear_left_closed",
       "window_rear_right_closed"
+    ],
+    "buttons": [
+      "wake"
+    ],
+    "climate": [
+      "cabin_climate"
+    ],
+    "covers": [
+      "frunk",
+      "windows"
+    ],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [
+      "closures"
+    ],
+    "numbers": [
+      "battery_limit",
+      "charging_schedule_amperage"
+    ],
+    "selects": [
+      "seat_front_left_heat_vent",
+      "seat_front_right_heat_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat"
+    ],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
     ],
     "sensors": [
       "active_driver_name",
@@ -476,9 +1077,244 @@
       "window_rear_right_calibrated",
       "windows_next_action",
       "wiper_fluid_state"
+    ],
+    "switches": [
+      "alarm",
+      "cabin_climate_hold",
+      "charging_enabled",
+      "charging_schedule_enabled",
+      "gear_guard_video",
+      "steering_wheel_heat"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
+    ]
+  },
+  "R2_full_hardware": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
+    "binary_sensors": [
+      "car_wash_mode",
+      "charge_port_state",
+      "closure_frunk_closed",
+      "closure_frunk_locked",
+      "closure_liftgate_closed",
+      "closure_liftgate_locked",
+      "closure_state",
+      "closure_tailgate_closed",
+      "closure_tailgate_locked",
+      "door_front_left_closed",
+      "door_front_left_locked",
+      "door_front_right_closed",
+      "door_front_right_locked",
+      "door_rear_left_closed",
+      "door_rear_left_locked",
+      "door_rear_right_closed",
+      "door_rear_right_locked",
+      "door_state",
+      "gear_guard_locked",
+      "locked_state",
+      "tire_pressure_status_valid_front_left",
+      "tire_pressure_status_valid_front_right",
+      "tire_pressure_status_valid_rear_left",
+      "tire_pressure_status_valid_rear_right",
+      "use_state",
+      "window_front_left_closed",
+      "window_front_right_closed",
+      "window_rear_left_closed",
+      "window_rear_right_closed"
+    ],
+    "buttons": [
+      "open_liftgate",
+      "wake"
+    ],
+    "climate": [
+      "cabin_climate"
+    ],
+    "covers": [
+      "charge_port",
+      "frunk",
+      "liftgate",
+      "windows"
+    ],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [
+      "closures"
+    ],
+    "numbers": [
+      "battery_limit",
+      "charging_schedule_amperage"
+    ],
+    "selects": [
+      "seat_front_left_heat_vent",
+      "seat_front_right_heat_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat"
+    ],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
+    ],
+    "sensors": [
+      "active_driver_name",
+      "alarm_sound_status",
+      "battery_capacity",
+      "battery_cell_type",
+      "battery_hv_thermal_event",
+      "battery_hv_thermal_event_propagation",
+      "battery_level",
+      "battery_limit",
+      "battery_needs_lfp_calibration",
+      "brake_fluid_low",
+      "btm_ff_hardware_failure_status",
+      "btm_ic_hardware_failure_status",
+      "btm_lfd_hardware_failure_status",
+      "btm_oc_hardware_failure_status",
+      "btm_rf_hardware_failure_status",
+      "btm_rfd_hardware_failure_status",
+      "cabin_climate_driver_temperature",
+      "cabin_climate_interior_temperature",
+      "cabin_hold_notification",
+      "cabin_hold_status",
+      "cabin_preconditioning_status",
+      "cabin_preconditioning_type",
+      "cellular_antenna_bars",
+      "cellular_carrier",
+      "cellular_mode",
+      "cellular_signal_strength",
+      "charger_derate_status",
+      "charger_state",
+      "charger_status",
+      "charging_disabled_ac_fault_state",
+      "charging_disabled_all",
+      "charging_time_estimation_validity",
+      "charging_trip_target_mins_remaining",
+      "charging_trip_target_soc",
+      "closure_charge_port_door_next_action",
+      "closure_frunk_next_action",
+      "closure_liftgate_next_action",
+      "cold_range_notification",
+      "consecutive_alarm_disabled_notification",
+      "defrost_defog_status",
+      "distance_to_empty",
+      "drive_mode",
+      "gear_guard_video_mode",
+      "gear_guard_video_status",
+      "gear_guard_video_terms_accepted",
+      "gear_status",
+      "geo_location",
+      "gnss_altitude",
+      "gnss_bearing",
+      "gnss_error_bearing",
+      "gnss_error_position_horizontal",
+      "gnss_error_position_vertical",
+      "gnss_error_speed",
+      "gnss_speed",
+      "known_location",
+      "limited_accel_cold",
+      "limited_regen_cold",
+      "ota_available_version",
+      "ota_available_version_git_hash",
+      "ota_available_version_number",
+      "ota_available_version_week",
+      "ota_available_version_year",
+      "ota_current_status",
+      "ota_current_version",
+      "ota_current_version_git_hash",
+      "ota_current_version_number",
+      "ota_current_version_week",
+      "ota_current_version_year",
+      "ota_deployment_intent",
+      "ota_download_progress",
+      "ota_install_duration",
+      "ota_install_progress",
+      "ota_install_ready",
+      "ota_install_time",
+      "ota_install_type",
+      "ota_software_category",
+      "ota_status",
+      "passive_entry_unlock_fail_reason",
+      "pet_mode_status",
+      "pet_mode_temperature_status",
+      "power_state",
+      "range_threshold",
+      "rear_hitch_status",
+      "remote_charging_available",
+      "seat_front_left_heat",
+      "seat_front_left_vent",
+      "seat_front_right_heat",
+      "seat_front_right_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat",
+      "secure_immobilizer_status",
+      "service_mode",
+      "steering_wheel_heat",
+      "time_to_end_of_charge",
+      "tire_pressure_front_left",
+      "tire_pressure_front_right",
+      "tire_pressure_rear_left",
+      "tire_pressure_rear_right",
+      "tire_pressure_status_front_left",
+      "tire_pressure_status_front_right",
+      "tire_pressure_status_rear_left",
+      "tire_pressure_status_rear_right",
+      "trailer_status",
+      "twelve_volt_battery_health",
+      "vas_access_can_faulted",
+      "vas_secure_element_faulted",
+      "vehicle_mileage",
+      "wheels_installed",
+      "wifi_antenna_bars",
+      "wifi_freq",
+      "wifi_link_speed",
+      "wifi_secure_status",
+      "wifi_signal",
+      "wifi_ssid",
+      "wifi_sta_disabled_reason",
+      "wifi_wpa_status",
+      "window_front_left_calibrated",
+      "window_front_right_calibrated",
+      "window_rear_left_calibrated",
+      "window_rear_right_calibrated",
+      "windows_next_action",
+      "wiper_fluid_state"
+    ],
+    "switches": [
+      "alarm",
+      "cabin_climate_hold",
+      "charging_enabled",
+      "charging_schedule_enabled",
+      "gear_guard_video",
+      "steering_wheel_heat"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
     ]
   },
   "__absent__": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
     "binary_sensors": [
       "car_wash_mode",
       "charge_port_state",
@@ -507,6 +1343,45 @@
       "window_front_right_closed",
       "window_rear_left_closed",
       "window_rear_right_closed"
+    ],
+    "buttons": [
+      "wake"
+    ],
+    "climate": [
+      "cabin_climate"
+    ],
+    "covers": [
+      "frunk",
+      "windows"
+    ],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [
+      "closures"
+    ],
+    "numbers": [
+      "battery_limit",
+      "charging_schedule_amperage"
+    ],
+    "selects": [
+      "seat_front_left_heat_vent",
+      "seat_front_right_heat_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat"
+    ],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
     ],
     "sensors": [
       "active_driver_name",
@@ -630,6 +1505,221 @@
       "window_rear_right_calibrated",
       "windows_next_action",
       "wiper_fluid_state"
+    ],
+    "switches": [
+      "alarm",
+      "cabin_climate_hold",
+      "charging_enabled",
+      "charging_schedule_enabled",
+      "gear_guard_video",
+      "steering_wheel_heat"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
+    ]
+  },
+  "unpaired": {
+    "binary_sensor_extras": [
+      "cloud_connected"
+    ],
+    "binary_sensors": [
+      "car_wash_mode",
+      "charge_port_state",
+      "closure_frunk_closed",
+      "closure_frunk_locked",
+      "closure_side_bin_left_closed",
+      "closure_side_bin_left_locked",
+      "closure_side_bin_right_closed",
+      "closure_side_bin_right_locked",
+      "closure_state",
+      "closure_tailgate_closed",
+      "closure_tailgate_locked",
+      "closure_tonneau_closed",
+      "closure_tonneau_locked",
+      "door_front_left_closed",
+      "door_front_left_locked",
+      "door_front_right_closed",
+      "door_front_right_locked",
+      "door_rear_left_closed",
+      "door_rear_left_locked",
+      "door_rear_right_closed",
+      "door_rear_right_locked",
+      "door_state",
+      "gear_guard_locked",
+      "locked_state",
+      "tire_pressure_status_valid_front_left",
+      "tire_pressure_status_valid_front_right",
+      "tire_pressure_status_valid_rear_left",
+      "tire_pressure_status_valid_rear_right",
+      "use_state",
+      "window_front_left_closed",
+      "window_front_right_closed",
+      "window_rear_left_closed",
+      "window_rear_right_closed"
+    ],
+    "buttons": [],
+    "climate": [],
+    "covers": [],
+    "device_tracker": [
+      "location"
+    ],
+    "locks": [],
+    "numbers": [
+      "charging_schedule_amperage"
+    ],
+    "selects": [],
+    "sensor_extras": [
+      "charging_cost",
+      "charging_energy_delivered",
+      "charging_is_free",
+      "charging_range_added",
+      "charging_rate",
+      "charging_speed",
+      "charging_start_time",
+      "charging_time_elapsed",
+      "charging_time_remaining",
+      "drivers",
+      "keys"
+    ],
+    "sensors": [
+      "active_driver_name",
+      "alarm_sound_status",
+      "battery_capacity",
+      "battery_cell_type",
+      "battery_hv_thermal_event",
+      "battery_hv_thermal_event_propagation",
+      "battery_level",
+      "battery_limit",
+      "battery_needs_lfp_calibration",
+      "brake_fluid_low",
+      "btm_ff_hardware_failure_status",
+      "btm_ic_hardware_failure_status",
+      "btm_lfd_hardware_failure_status",
+      "btm_oc_hardware_failure_status",
+      "btm_rf_hardware_failure_status",
+      "btm_rfd_hardware_failure_status",
+      "cabin_climate_driver_temperature",
+      "cabin_climate_interior_temperature",
+      "cabin_hold_notification",
+      "cabin_hold_status",
+      "cabin_preconditioning_status",
+      "cabin_preconditioning_type",
+      "cellular_antenna_bars",
+      "cellular_carrier",
+      "cellular_mode",
+      "cellular_signal_strength",
+      "charger_derate_status",
+      "charger_state",
+      "charger_status",
+      "charging_disabled_ac_fault_state",
+      "charging_disabled_all",
+      "charging_time_estimation_validity",
+      "charging_trip_target_mins_remaining",
+      "charging_trip_target_soc",
+      "closure_charge_port_door_next_action",
+      "closure_frunk_next_action",
+      "closure_side_bin_left_next_action",
+      "closure_side_bin_right_next_action",
+      "closure_tailgate_next_action",
+      "cold_range_notification",
+      "consecutive_alarm_disabled_notification",
+      "defrost_defog_status",
+      "distance_to_empty",
+      "drive_mode",
+      "gear_guard_video_mode",
+      "gear_guard_video_status",
+      "gear_guard_video_terms_accepted",
+      "gear_status",
+      "geo_location",
+      "gnss_altitude",
+      "gnss_bearing",
+      "gnss_error_bearing",
+      "gnss_error_position_horizontal",
+      "gnss_error_position_vertical",
+      "gnss_error_speed",
+      "gnss_speed",
+      "known_location",
+      "limited_accel_cold",
+      "limited_regen_cold",
+      "ota_available_version",
+      "ota_available_version_git_hash",
+      "ota_available_version_number",
+      "ota_available_version_week",
+      "ota_available_version_year",
+      "ota_current_status",
+      "ota_current_version",
+      "ota_current_version_git_hash",
+      "ota_current_version_number",
+      "ota_current_version_week",
+      "ota_current_version_year",
+      "ota_deployment_intent",
+      "ota_download_progress",
+      "ota_install_duration",
+      "ota_install_progress",
+      "ota_install_ready",
+      "ota_install_time",
+      "ota_install_type",
+      "ota_software_category",
+      "ota_status",
+      "passive_entry_unlock_fail_reason",
+      "pet_mode_status",
+      "pet_mode_temperature_status",
+      "power_state",
+      "range_threshold",
+      "rear_hitch_status",
+      "remote_charging_available",
+      "seat_front_left_heat",
+      "seat_front_left_vent",
+      "seat_front_right_heat",
+      "seat_front_right_vent",
+      "seat_rear_left_heat",
+      "seat_rear_right_heat",
+      "secure_immobilizer_status",
+      "service_mode",
+      "steering_wheel_heat",
+      "time_to_end_of_charge",
+      "tire_pressure_front_left",
+      "tire_pressure_front_right",
+      "tire_pressure_rear_left",
+      "tire_pressure_rear_right",
+      "tire_pressure_status_front_left",
+      "tire_pressure_status_front_right",
+      "tire_pressure_status_rear_left",
+      "tire_pressure_status_rear_right",
+      "trailer_status",
+      "twelve_volt_battery_health",
+      "vas_access_can_faulted",
+      "vas_secure_element_faulted",
+      "vehicle_mileage",
+      "wheels_installed",
+      "wifi_antenna_bars",
+      "wifi_freq",
+      "wifi_link_speed",
+      "wifi_secure_status",
+      "wifi_signal",
+      "wifi_ssid",
+      "wifi_sta_disabled_reason",
+      "wifi_wpa_status",
+      "window_front_left_calibrated",
+      "window_front_right_calibrated",
+      "window_rear_left_calibrated",
+      "window_rear_right_calibrated",
+      "windows_next_action",
+      "wiper_fluid_state"
+    ],
+    "switches": [
+      "charging_schedule_enabled"
+    ],
+    "time": [
+      "charging_schedule_end",
+      "charging_schedule_start"
+    ],
+    "update": [
+      "software_ota"
     ]
   }
 }
