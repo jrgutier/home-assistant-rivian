@@ -563,11 +563,15 @@ async def test_async_setup_entry_with_all_features(
 ) -> None:
     """Test cover platform setup with all supported features."""
     vehicle_coordinator = MagicMock(spec=VehicleCoordinator)
-    # The tonneau is no longer keyed on a capability flag. TONNEAU_CMD was
-    # fabricated into supported_features here, which is the only reason this test
-    # ever saw the cover: no real vehicle emits that string, and it is in none of
-    # the app's 32,941 decompiled files. The gate is now the field the vehicle
-    # reports, so the coordinator has to carry it.
+    # The tonneau is no longer keyed on a capability flag, and (s19) no longer
+    # keyed on field presence either -- closureTonneauClosed is in
+    # VEHICLE_STATE_SUBSCRIPTION_FIELDS, the one wire document every vehicle
+    # gets, so it is present in `data` regardless of hardware (confirmed on
+    # two real R1S fixtures with no tonneau at all -- see
+    # tests/test_cover_tonneau_gate.py). The gate is now option_code
+    # membership, so it is the VEHICLE dict that has to carry the evidence,
+    # not the coordinator. closureTonneauClosed is still supplied here so
+    # this test also proves creation does not depend on it.
     vehicle_coordinator.data = {
         "closureTonneauClosed": {"value": "closed", "history": {"closed"}}
     }
@@ -584,6 +588,7 @@ async def test_async_setup_entry_with_all_features(
                 "LIFTGATE_CMD",
                 "FRUNK_NXT_ACT",
             ],
+            "option_codes": ["TON-P01"],
         }
     }
 
@@ -603,8 +608,10 @@ async def test_async_setup_entry_with_all_features(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # frunk, windows and tonneau unconditionally (tonneau because this vehicle
-    # reports closureTonneauClosed), plus charge_port and liftgate from the flags.
+    # frunk and windows unconditionally, tonneau because this vehicle has
+    # option_codes=["TON-P01"] (NOT because it reports closureTonneauClosed --
+    # that's supplied too, precisely to prove it is not what's granting this),
+    # plus charge_port and liftgate from the feature flags.
     assert len(entities_added) == 5
     assert {e.entity_description.key for e in entities_added} == {
         "frunk",

@@ -41,13 +41,20 @@ class RivianGateMixin:
     Every field defaults to `None`, so adding this mixin changes no existing
     description's behaviour.
 
-    Deliberately NO `required_field`. `RivianCoverEntityDescription
-    .required_field` (below) is a fourth, SEPARATE gate this mixin does not
-    touch: "does the vehicle report a usable value for this field", which
-    docs/development/GATE_FIELD_EVIDENCE.md found inverted on real hardware
-    (an R1T reads a usable value for one of its three liftgate fields,
-    hardware it does not have) and is why field-presence was never
-    generalised into this mixin.
+    Deliberately NO field-presence evidence source ("does the vehicle report
+    ANY value, valid or not, for this field"). `RivianCoverEntityDescription`
+    carried exactly that as `required_field` until s19's tonneau fix removed
+    it: `closureTonneauClosed` is in `VEHICLE_STATE_SUBSCRIPTION_FIELDS`
+    (const.py) -- the ONE wire document sent identically to every vehicle --
+    so the key is present in `coordinator.data` for every model regardless
+    of hardware, confirmed directly on two R1S community fixtures (no
+    tonneau at all) that both carry the key with an SNA value
+    (docs/development/GATE_FIELD_EVIDENCE.md). Presence-in-data carries the
+    same zero hardware information usability did for `closure_liftgate_locked`
+    (that doc's Finding 1) -- worse here, since there is no ambiguous case,
+    only a confirmed one. That is why this mixin never had a field-presence
+    source to begin with, and why the tonneau is gated on `option_code`
+    instead (cover.py).
 
     feature: the server's `supportedFeatures[].name` string (or several, ANY
         of which counts) -- `vehicle["supported_features"]`
@@ -110,14 +117,6 @@ class RivianCoverEntityDescription(CoverEntityDescription, RivianGateMixin):
     """Rivian cover entity description."""
 
     is_closed: Callable[[VehicleCoordinator], bool]
-    # Create this cover only for vehicles that actually report `required_field`.
-    #
-    # The alternative -- a capability flag -- is what hid the tonneau cover from
-    # everyone: `TONNEAU_CMD` is in no vehicle's supportedFeatures and in none of
-    # the app's 32,941 decompiled files, while both tonneau commands are live-proven
-    # to move the physical cover. A field the vehicle names is evidence; a flag
-    # nothing emits is not.
-    required_field: str | None = None
     command_open: VehicleCommand | None = None
     command_open_params: dict[str, Any] | None = None
     command_close: VehicleCommand | None = None

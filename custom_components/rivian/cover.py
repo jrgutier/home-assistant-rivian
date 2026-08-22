@@ -79,23 +79,36 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             command_close=VehicleCommand.CLOSE_ALL_WINDOWS,
             command_open=VehicleCommand.OPEN_ALL_WINDOWS,
         ),
-        # Gated on the field, not on TONNEAU_CMD.
+        # Gated on the vehicle's option codes, not on TONNEAU_CMD and not on
+        # field presence.
         #
-        # That flag appears in NONE of the app's 32,941 decompiled files and in no
-        # vehicle's supportedFeatures, so this cover was never created for anyone --
-        # while the commands beneath it work: tested live on an R1T,
-        # OPEN_TONNEAU_COVER physically opened the cover and CLOSE_TONNEAU_COVER
-        # returned it to closed and locked.
+        # TONNEAU_CMD (a supportedFeatures flag) appears in NONE of the app's
+        # 32,941 decompiled files and in no vehicle's supportedFeatures, so
+        # that gate never created this cover for anyone -- while the commands
+        # beneath it work: tested live on an R1T, OPEN_TONNEAU_COVER
+        # physically opened the cover and CLOSE_TONNEAU_COVER returned it to
+        # closed and locked (docs/development/MODEL_SPECIFIC_ENTITIES.md).
         #
-        # Same shape the frunk and windows above already use, with one extra
-        # condition. On real hardware this creates the cover for any vehicle that
-        # reports the closure; the negative branch is reached only by a vehicle
-        # that genuinely lacks it, which is why the test for it is synthetic.
+        # The replacement for TONNEAU_CMD was `required_field="closureTonneauClosed"`
+        # (key presence in `coordinator.data`, not its value) -- s19 removed
+        # that too, and this is a live bug fix, not a design tidy-up:
+        # closureTonneauClosed is in VEHICLE_STATE_SUBSCRIPTION_FIELDS
+        # (const.py), the ONE wire document sent identically to every
+        # vehicle, so the key is present in every vehicle's `data` regardless
+        # of hardware. Confirmed directly on two real R1S vehicles (no
+        # tonneau option exists on any R1S) whose diagnostics both carry
+        # `closureTonneauClosed` with an SNA value
+        # (docs/development/GATE_FIELD_EVIDENCE.md) -- so this cover was
+        # created for R1S and R2 owners who have no tonneau. `option_code`
+        # is gated below at TON-P01, the vehicle's actual factory option for
+        # a powered tonneau (coordinator.py's `_extract_option_codes()`,
+        # from `mobileConfiguration.tonneauOption`), which is what the app
+        # itself checks (`java_src/.../UserVehicle.java:616-618`).
         RivianCoverEntityDescription(
             key="tonneau",
             translation_key="tonneau",
             device_class=CoverDeviceClass.DOOR,
-            required_field="closureTonneauClosed",
+            option_code="TON-P01",
             is_closed=lambda coor: coor.get("closureTonneauClosed") != "open",
             command_close=VehicleCommand.CLOSE_TONNEAU_COVER,
             command_open=VehicleCommand.OPEN_TONNEAU_COVER,
@@ -139,13 +152,17 @@ async def async_setup_entry(
         for feature, descriptions in COVERS.items()
         if feature is None or feature in (vehicle.get("supported_features", []))
         for description in descriptions
-        # Presence in `data`, not the value of `get()`. The coordinator's first
-        # refresh waits for the initial subscription payload before platforms are
-        # set up (__init__.py:114 precedes :149), so by here `data` is the set of
-        # fields this vehicle actually named. A truthiness test on get() would also
-        # drop a field reporting a legitimately falsy value.
-        if description.required_field is None
-        or description.required_field in (coordinators[vehicle_id].data or {})
+        # Same shape as the feature check above, and deliberately not a
+        # presence-in-`data` check any more: s19 removed `required_field`
+        # after finding it created `cover.tonneau` for R1S/R2 owners with no
+        # tonneau at all (see RivianCoverEntityDescription's tonneau
+        # comment). Membership, not equality -- vehicle_supports()
+        # (helpers.py) implements this same containment for
+        # `option_code`, but is not called here: wiring a platform over to
+        # that predicate is a separate story, and this fix is scoped to the
+        # one broken gate.
+        if description.option_code is None
+        or description.option_code in (vehicle.get("option_codes") or [])
     ]
     async_add_entities(entities)
 
