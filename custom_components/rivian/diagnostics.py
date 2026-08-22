@@ -230,7 +230,7 @@ async def async_get_config_entry_diagnostics(
     # "connected but receiving nothing" is a real and non-obvious state, which
     # is why `subscribed` is reported separately from the data itself.
     # This comment previously justified that with "the gateway allows one active
-    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:896 runs a
+    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:928 runs a
     # single monitor multiplexing rivian.py:147 `_subscriptions`, and
     # subscribe_for_vehicle_updates, subscribe_for_parallax_messages and
     # subscribe_for_cloud_connection in coordinator.py open three concurrent on

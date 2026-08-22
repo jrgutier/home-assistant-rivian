@@ -29,8 +29,8 @@ from .rivian_client import Rivian
 # the shared group twice: 114 duplicate-unique-id errors per vehicle.
 #
 # R2 also carries "LIFTGATE": an R2 is an SUV with a liftgate, but the three
-# liftgate state descriptions (const.py:1537 SENSORS["LIFTGATE"],
-# const.py:1814 BINARY_SENSORS["LIFTGATE"]) used to live in "R1S" only. R2 was
+# liftgate state descriptions (const.py:1538 SENSORS["LIFTGATE"],
+# const.py:1815 BINARY_SENSORS["LIFTGATE"]) used to live in "R1S" only. R2 was
 # ("R1",), so it got the liftgate CONTROL (cover.py:114, button.py:88 -- gated
 # on the LIFTGATE_CMD feature flag, not on this map) with no way to read
 # whether the liftgate was open or locked: it could open a door it couldn't
