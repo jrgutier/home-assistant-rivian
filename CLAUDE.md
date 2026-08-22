@@ -225,7 +225,7 @@ Vehicle commands require a one-time Bluetooth pairing:
 
 ## Important Notes
 
-- The integration is cloud-polling for some data (`iot_class: "cloud_polling"` in manifest)
+- The integration is cloud-push (`iot_class: "cloud_push"` in manifest)
 - Main vehicle state uses GraphQL subscriptions for real-time updates, not polling
 - Always check if a vehicle supports a feature via `supported_features` before creating entities
 - Some entities are disabled by default (marked with `entity_registry_enabled_default=False`)
