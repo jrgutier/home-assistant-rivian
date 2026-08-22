@@ -524,7 +524,18 @@ def run_fix() -> int:
             idx = c.citing_line_no - 1
             if old not in text_lines[idx]:
                 continue
-            old_hash_by_idx[idx] = line_hash(text_lines[idx].rstrip("\n"))
+            # Captured ONLY on this line's FIRST edit this pass. Two stale
+            # citations can share one line (e.g. cover.py:144 into
+            # __init__.py, twice); unconditionally overwriting this on every
+            # citation clobbered the true original hash with an
+            # already-half-edited line's hash after the first rewrite, so
+            # the propagation step below could never find EITHER row (it
+            # matches against CODE_ANCHORS' original hashes, which this
+            # intermediate value is not) -- both orphaned instead of both
+            # updating. The original hash is what every row on this line was
+            # keyed against, so it must be captured once, before any edit.
+            if idx not in old_hash_by_idx:
+                old_hash_by_idx[idx] = line_hash(text_lines[idx].rstrip("\n"))
             text_lines[idx] = text_lines[idx].replace(old, new, 1)
             touched_idx.add(idx)
             edits += 1
