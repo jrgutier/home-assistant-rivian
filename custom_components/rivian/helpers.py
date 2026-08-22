@@ -24,8 +24,8 @@ from .rivian_client import Rivian
 #     "R1T" in "R1S"  -> False    (intended)
 #
 # Deliberately no "ALL" key populated from "R1". The platform comprehensions
-# build LISTS (binary_sensor.py:30-36, sensor.py:71-78) and every description
-# shares unique_id = f"{vin}-{key}" (entity.py:49), so ALL + R1 + R1T would add
+# build LISTS (binary_sensor.py:40, sensor.py:71-78) and every description
+# shares unique_id = f"{vin}-{key}" (entity.py:54), so ALL + R1 + R1T would add
 # the shared group twice: 114 duplicate-unique-id errors per vehicle.
 VEHICLE_MODEL_GROUPS: dict[str, tuple[str, ...]] = {
     "R1T": ("R1", "R1T"),

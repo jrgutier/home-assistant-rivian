@@ -1,4 +1,16 @@
 repos:
+  - repo: local
+    hooks:
+      # f11 -- citation drift gate. Runs BEFORE ruff-format: the formatter can
+      # rewrap a widened comment and re-drift a citation in the same file that
+      # f11 just checked, in the same commit. --check only; writes nothing.
+      # See scripts/gates/f11.sh.
+      - id: f11-citation-drift
+        name: f11 citation drift (custom_components/)
+        entry: scripts/gates/f11.sh --check
+        language: system
+        pass_filenames: false
+        files: ^custom_components/.*\.py$
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
     rev: v0.16.2

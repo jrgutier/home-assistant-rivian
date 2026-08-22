@@ -1,0 +1,27 @@
+# f11 sidecar -- see scripts/gates/helpers/citations.py module docstring.
+# Columns: cited-file	anchor	citing-file	citing-line-sha256[:12]	note
+# "anchor" is matched as a literal substring (re.escape()d at load time), not a live regex.
+custom_components/rivian/coordinator.py	self._subscription_keys |= {	custom_components/rivian/coordinator.py	f80327fa6456	_subscription_keys write -- moved when s18 restructured the tire-pressure path
+custom_components/rivian/coordinator.py	if k in self._subscription_keys:	custom_components/rivian/coordinator.py	ef16740e0a03	shorthand continuation of the :1292 citation two lines above -- the Parallax skip-if-subscribed guard
+custom_components/rivian/coordinator.py	if k == "gnssLocation":	custom_components/rivian/coordinator.py	9dc2c9355a7b	the gnssLocation unconditional-overwrite branch in _process_parallax_data
+custom_components/rivian/entity.py	field = getattr(self.entity_description, "field", None)	custom_components/rivian/binary_sensor.py	6918f8030ea1	RivianVehicleEntity.available -- entity.py has two `def available`s, this anchor is the base one's body
+custom_components/rivian/binary_sensor.py	for model, descriptions in BINARY_SENSORS.items()	custom_components/rivian/helpers.py	6a11f4939eac	the entities list comprehension in binary_sensor.py's async_setup_entry
+custom_components/rivian/sensor.py	for model, descriptions in SENSORS.items()	custom_components/rivian/helpers.py	6a11f4939eac	the entities list comprehension in sensor.py's async_setup_entry (this line's SECOND citation)
+custom_components/rivian/entity.py	self._vin = (vin := vehicle["vin"])	custom_components/rivian/helpers.py	d7fa0f17a17c	RivianVehicleEntity.__init__'s unique_id construction
+custom_components/rivian/const.py	Rivian's gateway rejects the whole subscription on the first unknown field:	custom_components/rivian/rivian_client/const.py	7fcd8637f2fe	the gateway-rejection explanation above PARALLAX_ONLY_FIELDS
+custom_components/rivian/const.py	Rivian's gateway rejects the whole subscription on the first unknown field:	custom_components/rivian/rivian_client/rivian.py	185b3e7d8d07	same target as rivian_client/const.py:231
+custom_components/rivian/rivian_client/rivian.py	self._subscriptions: dict[str, str] = {}	custom_components/rivian/diagnostics.py	4c9b163e339a	_subscriptions declaration in __init__
+custom_components/rivian/rivian_client/rivian.py	self._ws_monitor = WebSocketMonitor(	custom_components/rivian/diagnostics.py	7f4395aec6c9	the lazy single-WebSocketMonitor init this diagnostics comment describes
+custom_components/rivian/rivian_client/rivian.py	raise err_cls(response.status, response_json, headers, body)	custom_components/rivian/rivian_client/exceptions.py	94e5d99adfbe	the four-positional-argument raise site
+custom_components/rivian/rivian_client/rivian.py	"Error occurred while reading the graphql response from Rivian.",	custom_components/rivian/rivian_client/exceptions.py	b83dfa0c6132	the five-positional-argument raise site (ERROR_CODE_CLASS_MAP fallback)
+custom_components/rivian/rivian_client/rivian.py	raise err_cls(response.status, response_json, headers, body)	custom_components/rivian/rivian_client/exceptions.py	04b061f4e289	second mention of the four-arg site
+custom_components/rivian/rivian_client/rivian.py	"Error occurred while reading the graphql response from Rivian.",	custom_components/rivian/rivian_client/exceptions.py	f68fd0c86e6a	second mention of the five-arg site
+custom_components/rivian/sensor.py	if str(rval).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/binary_sensor.py	3d2ca2ea3e9b	off by one: sensor.py's INVALID_SENSOR_STATES check is :184, not :183
+custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	cf0d72f6b6af	binary_sensor.py's INVALID_SENSOR_STATES check
+custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	14e6027e7f3b	second mention, same target
+custom_components/rivian/rivian_client/parallax.py	_CLIMATE_HOLD_STATUS = {	custom_components/rivian/switch.py	14e6027e7f3b	the climateHoldStatus decode table
+custom_components/rivian/sensor.py	RivianVehicleEntity.available is driven by the field being present, and	custom_components/rivian/coordinator.py	01b4a9094b69	sensor.py's matching-control-down-with-sensor paragraph
+custom_components/rivian/binary_sensor.py	Returning None yields `unknown`, NOT `unavailable` --	custom_components/rivian/coordinator.py	dbd117d4104d	binary_sensor.py's matching-control-down-with-sensor paragraph
+custom_components/rivian/update.py	current_version = self._get_value("otaCurrentVersion")	custom_components/rivian/const.py	4617e4d416b2	update.py's installed/latest-version construction
+custom_components/rivian/__init__.py	coor.async_config_entry_first_refresh()	custom_components/rivian/cover.py	2d7521b81aa5	the per-vehicle coordinator's first refresh
+custom_components/rivian/__init__.py	await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)	custom_components/rivian/cover.py	2d7521b81aa5	shorthand continuation -- platform setup, which runs after the refresh above

@@ -89,7 +89,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             )
         if (val := self._get_value(fields)) is not None:
             # A value the vehicle flags as unusable is not a state -- report
-            # unknown, mirroring sensor.py:183.
+            # unknown, mirroring sensor.py:184.
             #
             # This matters more here than it does for a sensor. A sensor showing
             # "SNA" at least looks wrong; a binary sensor silently resolves it,
@@ -102,7 +102,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             # every negated description.
             #
             # Returning None yields `unknown`, NOT `unavailable` --
-            # RivianVehicleEntity.available (entity.py:64-68) keys on the field
+            # RivianVehicleEntity.available (entity.py:77) keys on the field
             # being present, and the raw value still flows. That is deliberate:
             # suppressing the value in the coordinator instead was tried twice and
             # reverted, because it takes the matching CONTROL down with it.

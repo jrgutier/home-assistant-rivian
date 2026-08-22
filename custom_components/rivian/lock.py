@@ -39,7 +39,7 @@ def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
     still stands: unknown at startup takes the matching control down with the
     sensor. What it does NOT justify is treating the alternative as catastrophic:
     those three are genuine R1T closures, so model-scoping the member set
-    does not remove them (const.py:1375, :1573; BINARY_SENSORS "R1" / "R1T").
+    does not remove them (const.py:BINARY_SENSORS; "R1" / "R1T").
     None only if no member has a usable value.
     """
     usable = []

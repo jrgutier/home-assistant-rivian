@@ -1424,9 +1424,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         A sibling of _process_new_data on its own subscription (see
         subscribe_for_tire_pressure_updates()'s docstring): merges through the
         same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
-        tyre-pressure names land in _subscription_keys (coordinator.py:1292,
+        tyre-pressure names land in _subscription_keys (coordinator.py:1490,
         provenance -- not liveness), which is what keeps Parallax from
-        overwriting gateway-delivered tyre pressures (:1120-1132).
+        overwriting gateway-delivered tyre pressures (:1267).
 
         Deliberately does NOT touch _last_update_time, _initial or
         _error_count -- those belong to the main vehicleState stream. Letting
@@ -1485,7 +1485,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # fields (gnssLocation, gnssError) have no top-level "value" key at all
         # and keep claiming on the strength of the outer dict alone --
         # gnssLocation MUST stay claimed or _process_parallax_data's
-        # unconditional branch (coordinator.py:1135) starts overwriting real
+        # unconditional branch (coordinator.py:1269) starts overwriting real
         # GPS with Parallax's.
         self._subscription_keys |= {
             k for k, v in items.items() if "value" not in v or v["value"] is not None
