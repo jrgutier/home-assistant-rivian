@@ -26,6 +26,7 @@ f2 added `CABIN_HVAC_3RD_ROW_REAR_{LEFT,RIGHT}_SEAT_HEAT`; f6 added
 | `START_GEAR_GUARD_MASTER_SESSION` | Starts a live camera session. A streaming feature, not a control; this integration has no surface for it |
 | `CABIN_HVAC_THIRD_ROW_*` | **ANSWERED by f7, 2026-08-19: REJECTED** (`CONFLICT/VEHICLE_COMMAND_ERROR`) on an R1T with `params={"level": 0}` |
 | `CABIN_HVAC_3RD_ROW_REAR_*` | **ANSWERED by f7, 2026-08-19: ACCEPTED**, terminal in ~1.5 s, same params, same truck, seconds apart |
+| `HONK_AND_FLASH_LIGHTS` | **ANSWERED by f7, 2026-08-22: REJECTED** (`CONFLICT/VEHICLE_COMMAND_ERROR`), same R1T. See "f7 results, 2026-08-22" below -- this one is NOT one of the seven `generateInvalidCloudDataWrapper` commands, so the "wrong envelope" theory below does not cover it |
 
 The two closure-openers ship `entity_registry_enabled_default=False`. Shipping an
 untested opener enabled puts it one tap away.
@@ -122,6 +123,58 @@ tailgate strikes the garage. Disposition `not-sent-owner-prohibited-physical-haz
 this proves the send path and not a physical effect — which is why it was the cheapest candidate in
 the pool and why excluding it would have left `button.open_liftgate`'s "has not been actuated (f7)"
 justification permanently unresolvable.
+
+## f7 results, 2026-08-22
+
+`s19` set out to wire `HONK_AND_FLASH_LIGHTS` (button) and `PET_COMFORT_ON`/`OFF`
+(switch) ungated, on the tonneau precedent: absence from `supportedFeatures` and
+absence of a backing state field are not evidence a capability is absent. Both
+were probed with `scripts/probe_vehicle_command.py` before either was wired past
+review, on the same R1T as the 2026-08-19 run:
+
+| Command | Result |
+|---|---|
+| `WAKE_VEHICLE` (control) | **ACCEPTED** — command id returned, polled to a terminal state normally |
+| `PET_COMFORT_ON` | **REJECTED** (`CONFLICT/VEHICLE_COMMAND_ERROR`) — reproduces the 2026-08-19 result above |
+| `HONK_AND_FLASH_LIGHTS` | **REJECTED** (`CONFLICT/VEHICLE_COMMAND_ERROR`) |
+| `HONK_AND_FLASH_LIGHTS`, retried immediately after `WAKE_VEHICLE` succeeded | **REJECTED** again |
+
+The `WAKE_VEHICLE` control run is what makes this conclusive rather than
+ambiguous: credentials, HMAC signing and the session were all working seconds
+apart from the two rejections, so both are **command-specific** refusals, not an
+environmental or auth failure. The retry after a successful wake also rules out
+"vehicle was asleep, not in a state to accept a command" as the explanation for
+`HONK_AND_FLASH_LIGHTS`.
+
+**This is a new data point, not a rerun of 2026-08-19's.** `PET_COMFORT_ON` is
+one of the seven `generateInvalidCloudDataWrapper` commands above, so its
+rejection was already explainable by the "wrong envelope" theory (`appName=""`,
+`isParallaxRequestOnly`, possibly needing the Parallax path instead of ordinary
+VAS). `HONK_AND_FLASH_LIGHTS` is **not** one of the seven — it builds its
+`cloudData` through the ordinary `generateCloudDataWrapper`, the same wrapper
+`WAKE_VEHICLE` uses, and it is *sendable* by the same definition the rest of the
+45-command enum uses. It was expected to work: enum member, present in the app,
+ordinary wrapper, no `TONNEAU_CMD`-style theoretical objection anywhere. It was
+refused anyway.
+
+**So the wrapper classification does not predict server acceptance, and the
+tonneau lesson does not run in reverse.** "Absence from `supportedFeatures` is
+not evidence a capability is absent" remains true — that is what the tonneau
+proved. It does **not** license the converse: enum presence, app presence and an
+ordinary wrapper are not evidence the *server* accepts a command. Only sending
+it and reading the result is. `button.honk_and_flash` (commit `5059674`) was
+reverted (commit `e803e49`) on this evidence rather than shipped disabled, since
+there is no live path by which it would ever work for anyone — unlike
+`OPEN_LIFTGATE`/`OPEN_TAILGATE`, which are accepted and simply unactuated.
+
+`PET_COMFORT_ON`/`OFF` remain unwired, per the existing seven-command rule
+above and `tests/test_apk_transcription.py`'s `INVALID_WRAPPER_COMMANDS` guard
+tests — now with a second, independent rejection on file.
+
+**State is not the same as control.** `pet_mode_temperature_status`
+(`custom_components/rivian/const.py:692`) and `pet_mode_status` (`:699`) already
+exist as sensors, so pet comfort *state* is surfaced regardless of this result.
+What remains unavailable is the *write* side, not visibility into the feature.
 
 ## How the app reads a command's result — it SUBSCRIBES, it does not poll
 
