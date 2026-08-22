@@ -241,3 +241,35 @@ failure, and is never by itself grounds for deleting a sensor. It was true of
 `wheelsInstalled`'s neighbours before f4, it was true of these five fields
 through two failed f8 probes and one completed one, and it stays true of every
 field on either subscription document today, TPMS included.
+
+## 2026-08-22 — all three subscription documents probed live, core for the first time
+
+**Verdict: main, TPMS, and core are all accepted by the gateway.** Field-set
+identity for the three, locked before the probe and confirmed unchanged since
+(`.omc/plans/release1-audit-checklist.md`, Task 1):
+
+```
+main 137 3db891957e85
+tpms 12  90f65dbb9902
+core 15  6cb13ac588a6
+```
+
+25 new field names were checked across the run and delivered — 25/25, 0 silent.
+
+**This is `CORE_VEHICLE_STATE_FIELDS`'s first live evidence, and it is the one
+that matters most.** The core document is the S1 mitigation
+(`coordinator.py:966`, `:1111`) for "one bad field name rejects the whole
+subscription": when the main, 137-name document is rejected, the client
+retries with this reduced, 15-name one instead of failing outright. Nothing in
+this repository had, before this run, established that the gateway accepts the
+core document at all — the retry logic existed and was tested against a mock,
+but an S1 fallback that the real server also rejects is not a mitigation, it is
+a second failure mode wearing the first one's clothes. It is now confirmed
+live and accepted.
+
+**The four `tirePressureStatusValid*` fields stayed silent.** Same as every
+prior probe — `tirePressureStatusValidFrontLeft`, `…FrontRight`, `…RearLeft`,
+`…RearRight` all delivered null on the TPMS document. **Verdict unchanged**:
+accepted, empty, not invalid, per the `f8 COMPLETED 2026-08-19` finding above
+and T3's move of these four onto the TPMS document. Nothing here is grounds to
+revisit that.
