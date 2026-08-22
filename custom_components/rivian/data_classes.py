@@ -51,13 +51,16 @@ class RivianGateMixin:
 
     feature: the server's `supportedFeatures[].name` string (or several, ANY
         of which counts) -- `vehicle["supported_features"]`
-        (coordinator.py:850), NOT this integration's own group/key names.
-    option_code: an entry in the vehicle's option codes. Matched by
-        CONTAINMENT, never equality -- the Rivian app itself checks with
-        Kotlin `contains`, so `"LFGT" in "XLFGTY"` is meant to match. No
-        vehicle dict populates option codes yet (`vehicle.get("option_codes")`
-        reads as absent for every vehicle today), so this evidence source
-        never fires until a later story wires it in.
+        (coordinator.py:850-856), NOT this integration's own group/key names.
+    option_code: a member of the vehicle's `option_codes` list
+        (`vehicle["option_codes"]`, coordinator.py:859, built by
+        `_extract_option_codes()` at coordinator.py:767). List MEMBERSHIP
+        (`in` on the list), not comparing the whole field with `==` --
+        confirmed against test_coordinator_base.py's own
+        `"TON-P01" in option_codes` assertion, not guessed. `option_codes`
+        can be `None` (the mobileConfiguration fragment was rejected) as
+        well as `[]` (accepted, no matching options); this mixin does not
+        distinguish the two, since both mean no evidence.
     legacy_group: one of `legacy_grants.py`'s group names ("R1T", "R1S",
         "LIFTGATE", ...), matched against what `groups_for_model()` returns
         for the vehicle. The permanent floor -- see that module's docstring.

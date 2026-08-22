@@ -73,11 +73,20 @@ def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
         see legacy_grants.py.
       * "feature" -- description.feature (a string, or a tuple of which ANY
         one counts) is present in vehicle.get("supported_features", []).
-      * "option" -- description.option_code is a CONTAINED substring (never
-        an equal element -- the Rivian app itself matches with Kotlin
-        `contains`) of some entry in vehicle.get("option_codes", []). No
-        vehicle dict populates that key yet, so this source cannot fire
-        until a later story wires it in.
+      * "option" -- description.option_code is a member of
+        vehicle.get("option_codes", []) (coordinator.py's
+        _extract_option_codes(), landed alongside this section). List
+        MEMBERSHIP, not comparing the whole field with `==` -- the app's
+        original check is Kotlin `contains` on a single optionId string
+        (`tonneauOptionId.contains(TONNEAU_POWER_OPTION_ID)`), but
+        _extract_option_codes() already flattens `mobileConfiguration` into
+        a list of atomic optionId values (e.g. "TON-P01"), so the analogous
+        check at THIS layer is "is this code one of the vehicle's codes",
+        i.e. Python `in` on the list -- confirmed against
+        test_coordinator_base.py's own `"TON-P01" in option_codes` assertion,
+        not guessed. option_codes can be `None` (mobileConfiguration fragment
+        rejected) as well as `[]` (accepted, no matches); both mean no
+        evidence here.
 
     An "empty gate" -- a description with all three fields unset, i.e. it
     carries no gating criteria to evaluate at all -- yields {"ungated"}:
@@ -104,7 +113,7 @@ def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
     option_code = getattr(description, "option_code", None)
     if option_code is not None:
         option_codes = vehicle.get("option_codes") or []
-        if any(option_code in oc for oc in option_codes):
+        if option_code in option_codes:
             evidence.add("option")
 
     if legacy_group is None and feature is None and option_code is None:

@@ -67,7 +67,7 @@ class TestTruthTable:
     """
 
     DESCRIPTION = RivianGateMixin(
-        legacy_group="LIFTGATE", feature="LIFTGATE_CMD", option_code="LFGT"
+        legacy_group="LIFTGATE", feature="LIFTGATE_CMD", option_code="TON-P01"
     )
 
     @pytest.mark.parametrize(
@@ -78,16 +78,16 @@ class TestTruthTable:
             # exactly one source
             ("R2", [], [], frozenset({"legacy"})),
             ("R1T", ["LIFTGATE_CMD"], [], frozenset({"feature"})),
-            ("R1T", [], ["XLFGTY"], frozenset({"option"})),
+            ("R1T", [], ["TON-P01"], frozenset({"option"})),
             # exactly two sources
             ("R2", ["LIFTGATE_CMD"], [], frozenset({"legacy", "feature"})),
-            ("R2", [], ["XLFGTY"], frozenset({"legacy", "option"})),
-            ("R1T", ["LIFTGATE_CMD"], ["XLFGTY"], frozenset({"feature", "option"})),
+            ("R2", [], ["TON-P01"], frozenset({"legacy", "option"})),
+            ("R1T", ["LIFTGATE_CMD"], ["TON-P01"], frozenset({"feature", "option"})),
             # all three
             (
                 "R2",
                 ["LIFTGATE_CMD"],
-                ["XLFGTY"],
+                ["TON-P01"],
                 frozenset({"legacy", "feature", "option"}),
             ),
         ],
@@ -127,28 +127,52 @@ class TestFeatureAcceptsATuple:
         assert "feature" not in vehicle_supports(description, vehicle)
 
 
-class TestOptionCodeIsContainmentNotEquality:
-    """The app itself matches option codes with Kotlin `contains`."""
+class TestOptionCodeIsListMembershipNotEquality:
+    """`coordinator.py`'s `_extract_option_codes()` (landed alongside this
+    section) flattens `mobileConfiguration` into a list of ATOMIC optionId
+    strings -- e.g. `["TON-P01", "WHL-A01"]`, confirmed against
+    `test_coordinator_base.py`'s own `"TON-P01" in option_codes` assertion.
+    So the check here is Python `in` on that list (membership: is this ONE
+    of the vehicle's codes), not substring search within a longer string,
+    and not comparing the whole `option_codes` field against a fixed value.
+    """
 
-    def test_option_code_matches_as_a_substring(self) -> None:
-        description = RivianGateMixin(option_code="LFGT")
-        vehicle = _vehicle(option_codes=["XXLFGTYY"])
+    def test_option_code_present_in_the_list_matches(self) -> None:
+        description = RivianGateMixin(option_code="TON-P01")
+        vehicle = _vehicle(option_codes=["TON-P01", "WHL-A01"])
         assert "option" in vehicle_supports(description, vehicle)
 
-    def test_option_code_matches_a_full_equal_entry_too(self) -> None:
-        description = RivianGateMixin(option_code="LFGT")
-        vehicle = _vehicle(option_codes=["LFGT"])
-        assert "option" in vehicle_supports(description, vehicle)
+    def test_option_code_absent_from_the_list_does_not_match(self) -> None:
+        description = RivianGateMixin(option_code="TON-P01")
+        vehicle = _vehicle(option_codes=["WHL-A01"])
+        assert "option" not in vehicle_supports(description, vehicle)
 
-    def test_a_partial_prefix_is_not_a_match(self) -> None:
-        """Containment of the OPTION CODE in an entry, not the other way round."""
-        description = RivianGateMixin(option_code="LFGT")
-        vehicle = _vehicle(option_codes=["LF"])
+    def test_a_substring_of_a_list_entry_is_not_a_match(self) -> None:
+        """List MEMBERSHIP, not substring-within-an-entry.
+
+        This is the one place this predicate's semantics deliberately part
+        ways with the Rivian app's own Kotlin `.contains()` (a substring
+        check on a single optionId field): `_extract_option_codes()` already
+        flattened that field into a list of atomic codes, so containment at
+        THIS layer means "is this code one of the list's elements", not
+        "is this code a substring of one of them".
+        """
+        description = RivianGateMixin(option_code="TON-P0")
+        vehicle = _vehicle(option_codes=["TON-P01"])
         assert "option" not in vehicle_supports(description, vehicle)
 
     def test_no_option_codes_reported_is_no_match(self) -> None:
-        description = RivianGateMixin(option_code="LFGT")
+        """`option_codes` absent entirely -- `vehicle.get(...)` reads `None`."""
+        description = RivianGateMixin(option_code="TON-P01")
         assert "option" not in vehicle_supports(description, _vehicle())
+
+    def test_option_codes_accepted_but_empty_is_also_no_match(self) -> None:
+        """Distinct from the case above (fragment rejected vs. accepted-empty
+        -- coordinator.py's `_extract_option_codes()` docstring), but both
+        mean no evidence for this predicate."""
+        description = RivianGateMixin(option_code="TON-P01")
+        vehicle = _vehicle(option_codes=[])
+        assert "option" not in vehicle_supports(description, vehicle)
 
 
 class TestNoBoolComparisonLint:
