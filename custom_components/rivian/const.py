@@ -172,40 +172,6 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             suggested_display_precision=0,
         ),
         RivianSensorEntityDescription(
-            key="alarm_sound_status",
-            translation_key="alarm_sound_status",
-            field="alarmSoundStatus",
-            icon="mdi:alarm-light",
-            device_class=SensorDeviceClass.ENUM,
-            options=[
-                "Active",
-                "Inactive",
-                "Signal Not Available",
-            ],
-            value_lambda=lambda v: (
-                "Active"
-                if v == "true"
-                else "Inactive"
-                if v == "false"
-                else _to_title_case(v)
-                if v
-                else "Inactive"
-            ),
-        ),
-        RivianSensorEntityDescription(
-            key="battery_hv_thermal_event",
-            translation_key="battery_hv_thermal_event",
-            field="batteryHvThermalEvent",
-            icon="mdi:battery-alert",
-            value_lambda=lambda v: v.replace("_", " ").title(),
-        ),
-        RivianSensorEntityDescription(
-            key="battery_hv_thermal_event_propagation",
-            translation_key="battery_hv_thermal_event_propagation",
-            field="batteryHvThermalEventPropagation",
-            icon="mdi:battery-alert",
-        ),
-        RivianSensorEntityDescription(
             key="battery_level",
             translation_key="battery_level",
             field="batteryLevel",
@@ -641,14 +607,6 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             native_unit_of_measurement=PERCENTAGE,
         ),
         RivianSensorEntityDescription(
-            key="ota_install_ready",
-            translation_key="ota_install_ready",
-            field="otaInstallReady",
-            icon="mdi:progress-check",
-            entity_category=EntityCategory.DIAGNOSTIC,
-            value_lambda=lambda v: v.replace("_", " ").title().replace("Ota", "OTA"),
-        ),
-        RivianSensorEntityDescription(
             key="ota_install_time",
             translation_key="ota_install_time",
             field="otaInstallTime",
@@ -749,6 +707,25 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             ),
         ),
         RivianSensorEntityDescription(
+            key="charge_port_status",
+            translation_key="charge_port_status",
+            field="chargePortState",
+            icon="mdi:ev-plug-ccs2",
+            device_class=SensorDeviceClass.ENUM,
+            options=[
+                "Open",
+                "Close",
+                "In Transition",
+                "Fault",
+                "Opening",
+                "Closing",
+                "Unknown",
+            ],
+            value_lambda=lambda v: (
+                _to_title_case(v) if v and v.lower() != "sna" else "Unknown"
+            ),
+        ),
+        RivianSensorEntityDescription(
             key="range_threshold",
             translation_key="range_threshold",
             field="rangeThreshold",
@@ -760,12 +737,6 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             translation_key="remote_charging_available",
             field="remoteChargingAvailable",
             icon="mdi:battery-charging-wireless-80",
-        ),
-        RivianSensorEntityDescription(
-            key="service_mode",
-            translation_key="service_mode",
-            field="serviceMode",
-            icon="mdi:account-wrench",
         ),
         RivianSensorEntityDescription(
             key="gnss_speed",
@@ -908,13 +879,6 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             value_lambda=lambda v: v.replace("_", " ").title(),
         ),
         RivianSensorEntityDescription(
-            key="twelve_volt_battery_health",
-            translation_key="twelve_volt_battery_health",
-            field="twelveVoltBatteryHealth",
-            icon="mdi:car-battery",
-            entity_category=EntityCategory.DIAGNOSTIC,
-        ),
-        RivianSensorEntityDescription(
             key="wiper_fluid_state",
             translation_key="wiper_fluid_state",
             field="wiperFluidState",
@@ -983,13 +947,6 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             icon="mdi:snowflake-thermometer",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
-        RivianSensorEntityDescription(
-            key="btm_ff_hardware_failure_status",
-            translation_key="btm_ff_hardware_failure_status",
-            field="btmFfHardwareFailureStatus",
-            icon="mdi:bluetooth",
-            entity_category=EntityCategory.DIAGNOSTIC,
-        ),
         # The nine fields Parallax is the ONLY source for.
         #
         # The f5 decoders read these out of the app's protobuf messages, and the
@@ -1039,13 +996,6 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         # btm_ic/btm_rfd/btm_lfd and the naming/vocabulary objections both fall
         # away with it. The Parallax decoder and _HARDWARE_FAILURE_MAP stay as a
         # fallback source; they are simply no longer this field's only one.
-        RivianSensorEntityDescription(
-            key="btm_oc_hardware_failure_status",
-            translation_key="btm_oc_hardware_failure_status",
-            field="btmOcHardwareFailureStatus",
-            icon="mdi:bluetooth",
-            entity_category=EntityCategory.DIAGNOSTIC,
-        ),
         # ENABLED. Its message is proven to arrive (see above), and a fault
         # sensor is worthless unless armed BEFORE the fault -- Home Assistant
         # does not backfill, so a disabled entity records nothing at the moment
@@ -1133,34 +1083,6 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             translation_key="known_location",
             field="knownLocation",
             icon="mdi:map-marker-check",
-        ),
-        RivianSensorEntityDescription(
-            key="btm_rf_hardware_failure_status",
-            translation_key="btm_rf_hardware_failure_status",
-            field="btmRfHardwareFailureStatus",
-            icon="mdi:bluetooth",
-            entity_category=EntityCategory.DIAGNOSTIC,
-        ),
-        RivianSensorEntityDescription(
-            key="btm_ic_hardware_failure_status",
-            translation_key="btm_ic_hardware_failure_status",
-            field="btmIcHardwareFailureStatus",
-            icon="mdi:bluetooth",
-            entity_category=EntityCategory.DIAGNOSTIC,
-        ),
-        RivianSensorEntityDescription(
-            key="btm_rfd_hardware_failure_status",
-            translation_key="btm_rfd_hardware_failure_status",
-            field="btmRfdHardwareFailureStatus",
-            icon="mdi:bluetooth",
-            entity_category=EntityCategory.DIAGNOSTIC,
-        ),
-        RivianSensorEntityDescription(
-            key="btm_lfd_hardware_failure_status",
-            translation_key="btm_lfd_hardware_failure_status",
-            field="btmLfdHardwareFailureStatus",
-            icon="mdi:bluetooth",
-            entity_category=EntityCategory.DIAGNOSTIC,
         ),
         RivianSensorEntityDescription(
             key="wifi_signal",
@@ -1583,14 +1505,14 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="charge_port_state",
             field="chargePortState",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opening", "in_transition"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_frunk_closed",
             translation_key="closure_frunk_closed",
             field="closureFrunkClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened", "ajar"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_frunk_locked",
@@ -1604,7 +1526,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="closure_tailgate_closed",
             field="closureTailgateClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_tailgate_locked",
@@ -1618,7 +1540,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="door_front_left_closed",
             field="doorFrontLeftClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="door_front_left_locked",
@@ -1632,7 +1554,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="door_front_right_closed",
             field="doorFrontRightClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="door_front_right_locked",
@@ -1646,7 +1568,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="door_rear_left_closed",
             field="doorRearLeftClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="door_rear_left_locked",
@@ -1660,7 +1582,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="door_rear_right_closed",
             field="doorRearRightClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="door_rear_right_locked",
@@ -1709,28 +1631,28 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="window_front_left_closed",
             field="windowFrontLeftClosed",
             device_class=BinarySensorDeviceClass.WINDOW,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="window_front_right_closed",
             translation_key="window_front_right_closed",
             field="windowFrontRightClosed",
             device_class=BinarySensorDeviceClass.WINDOW,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="window_rear_left_closed",
             translation_key="window_rear_left_closed",
             field="windowRearLeftClosed",
             device_class=BinarySensorDeviceClass.WINDOW,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="window_rear_right_closed",
             translation_key="window_rear_right_closed",
             field="windowRearRightClosed",
             device_class=BinarySensorDeviceClass.WINDOW,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="locked_state",
@@ -1744,14 +1666,14 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="door_state",
             field=DOOR_STATE_ENTITIES,
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_state",
             translation_key="closure_state",
             field=CLOSURE_STATE_ENTITIES,
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="use_state",
@@ -1759,6 +1681,114 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             field="powerState",
             device_class=BinarySensorDeviceClass.MOVING,
             on_value="go",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="btm_ff_hardware_failure_status",
+            translation_key="btm_ff_hardware_failure_status",
+            field="btmFfHardwareFailureStatus",
+            icon="mdi:bluetooth",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="btm_oc_hardware_failure_status",
+            translation_key="btm_oc_hardware_failure_status",
+            field="btmOcHardwareFailureStatus",
+            icon="mdi:bluetooth",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="btm_rf_hardware_failure_status",
+            translation_key="btm_rf_hardware_failure_status",
+            field="btmRfHardwareFailureStatus",
+            icon="mdi:bluetooth",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="btm_ic_hardware_failure_status",
+            translation_key="btm_ic_hardware_failure_status",
+            field="btmIcHardwareFailureStatus",
+            icon="mdi:bluetooth",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="btm_rfd_hardware_failure_status",
+            translation_key="btm_rfd_hardware_failure_status",
+            field="btmRfdHardwareFailureStatus",
+            icon="mdi:bluetooth",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="btm_lfd_hardware_failure_status",
+            translation_key="btm_lfd_hardware_failure_status",
+            field="btmLfdHardwareFailureStatus",
+            icon="mdi:bluetooth",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="battery_hv_thermal_event",
+            translation_key="battery_hv_thermal_event",
+            field="batteryHvThermalEvent",
+            icon="mdi:battery-alert",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="battery_hv_thermal_event_propagation",
+            translation_key="battery_hv_thermal_event_propagation",
+            field="batteryHvThermalEventPropagation",
+            icon="mdi:battery-alert",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            on_value="detected",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="alarm_sound_status",
+            translation_key="alarm_sound_status",
+            field="alarmSoundStatus",
+            icon="mdi:alarm-light",
+            device_class=BinarySensorDeviceClass.SOUND,
+            # Both spellings. `SoundAlarm` is {ACTIVE, INACTIVE,
+            # SIGNAL_NOT_AVAILABLE}, but the sensor this replaced carried a
+            # value_lambda mapping "true"/"false" as well, so the field has been
+            # seen carrying booleans. Dropping either spelling would report a
+            # sounding alarm as silent.
+            on_value=["active", "true"],
+        ),
+        RivianBinarySensorEntityDescription(
+            key="twelve_volt_battery_health",
+            translation_key="twelve_volt_battery_health",
+            field="twelveVoltBatteryHealth",
+            icon="mdi:car-battery",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="low",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="service_mode",
+            translation_key="service_mode",
+            field="serviceMode",
+            icon="mdi:account-wrench",
+            on_value="on",
+        ),
+        RivianBinarySensorEntityDescription(
+            key="ota_install_ready",
+            translation_key="ota_install_ready",
+            field="otaInstallReady",
+            icon="mdi:progress-check",
+            device_class=BinarySensorDeviceClass.UPDATE,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            on_value="available",
         ),
         RivianBinarySensorEntityDescription(
             key="car_wash_mode",
@@ -1774,7 +1804,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="closure_side_bin_left_closed",
             field="closureSideBinLeftClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_side_bin_left_locked",
@@ -1788,7 +1818,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="closure_side_bin_right_closed",
             field="closureSideBinRightClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_side_bin_right_locked",
@@ -1802,7 +1832,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="closure_tonneau_closed",
             field="closureTonneauClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_tonneau_locked",
@@ -1824,7 +1854,7 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             translation_key="closure_liftgate_closed",
             field="closureLiftgateClosed",
             device_class=BinarySensorDeviceClass.DOOR,
-            on_value="open",
+            on_value=["open", "opened"],
         ),
         RivianBinarySensorEntityDescription(
             key="closure_liftgate_locked",

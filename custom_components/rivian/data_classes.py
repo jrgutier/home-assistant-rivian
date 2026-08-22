@@ -89,6 +89,26 @@ class RivianBinarySensorEntityDescription(
     on_value: bool | float | int | str | list[str] = True
     negate: bool = False
 
+    @property
+    def on_values(self) -> list[Any]:
+        """`on_value` as a list, however it was spelled.
+
+        Both of `binary_sensor.py`'s `is_on` branches need this, and they had
+        drifted: the single-field branch normalized, the aggregate branch
+        compared `on_value` against a generator directly, which silently
+        evaluates False for every frame once `on_value` is a list. Normalizing
+        on the description -- the thing that owns `on_value` -- is what keeps a
+        future third caller from having to rediscover that.
+
+        Tests `list` rather than `str`, which the call sites did. Same result for
+        every description shipping today (all five distinct `on_value`s are
+        strings or lists), but the declared type also admits `bool | float | int`
+        -- and those fell through the old `isinstance(..., str)` test unwrapped,
+        leaving `val in True` to raise TypeError if anyone ever used one.
+        """
+        value = self.on_value
+        return value if isinstance(value, list) else [value]
+
 
 @dataclass(kw_only=True)
 class RivianButtonEntityDescription(
