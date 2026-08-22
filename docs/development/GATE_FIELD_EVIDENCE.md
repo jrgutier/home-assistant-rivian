@@ -17,6 +17,22 @@ descriptions** the integration currently has (not just the five originally
 sampled), across every source available, including the project's own live
 R1T. No code change or plan edit is proposed here — this is evidence only.
 
+## Summary answers
+
+- **Does an R1S report usable values for hardware it lacks (tonneau, side
+  bins)? No.** Both R1S fixtures read SNA on all eight R1T-group
+  closure/lock fields, with no exceptions. See Finding 3.
+- **Does an R1T report usable values for hardware it lacks (liftgate)? Yes,
+  for one of three liftgate fields**, on two independent R1T vehicles. See
+  Finding 1.
+- **Does a usable value reliably mean the hardware is present? No** — the
+  same live R1T reads SNA on two lock fields for hardware confirmed present
+  and working. See Finding 2.
+- **Can anything in this data tell a live reading from a hardcoded default?
+  No** — the diagnostics dumps reflect masked coordinator state, not raw
+  wire history, and every gated field's history is flat everywhere. See
+  Findings 5a and 5.
+
 ## The 14 gated descriptions
 
 Two model-scoped groups in `const.py` gate on field presence (not a
@@ -155,6 +171,40 @@ them). Whatever the union rule decides for these three, it is deciding it on
 zero observations, not on a negative finding — this evidence cannot tell
 whether the server ever populates them, on any model.
 
+## Finding 5a — the instrument itself hides flicker (masking at `coordinator.py:1553-1572`)
+
+Before reading the flat-history observation below at face value, it matters
+that the diagnostics dump is not a raw wire capture — it is the coordinator's
+*masked* state, and the masking is asymmetric by design.
+`VehicleCoordinator._build_vehicle_info_dict` (`coordinator.py:1553-1572`)
+folds each update into `self.data`: when an incoming value is one of
+`INVALID_SENSOR_STATES` **and** the field already has a previous entry, the
+whole previous `{"value": ..., "history": ...}` object is substituted in
+unchanged (`coordinator.py:1557-1558`) — the invalid reading is not recorded
+anywhere, not in `value`, not in `history`. Only a valid reading ever
+extends `history` (`coordinator.py:1572`). The one documented exception is
+the very first update for a field with no prior entry, which is published
+as-is, invalid values included (`coordinator.py:1536-1549`) — that is how a
+literal `SNA` was once observed on both rear seat heating sensors at a fresh
+start (comment at `coordinator.py:1541`).
+
+The consequence for this evidence: **once a field has produced one valid
+reading, ever, every later invalid reading on that field becomes
+permanently invisible** to anything reading `self.data` or a diagnostics
+dump taken from it — including a field that flickers between a plausible
+value and SNA on the wire indefinitely afterward. This is a plausible,
+code-grounded mechanism for Finding 1, not just an analogy: if
+`closureLiftgateLocked` produced one valid reading on an R1T at any point
+(a boot-time race, a transient default before the vehicle's absent-hardware
+state settled, or genuinely no such state ever being reported for that
+one sub-signal), masking would lock that value in and hide any SNA
+readings after it, on both the community R1T and the live production R1T,
+indefinitely. This does not prove that is what happened — no earlier
+capture of either vehicle exists to check — but it means "this field reads
+a stable usable value" and "this field genuinely, permanently works on this
+hardware" are not the same claim on this codebase, independent of anything
+about the vehicle itself.
+
 ## Finding 5 — what would actually discriminate, and why this data can't
 
 Every gated field in every community fixture carries `history` of length 1
@@ -164,7 +214,10 @@ diagnostics format itself: in the same three files, `gnssBearing` carries 27,
 38, and 208 *distinct* history values respectively, and `batteryLevel` shows
 2 distinct values in `issue-171.json`. The tool records variation when a
 field has any — it simply never observed any on these 14 fields, in any
-fixture.
+fixture. Finding 5a is why that absence of variation cannot be read as
+"this field never went invalid" either — masking would erase that evidence
+just as effectively as genuine stability would produce it. A flat history is
+consistent with both.
 
 A single point-in-time snapshot with a flat history cannot distinguish "this
 is a live sensor reading that happens not to have changed in this window"
@@ -181,7 +234,13 @@ before:
   over time — the `gnssBearing`/`batteryLevel` contrast above shows the
   instrumentation is capable of catching this when it exists; none of the
   three community fixtures happen to be repeat captures of the same vehicle,
-  so this sweep has no such pair to check.
+  so this sweep has no such pair to check. Given Finding 5a, this
+  discriminator only works in one direction: two dumps showing *different*
+  valid values is real proof the field is live, since masking cannot
+  fabricate a second distinct valid reading. Two dumps showing the *same*
+  value proves nothing either way — that is exactly what masking produces
+  whether the field is genuinely stable or flickering to SNA in between
+  samples.
 - **An actuation test** — command the entity and observe a state or physical
   change, the same falsification that already overturned the `TONNEAU_CMD`
   premise (`MODEL_SPECIFIC_ENTITIES.md:9-15`): sending `OPEN_TONNEAU_COVER`
