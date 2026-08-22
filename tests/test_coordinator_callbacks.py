@@ -101,6 +101,38 @@ class TestCloudConnection:
         coordinator._is_online = False
         assert coordinator.connectivity_state() is ConnectivityState.OFFLINE
 
+    def test_a_transition_pushes_the_new_state_to_the_entities(
+        self, coordinator
+    ) -> None:
+        """A cloud-connection transition must refresh the entities that read it.
+
+        `_is_online` is half of `connectivity_state()`, which is gate 1 of every
+        control's availability and the `cloud_connected` sensor's state. Nothing
+        else notifies on it: `_async_update_data` returns `self.data` unchanged
+        and the coordinator is built with `always_update=False`, so the scheduled
+        refresh notifies nobody, and the only other notifier is a
+        vehicleState/Parallax frame -- which a vehicle that has just gone offline
+        has stopped sending. Without the push, going OFFLINE leaves every control
+        showing available and `cloud_connected` showing `on` until the vehicle
+        comes back and speaks again.
+        """
+        coordinator.async_update_listeners = MagicMock()
+        coordinator._is_online = True
+
+        coordinator._process_cloud_connection_data(_cloud(isOnline=False))
+
+        assert coordinator.async_update_listeners.call_count == 1
+
+    def test_a_repeated_state_does_not_push(self, coordinator) -> None:
+        """Only transitions push. The cloud repeats `isOnline` on every frame, and
+        waking every entity on an unchanged value is churn, not information."""
+        coordinator.async_update_listeners = MagicMock()
+        coordinator._is_online = False
+
+        coordinator._process_cloud_connection_data(_cloud(isOnline=False))
+
+        assert coordinator.async_update_listeners.call_count == 0
+
     @pytest.mark.parametrize(
         "message", [{}, {"payload": {}}, {"payload": {"data": None}}]
     )
