@@ -26,11 +26,23 @@ if [ -x "$HA/scripts/check_coverage.py" ] || [ -f "$HA/scripts/check_coverage.py
   # code. (Order-dependence is the exact defect s01b's own story was written to
   # fix, in the test suite.) f5.sh already regenerates for this reason; this
   # follows that precedent.
-  if (cd "$HA" && .venv/bin/pytest -q -p no:cacheprovider >/dev/null 2>&1 \
-      && .venv/bin/python scripts/check_coverage.py >/dev/null 2>&1); then
+  #
+  # The regeneration is judged SEPARATELY from the floors. Chained into one `&&`
+  # they were indistinguishable: a suite that failed, errored during collection or
+  # could not start reported "check_coverage.py does not pass against the current
+  # coverage.json" -- a false accusation about the floors, which is the exact
+  # defect class test_count and pytest_green were written to remove from the other
+  # gates in this same change. pytest.ini sets no --cov-fail-under, so a non-zero
+  # exit here is a red suite and nothing else.
+  COV_PY="$(resolve_pytest "$HA")"
+  if [ ! -x "$COV_PY" ]; then
+    bad "pytest not found — coverage.json cannot be regenerated (ENVIRONMENT problem, NOT an unmet floor)"
+  elif ! (cd "$HA" && "$COV_PY" -q -p no:cacheprovider >/dev/null 2>&1); then
+    bad "the suite is red — coverage.json was not regenerated, so the floors are UNJUDGED (not unmet)"
+  elif (cd "$HA" && "$(resolve_python "$HA")" scripts/check_coverage.py >/dev/null 2>&1); then
     ok "both floors currently met"
   else
-    bad "check_coverage.py does not pass against the current coverage.json"
+    bad "check_coverage.py does not pass against the freshly regenerated coverage.json"
   fi
 else
   bad "no scripts/check_coverage.py and no --cov-fail-under — nothing ratchets"
