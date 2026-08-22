@@ -239,6 +239,57 @@ No decoder code changes on the strength of this finding — "the app's document
 requests it" is exactly the weak evidence the tonneau-cover removal already
 showed is not grounds to delete a decoder.
 
+### UPDATE — live probe settles the ten, and they stay anyway (2026-08-22)
+
+The "which case applies" question above is now answered for all ten. A live
+probe against a real R1T — asleep, `powerState = sleep` — delivered every
+`wifi*`/`cellular*` name in the main subscription's frame with a real, non-null
+value:
+
+```
+wifiFreq = 5200      wifiLinkSpeed = 260        wifiSsid = <redacted>
+wifiSecureStatus = WPA    wifiWpaStatus = COMPLETED
+wifiAntennaBars = 3       wifiStaDisabledReason = 0
+```
+
+(`wifiSsid` is redacted here — it is in the diagnostics-redaction set and does
+not belong in a committed file.)
+
+That is the **first** of the three cases above, not the "named but null" one
+`UNPOPULATED_FIELDS.md`'s tire-pressure precedent suggested by analogy: the
+subscription delivers, `_build_vehicle_info_dict` records the key, and the
+gap-fill rule (`coordinator.py:1134`) discards whatever the f5 decoders would
+have produced for these ten. **The f5 `opl`/`vehicle.network.state` decoders
+are now unreachable for these fields** — the subscription wins outright, same
+as it already did for the eleventh, `wifiSignal`.
+
+**They stay anyway. No decoder is deleted, and no test is weakened.** Three
+reasons, in order of how much they've already cost this project to learn:
+
+1. **This repository has been wrong before about what "unreachable" means.**
+   `TONNEAU_CMD` appears in zero of app 3.15.0's 32,941 decompiled files and in
+   no vehicle's `supportedFeatures` — every offline signal said the gate was
+   dead weight — and both tonneau commands physically move the cover. Reasoning
+   from absence-of-evidence to "this code no longer matters" is the exact
+   mistake that produced a real regression once already; unreachable-by-current-
+   evidence is not unreachable-by-construction.
+2. **An idle decoder costs nothing.** It runs only when the gap-fill rule lets a
+   Parallax value through, which for these ten it currently never does. There is
+   no maintenance burden, no performance cost, and no behavior to regress by
+   leaving it in place.
+3. **The alternative is sensors going dark with no warning.** If the gateway
+   ever stops filling one of these ten in the main document — a schema change,
+   a feature flag, a vehicle without this hardware revision — the decoder is
+   the only thing standing between that and a silently `unavailable` entity.
+   Deleting it trades a live, working fallback for a bet that today's delivery
+   behavior is permanent.
+
+Deleting proven-unreachable code is the tempting move here, and it is the wrong
+one for the same reason `UNPOPULATED_FIELDS.md`'s Principle -1 exists: silence
+(or, here, redundancy) is not a live failure, and is never by itself grounds to
+remove something that still works. **Documentation only — no decoder code
+changed on the strength of this finding.**
+
 ## How the app avoids duplicate subscriptions
 
 Worth recording because this integration solves the same problem differently, and
