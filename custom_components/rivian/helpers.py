@@ -27,10 +27,29 @@ from .rivian_client import Rivian
 # build LISTS (binary_sensor.py:40, sensor.py:71-78) and every description
 # shares unique_id = f"{vin}-{key}" (entity.py:54), so ALL + R1 + R1T would add
 # the shared group twice: 114 duplicate-unique-id errors per vehicle.
+#
+# R2 also carries "LIFTGATE": an R2 is an SUV with a liftgate, but the three
+# liftgate state descriptions (const.py:1537 SENSORS["LIFTGATE"],
+# const.py:1814 BINARY_SENSORS["LIFTGATE"]) used to live in "R1S" only. R2 was
+# ("R1",), so it got the liftgate CONTROL (cover.py:114, button.py:88 -- gated
+# on the LIFTGATE_CMD feature flag, not on this map) with no way to read
+# whether the liftgate was open or locked: it could open a door it couldn't
+# see the state of.
+#
+# Rejected: folding R2 into the "R1S" group outright (R2 -> ("R1", "R1S")).
+# One line, but "R1S" also carries the third-row seat heaters
+# (seat_third_row_left_heat / seat_third_row_right_heat), and no R2
+# configuration has a third row -- that would fabricate two entities no R2
+# owns. Pulling the liftgate descriptions into their own "LIFTGATE" group and
+# giving it to both "R1S" and "R2" grants exactly the capability that's
+# shared (liftgate) without the one that isn't (third row). "R1S"'s and
+# "R1T"'s entity sets are unchanged by this: R1S trades "R1S" membership in
+# the liftgate keys for "LIFTGATE" membership in the same keys, a relabel,
+# not a removal. Pinned by tests/fixtures/entity_sets.json.
 VEHICLE_MODEL_GROUPS: dict[str, tuple[str, ...]] = {
     "R1T": ("R1", "R1T"),
-    "R1S": ("R1", "R1S"),
-    "R2": ("R1",),
+    "R1S": ("R1", "R1S", "LIFTGATE"),
+    "R2": ("R1", "LIFTGATE"),
 }
 
 # An exact map is less forgiving than the substring test it replaces, so an

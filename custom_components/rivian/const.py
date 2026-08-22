@@ -1533,6 +1533,14 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             ],
             value_lambda=lambda v: v.replace("_", " ") if v else "Off",
         ),
+    ),
+    # Liftgate STATE, not the R1S model. Both R1S and R2 are SUVs with a
+    # liftgate; an R1T has none. Keyed on the capability rather than folded
+    # into "R1S" so an R2 can receive it without also receiving the R1S-only
+    # third-row seat heaters above, which an R2 does not have (no third-row
+    # seat option exists on any R2 configuration). See helpers.py's
+    # VEHICLE_MODEL_GROUPS for which models get this group.
+    "LIFTGATE": (
         RivianSensorEntityDescription(
             key="closure_liftgate_next_action",
             translation_key="closure_liftgate_next_action",
@@ -1803,7 +1811,13 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
             on_value="unlocked",
         ),
     ),
-    "R1S": (
+    # Liftgate binary state moved to the "LIFTGATE" capability group -- see the
+    # comment on SENSORS["LIFTGATE"] above. "R1S" has no binary sensors of its
+    # own left: both of its former entries were liftgate state. The key stays
+    # out of this dict entirely rather than as an empty tuple; the R1S model
+    # still appears in SENSORS (third-row seat heaters), which is what
+    # test_every_returned_group_actually_exists checks for.
+    "LIFTGATE": (
         RivianBinarySensorEntityDescription(
             key="closure_liftgate_closed",
             translation_key="closure_liftgate_closed",

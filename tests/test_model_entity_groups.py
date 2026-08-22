@@ -24,6 +24,16 @@ The replacement is an explicit map. Two things it deliberately does not do:
 The counts below are asserted NUMERICALLY, not as set equality. A set dedupes,
 so a set-equality assertion passes vacuously against exactly the duplication the
 first bullet is about.
+
+s19 follow-up: fixing the empty-group bug did not fix R2 fully. Liftgate STATE
+(closure_liftgate_closed, closure_liftgate_locked, closure_liftgate_next_action)
+lived only in "R1S", so an R2 -- an SUV with a liftgate -- got the liftgate
+CONTROL (gated separately on the LIFTGATE_CMD feature flag) with none of the
+state to go with it: it could open a liftgate it couldn't see the position of.
+Those three descriptions moved to their own "LIFTGATE" group in const.py, and
+both "R1S" and "R2" now include it. Rejected: `R2 -> ("R1", "R1S")`, which
+would also hand the R2 the two third-row seat heaters in "R1S" -- no R2
+configuration has a third row. See helpers.py's VEHICLE_MODEL_GROUPS comment.
 """
 
 from __future__ import annotations
@@ -46,6 +56,7 @@ from custom_components.rivian.const import (
     SENSORS,
 )
 from custom_components.rivian.coordinator import VehicleCoordinator
+from custom_components.rivian.cover import async_setup_entry as cover_setup
 from custom_components.rivian.entity import RivianVehicleEntity
 from custom_components.rivian.helpers import groups_for_model
 from custom_components.rivian.sensor import async_setup_entry as sensor_setup
@@ -69,10 +80,16 @@ FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "entity_sets.json"
 # Raised again by the field-parity release's 25 new sensors (const.py's §E),
 # all landing in the shared "R1" group -- every model gains all 25. Shared
 # group 96 -> 121. Binary sensors are untouched throughout.
+#
+# s19: R2 raised again, from the "LIFTGATE" group fix above -- 121 -> 122
+# sensors (closure_liftgate_next_action), 27 -> 29 binary sensors
+# (closure_liftgate_closed, closure_liftgate_locked). R1T, R1S, and the
+# no-model fallback are unchanged: R1S's liftgate entries only relabeled from
+# "R1S" membership to "LIFTGATE" membership, same keys either way.
 EXPECTED_COUNTS = {
     "R1T": (124, 33),
     "R1S": (124, 29),
-    "R2": (121, 27),
+    "R2": (122, 29),
     None: (121, 27),
     "": (121, 27),
     "R3X": (121, 27),
@@ -86,8 +103,8 @@ class TestGroupsForModel:
         ("model", "expected"),
         [
             ("R1T", ("R1", "R1T")),
-            ("R1S", ("R1", "R1S")),
-            ("R2", ("R1",)),
+            ("R1S", ("R1", "R1S", "LIFTGATE")),
+            ("R2", ("R1", "LIFTGATE")),
         ],
     )
     def test_known_models(self, model: str, expected: tuple[str, ...]) -> None:
@@ -101,8 +118,15 @@ class TestGroupsForModel:
         assert groups_for_model(model) == ("R1",)
 
     def test_r2_is_not_empty_which_is_the_bug_being_fixed(self) -> None:
-        assert groups_for_model("R2") == ("R1",)
+        assert groups_for_model("R2") == ("R1", "LIFTGATE")
         assert "R1" in groups_for_model("R2")
+
+    def test_r2_gets_liftgate_state_which_is_the_s19_bug_being_fixed(self) -> None:
+        """R2 is an SUV with a liftgate; it must not be state-blind for it."""
+        assert "LIFTGATE" in groups_for_model("R2")
+        # And it must not gain the third-row seat heaters that come bundled
+        # with "R1S" -- no R2 configuration has a third row.
+        assert "R1S" not in groups_for_model("R2")
 
     def test_no_all_group_exists(self) -> None:
         """An `ALL` key would double-add the shared group -- 114 duplicates."""
@@ -210,23 +234,99 @@ async def test_an_r2_gets_entities_at_all(
     assert _vehicle_only(binaries), "an R2 received ZERO binary sensors"
 
 
-async def test_r2_is_the_r1t_set_minus_the_r1t_only_group(
+async def test_r2_is_the_shared_group_plus_liftgate(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
-    """Explicit membership, not non-emptiness."""
-    r1t_s, r1t_b = await _setup(hass, mock_config_entry, "R1T")
-    r2_s, r2_b = await _setup(hass, mock_config_entry, "R2")
+    """Explicit membership, not non-emptiness.
 
-    r1t_only_sensors = {d.key for d in SENSORS["R1T"]}
-    r1t_only_binaries = {d.key for d in BINARY_SENSORS["R1T"]}
+    Before s19 this compared R2 against "R1T minus R1T-only", which happened
+    to hold because R2 was exactly the shared "R1" group. It no longer holds:
+    R2 now also carries "LIFTGATE", which R1T never had at all. R2's actual
+    definition is the shared group plus liftgate state -- assert that
+    directly instead.
+    """
+    r2_s, r2_b = await _setup(hass, mock_config_entry, "R2")
 
     def keys(entities: list) -> set[str]:
         return {e.entity_description.key for e in _vehicle_only(entities)}
 
-    assert keys(r2_s) == keys(r1t_s) - r1t_only_sensors
-    assert keys(r2_b) == keys(r1t_b) - r1t_only_binaries
-    # And the R1T-only ones are genuinely absent from the R2, not merely fewer.
+    want_sensors = {d.key for d in SENSORS["R1"]} | {d.key for d in SENSORS["LIFTGATE"]}
+    want_binaries = {d.key for d in BINARY_SENSORS["R1"]} | {
+        d.key for d in BINARY_SENSORS["LIFTGATE"]
+    }
+    assert keys(r2_s) == want_sensors
+    assert keys(r2_b) == want_binaries
+
+    # Still no R1T-only or R1S-only (third-row seat heater) entities.
+    r1t_only_sensors = {d.key for d in SENSORS["R1T"]}
+    r1t_only_binaries = {d.key for d in BINARY_SENSORS["R1T"]}
+    r1s_only_sensors = {d.key for d in SENSORS["R1S"]}
+    assert not (keys(r2_s) & r1t_only_sensors)
     assert not (keys(r2_b) & r1t_only_binaries)
+    assert not (keys(r2_s) & r1s_only_sensors)
+
+
+async def test_r2_gets_liftgate_state_paired_with_liftgate_control(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """The actual s19 bug: control without state.
+
+    An R2 with LIFTGATE_CMD in supported_features got a `cover.liftgate` it
+    could open and close, but (before this fix) none of the three sensors that
+    say whether the liftgate is open or locked. Model-gated state (sensor.py /
+    binary_sensor.py) and feature-flag-gated control (cover.py) are two
+    independent gates; this test is the only one in the suite that exercises
+    both together for the same vehicle, which is what the bug needed to hide.
+
+    SYNTHETIC: no R2 fixture exists anywhere in tests/fixtures/community/ --
+    only R1T (issue-171.json) and R1S (issue-222.json, issue-245.json)
+    captures do. This vehicle dict and its LIFTGATE_CMD flag are constructed,
+    not a recorded diagnostics payload.
+    """
+    vehicle = {
+        "id": "veh-1",
+        "vin": "TESTVIN0000000001",
+        "name": "Test Vehicle",
+        "model": "R2",
+        "phone_identity_id": "phone-1",
+        "supported_features": ["LIFTGATE_CMD"],
+    }
+
+    coordinator = MagicMock(spec=VehicleCoordinator)
+    coordinator.get = MagicMock(return_value=None)
+    coordinator.data = {}
+    coordinator.charging_coordinator = MagicMock()
+    coordinator.charging_coordinator.get = MagicMock(return_value=None)
+    coordinator.drivers_coordinator = MagicMock()
+    coordinator.drivers_coordinator.get = MagicMock(return_value=None)
+
+    wallbox = MagicMock()
+    wallbox.data = {}
+
+    hass.data[DOMAIN] = {
+        mock_config_entry.entry_id: {
+            ATTR_VEHICLE: {"veh-1": vehicle},
+            ATTR_COORDINATOR: {
+                ATTR_VEHICLE: {"veh-1": coordinator},
+                ATTR_WALLBOX: wallbox,
+            },
+        }
+    }
+
+    sensors: list = []
+    binaries: list = []
+    covers: list = []
+    await sensor_setup(hass, mock_config_entry, sensors.extend)
+    await binary_sensor_setup(hass, mock_config_entry, binaries.extend)
+    await cover_setup(hass, mock_config_entry, covers.extend)
+
+    sensor_keys = {e.entity_description.key for e in _vehicle_only(sensors)}
+    binary_keys = {e.entity_description.key for e in _vehicle_only(binaries)}
+    cover_keys = {e.entity_description.key for e in covers}
+
+    assert "closure_liftgate_next_action" in sensor_keys
+    assert {"closure_liftgate_closed", "closure_liftgate_locked"} <= binary_keys
+    assert "liftgate" in cover_keys
 
 
 async def test_r1t_only_entities_do_not_reach_an_r1s_and_vice_versa(
@@ -240,7 +340,11 @@ async def test_r1t_only_entities_do_not_reach_an_r1s_and_vice_versa(
         return {e.entity_description.key for e in _vehicle_only(entities)}
 
     assert not (keys(r1s_b) & {d.key for d in BINARY_SENSORS["R1T"]})
-    assert not (keys(r1t_b) & {d.key for d in BINARY_SENSORS["R1S"]})
+    # "R1S" no longer has binary sensor descriptions of its own -- both moved
+    # to "LIFTGATE" (see const.py's SENSORS/BINARY_SENSORS["LIFTGATE"]) -- so
+    # BINARY_SENSORS.get(..., ()) rather than a bare index, which would
+    # KeyError on the now-absent key.
+    assert not (keys(r1t_b) & {d.key for d in BINARY_SENSORS.get("R1S", ())})
     assert not (keys(r1s_s) & {d.key for d in SENSORS["R1T"]})
     assert not (keys(r1t_s) & {d.key for d in SENSORS["R1S"]})
 
