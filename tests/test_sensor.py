@@ -925,3 +925,29 @@ class TestUnusableValuesDoNotBecomeStates:
         from `options` is a gap in our table and must stay loud."""
         entity = self._sensor("Level 4", ["Off", "Level 1"])
         assert RivianSensorEntity.native_value.fget(entity) == "Level 4"
+
+
+class TestWifiFreqBandIndexGuard:
+    """wifi_freq carries FREQUENCY/MHz now that the 2026-08-22 live probe
+    recorded a real `5200`-style value. The evidence is n=1 -- one vehicle,
+    one moment -- and a unit is not reversible once HA statistics have
+    recorded it, so the guard must actually reject a band-index reading
+    (`2`/`5`) rather than just be claimed to.
+    """
+
+    @staticmethod
+    def _value_lambda():
+        from custom_components.rivian.const import SENSORS
+
+        for group in SENSORS.values():
+            for description in group:
+                if description.key == "wifi_freq":
+                    return description.value_lambda
+        raise AssertionError("wifi_freq backs no sensor")
+
+    @pytest.mark.parametrize("band_index", [2, 5])
+    def test_a_band_index_reads_as_unknown(self, band_index: int) -> None:
+        assert self._value_lambda()(band_index) is None
+
+    def test_a_real_frequency_passes_through_unchanged(self) -> None:
+        assert self._value_lambda()(5200) == 5200

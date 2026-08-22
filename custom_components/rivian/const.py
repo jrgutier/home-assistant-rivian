@@ -12,6 +12,7 @@ from homeassistant.const import (
     EntityCategory,
     UnitOfDataRate,
     UnitOfEnergy,
+    UnitOfFrequency,
     UnitOfLength,
     UnitOfPressure,
     UnitOfSpeed,
@@ -1265,16 +1266,24 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             icon="mdi:wifi-strength-outline",
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
-        # PLAIN, deliberately: no device_class, no unit. FREQUENCY/MHz is only
-        # correct if the value is `2437`-style; if it reads `2`/`5` (a band
-        # selector, not a frequency) the unit would be a lie and HA statistics
-        # would inherit it. Upgrade once a live boot records the magnitude.
+        # FREQUENCY/MHz: the 2026-08-22 live probe recorded `wifiFreq = 5200`,
+        # settling it as a `5200`-style MHz reading rather than a `2`/`5` band
+        # selector -- `wifiLinkSpeed = 260` on its sibling independently
+        # confirmed Mbps the same run. Evidence is n=1 (one vehicle, one
+        # moment), and a unit is not reversible once HA statistics have
+        # recorded it, so value_lambda guards against a band-index reading
+        # slipping through as a bogus "5 MHz": below ~1000 is not a frequency,
+        # and reads as unknown instead of corrupting long-run history.
         RivianSensorEntityDescription(
             key="wifi_freq",
             translation_key="wifi_freq",
             field="wifiFreq",
             icon="mdi:wifi",
+            device_class=SensorDeviceClass.FREQUENCY,
+            native_unit_of_measurement=UnitOfFrequency.MEGAHERTZ,
+            state_class=SensorStateClass.MEASUREMENT,
             entity_category=EntityCategory.DIAGNOSTIC,
+            value_lambda=lambda v: v if v is not None and v >= 1000 else None,
         ),
         # DATA_RATE / Mbps: Android's WifiInfo.getLinkSpeed(), which this field
         # almost certainly mirrors, is documented in Mbps. Flagged for live
