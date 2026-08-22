@@ -21,12 +21,17 @@
 #              below, neither of which is in the repo's committed tree (one
 #              under ~/.claude/plans/, one under gitignored .omc/plans/), so
 #              this half is machine-local and never wired into CI or
-#              pre-commit. It is bounds-checking, not content verification
-#              (see plan_citations.py's module docstring for why, and for
-#              the 11+ drifted-but-in-bounds citations a hand audit found
-#              that this mode cannot see) -- its output is always labelled
-#              UNVERIFIED, never PASS, so a clean run can't be misread as
-#              "these citations are correct".
+#              pre-commit. As of s19 it runs TWO layers: bounds-checking
+#              (unchanged -- UNRESOLVED/OUT-OF-BOUNDS, always labelled
+#              UNVERIFIED, never a correctness signal on its own) PLUS real
+#              content verification (PASS/FAIL) via a plan_anchors.tsv
+#              sidecar -- citations.py's own anchor-sidecar mechanism,
+#              extended to this corpus (see plan_citations.py's module
+#              docstring). PASS/FAIL is real ONLY for citations the sidecar
+#              covers; anything without a row still only gets bounds-only
+#              UNVERIFIED. Coverage is populated by a human running
+#              `plan_citations.py --establish` -- never by this script, and
+#              never automatically total.
 
 source "$(dirname "$0")/_lib.sh"
 
@@ -61,7 +66,7 @@ if [ ! -x "$VENV_PY" ] && ! command -v "$VENV_PY" >/dev/null 2>&1; then
 fi
 
 if [ "$CORPUS" = "plan" ]; then
-  echo "f11 --corpus plan -- local audit, NOT CI-bound (bounds-only; never a correctness signal)"
+  echo "f11 --corpus plan -- local audit, NOT CI-bound (bounds-only + anchor-covered real verification, see plan_citations.py)"
   plan_files=()
   for p in "$PLAN_MD_1" "$PLAN_MD_2"; do
     if [ -f "$p" ]; then
@@ -82,12 +87,14 @@ if [ "$CORPUS" = "plan" ]; then
   while IFS=$'\t' read -r tag loc target detail; do
     case "$tag" in
       UNRESOLVED|OUT-OF-BOUNDS) bad "$tag $loc $target :: $detail" ;;
+      FAIL) bad "$loc $target :: $detail" ;; # $tag omitted -- bad() already labels it FAIL
+      PASS) ok "$loc -> $target ($detail)" ;; # a real signal: anchor-covered, content re-verified
       CENSUS) note "$loc" ;;
-      UNVERIFIED) note "UNVERIFIED -- $loc" ;; # never `ok`: see plan_citations.py's docstring
+      UNVERIFIED) note "UNVERIFIED -- $loc" ;; # bounds-only remainder: see plan_citations.py's docstring
     esac
   done <<< "$out"
   if [ "$rc" -eq 0 ]; then
-    note "0 unresolved/out-of-bounds across ${#plan_files[@]} plan document(s) -- NOT evidence the citations are accurate, only that none are mechanically impossible"
+    note "0 unresolved/out-of-bounds/anchor-fail across ${#plan_files[@]} plan document(s) -- anchor-covered citations are really verified; the rest is bounds-only and NOT evidence of accuracy"
   fi
   summary F11
   exit 0
