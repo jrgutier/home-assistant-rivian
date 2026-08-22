@@ -190,6 +190,50 @@ tests — now with a second, independent rejection on file.
 exist as sensors, so pet comfort *state* is surfaced regardless of this result.
 What remains unavailable is the *write* side, not visibility into the feature.
 
+## `ACTIVATE_EXTERNAL_SOUND` and `FLASH_EXTERNAL_LIGHTS` — accepted, live-probed, 2026-08-22
+
+Both are real `VAS_COMMANDS` entries for the same physical function
+(`HonkHorn`/`FlashLights` in `VASCommand.java`), unlike `HONK_AND_FLASH_LIGHTS`
+above. Probed live against the same R1T with `scripts/probe_vehicle_command.py`
+in the same session as the `WAKE_VEHICLE` control run documented above, so the
+same credentials/HMAC/session-soundness argument covers these too. Raw results:
+
+```
+FLASH_EXTERNAL_LIGHTS
+  command id 04-7bc33137ecb7c043cf9b   createdAt 2026-08-22T15:49:36.779249
+  state 3 at t+8.95s and t+9.66s -- still in flight when polling ended
+  NO TERMINAL STATE after 9.66s
+  no CONFLICT: the sendVehicleCommand mutation was accepted
+
+ACTIVATE_EXTERNAL_SOUND
+  command id 04-c50e5dd82c31611c004a   createdAt 2026-08-22T15:49:49.378817
+  state 3 at t+2.81s, then state 0 / responseCode 412 / statusCode 0 at t+3.52s
+  TERMINAL after 3.52s from send
+  no CONFLICT: accepted by the gateway, then declined by the vehicle
+```
+
+Both **accepted** by the gateway (a command id was returned in both cases).
+Compare against `HONK_AND_FLASH_LIGHTS`/`PET_COMFORT_ON`'s refusals above,
+which never got a command id at all — they raised `RivianApiException` with
+`{'code': 'CONFLICT', 'reason': 'VEHICLE_COMMAND_ERROR'}` from the
+`sendVehicleCommand` mutation itself.
+
+**The distinction that must survive**: `ACTIVATE_EXTERNAL_SOUND`'s
+`responseCode 412` is a **vehicle-level decline after gateway acceptance** —
+categorically different from `CONFLICT`, which is a **gateway refusal** before
+the command ever reaches the vehicle. Conflating the two would flatten this
+finding into "everything fails," which is not what happened here: the gateway
+accepted both, and the vehicle either kept acting on one (`FLASH_EXTERNAL_LIGHTS`,
+still in flight when polling ended) or explicitly declined the other after
+acceptance (`ACTIVATE_EXTERNAL_SOUND`, `412`).
+
+**What is verified**: both are accepted by the gateway, on the same
+credentials and session that also verified `HONK_AND_FLASH_LIGHTS`'s refusal
+as command-specific. **What is not verified**: that these two explain
+`HONK_AND_FLASH_LIGHTS`'s refusal, or that any succession or retirement
+occurred between it and this pair — consistent with that reading, not
+evidence for it.
+
 ## How the app reads a command's result — it SUBSCRIBES, it does not poll
 
 Read off the decompilation, 2026-08-19, because `ae06ee9` added a poll on the belief that the
