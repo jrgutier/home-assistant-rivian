@@ -426,6 +426,84 @@ class TestUserCoordinatorMethods:
         assert "v1" in vehicles
         assert vehicles["v1"]["name"] == "Vehicle 1"
         assert vehicles["v1"]["vin"] == "VIN1"
+        # S19: no "mobileConfiguration" key at all -- the fragment was rejected
+        # and rivian.py's get_user_information() retried without it. None, not
+        # [], is what distinguishes that from "asked and got none".
+        assert vehicles["v1"]["option_codes"] is None
+
+    async def test_get_vehicles_option_codes_populated(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+    ) -> None:
+        """S19: the fragment was accepted and the vehicle has a powered
+        tonneau -- option_codes is the flat list get_vehicles() builds for the
+        containment check ("TON-P01" in option_codes), never equality."""
+        mock_client = MagicMock()
+        coordinator = UserCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=mock_client
+        )
+        coordinator.data = {
+            "vehicles": [
+                {
+                    "id": "v1",
+                    "name": "Vehicle 1",
+                    "vehicle": {
+                        "vin": "VIN1",
+                        "mobileConfiguration": {
+                            "tonneauOption": {
+                                "optionId": "TON-P01",
+                                "optionName": "Power Tonneau Cover",
+                            },
+                            "wheelOption": {
+                                "optionId": "WHL-A01",
+                                "optionName": "20in All-Terrain",
+                            },
+                        },
+                    },
+                    "vas": {"vasVehicleId": "vas_v1", "vehiclePublicKey": "key1"},
+                }
+            ]
+        }
+
+        option_codes = coordinator.get_vehicles()["v1"]["option_codes"]
+
+        assert option_codes == ["TON-P01", "WHL-A01"]
+        assert "TON-P01" in option_codes
+
+    async def test_get_vehicles_option_codes_accepted_but_empty(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+    ) -> None:
+        """S19: the fragment was accepted but this vehicle has neither option
+        -- [] means "asked and got none", distinguishable from None ("never
+        asked", tested above)."""
+        mock_client = MagicMock()
+        coordinator = UserCoordinator(
+            hass=hass, config_entry=mock_config_entry, client=mock_client
+        )
+        coordinator.data = {
+            "vehicles": [
+                {
+                    "id": "v1",
+                    "name": "Vehicle 1",
+                    "vehicle": {
+                        "vin": "VIN1",
+                        "mobileConfiguration": {
+                            "tonneauOption": None,
+                            "wheelOption": None,
+                        },
+                    },
+                    "vas": {"vasVehicleId": "vas_v1", "vehiclePublicKey": "key1"},
+                }
+            ]
+        }
+
+        option_codes = coordinator.get_vehicles()["v1"]["option_codes"]
+
+        assert option_codes == []
+        assert option_codes is not None
 
     async def test_get_enrolled_phone_data_no_phones(
         self,

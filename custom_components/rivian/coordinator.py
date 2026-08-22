@@ -764,6 +764,31 @@ class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         )
 
 
+def _extract_option_codes(vehicle: dict[str, Any]) -> list[str] | None:
+    """Flatten `mobileConfiguration`'s option ids for containment checks.
+
+    The app gates the powered tonneau with Kotlin `contains`, not `==`
+    (java_src/.../UserVehicle.java:616-618:
+    `tonneauOptionId.contains(TONNEAU_POWER_OPTION_ID)`), so the eventual gate
+    here is `"TON-P01" in option_codes`, never equality -- a flat list is the
+    natural shape for that.
+
+    None means the fragment was rejected and rivian.py's
+    get_user_information() retried without mobileConfiguration -- the key is
+    then absent from `vehicle` entirely. That is deliberately distinguishable
+    from an empty list, which means the fragment was accepted and the vehicle
+    simply has no matching options.
+    """
+    mobile_configuration = vehicle.get("mobileConfiguration")
+    if mobile_configuration is None:
+        return None
+    return [
+        option["optionId"]
+        for key in ("tonneauOption", "wheelOption")
+        if (option := mobile_configuration.get(key)) and option.get("optionId")
+    ]
+
+
 class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     """User data update coordinator for Rivian."""
 
@@ -831,6 +856,7 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 ],
                 "vas_id": (vas := vehicle.get("vas", {})).get("vasVehicleId"),
                 "public_key": vas.get("vehiclePublicKey"),
+                "option_codes": _extract_option_codes(vehicle.get("vehicle", {})),
             }
             for vehicle in self.data["vehicles"]
         }
@@ -1424,9 +1450,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         A sibling of _process_new_data on its own subscription (see
         subscribe_for_tire_pressure_updates()'s docstring): merges through the
         same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
-        tyre-pressure names land in _subscription_keys (coordinator.py:1490,
+        tyre-pressure names land in _subscription_keys (coordinator.py:1516,
         provenance -- not liveness), which is what keeps Parallax from
-        overwriting gateway-delivered tyre pressures (:1267).
+        overwriting gateway-delivered tyre pressures (:1293).
 
         Deliberately does NOT touch _last_update_time, _initial or
         _error_count -- those belong to the main vehicleState stream. Letting
@@ -1485,7 +1511,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # fields (gnssLocation, gnssError) have no top-level "value" key at all
         # and keep claiming on the strength of the outer dict alone --
         # gnssLocation MUST stay claimed or _process_parallax_data's
-        # unconditional branch (coordinator.py:1269) starts overwriting real
+        # unconditional branch (coordinator.py:1295) starts overwriting real
         # GPS with Parallax's.
         self._subscription_keys |= {
             k for k, v in items.items() if "value" not in v or v["value"] is not None

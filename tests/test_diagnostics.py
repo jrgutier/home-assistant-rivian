@@ -357,3 +357,125 @@ class TestCommandOutcomes:
         }
         out = await async_get_config_entry_diagnostics(hass, mock_config_entry)
         assert out["command_outcomes"]["v1"] == []
+
+
+class TestOptionCodesDiagnostics:
+    """S19: `option_codes` per vehicle, built from UserCoordinator.get_vehicles()
+    so it stays in sync with what entities actually see. None (fragment
+    rejected, rivian.py's get_user_information() retried without it) must stay
+    distinguishable from [] (fragment accepted, vehicle has no matching
+    options)."""
+
+    async def test_null_when_the_fragment_was_rejected(
+        self, hass, mock_config_entry
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from custom_components.rivian.const import (
+            ATTR_COORDINATOR,
+            ATTR_USER,
+            ATTR_VEHICLE,
+            ATTR_WALLBOX,
+            DOMAIN,
+        )
+        from custom_components.rivian.diagnostics import (
+            async_get_config_entry_diagnostics,
+        )
+
+        vehicle = MagicMock()
+        vehicle.data = {}
+        vehicle._unsub_parallax = None
+        vehicle.charging_coordinator = MagicMock(data={})
+        vehicle.drivers_coordinator = MagicMock(data={})
+
+        user = MagicMock(data={})
+        user.get_vehicles.return_value = {
+            "v1": {"name": "Vehicle 1", "option_codes": None}
+        }
+        hass.data[DOMAIN] = {
+            mock_config_entry.entry_id: {
+                ATTR_COORDINATOR: {
+                    ATTR_USER: user,
+                    ATTR_VEHICLE: {"v1": vehicle},
+                    ATTR_WALLBOX: MagicMock(data={}),
+                }
+            }
+        }
+        out = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        assert out["option_codes"]["v1"] is None
+
+    async def test_empty_list_when_accepted_with_no_matching_options(
+        self, hass, mock_config_entry
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from custom_components.rivian.const import (
+            ATTR_COORDINATOR,
+            ATTR_USER,
+            ATTR_VEHICLE,
+            ATTR_WALLBOX,
+            DOMAIN,
+        )
+        from custom_components.rivian.diagnostics import (
+            async_get_config_entry_diagnostics,
+        )
+
+        vehicle = MagicMock()
+        vehicle.data = {}
+        vehicle._unsub_parallax = None
+        vehicle.charging_coordinator = MagicMock(data={})
+        vehicle.drivers_coordinator = MagicMock(data={})
+
+        user = MagicMock(data={})
+        user.get_vehicles.return_value = {
+            "v1": {"name": "Vehicle 1", "option_codes": ["TON-P01"]},
+            "v2": {"name": "Vehicle 2", "option_codes": []},
+        }
+        hass.data[DOMAIN] = {
+            mock_config_entry.entry_id: {
+                ATTR_COORDINATOR: {
+                    ATTR_USER: user,
+                    ATTR_VEHICLE: {"v1": vehicle},
+                    ATTR_WALLBOX: MagicMock(data={}),
+                }
+            }
+        }
+        out = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        assert out["option_codes"]["v1"] == ["TON-P01"]
+        assert out["option_codes"]["v2"] == []
+        assert out["option_codes"]["v2"] is not None
+
+    async def test_diagnostics_never_raises_when_get_vehicles_is_unusable(
+        self, hass, mock_config_entry
+    ) -> None:
+        """A bare MagicMock's get_vehicles() returns another MagicMock, not a
+        dict -- diagnostics must degrade to {} rather than crash the download."""
+        from unittest.mock import MagicMock
+
+        from custom_components.rivian.const import (
+            ATTR_COORDINATOR,
+            ATTR_USER,
+            ATTR_VEHICLE,
+            ATTR_WALLBOX,
+            DOMAIN,
+        )
+        from custom_components.rivian.diagnostics import (
+            async_get_config_entry_diagnostics,
+        )
+
+        vehicle = MagicMock()
+        vehicle.data = {}
+        vehicle._unsub_parallax = None
+        vehicle.charging_coordinator = MagicMock(data={})
+        vehicle.drivers_coordinator = MagicMock(data={})
+        hass.data[DOMAIN] = {
+            mock_config_entry.entry_id: {
+                ATTR_COORDINATOR: {
+                    ATTR_USER: MagicMock(data={}),
+                    ATTR_VEHICLE: {"v1": vehicle},
+                    ATTR_WALLBOX: MagicMock(data={}),
+                }
+            }
+        }
+        out = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+        assert out["option_codes"] == {}

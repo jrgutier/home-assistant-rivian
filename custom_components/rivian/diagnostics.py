@@ -100,6 +100,26 @@ def _provenance_diagnostics(coor: VehicleCoordinator) -> dict[str, Any]:
     }
 
 
+def _option_codes_diagnostics(coor: UserCoordinator) -> dict[str, Any]:
+    """S19: `option_codes` per vehicle, keyed by vehicle id.
+
+    None means the `mobileConfiguration` fragment was rejected and
+    get_user_information() (rivian_client/rivian.py) retried without it --
+    distinguishable from an empty list, which means the fragment was accepted
+    and the vehicle simply has no matching options. Built from
+    UserCoordinator.get_vehicles() rather than read raw off coor.data so this
+    stays in sync with what get_vehicles() actually surfaces to entities.
+    """
+    try:
+        vehicles = coor.get_vehicles()
+    except Exception:  # noqa: BLE001 -- diagnostics must never raise
+        return {}
+    return {
+        vehicle_id: vehicle.get("option_codes")
+        for vehicle_id, vehicle in vehicles.items()
+    }
+
+
 def _command_outcomes(coordinator: VehicleCoordinator) -> list[dict[str, Any]]:
     """The in-memory command-state records, for the first bug report.
 
@@ -143,7 +163,7 @@ async def async_get_config_entry_diagnostics(
     # "connected but receiving nothing" is a real and non-obvious state, which
     # is why `subscribed` is reported separately from the data itself.
     # This comment previously justified that with "the gateway allows one active
-    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:827 runs a
+    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:896 runs a
     # single monitor multiplexing rivian.py:147 `_subscriptions`, and
     # subscribe_for_vehicle_updates, subscribe_for_parallax_messages and
     # subscribe_for_cloud_connection in coordinator.py open three concurrent on
@@ -169,6 +189,9 @@ async def async_get_config_entry_diagnostics(
             coor.drivers_coordinator.data for coor in vehicle_coordinators.values()
         ],
         "wallbox": wallbox_coordinator.data,
+        # S19: factory option codes per vehicle, None when the fragment was
+        # rejected -- see _option_codes_diagnostics.
+        "option_codes": _option_codes_diagnostics(user_coordinator),
         # Per-topic Parallax arrival counts. A topic absent from this map has
         # never delivered, which is what distinguishes "the field was zero and
         # proto3 omitted it" from "the decoder never fired".

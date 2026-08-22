@@ -253,6 +253,14 @@ async def test_graphql_errors(aresponses: ResponsesMockServer) -> None:
     coverage, and the client floor has under half a point of headroom.
     get_user_information posts to the same GRAPHQL_GATEWAY url the mock registers;
     get_registered_wallboxes posts to GRAPHQL_CHARGING and would not match.
+
+    The bare-error block below uses get_vehicle_command_state instead of
+    get_user_information: since s19, get_user_information retries once on an
+    UNCLASSIFIED RivianApiException specifically (the mobileConfiguration
+    option-code fragment being rejected), which `error_response()` with no
+    code also produces -- consuming a second, unregistered mock and failing
+    the test for a reason unrelated to what it is checking.
+    get_vehicle_command_state has no such retry and stays a single round trip.
     """
     host = "rivian.com"
     path = "/api/gql/gateway/graphql"
@@ -282,7 +290,7 @@ async def test_graphql_errors(aresponses: ResponsesMockServer) -> None:
     async with aiohttp.ClientSession():
         rivian = Rivian()
         with pytest.raises(RivianApiException):
-            await rivian.get_user_information()
+            await rivian.get_vehicle_command_state("command_id")
         await rivian.close()
 
     aresponses.add(

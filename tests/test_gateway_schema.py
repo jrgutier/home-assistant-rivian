@@ -204,6 +204,12 @@ class TestScopedEdit:
     """The rebuild touched exactly one of the 81 definitions."""
 
     def test_only_vehicle_state_was_edited(self) -> None:
+        """f4's rebuild touched only `VehicleState`; s19 (option codes) legitimately
+        adds `tonneauOption`/`wheelOption` to `VehicleMobileConfiguration` on top of
+        that, so the allowed set grew by exactly the one definition s19 touches --
+        this stays a real drift guard against a THIRD definition changing by
+        accident, not a freeze on the schema forever.
+        """
         import subprocess
 
         before = subprocess.run(
@@ -224,9 +230,10 @@ class TestScopedEdit:
         new = _definitions(SCHEMA.read_text())
         assert set(old) == set(new), "a definition was added or removed"
         changed = {k for k in old if old[k] != new[k]}
-        assert changed <= {"VehicleState"}, (
-            f"the rebuild is scoped to type VehicleState; also changed: "
-            f"{sorted(changed - {'VehicleState'})}"
+        allowed = {"VehicleState", "VehicleMobileConfiguration"}
+        assert changed <= allowed, (
+            f"the rebuild is scoped to {sorted(allowed)}; also changed: "
+            f"{sorted(changed - allowed)}"
         )
 
 

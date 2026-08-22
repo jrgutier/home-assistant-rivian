@@ -145,6 +145,7 @@ class Rivian:
 
         self._ws_monitor: WebSocketMonitor | None = None
         self._subscriptions: dict[str, str] = {}
+        self._option_codes_available: bool | None = None
 
     async def create_csrf_token(self) -> None:
         """Create cross-site-request-forgery (csrf) token."""
@@ -326,7 +327,25 @@ class Rivian:
     async def get_user_information(
         self, include_phones: bool = False
     ) -> ClientResponse:
-        """Get user information."""
+        """Get user information.
+
+        S19: the vehicle fragment also asks for `mobileConfiguration {
+        tonneauOption wheelOption }`, which is how the app learns a vehicle's
+        factory option codes (`java_src/.../UserVehicle.java:616-618` gates the
+        powered tonneau with `tonneauOptionId.contains(TONNEAU_POWER_OPTION_ID)`
+        -- substring, not equality; `get_vehicles()` in coordinator.py builds
+        `option_codes` for that same containment check, never `==`).
+
+        This rides on `getUserInfo`, which is setup-critical -- folding it in here
+        instead of a separate `vehicleOrders` query costs zero extra round trips
+        but means a schema drift in either new field would otherwise take the
+        whole login down with it. So: try the extended fragment first; if the
+        gateway rejects it, retry ONCE with the base fragment (no
+        mobileConfiguration) and let setup succeed without option codes rather
+        than not at all. `option_codes_available` records which one won so
+        get_vehicles()/diagnostics can tell "asked and got none" (accepted,
+        empty) apart from "never asked" (rejected, retried).
+        """
         url = GRAPHQL_GATEWAY
 
         headers = BASE_HEADERS | {
@@ -334,17 +353,67 @@ class Rivian:
             "U-Sess": self._user_session_token,
         }
 
-        vehicles_fragment = "vehicles { id vin name vas { __typename vasVehicleId vehiclePublicKey } roles state createdAt updatedAt vehicle { __typename id vin modelYear make model expectedBuildDate plannedBuildDate expectedGeneralAssemblyStartDate actualGeneralAssemblyDate vehicleState { supportedFeatures { __typename name status } } } }"
+        vehicle_fields = "__typename id vin modelYear make model expectedBuildDate plannedBuildDate expectedGeneralAssemblyStartDate actualGeneralAssemblyDate vehicleState { supportedFeatures { __typename name status } }"
+        option_codes_fragment = "mobileConfiguration { tonneauOption { optionId optionName } wheelOption { optionId optionName } }"
         phones_fragment = "enrolledPhones { __typename vas { __typename vasPhoneId publicKey } enrolled { __typename deviceType deviceName vehicleId identityId shortName } }"
         _2fa_fragment = "registrationChannels { type }"
 
-        graphql_json = {
-            "operationName": "getUserInfo",
-            "query": f"query getUserInfo {{ currentUser {{ __typename id {vehicles_fragment} {_2fa_fragment} {phones_fragment if include_phones else ''} }} }}",
-            "variables": None,
-        }
+        def _query(*, with_option_codes: bool) -> dict[str, Any]:
+            inner = vehicle_fields + (
+                f" {option_codes_fragment}" if with_option_codes else ""
+            )
+            vehicles_fragment = (
+                "vehicles { id vin name vas { __typename vasVehicleId "
+                f"vehiclePublicKey }} roles state createdAt updatedAt vehicle {{ {inner} }} }}"
+            )
+            return {
+                "operationName": "getUserInfo",
+                "query": (
+                    f"query getUserInfo {{ currentUser {{ __typename id {vehicles_fragment} "
+                    f"{_2fa_fragment} {phones_fragment if include_phones else ''} }} }}"
+                ),
+                "variables": None,
+            }
 
-        return await self.__graphql_query(headers, url, graphql_json)
+        try:
+            response = await self.__graphql_query(
+                headers, url, _query(with_option_codes=True)
+            )
+            self._option_codes_available = True
+            return response
+        except RivianApiException as ex:
+            # Narrow on purpose: RATE_LIMIT, UNAUTHENTICATED, DATA_ERROR,
+            # SESSION_MANAGER_ERROR and the rest of ERROR_CODE_CLASS_MAP are all
+            # RivianApiException SUBCLASSES and must propagate immediately --
+            # retrying a rate limit or an auth failure with a smaller query is
+            # nonsensical and would double the damage. `type(ex) is
+            # RivianApiException` (not isinstance) matches only the fallback raise
+            # for a response the map has no class for -- which is what an unknown
+            # field name in the query produces. INTERNAL_SERVER_ERROR also maps to
+            # the bare class, so a genuine 500 retries once too; that costs one
+            # extra request, not a wrong result, so it is accepted rather than
+            # disambiguated further.
+            if type(ex) is not RivianApiException:
+                raise
+            _LOGGER.warning(
+                "getUserInfo: mobileConfiguration option-code fragment rejected; "
+                "retrying once without it"
+            )
+            self._option_codes_available = False
+            return await self.__graphql_query(
+                headers, url, _query(with_option_codes=False)
+            )
+
+    def option_codes_available(self) -> bool | None:
+        """Whether the last getUserInfo response included option codes.
+
+        True once the extended (mobileConfiguration) fragment has been
+        accepted; False after a rejection forced the fallback retry; None
+        before get_user_information() has ever been called. Mirrors
+        subscription_document()'s three-state signal so diagnostics can tell
+        "never asked" apart from "asked and rejected".
+        """
+        return self._option_codes_available
 
     async def get_registered_wallboxes(self) -> ClientResponse:
         """Get registered wallboxes."""

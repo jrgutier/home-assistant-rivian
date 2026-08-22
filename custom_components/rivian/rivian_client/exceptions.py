@@ -1,8 +1,8 @@
 """Rivian exceptions.
 
 Every exception here is raised with the HTTP status, the response JSON, the
-request headers AND the request body attached (``rivian.py:886`` and
-``rivian.py:888``). None of these classes defines ``__init__``, so Python renders
+request headers AND the request body attached (``rivian.py:955`` and
+``rivian.py:957``). None of these classes defines ``__init__``, so Python renders
 all of those arguments through ``str(args)`` whenever the exception is logged,
 printed, or formatted into a message.
 
@@ -20,8 +20,8 @@ exception is constructed, before anything can render it.
 Two properties are deliberate:
 
 * **Shape-agnostic.** Redaction walks every argument by key name at any depth,
-  rather than keying on argument position. ``rivian.py:886`` passes four
-  positional arguments while ``rivian.py:888`` passes five, with ``headers`` and
+  rather than keying on argument position. ``rivian.py:955`` passes four
+  positional arguments while ``rivian.py:957`` passes five, with ``headers`` and
   ``body`` shifted by one -- and the five-argument form is the fallback for every
   error code absent from ``ERROR_CODE_CLASS_MAP``, so a position-keyed
   implementation would miss precisely the unclassified failures.

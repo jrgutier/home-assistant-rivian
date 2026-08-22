@@ -555,6 +555,16 @@ type VehicleMobileConfiguration {
   driveSystemOption: VehicleMobileConfigurationOption!
   exteriorColorOption: VehicleMobileConfigurationOption!
   interiorColorOption: VehicleMobileConfigurationOption!
+  # tonneauOption/wheelOption (s19) are declared nullable, unlike the four
+  # siblings above -- a vehicle without a powered tonneau (or a non-default
+  # wheel choice) plausibly returns null for the corresponding field, and this
+  # file is a lower bound derived from one APK build (tests/test_gateway_schema.py:1-22),
+  # never the schema itself, so nullability here cannot be confirmed statically
+  # either way. The four non-null siblings are the anomaly this leaves behind,
+  # not the two below: they were declared nullable-or-not before this change
+  # with no live evidence recorded for that choice either.
+  tonneauOption: VehicleMobileConfigurationOption
+  wheelOption: VehicleMobileConfigurationOption
 }
 
 type VehicleMobileConfigurationOption {
