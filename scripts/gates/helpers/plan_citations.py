@@ -22,7 +22,10 @@ Two check layers
 
    A citation WITHOUT an anchor row still only gets bounds-checking (reported
    UNRESOLVED/OUT-OF-BOUNDS/UNVERIFIED, same as before) -- coverage is
-   whatever `--establish` has populated, not automatically total.
+   whatever `--establish` has populated, not automatically total. A citation
+   IN A FROZEN DOCUMENT (see FROZEN_PLANS) that would otherwise report FAIL
+   reports FROZEN instead, and does not count toward the fail total -- the
+   citation is dated, not broken, and the two must not read the same.
 
 `--establish` (s19, run BY HAND, never by f11.sh or CI) populates
 plan_anchors.tsv. It does not trust whatever line number is currently
@@ -249,6 +252,37 @@ PLAN_ANCHORS_TSV = C.REPO_ROOT / "scripts" / "gates" / "helpers" / "plan_anchors
 DEFAULT_PLANS = (
     Path.home() / ".claude" / "plans" / "lets-emulate-the-apk-memoized-summit.md",
     C.REPO_ROOT / ".omc" / "plans" / "ralplan-audit-apk-parity-plan.md",
+)
+
+# Frozen documents (s19) -- declared here, not inferred, so the next person
+# adding a plan file knows which bucket it belongs in and why.
+#
+# The criterion is append-only historical record vs. living spec. A frozen
+# document is a record of a completed decision process (an audit, a review,
+# a consensus write-up) whose citations were verified against the tree AS OF
+# a specific commit and are deliberately never repaired afterward --
+# repairing one would rewrite it against a tree that did not exist when the
+# decision was made, misrepresenting what the evidence looked like at
+# decision time (see this module's "Do not anchor a citation inside frozen
+# prose" docstring section). A living document -- the plan of record itself,
+# a spec still being executed against -- is expected to stay current, and a
+# citation drifting there IS a defect worth fixing.
+#
+# Consequence: a frozen document's citations report FROZEN, not FAIL --
+# never counted toward the fail total -- because a correctly-resolving
+# anchor on prose that will never be repaired reports red FOREVER, which is
+# indistinguishable at a glance from a live defect and trains readers to
+# ignore red. Genuinely unresolvable citations (UNRESOLVED/OUT-OF-BOUNDS,
+# from the bounds-checking layer) are NOT covered by this -- a frozen
+# document's citations were in-bounds when written, so one that is not
+# in-bounds now is more likely a tool parsing artifact (e.g. a shorthand
+# citation misattributed to the wrong file) than expected staleness, and
+# stays visible under its own existing tag rather than being folded into
+# either FROZEN or FAIL.
+FROZEN_PLANS: frozenset[str] = frozenset(
+    {
+        "ralplan-audit-apk-parity-plan.md",
+    }
 )
 
 # Bare (unqualified) file tokens that are ambiguous by basename alone --
@@ -577,22 +611,31 @@ def run_establish(plan_paths: list[Path]) -> int:
 def check_with_anchors(plan_paths: list[Path]) -> int:
     """Real content verification for every citation an anchor row covers;
     bounds-only UNVERIFIED (as before) for everything else.
+
+    A citation in a FROZEN_PLANS document that would otherwise FAIL prints
+    FROZEN instead and does not count toward fail_ct -- see FROZEN_PLANS'
+    docstring for why. PASS is unaffected: a frozen document's citations
+    that still happen to resolve correctly are still worth showing as such.
     """
     anchors = C.AnchorIndex(load_plan_anchors())
     all_py = _repo_python_files()
     total = 0
     pass_ct = 0
     fail_ct = 0
+    frozen_ct = 0
     unanchored = 0
     for plan_path in plan_paths:
+        frozen = plan_path.name in FROZEN_PLANS
+        fail_tag = "FROZEN" if frozen else "FAIL"
         lines = plan_path.read_text(encoding="utf-8", errors="replace").splitlines()
         for i, line, token, spec, _is_shorthand, _start in _iter_line_citations(lines):
             total += 1
             loc = f"{plan_path.name}:{i}"
             cited_path = resolve_cited_file_broad(token, spec, all_py)
             if cited_path is None:
-                print(f"FAIL\t{loc}\t{token}:{spec}\tcannot resolve cited file")
-                fail_ct += 1
+                print(f"{fail_tag}\t{loc}\t{token}:{spec}\tcannot resolve cited file")
+                frozen_ct += 1 if frozen else 0
+                fail_ct += 0 if frozen else 1
                 continue
             cited_rel = str(cited_path.relative_to(C.REPO_ROOT))
             row = anchors.take(plan_path.name, C.line_hash(line), cited_rel)
@@ -610,22 +653,35 @@ def check_with_anchors(plan_paths: list[Path]) -> int:
             lo, hi = C._spec_to_range(spec)
             if len(hits) != 1:
                 print(
-                    f"FAIL\t{loc}\t{token}:{spec}\tanchor {row.anchor!r} not "
+                    f"{fail_tag}\t{loc}\t{token}:{spec}\tanchor {row.anchor!r} not "
                     f"uniquely found in {row.cited_file} (hits={len(hits)}) -- {row.note}"
                 )
-                fail_ct += 1
+                frozen_ct += 1 if frozen else 0
+                fail_ct += 0 if frozen else 1
             elif lo <= hits[0] <= hi:
                 print(f"PASS\t{loc}\t{token}:{spec}\tmatches content at :{hits[0]}")
                 pass_ct += 1
             else:
                 print(
-                    f"FAIL\t{loc}\t{token}:{spec}\tcites :{spec} but content is "
+                    f"{fail_tag}\t{loc}\t{token}:{spec}\tcites :{spec} but content is "
                     f"now at :{hits[0]} -- {row.note}"
                 )
-                fail_ct += 1
+                frozen_ct += 1 if frozen else 0
+                fail_ct += 0 if frozen else 1
     print(
-        f"CENSUS\ttotal={total} pass={pass_ct} fail={fail_ct} unanchored={unanchored}"
+        f"CENSUS\ttotal={total} pass={pass_ct} fail={fail_ct} "
+        f"frozen={frozen_ct} unanchored={unanchored}"
     )
+    if frozen_ct:
+        # Tag differs from the per-citation "FROZEN" rows above (which carry
+        # loc/target/detail) so a naive tab-split parser -- f11.sh's -- does
+        # not mistake this summary line for one more citation.
+        print(
+            f"FROZEN-SUMMARY\t{frozen_ct} citation(s) are in a document "
+            "declared in FROZEN_PLANS -- dated, not broken. Never repair "
+            "these; see this file's 'Do not anchor a citation inside frozen "
+            "prose' docstring."
+        )
     if unanchored:
         print(
             f"UNVERIFIED\t{unanchored} citation(s) have no anchor row yet -- "

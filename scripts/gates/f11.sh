@@ -31,7 +31,11 @@
 #              covers; anything without a row still only gets bounds-only
 #              UNVERIFIED. Coverage is populated by a human running
 #              `plan_citations.py --establish` -- never by this script, and
-#              never automatically total.
+#              never automatically total. A citation in a document declared
+#              FROZEN (plan_citations.py's FROZEN_PLANS) that would
+#              otherwise FAIL reports FROZEN instead and is never counted
+#              as bad() -- it is a dated record of a completed decision
+#              process, not a live defect.
 
 source "$(dirname "$0")/_lib.sh"
 
@@ -86,10 +90,12 @@ if [ "$CORPUS" = "plan" ]; then
   set -e
   while IFS=$'\t' read -r tag loc target detail; do
     case "$tag" in
-      UNRESOLVED|OUT-OF-BOUNDS) bad "$tag $loc $target :: $detail" ;;
+      UNRESOLVED|OUT-OF-BOUNDS) bad "$tag $loc $target :: $detail" ;; # tool-artifact/impossible even in a frozen doc -- never suppressed, see FROZEN_PLANS' docstring
       FAIL) bad "$loc $target :: $detail" ;; # $tag omitted -- bad() already labels it FAIL
+      FROZEN) note "FROZEN $loc $target :: $detail" ;; # dated, not broken -- never counted as bad()
       PASS) ok "$loc -> $target ($detail)" ;; # a real signal: anchor-covered, content re-verified
       CENSUS) note "$loc" ;;
+      FROZEN-SUMMARY) note "$loc" ;;
       UNVERIFIED) note "UNVERIFIED -- $loc" ;; # bounds-only remainder: see plan_citations.py's docstring
     esac
   done <<< "$out"
