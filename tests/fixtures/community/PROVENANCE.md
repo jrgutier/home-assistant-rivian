@@ -60,17 +60,25 @@ vehicles even without a VIN. The salt lives in `.salt` in this directory
 
 **Admission ≠ satisfaction.** `issue-171.json` is admitted on 3/5 fields but
 is an **R1T**, not R1S/R2 — the R1T has neither a physical third row nor a
-liftgate, so its `usable` values for those three fields are very likely
-inert defaults the vehicle never actually exercises, not evidence the field
-is meaningful on that body style. It should not be counted toward the R1S
-"all five fields, n ≥ 2 distinct vehicles" condition.
+liftgate. One of the three, `closureLiftgateLocked`, is **not just a
+plausible inert default** — it is independently corroborated: the project's
+own live production R1T reads a usable (non-SNA) value on the same field at
+the same 2026-08-19 12:31 CDT capture that shows two *other* R1T-group lock
+fields reading SNA on genuinely present hardware. See
+`docs/development/GATE_FIELD_EVIDENCE.md` for the full 14-field,
+per-model, per-source breakdown this finding grew into (all 14 gated
+descriptions, not just these five) — it should not be counted toward the R1S
+"all five fields, n ≥ 2 distinct vehicles" condition, and it is evidence the
+usable/SNA distinction is not a reliable hardware-presence signal at all.
 
 `issue-222.json` and `issue-245.json` are both **R1S** and each independently
 report **all five** gate fields with usable values, and their digests above
 confirm they are two distinct vehicles (different model years, build dates,
 and owners). Whether this satisfies the shim's removal condition is a
 decision for team-lead/architect review, not this sweep — but the raw
-evidence for "R1S, all five fields, n ≥ 2" now exists.
+evidence for "R1S, all five fields, n ≥ 2" now exists alongside the
+counter-evidence in `GATE_FIELD_EVIDENCE.md` that the same signal misfires
+on the R1T-group's analogous field.
 
 ## Search method (for the record of what returned nothing)
 
