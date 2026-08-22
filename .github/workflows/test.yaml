@@ -5,18 +5,19 @@ name: Tests
 # after it. This repo previously had no test workflow at all — only
 # pre-release.yaml, release.yaml and stale.yaml.
 #
-# Deliberately does NOT run on dev or dev-*: pre-release.yaml triggers there and
-# publishes a zip that beta users install. Work happens on vendor-client.
+# Runs on master alongside pre-release.yaml, deliberately. pre-release.yaml
+# runs NO tests -- it builds and publishes the zip beta users install -- so
+# before the dev->master rename, betas shipped without this workflow ever
+# firing: its triggers named `main` (which never existed on origin) and
+# `vendor-client` (deleted 2026-08-22). Both workflows now trigger on master
+# so a published beta is one that pytest and ruff have actually seen.
 on:
   push:
     branches:
-      - main
-      - vendor-client
+      - master
   pull_request:
     branches:
-      - main
-      - dev
-      - vendor-client
+      - master
 
 jobs:
   test:

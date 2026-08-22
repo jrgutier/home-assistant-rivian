@@ -3,8 +3,8 @@ name: Pre-Release Build
 on:
   push:
     branches:
-      - dev
-      - dev-*
+      - master
+      - master-*
   workflow_dispatch:
 
 jobs:
@@ -68,7 +68,7 @@ jobs:
 
       - name: Create zip package
         # Allow-list, not a bare recursive zip. This workflow fires on every push
-        # to dev and dev-*, and what it publishes is what beta users install, so a
+        # to master and master-*, and what it publishes is what beta users install, so a
         # stray file here reaches people rather than sitting in a build dir.
         run: |
           cd custom_components/rivian
