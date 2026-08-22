@@ -58,6 +58,95 @@ import citations as C
 
 FULL_RE = re.compile(r"(?P<file>[A-Za-z_][A-Za-z0-9_./]*\.py):(?P<spec>\d+(?:-\d+)?)")
 
+# ---------------------------------------------------------------------------
+# Shorthand continuation citations (s19) -- a bare `:N` that continues the
+# most recently mentioned .py file, the plan-corpus equivalent of
+# citations.py's BARE_RE/block tracking. Reusing that mechanism unmodified
+# does not work here: citations.py updates `current_file_token` by scanning
+# ALL full-form matches on a line FIRST and only then walking bare matches,
+# so on a line mentioning several files it silently attributes every bare
+# citation to whichever full-form file happened to be LAST on the line --
+# never exposed in the code corpus (a comment run rarely names more than one
+# file), but immediately wrong here: N25's own citation-drift finding names
+# coordinator.py, then diagnostics.py, then cover.py and __init__.py, all on
+# one line, and naive last-wins attribution puts EVERY bare citation in that
+# chain on __init__.py. Fixed below by interleaving full-form and bare
+# matches in true left-to-right ORDER, so a bare citation always continues
+# the NEAREST PRECEDING file, not the line's last one.
+#
+# Two more properties prose needs that code did not:
+#
+# - ANY_FILE_RE, not just .py. A bare `:N` following a NON-.py reference
+#   (`C18463s.java:123`, `MODEL_SPECIFIC_ENTITIES.md:9-15`) must not inherit
+#   a stale .py file from earlier in the same block -- citations.py's
+#   FULL_RE-is-.py-only design never needed this because code comments don't
+#   cite Java or Markdown. Extensions below are every one actually cited in
+#   the corpus as of 2026-08-22 (py, java, sh, md, graphql, txt) -- re-verify
+#   this list at the next establishment pass rather than assuming it's still
+#   exhaustive.
+# - Markdown block boundaries, not comment/docstring boundaries. Bullet
+#   lists here have NO blank line between items (` - foo\n- bar`), so a
+#   naive "same paragraph" (blank-line-delimited) scope would leak a
+#   full-form citation from bullet 1 into bullet 3's bare citation. Each
+#   list-item marker, table row (`|...|`), and header is therefore its own
+#   reset boundary; a bullet's own WRAPPED CONTINUATION lines (indented, no
+#   marker) are not boundaries, so a citation can still span them -- verified
+#   against a real case in the corpus (`- **Repoint coordinator.py:1000**
+#   (now :1197...` wrapping onto an indented continuation line two lines
+#   later, still `:1197`).
+ANY_FILE_RE = re.compile(
+    r"[A-Za-z_][A-Za-z0-9_./-]*\.(?:py|java|sh|md|graphql|txt):\d+(?:-\d+)?"
+)
+BARE_RE = re.compile(r":(\d+)(?:-(\d+))?")
+_LIST_ITEM_RE = re.compile(r"^\s*([-*+]|\d+\.)\s")
+_TABLE_ROW_RE = re.compile(r"^\s*\|")
+_HEADER_RE = re.compile(r"^#+\s")
+
+
+def _is_block_boundary(line: str) -> bool:
+    """True if LINE starts a fresh shorthand-tracking scope."""
+    if not line.strip():
+        return True
+    return bool(
+        _LIST_ITEM_RE.match(line)
+        or _TABLE_ROW_RE.match(line.strip())
+        or _HEADER_RE.match(line)
+    )
+
+
+def _iter_line_citations(lines: list[str]):
+    """Yield (line_no, line_text, token, spec, is_shorthand, start) for every
+    full-form AND shorthand .py citation in LINES, in document order. START
+    is the citation's own character offset in line_text, for
+    establish_one's proximity-based candidate ordering.
+    """
+    current_file: str | None = None
+    for i, line in enumerate(lines, 1):
+        if _is_block_boundary(line):
+            current_file = None
+        events = [("any", m.start(), m) for m in ANY_FILE_RE.finditer(line)]
+        events += [("bare", m.start(), m) for m in BARE_RE.finditer(line)]
+        events.sort(key=lambda e: e[1])
+        any_spans = [m.span() for kind, _, m in events if kind == "any"]
+        for kind, start, m in events:
+            if kind == "any":
+                token = m.group(0).rsplit(":", 1)[0]
+                spec = m.group(0).rsplit(":", 1)[1]
+                if token.endswith(".py"):
+                    current_file = token
+                    yield i, line, token, spec, False, start
+                else:
+                    current_file = None
+                continue
+            if any(s <= start < e for s, e in any_spans):
+                continue  # already yielded as part of an "any" match above
+            if start > 0 and line[start - 1] == "[":
+                continue  # slice syntax, e.g. sha256[:12]
+            if current_file is None:
+                continue
+            spec = f"{m.group(1)}-{m.group(2)}" if m.group(2) else m.group(1)
+            yield i, line, current_file, spec, True, start
+
 
 # Plan documents cite more than custom_components/ -- tests/, scripts/, probe
 # files -- so resolution searches the whole repo, not just the code corpus.
@@ -80,34 +169,32 @@ def audit_one(plan_path: Path, all_py: list[Path]) -> tuple[int, int]:
     bad = 0
     total = 0
     seen: set[tuple[str, str]] = set()
-    for i, line in enumerate(lines, 1):
-        for m in FULL_RE.finditer(line):
-            token, spec = m.group("file"), m.group("spec")
-            key = (token, spec)
-            total += 1
-            resolved = [p for p in all_py if p.name == Path(token).name]
-            if not resolved:
-                if key not in seen:
-                    print(
-                        f"UNRESOLVED\t{plan_path.name}:{i}\t{token}:{spec}\t no file named {token!r} anywhere in the repo"
-                    )
-                    bad += 1
-                seen.add(key)
-                continue
-            _lo, hi = C._spec_to_range(spec)
-            in_bounds = any(
-                hi <= len(p.read_text(encoding="utf-8", errors="replace").splitlines())
-                for p in resolved
-            )
-            if not in_bounds:
-                counts = ", ".join(
-                    f"{p.relative_to(C.REPO_ROOT)}={len(p.read_text(encoding='utf-8', errors='replace').splitlines())}"
-                    for p in resolved
-                )
+    for i, line, token, spec, _is_shorthand, _start in _iter_line_citations(lines):
+        key = (token, spec)
+        total += 1
+        resolved = [p for p in all_py if p.name == Path(token).name]
+        if not resolved:
+            if key not in seen:
                 print(
-                    f"OUT-OF-BOUNDS\t{plan_path.name}:{i}\t{token}:{spec}\t candidates: {counts}"
+                    f"UNRESOLVED\t{plan_path.name}:{i}\t{token}:{spec}\t no file named {token!r} anywhere in the repo"
                 )
                 bad += 1
+            seen.add(key)
+            continue
+        _lo, hi = C._spec_to_range(spec)
+        in_bounds = any(
+            hi <= len(p.read_text(encoding="utf-8", errors="replace").splitlines())
+            for p in resolved
+        )
+        if not in_bounds:
+            counts = ", ".join(
+                f"{p.relative_to(C.REPO_ROOT)}={len(p.read_text(encoding='utf-8', errors='replace').splitlines())}"
+                for p in resolved
+            )
+            print(
+                f"OUT-OF-BOUNDS\t{plan_path.name}:{i}\t{token}:{spec}\t candidates: {counts}"
+            )
+            bad += 1
     return total, bad
 
 
@@ -250,29 +337,42 @@ MIN_ANCHOR_LEN = 8  # shorter than this and a fallback-to-spec anchor is too
 
 
 def _candidate_tokens(
-    context_text: str, self_token: str, self_spec: str
+    context_text: str, self_token: str, self_spec: str, near: int | None = None
 ) -> list[tuple[str, str]]:
     """Extract ('kv', literal) and ('sym', name) candidates from CITING
-    prose, in priority order. Filters out the citation's own `file.py:spec`
-    (that names ITSELF, not content inside the cited file) and any OTHER
-    `file.py:spec` span (those describe a DIFFERENT file's content, and
-    searching for e.g. "async_setup_entry" -- named because it's what a
-    DIFFERENT outbound citation points at -- inside THIS cited file would be
-    a coincidence, not a signal; the uniqueness check below is what keeps a
-    false one from being trusted, but it is cleaner not to offer it).
+    prose. Filters out the citation's own `file.py:spec` (that names ITSELF,
+    not content inside the cited file) and any OTHER `file.py:spec` span
+    (those describe a DIFFERENT file's content, and searching for e.g.
+    "async_setup_entry" -- named because it's what a DIFFERENT outbound
+    citation points at -- inside THIS cited file would be a coincidence, not
+    a signal; the uniqueness check below is what keeps a false one from being
+    trusted, but it is cleaner not to offer it).
+
+    Ordered by proximity to NEAR (the position, in context_text, of the
+    citation actually being resolved) when given, nearest first, kv before
+    sym at equal distance. A dense multi-citation line -- N25's drift finding
+    alone names four files and one generic symbol ("VehicleCoordinator")
+    across ~700 characters -- otherwise lets one candidate mentioned ANYWHERE
+    on the line "win" for every citation on it, regardless of which citation
+    it actually describes; sorting by distance from the citation's own
+    position is what keeps a symbol named near citation 3 from resolving
+    citation 1. NEAR=None keeps left-to-right document order (only used by
+    callers that do not know their own position, if any remain).
     """
     self_full = f"{self_token}:{self_spec}"
-    out: list[tuple[str, str]] = []
+    out: list[tuple[int, str, str]] = []
     for m in KV_RE.finditer(context_text):
-        out.append(("kv", f'{m.group(1)}="{m.group(2)}"'))
+        out.append((m.start(), "kv", f'{m.group(1)}="{m.group(2)}"'))
     for m in BACKTICK_RE.finditer(context_text):
         inner = m.group(1).strip()
         if inner == self_full or FULL_RE.fullmatch(inner):
             continue
         core = inner.split("(")[0].strip().rstrip(":")
         if IDENT_RE.match(core) and len(core) >= 4:
-            out.append(("sym", core))
-    return out
+            out.append((m.start(), "sym", core))
+    if near is not None:
+        out.sort(key=lambda t: (abs(t[0] - near), 0 if t[1] == "kv" else 1))
+    return [(kind, cand) for _pos, kind, cand in out]
 
 
 def _grep_unique(text_lines: list[str], needle: str) -> int | None:
@@ -296,10 +396,17 @@ def establish_one(
     token: str,
     spec: str,
     all_py: list[Path],
+    near: int | None = None,
 ) -> tuple[str, C.AnchorRow | None, str]:
     """Returns (status, row_or_None, detail). status is one of:
     "established" (anchor found and verified unique), "needs-human" (nothing
     confident found -- prose cites a concept, not extractable content).
+
+    NEAR is this citation's own character offset in LINE_TEXT (see
+    _candidate_tokens) -- pass it whenever the caller has it, which is
+    always, now that _iter_line_citations tracks match positions; omitting
+    it falls back to document order, which is wrong on any line citing more
+    than one file.
     """
     cited_path = resolve_cited_file_broad(token, spec, all_py)
     if cited_path is None:
@@ -308,7 +415,7 @@ def establish_one(
     target_lines = cited_path.read_text(encoding="utf-8", errors="replace").splitlines()
 
     lo, hi = C._spec_to_range(spec)
-    for kind, cand in _candidate_tokens(line_text, token, spec):
+    for kind, cand in _candidate_tokens(line_text, token, spec, near=near):
         # Priority 0: does the CURRENTLY CITED range already contain what the
         # prose names? If so, trust that over any whole-file search --
         # otherwise a candidate like "update_listener" (present at its own
@@ -400,31 +507,40 @@ def establish_one(
 
 def run_establish(plan_paths: list[Path]) -> int:
     all_py = _repo_python_files()
-    existing = {(r.citing_file, r.citing_hash): r for r in load_plan_anchors()}
+    # Keyed on the full (citing_file, citing_hash, cited_file) triple, NOT
+    # just (citing_file, citing_hash): a shared citing line can carry several
+    # citations to DIFFERENT cited files (N25's finding alone spans
+    # coordinator.py, diagnostics.py, cover.py and __init__.py on one line),
+    # and keying on the pair alone would make establishing the FIRST citation
+    # on such a line silently mark every OTHER citation on it as "already
+    # covered" too.
+    existing = {
+        (r.citing_file, r.citing_hash, r.cited_file): r for r in load_plan_anchors()
+    }
     new_rows: list[C.AnchorRow] = []
     established = 0
     needs_human = 0
     kept = 0
     for plan_path in plan_paths:
         lines = plan_path.read_text(encoding="utf-8", errors="replace").splitlines()
-        for i, line in enumerate(lines, 1):
-            for m in FULL_RE.finditer(line):
-                token, spec = m.group("file"), m.group("spec")
-                h = C.line_hash(line)
-                if (plan_path.name, h) in existing:
-                    kept += 1
-                    continue
-                status, row, detail = establish_one(
-                    plan_path, i, line, token, spec, all_py
-                )
-                loc = f"{plan_path.name}:{i}"
-                if status == "established" and row is not None:
-                    print(f"ESTABLISHED\t{loc}\t{detail}")
-                    new_rows.append(row)
-                    established += 1
-                else:
-                    print(f"NEEDS-HUMAN\t{loc}\t{detail}")
-                    needs_human += 1
+        for i, line, token, spec, _is_shorthand, start in _iter_line_citations(lines):
+            h = C.line_hash(line)
+            cited_path = resolve_cited_file_broad(token, spec, all_py)
+            cited_rel = str(cited_path.relative_to(C.REPO_ROOT)) if cited_path else None
+            if cited_rel is not None and (plan_path.name, h, cited_rel) in existing:
+                kept += 1
+                continue
+            status, row, detail = establish_one(
+                plan_path, i, line, token, spec, all_py, near=start
+            )
+            loc = f"{plan_path.name}:{i}"
+            if status == "established" and row is not None:
+                print(f"ESTABLISHED\t{loc}\t{detail}")
+                new_rows.append(row)
+                established += 1
+            else:
+                print(f"NEEDS-HUMAN\t{loc}\t{detail}")
+                needs_human += 1
     all_rows = tuple(existing.values()) + tuple(new_rows)
     write_plan_anchors(all_rows)
     print(
@@ -446,45 +562,43 @@ def check_with_anchors(plan_paths: list[Path]) -> int:
     unanchored = 0
     for plan_path in plan_paths:
         lines = plan_path.read_text(encoding="utf-8", errors="replace").splitlines()
-        for i, line in enumerate(lines, 1):
-            for m in FULL_RE.finditer(line):
-                token, spec = m.group("file"), m.group("spec")
-                total += 1
-                loc = f"{plan_path.name}:{i}"
-                cited_path = resolve_cited_file_broad(token, spec, all_py)
-                if cited_path is None:
-                    print(f"FAIL\t{loc}\t{token}:{spec}\tcannot resolve cited file")
-                    fail_ct += 1
-                    continue
-                cited_rel = str(cited_path.relative_to(C.REPO_ROOT))
-                row = anchors.take(plan_path.name, C.line_hash(line), cited_rel)
-                if row is None:
-                    unanchored += 1
-                    continue
-                target_lines = cited_path.read_text(
-                    encoding="utf-8", errors="replace"
-                ).splitlines()
-                hits = [
-                    j
-                    for j, tl in enumerate(target_lines, 1)
-                    if re.search(re.escape(row.anchor), tl)
-                ]
-                lo, hi = C._spec_to_range(spec)
-                if len(hits) != 1:
-                    print(
-                        f"FAIL\t{loc}\t{token}:{spec}\tanchor {row.anchor!r} not "
-                        f"uniquely found in {row.cited_file} (hits={len(hits)}) -- {row.note}"
-                    )
-                    fail_ct += 1
-                elif lo <= hits[0] <= hi:
-                    print(f"PASS\t{loc}\t{token}:{spec}\tmatches content at :{hits[0]}")
-                    pass_ct += 1
-                else:
-                    print(
-                        f"FAIL\t{loc}\t{token}:{spec}\tcites :{spec} but content is "
-                        f"now at :{hits[0]} -- {row.note}"
-                    )
-                    fail_ct += 1
+        for i, line, token, spec, _is_shorthand, _start in _iter_line_citations(lines):
+            total += 1
+            loc = f"{plan_path.name}:{i}"
+            cited_path = resolve_cited_file_broad(token, spec, all_py)
+            if cited_path is None:
+                print(f"FAIL\t{loc}\t{token}:{spec}\tcannot resolve cited file")
+                fail_ct += 1
+                continue
+            cited_rel = str(cited_path.relative_to(C.REPO_ROOT))
+            row = anchors.take(plan_path.name, C.line_hash(line), cited_rel)
+            if row is None:
+                unanchored += 1
+                continue
+            target_lines = cited_path.read_text(
+                encoding="utf-8", errors="replace"
+            ).splitlines()
+            hits = [
+                j
+                for j, tl in enumerate(target_lines, 1)
+                if re.search(re.escape(row.anchor), tl)
+            ]
+            lo, hi = C._spec_to_range(spec)
+            if len(hits) != 1:
+                print(
+                    f"FAIL\t{loc}\t{token}:{spec}\tanchor {row.anchor!r} not "
+                    f"uniquely found in {row.cited_file} (hits={len(hits)}) -- {row.note}"
+                )
+                fail_ct += 1
+            elif lo <= hits[0] <= hi:
+                print(f"PASS\t{loc}\t{token}:{spec}\tmatches content at :{hits[0]}")
+                pass_ct += 1
+            else:
+                print(
+                    f"FAIL\t{loc}\t{token}:{spec}\tcites :{spec} but content is "
+                    f"now at :{hits[0]} -- {row.note}"
+                )
+                fail_ct += 1
     print(
         f"CENSUS\ttotal={total} pass={pass_ct} fail={fail_ct} unanchored={unanchored}"
     )
