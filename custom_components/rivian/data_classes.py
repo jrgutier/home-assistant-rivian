@@ -51,7 +51,7 @@ class RivianGateMixin:
 
     feature: the server's `supportedFeatures[].name` string (or several, ANY
         of which counts) -- `vehicle["supported_features"]`
-        (coordinator.py:825-829), NOT this integration's own group/key names.
+        (coordinator.py:850), NOT this integration's own group/key names.
     option_code: an entry in the vehicle's option codes. Matched by
         CONTAINMENT, never equality -- the Rivian app itself checks with
         Kotlin `contains`, so `"LFGT" in "XLFGTY"` is meant to match. No
