@@ -45,6 +45,30 @@ under the gitignored .omc/plans/), so this corpus cannot be CI-bound.
 `--fix` (repairing a plan document's own citations) is deliberately NOT
 implemented here: these files have an owner, and only they edit them --
 this module reports, it does not repair.
+
+Operating note -- this corpus is NOT a gate.
+-------------------------------------------
+The in-code corpus (scripts/gates/f11.sh --check, default) is CI-bound and
+pre-commit-enforced, and must stay at zero. THIS corpus is a local audit tool
+over the plan documents: run it when you are about to trust a citation, not as
+a pass/fail gate.
+
+A nonzero failure count here is its normal resting state, not a regression.
+Measured: the corpus went from 26 to 60 stale citations in roughly thirty
+minutes of ordinary commits, and one repair pass produced citations that had
+drifted again before the same pass finished checking them. Chasing zero is
+unbounded. Curate periodically; do not iterate toward zero, and do not wire
+this half into CI -- it will go red and then be disabled, which is worse than
+leaving it honest.
+
+Do not anchor a citation inside frozen prose.
+---------------------------------------------
+Ledger entries and other append-only historical records are deliberately not
+updated when code moves. An anchor on such a line resolves correctly and then
+reports FAIL forever, because the prose it is attached to will never be
+repaired. At a glance that is indistinguishable from a real defect, so it
+trains readers to ignore red. Prune those rows rather than fixing them -- the
+citation is not wrong, it is dated, and dated is the intended state.
 """
 
 from __future__ import annotations
