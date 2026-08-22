@@ -31,3 +31,68 @@ disable = [
     # Handled by ruff
     "broad-except", # BLE001
 ]
+
+[tool.pyright]
+# The repo had NO pyright config, so it resolved against the system interpreter and
+# emitted ~320 spurious reportMissingImports for homeassistant, aiohttp, pytest and
+# pytest_homeassistant_custom_component -- all installed in .venv. That noise buried
+# the real findings. venvPath/venv is the actual fix; everything below is triage of
+# what the fix revealed. Lives here rather than pyrightconfig.json so these comments
+# can exist at all -- JSON has none, and pyright rejects "//key" pseudo-comments.
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+include = ["custom_components", "tests", "scripts"]
+exclude = [
+    "**/__pycache__",
+    ".venv",
+    "com.rivian.android.consumer",
+    "htmlcov",
+    "old-sensors",
+    "config",
+    "config-dev",
+]
+
+# tests/test_gateway_schema.py:38 does sys.path.insert(REPO/"scripts/gates/helpers")
+# and imports apk_vehicle_state_fields at :163 and :266. Pyright cannot follow a
+# runtime sys.path mutation, so the path is declared here instead.
+extraPaths = ["scripts/gates/helpers"]
+
+# These two import `rivian.parallax` from the SIBLING repo jrgutier/rivian-python-client,
+# which is not checked out in this workspace (the integration vendors its own copy under
+# custom_components/rivian/rivian_client/). Unresolvable here by construction.
+ignore = [
+    "scripts/gates/helpers/check_decoders.py",
+    "scripts/gates/helpers/check_fixtures.py",
+]
+
+typeCheckingMode = "basic"
+
+# NOT executionEnvironments. Splitting strictness per-root looked right, but pyright
+# does not inherit venv/venvPath into an executionEnvironment, so every homeassistant
+# import silently reverted to unresolved (294 of them). Correct resolution beats
+# per-root strictness; revisit only if each env gets its own venv key.
+#
+# reportArgumentType is dominated by third-party stubs that are wrong about their own
+# runtime contract: aioresponses types host_pattern/method_pattern/path_pattern as
+# Pattern[str] while accepting str, and pytest_homeassistant_custom_component's
+# async_add_entities signature does not match what HA actually passes.
+reportArgumentType = "warning"
+
+# homeassistant re-exports many symbols without __all__, so importing them trips this
+# even though it is the documented integration API.
+reportPrivateImportUsage = "none"
+
+# A ratchet, not an exemption list. Each is a real category to work down; lower one to
+# "error" when its last instance is fixed. Do NOT add entries here to silence new code.
+reportOptionalSubscript = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalCall = "warning"
+reportOptionalOperand = "warning"
+reportAttributeAccessIssue = "warning"
+reportPossiblyUnbound = "warning"
+reportTypedDictNotRequiredAccess = "warning"
+reportGeneralTypeIssues = "warning"
+reportOperatorIssue = "warning"
+reportReturnType = "warning"
+reportIndexIssue = "warning"

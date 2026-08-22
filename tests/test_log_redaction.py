@@ -47,6 +47,51 @@ class TestRedactText:
         assert redact_text("") == ""
 
 
+class TestDiagnosticsPayloadRedaction:
+    """The dict-level counterpart to redact_text: TO_REDACT / redact() in
+    helpers.py, which diagnostics.py runs over the whole coordinator-data
+    payload it dumps.
+
+    wifiSsid and geoLocation are literal field names in that payload.
+    gnssError's four sub-fields (rivian_client/schemas/gateway.graphql:545-551)
+    have no sensor description yet -- nothing publishes them into coordinator
+    data today -- so this only proves the mechanism: async_redact_data
+    recurses into nested Mapping/list values and matches by bare key name at
+    any depth, not a dotted path, so listing the bare sub-field names in
+    TO_REDACT is what will catch them the moment a description exists.
+    """
+
+    def test_wifi_ssid_and_geo_location_are_redacted(self) -> None:
+        from custom_components.rivian.helpers import redact
+
+        payload = {"wifiSsid": {"value": "MyHomeNetwork"}, "geoLocation": "secret"}
+        redacted = redact(payload)
+        assert "MyHomeNetwork" not in str(redacted)
+        assert "secret" not in str(redacted)
+
+    def test_a_nested_gnss_error_field_is_redacted_by_bare_key(self) -> None:
+        """Proves the mechanism ahead of the sensors: a bare sub-field name in
+        TO_REDACT reaches into a nested dict without any dotted-path syntax."""
+        from custom_components.rivian.helpers import redact
+
+        payload = {
+            "gnssError": {
+                "timeStamp": "2024-01-01T00:00:00Z",
+                "bearing": 12.3,
+                "speed": 4.5,
+                "positionHorizontal": 1.1,
+                "positionVertical": 2.2,
+            }
+        }
+        redacted = redact(payload)["gnssError"]
+        assert redacted["bearing"] == "**REDACTED**"
+        assert redacted["speed"] == "**REDACTED**"
+        assert redacted["positionHorizontal"] == "**REDACTED**"
+        assert redacted["positionVertical"] == "**REDACTED**"
+        # Untouched: only the four sensitive sub-fields are named in TO_REDACT.
+        assert redacted["timeStamp"] == "2024-01-01T00:00:00Z"
+
+
 class TestTheCoordinatorUsesIt:
     async def test_an_unredacted_exception_does_not_reach_the_log(
         self, hass, mock_config_entry, caplog

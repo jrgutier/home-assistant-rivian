@@ -51,16 +51,54 @@ rather than appending new options to them.
 with the ones that have a decoder, so writing the decoder is what subscribes the
 topic; no subscription code changed.
 
-Four of the fields these fill — `btmOcHardwareFailureStatus`,
-`vasSecureElementFaulted`, `vasAccessCanFaulted`, `passiveEntryUnlockFailReason` —
-are declared in the gateway schema and are **not** subscribed, so Parallax is
-their only source.
+Three of the fields these fill — `vasSecureElementFaulted`,
+`vasAccessCanFaulted`, `passiveEntryUnlockFailReason` — are declared in the
+gateway schema and are **not** subscribed, so Parallax is their only source. A
+fourth, `btmOcHardwareFailureStatus`, was in that category too until the T3
+reversal below moved it onto the main subscription.
 
 **The tests are transcription tests, not captures.** The payloads are constructed
 from the transcribed schema. They prove the decoder reads the field numbers and
 enum values the app declares; they do not prove the vehicle emits them. Capture
 needs sole-subscriber access to the websocket, which means stopping the production
 integration (`WS_CONTENTION.md`) — that is f8's protocol.
+
+### T3 (2026-08-21) — `PARALLAX_ONLY_FIELDS` shrinks 10 → 7, and the reason it was 10 was wrong
+
+`batteryCellType` (`decode_battery_characteristics`, `energy.high_voltage.
+battery_characteristics`), `coldRangeNotification` (`decode_range`, `dynamics.
+vehicle.range`) and `btmOcHardwareFailureStatus` (`decode_btm_diagnosis`,
+`security.access.btm`, above) are now requested on the main `vehicleState`
+subscription (`VEHICLE_STATE_SUBSCRIPTION_FIELDS`, `const.py`) as well as being
+decoded here. All three are in the app's own document (`sh/C19779dc.java:59`)
+and are schema-declared, so subscribing to them is exactly what the app does.
+
+**Why they were excluded in the first place, and why that reasoning does not
+survive.** All ten original `PARALLAX_ONLY_FIELDS` were kept off the
+subscription document on the theory that requesting a field would let
+`VehicleCoordinator._subscription_keys` claim it and permanently lock Parallax
+out of ever filling it — "a subscribed field is recorded in
+`_subscription_keys`, which blocks Parallax's only source for it." That rests
+on a misreading: `_subscription_keys` is populated from frames the gateway
+actually **delivers** (`coordinator.py:1292`), never from the set of fields
+*requested* — a subscribed-but-never-delivered field claims nothing, and
+`tests/test_parallax_gap_fill.py::test_falsy_entries_are_not_recorded_as_supplied`
+already pins that distinction. Subscribing to a field is not by itself a claim
+on it.
+
+**Nothing here says the decoders became redundant.** The gap-fill rule only
+discards a Parallax value for a key already claimed by a *delivered* subscription
+frame (`coordinator.py:1134`); until this integration has live evidence that the
+gateway actually delivers non-null values for these three, the decoders remain
+their working, verified fallback — exactly the same reasoning
+`### UPDATE — field parity subscribes the other ten (T2b)` above applies to the
+ten `wifi*`/`cellular*` names, and exactly why no decoder code changed here.
+
+The remaining seven `PARALLAX_ONLY_FIELDS` — `consecutiveAlarmDisabledNotification`,
+`knownLocation`, `passiveEntryUnlockFailReason`, `secureImmobilizerStatus`,
+`vasAccessCanFaulted`, `vasSecureElementFaulted`, `wheelsInstalled` — have no
+such document to point to: none of them is in the app's own `vehicleState`
+request, so they stay excluded on solid ground, not the reversed one.
 
 ## Not transcribed (23)
 
@@ -160,6 +198,46 @@ keeps it — this decoder cannot touch it.
 
 A captured `vehicle.network.state` payload from f8 would still settle it either
 way, and the tests say plainly that they are transcription tests, not a capture.
+
+### UPDATE — field parity subscribes the other ten (T2b)
+
+The "cost of being wrong is bounded" claim above was true when the wire was the
+derived `VEHICLE_STATE_API_FIELDS`: a name was requested only where this
+integration had a sensor for it, and the only `wifi*`/`cellular*` sensor was
+`wifiSignal`. T2's field-parity change replaced that with the app's literal
+129-field document — the same one the `opl` corroboration table above was built
+from — which requests the app's whole `wifi*`/`cellular*` list regardless of
+whether an entity reads it. All eleven names `_WIFI_SPEC`/`_CELLULAR_SPEC` write
+are now on the wire (`tests/client/test_f5_decoders.py::TestNetworkState::
+test_the_wifi_and_cellular_overlap_with_the_subscription` pins the set); only
+`wifiStaDisabledReason`, the twelfth app name, has no decoder and is sourced from
+the subscription alone.
+
+**This does not mean the decoder is dead.** The gap-fill rule
+(`coordinator.py:1134`) only discards a Parallax value for a key already in
+`_subscription_keys`, which `_build_vehicle_info_dict` (`coordinator.py:1285-
+1293`) populates from *delivered* frames — keyed on the outer dict's truthiness,
+not on whether the frame's `"value"` is non-null, which is the separate bug
+worker-4's value-based-provenance fix targets. So each of the ten depends on
+which of three cases the gateway puts it in: delivered with a real value (the
+subscription wins outright, decoder output for that field is unreachable),
+named but delivered null (today, wrongly claims the key and blocks Parallax
+too, until the provenance fix lands), or never named in a frame at all
+(Parallax remains the only source, same as before field parity).
+
+**Which case applies to these ten is not known from this repository.** The
+`UNPOPULATED_FIELDS.md` precedent — four `tirePressureStatusValid*` names and
+`cabinHoldNotification`, all schema-declared and subscribed, all delivered null
+on the owner's R1T — makes the "named but null" case at least plausible here
+too, but that is a hypothesis carried over by analogy, not evidence about these
+specific fields. Settling it is an f8 question: capture a live `vehicleState`
+frame after this change ships and check whether `wifiSsid`, `wifiWpaStatus`, and
+the rest arrive with real values, arrive null, or are absent from the frame
+entirely, the same way `UNPOPULATED_FIELDS.md` settled its five.
+
+No decoder code changes on the strength of this finding — "the app's document
+requests it" is exactly the weak evidence the tonneau-cover removal already
+showed is not grounds to delete a decoder.
 
 ## How the app avoids duplicate subscriptions
 

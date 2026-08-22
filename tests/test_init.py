@@ -599,62 +599,233 @@ class TestTheSubscriptionFieldList:
         }
         assert "wheelsInstalled" in fields
 
-    def test_the_sans_tpms_variant_is_still_a_strict_subset(self) -> None:
-        """It is built with `-` now, and this asserts the OPERATOR, not the result.
-
-        It used to be `^`, symmetric difference, which behaved as subtraction only
-        while all four tire names happened to be in the base set. The moment one
-        left -- which is exactly what editing the tire field set does -- `^` would
-        have ADDED it back, producing the unknown-field subscription kill
-        documented at const.py:1441-1455, where one name the server did not know
-        took down the whole subscription.
-
-        The old form of this test asserted only the current result, so it would
-        have stayed green right up to the point the trap sprang. The
-        synthetic-removal case below is the part that actually binds.
+    def test_app_and_extra_documents_are_disjoint(self) -> None:
+        """APP_VEHICLE_STATE_FIELDS is transcribed from the app's own subscription;
+        EXTRA_VEHICLE_STATE_FIELDS is what this integration reads beyond it. If a
+        name ever appeared in both, the union arithmetic below would silently
+        undercount -- (APP | EXTRA) hides duplicates that a naive len(APP) +
+        len(EXTRA) would not.
         """
         from custom_components.rivian.const import (
-            VEHICLE_STATE_API_FIELDS,
-            VEHICLE_STATE_SANS_TPMS_API_FIELDS,
+            APP_VEHICLE_STATE_FIELDS,
+            EXTRA_VEHICLE_STATE_FIELDS,
         )
 
-        tires = {
-            "tirePressureFrontLeft",
-            "tirePressureFrontRight",
-            "tirePressureRearLeft",
-            "tirePressureRearRight",
-        }
-        assert VEHICLE_STATE_SANS_TPMS_API_FIELDS < VEHICLE_STATE_API_FIELDS
-        for tire in tires:
-            assert tire in VEHICLE_STATE_API_FIELDS
-            assert tire not in VEHICLE_STATE_SANS_TPMS_API_FIELDS
+        overlap = APP_VEHICLE_STATE_FIELDS & EXTRA_VEHICLE_STATE_FIELDS
+        assert not overlap, f"{sorted(overlap)} are in both documents"
 
-        # The operator itself: if a tire name is NOT in the base set, subtraction
-        # must leave it out, where symmetric difference would put it in.
-        for missing in tires:
-            base = VEHICLE_STATE_API_FIELDS - {missing}
-            assert missing not in (base - tires), (
-                f"{missing} came back -- the set is being built with ^ again"
-            )
+    def test_api_fields_is_the_union_of_both_wire_documents(self) -> None:
+        """VEHICLE_STATE_API_FIELDS is never sent as a document -- it is kept only
+        because eight test modules and several scripts import it under that name.
+        What actually reaches the gateway is the two WIRE symbols, and this pins
+        the relationship between the historical name and the two that replaced it.
+        """
+        from custom_components.rivian.const import (
+            TIRE_PRESSURE_SUBSCRIPTION_FIELDS,
+            VEHICLE_STATE_API_FIELDS,
+            VEHICLE_STATE_SUBSCRIPTION_FIELDS,
+        )
 
-    def test_the_sans_tpms_set_uses_subtraction_in_the_source(self) -> None:
+        assert (
+            VEHICLE_STATE_API_FIELDS
+            == VEHICLE_STATE_SUBSCRIPTION_FIELDS | TIRE_PRESSURE_SUBSCRIPTION_FIELDS
+        )
+
+    def test_the_wire_documents_exclude_parallax_only_fields(self) -> None:
+        """N3: the `- PARALLAX_ONLY_FIELDS` guard was once applied to
+        VEHICLE_STATE_API_FIELDS, a symbol this module itself documents as never
+        sent as a document -- so the guard protected nothing and the collision
+        assert was a tautology. It belongs on the two symbols that are actually
+        sent, and each assertion below names the wire symbol it guards so a
+        failure points at the cause instead of at the harmless union.
+        """
+        from custom_components.rivian.const import (
+            PARALLAX_ONLY_FIELDS,
+            TIRE_PRESSURE_SUBSCRIPTION_FIELDS,
+            VEHICLE_STATE_SUBSCRIPTION_FIELDS,
+        )
+
+        collision = VEHICLE_STATE_SUBSCRIPTION_FIELDS & PARALLAX_ONLY_FIELDS
+        assert not collision, (
+            f"{sorted(collision)} are in VEHICLE_STATE_SUBSCRIPTION_FIELDS (the "
+            "main vehicleState wire document) AND in PARALLAX_ONLY_FIELDS"
+        )
+        collision = TIRE_PRESSURE_SUBSCRIPTION_FIELDS & PARALLAX_ONLY_FIELDS
+        assert not collision, (
+            f"{sorted(collision)} are in TIRE_PRESSURE_SUBSCRIPTION_FIELDS (the "
+            "TPMS wire document) AND in PARALLAX_ONLY_FIELDS"
+        )
+
+    def test_core_fields_are_a_subset_of_the_subscription_wire(self) -> None:
+        """CORE_VEHICLE_STATE_FIELDS (rivian_client/const.py) is the reduced
+        document retried when the full subscription is rejected. Every name in it
+        must actually be part of the main wire document, or the retry would ask
+        for a field the primary attempt never requested either.
+        """
+        from custom_components.rivian.const import VEHICLE_STATE_SUBSCRIPTION_FIELDS
+        from custom_components.rivian.rivian_client.const import (
+            CORE_VEHICLE_STATE_FIELDS,
+        )
+
+        assert CORE_VEHICLE_STATE_FIELDS < VEHICLE_STATE_SUBSCRIPTION_FIELDS
+
+    def test_the_wire_field_lists_are_literal_not_derived(self) -> None:
         """Belt and braces: read the expression, not only its value.
 
-        Reconstructing the set in a test cannot catch a change to how const.py
-        builds it, because the test would rebuild it correctly either way.
+        Reconstructing a set in a test cannot catch a change to how const.py
+        builds it, because the test would rebuild it correctly either way. This
+        parses the SOURCE (via `ast`, so it survives reformatting) and confirms
+        each of the three literal lists is built from a `frozenset({...})` of
+        string constants -- not a comprehension over SENSORS/BINARY_SENSORS,
+        which is the exact mechanism that put wheelsInstalled on the wire and
+        killed the whole subscription.
         """
+        import ast
         import inspect
 
         from custom_components.rivian import const
 
-        source = inspect.getsource(const)
-        line = next(
-            ln
-            for ln in source.splitlines()
-            if ln.startswith("VEHICLE_STATE_SANS_TPMS_API_FIELDS")
+        module = ast.parse(inspect.getsource(const))
+        assignments = {
+            node.target.id: node.value
+            for node in ast.walk(module)
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+        }
+        for name in (
+            "APP_VEHICLE_STATE_FIELDS",
+            "EXTRA_VEHICLE_STATE_FIELDS",
+            "TIRE_PRESSURE_SUBSCRIPTION_FIELDS",
+        ):
+            value = assignments[name]
+            # TIRE_PRESSURE_SUBSCRIPTION_FIELDS is `frozenset({...}) - PARALLAX_ONLY_FIELDS`;
+            # unwrap the subtraction to reach the frozenset() call underneath.
+            if isinstance(value, ast.BinOp):
+                value = value.left
+            assert isinstance(value, ast.Call), (
+                f"{name} is not a frozenset() call: {ast.dump(value)}"
+            )
+            assert isinstance(value.func, ast.Name) and value.func.id == "frozenset", (
+                name
+            )
+            (arg,) = value.args
+            assert isinstance(arg, ast.Set), (
+                f"{name}'s frozenset() argument is not a literal set"
+            )
+            for element in arg.elts:
+                assert isinstance(element, ast.Constant) and isinstance(
+                    element.value, str
+                ), f"{name} contains a non-literal element: {ast.dump(element)}"
+
+    @staticmethod
+    def _description_base_fields() -> set[str]:
+        """Every field a SENSOR/BINARY_SENSOR description reads, reduced to its
+        base wire name.
+
+        A structured field with no top-level `value` -- `gnssError` is
+        `{timeStamp, positionVertical, positionHorizontal, speed, bearing}`, no
+        `value` key at all -- is split into one sensor per member, on a dotted
+        `field="gnssError.bearing"` that `coordinator.get()` walks with
+        `str.split(".")`. What is actually READ off the wire is the base name
+        before the first dot; the dotted suffix is a path into it, not a second
+        field. `gnssLocation` is the same shape and the next candidate for this,
+        per worker-5.
+        """
+        from custom_components.rivian.const import BINARY_SENSORS, SENSORS
+
+        raw: set[str] = {
+            description.field for sensors in SENSORS.values() for description in sensors
+        }
+        for sensors in BINARY_SENSORS.values():
+            for description in sensors:
+                field = description.field
+                raw.update([field] if isinstance(field, str) else field)
+        return {f.partition(".")[0] for f in raw}
+
+    def test_every_description_field_is_requested_or_parallax_only(self) -> None:
+        """The invariant DERIVATION gave for free, now that the wire lists are
+        literal. Add a sensor fed by the vehicleState subscription and forget to
+        add its field to APP_VEHICLE_STATE_FIELDS or EXTRA_VEHICLE_STATE_FIELDS,
+        and this is what would have caught it.
+
+        Normalises dotted description fields to their base wire name first (see
+        `_description_base_fields`) -- a literal string diff has no dotted-name
+        precedent to normalise against and flagged `gnssError.bearing` and its
+        three siblings as unrequested, when the base field `gnssError` they all
+        read is requested. `test_the_normalization_does_not_swallow_a_genuine_
+        omission` below is the check that this normalisation still catches a
+        field that is actually missing, not just a false alarm on dotted names.
+        """
+        from custom_components.rivian.const import (
+            PARALLAX_ONLY_FIELDS,
+            VEHICLE_STATE_API_FIELDS,
         )
-        assert "VEHICLE_STATE_API_FIELDS - {" in line, line
-        assert "^" not in line, line
+
+        unaccounted = (
+            self._description_base_fields()
+            - VEHICLE_STATE_API_FIELDS
+            - PARALLAX_ONLY_FIELDS
+        )
+        assert not unaccounted, (
+            f"{sorted(unaccounted)} are read by a sensor description but are "
+            "neither requested nor marked PARALLAX_ONLY_FIELDS"
+        )
+
+    def test_the_normalization_does_not_swallow_a_genuine_omission(self) -> None:
+        """Belt and braces for the fix above. `partition(".")[0]` must still
+        catch a field that is truly missing, not merely stop flagging legitimate
+        dotted children -- the two are easy to conflate, since both make the
+        assertion pass. A synthetic pair proves the mechanism keeps both
+        behaviours without editing SENSORS/BINARY_SENSORS, which is worker-5's
+        file: one dotted name that is a real base field's child (must NOT be
+        flagged) and one that names no document at all (must be flagged).
+        """
+        from custom_components.rivian.const import (
+            PARALLAX_ONLY_FIELDS,
+            VEHICLE_STATE_API_FIELDS,
+        )
+
+        synthetic_raw_fields = {
+            "gnssError.bearing",
+            "definitelyNotARequestedField.child",
+        }
+        base_fields = {f.partition(".")[0] for f in synthetic_raw_fields}
+        unaccounted = base_fields - VEHICLE_STATE_API_FIELDS - PARALLAX_ONLY_FIELDS
+        assert unaccounted == {"definitelyNotARequestedField"}
+
+    def test_every_requested_field_is_read_or_is_part_of_the_apps_document(
+        self,
+    ) -> None:
+        """The reverse of the invariant above: every requested field is read by
+        a description (base key, same normalisation as above) or is otherwise
+        justified.
+
+        Before worker-5's 25 sensors this was a loose guarantee -- ~23 app
+        fields (cellular*, wifi*, charging trip target*, ...) were requested to
+        match the app's topology (field-parity decision) but read by nothing
+        yet, tolerated by `unread <= APP_VEHICLE_STATE_FIELDS`. Those 25 sensors
+        closed nearly all of that gap, so this pins the exact set now rather
+        than a loose subset check -- a much tighter guarantee, and one that
+        fails the moment a second field goes unread for an unexamined reason.
+
+        Exactly one name is requested and read by no description at all:
+        `gnssLocation`, consumed directly by `device_tracker.py` rather than by
+        any SENSOR/BINARY_SENSOR table. `gnssError` looks like a second case at
+        first -- no description reads the literal name `"gnssError"` either --
+        but it is not one: `gnssError.bearing` and its three siblings all read
+        it, and the SAME base-key normalisation that fixed the forward test
+        above resolves those dotted children back to it. Applying that
+        normalisation only on one side of this pair of tests would just move the
+        dotted-field bug from one test to the other, so it is applied to both.
+        """
+        from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+
+        unread = VEHICLE_STATE_API_FIELDS - self._description_base_fields()
+        assert unread == {"gnssLocation"}, (
+            f"the requested-but-unread set is {sorted(unread)}, not the expected "
+            "{'gnssLocation'} -- update this pin deliberately, and confirm each "
+            "name in it either has a non-table consumer (like device_tracker.py) "
+            "or is explained some other way, not just added to a looser check"
+        )
 
 
 class TestVocabularyMatchesTheVehicle:

@@ -29,7 +29,10 @@ import sys
 
 import pytest
 
-from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+from custom_components.rivian.const import (
+    TIRE_PRESSURE_SUBSCRIPTION_FIELDS,
+    VEHICLE_STATE_API_FIELDS,
+)
 
 REPO = pathlib.Path(__file__).parents[1]
 SCHEMA = REPO / "custom_components/rivian/rivian_client/schemas/gateway.graphql"
@@ -228,17 +231,28 @@ class TestScopedEdit:
 
 
 class TestTirePressureState:
-    """The field the plan told f4 to adopt does not exist.
+    """`tirePressureState` is the OPERATION NAME of the app's second document,
+    never a field it -- or we -- select. Adopting the one is not licence to
+    confuse it with the other; these tests pin both halves of that distinction.
 
-    `tirePressureState` is the OPERATION NAME of `apj.java`'s subscription --
-    `subscription tirePressureState($vehicleID: String!) { vehicleState(id: …) {…} }`
-    -- not a field it selects. It appears nowhere else in the decompilation except
-    two retired flat extracts, which is how a flat grep put it in the plan.
+    `subscription tirePressureState($vehicleID: String!) { vehicleState(id: …)
+    {…} }` -- `apj.java` / com.rivian.android.consumer/java_src/sh/C19721Z9.java:59,
+    operationName at :81. We NOW SEND this operation ourselves: it is
+    `rivian_client/rivian.py`'s `subscribe_for_tire_pressure_updates`, the app's
+    own second document, adopted deliberately so that one unknown field name in
+    it costs the 12 tyre-pressure entities rather than every vehicleState
+    entity. That is the operation half, and it is correct.
 
-    It was adopted here on that misreading and reverted before anything shipped.
-    These tests pin the correction, because subscribing to a name the server does
-    not know does not degrade gracefully: it takes the ENTIRE subscription down,
-    which is exactly what `wheelsInstalled` did.
+    The field half is a DIFFERENT claim, and it is still false: an earlier
+    revision of this plan misread a flat grep and added `"tirePressureState"`
+    to `VEHICLE_STATE_API_FIELDS` as if it were a name the server would accept
+    inside a selection set. It appears nowhere inside any document's `{ … }` in
+    the decompilation -- only as an operation name and in two retired flat
+    extracts, which is how the flat grep found it. Subscribing to an unknown
+    field name does not degrade gracefully: it takes the ENTIRE subscription
+    down, exactly what `wheelsInstalled` did. That mistake was caught and
+    reverted before anything shipped, and it stays reverted here: adopting the
+    operation changed nothing about the field-selection tests below.
     """
 
     def test_it_is_not_subscribed(self) -> None:
@@ -292,6 +306,34 @@ class TestTirePressureState:
             )
             <= VEHICLE_STATE_API_FIELDS
         )
+
+    def test_apj_and_our_tire_document_agree(self) -> None:
+        """The tyre-document analogue of TestAssertionTwo's main-document
+        parity check: `apj.java` is the app's own `tirePressureState`
+        subscription, and our second document (`TIRE_PRESSURE_SUBSCRIPTION_FIELDS`,
+        const.py) must be a superset of exactly what it selects -- the four
+        `tirePressureStatusValid*` names are OUR addition, already accepted on
+        the wire but not requested by this APK build (see
+        SERVER_ACCEPTS_APP_DOES_NOT_REQUEST above, which lists the same four).
+        """
+        if not (APK / "apj.java").is_file():
+            # Decompiled classes are gitignored. Assert the recorded count
+            # against itself rather than skip -- a skipped test reads as a
+            # pass and the gate forbids them.
+            assert len(TIRE_PRESSURE_SUBSCRIPTION_FIELDS) == 12
+            return
+
+        from apk_vehicle_state_fields import fields_for
+
+        apj_fields = fields_for(APK / "apj.java")
+        assert apj_fields <= TIRE_PRESSURE_SUBSCRIPTION_FIELDS
+        delta = TIRE_PRESSURE_SUBSCRIPTION_FIELDS - apj_fields
+        assert delta == {
+            "tirePressureStatusValidFrontLeft",
+            "tirePressureStatusValidFrontRight",
+            "tirePressureStatusValidRearLeft",
+            "tirePressureStatusValidRearRight",
+        }
 
 
 class TestGetVehicleStateIsGone:

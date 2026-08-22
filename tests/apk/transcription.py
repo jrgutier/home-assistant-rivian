@@ -558,7 +558,7 @@ RVM_TOPICS: Final[tuple[dict[str, object], ...]] = (
     },
 )
 
-RVM_NAMES: Final[frozenset[str]] = frozenset(r["rvm_name"] for r in RVM_TOPICS)
+RVM_NAMES: Final[frozenset[str]] = frozenset(str(r["rvm_name"]) for r in RVM_TOPICS)
 
 # --- VASCommand -------------------------------------------------------------
 #

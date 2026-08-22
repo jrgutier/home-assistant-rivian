@@ -275,6 +275,49 @@ class TestRivianSensorEntity:
         assert attrs["last_update"] == "2024-01-01T00:00:00Z"
         assert "native_value" not in attrs
 
+    async def test_extra_state_attributes_with_dotted_field(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+    ) -> None:
+        """A dotted field (e.g. one leaf of gnssError) must look up the
+        envelope's `last_update`, not KeyError against a literal dotted key
+        that never exists in coordinator.data.
+        """
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.data = {
+            "gnssError": {
+                "timeStamp": "2024-01-01T00:00:00Z",
+                "positionVertical": 1.5,
+                "positionHorizontal": 2.5,
+                "speed": 0.1,
+                "bearing": 3.0,
+            }
+        }
+
+        vehicle_data = {
+            "id": "test_vehicle_123",
+            "vin": "TEST123456789",
+            "name": "Test R1T",
+            "model": "R1T",
+        }
+
+        description = RivianSensorEntityDescription(
+            key="gnss_error_position_vertical",
+            translation_key="gnss_error_position_vertical",
+            field="gnssError.positionVertical",
+        )
+
+        entity = RivianSensorEntity(
+            coordinator=coordinator,
+            config_entry=mock_config_entry,
+            description=description,
+            vehicle=vehicle_data,
+        )
+
+        attrs = entity.extra_state_attributes
+        assert attrs["last_update"] == "2024-01-01T00:00:00Z"
+
     async def test_extra_state_attributes_none_when_field_missing(
         self,
         hass: HomeAssistant,

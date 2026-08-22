@@ -27,7 +27,7 @@ from .const import (
     DEFAULT_CHARGING_SCHEDULE,
     DOMAIN,
     INVALID_SENSOR_STATES,
-    VEHICLE_STATE_API_FIELDS,
+    VEHICLE_STATE_SUBSCRIPTION_FIELDS,
 )
 from .helpers import redact, redact_text
 from .rivian_client import Rivian, VehicleCommand
@@ -124,6 +124,10 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         self._last_update_time: datetime | None = None
         self._subscription_start_time: datetime | None = None
         self._subscription_count = 0
+        # For diagnostics (§G): how many times _watchdog_tick has restarted this
+        # coordinator's subscription, and why the most recent one fired.
+        self._watchdog_restarts = 0
+        self._last_restart_reason: str | None = None
 
     def _set_update_interval(self, seconds: float | None = None) -> None:
         """Set the update interval or calculate new one based on errors."""
@@ -259,6 +263,8 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
             if self.api._ws_monitor and self.api._ws_monitor.connected
             else "inactive/closed",
         )
+        self._watchdog_restarts += 1
+        self._last_restart_reason = f"stale for {idle / 60:.1f} min"
         await self._unsubscribe()
         task = self.async_request_refresh()
         self.config_entry.async_create_task(self.hass, task, eager_start=True)
@@ -836,6 +842,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     key = "vehicleState"
     _update_interval_seconds = 15 * 60  # 15 minutes
     _watchdog_timeout = 5 * 60  # 5 minutes
+    # S4: its own timeout, not shared with _watchdog_timeout -- the two streams
+    # are independent and a shared constant would be a coincidence, not a fact.
+    _tpms_watchdog_timeout = 5 * 60
 
     def _watchdog_skip_reason(self) -> str | None:
         """A sleeping vehicle sends nothing, so silence is expected, not stale.
@@ -847,6 +856,91 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         if self.get("powerState") == "sleep":
             return "vehicle is sleeping"
         return None
+
+    async def _tpms_watchdog_tick(self) -> bool:
+        """VehicleCoordinator-local liveness check for the TPMS stream (S4).
+
+        Deliberately its own method, not folded into _watchdog_tick:
+        _watchdog_tick's only restart action is _unsubscribe(), which tears
+        down Parallax, the main vehicleState stream AND the cloud-connection
+        subscription -- for a TPMS-only outage that kills two healthy
+        subscriptions to fix one dead one. _watchdog_tick also returns early
+        whenever _last_update_time is unset, so a check folded into it would
+        never run while the main stream itself is silent -- exactly when a
+        TPMS problem is worth knowing about independently. Returns True if the
+        TPMS subscription was restarted.
+        """
+        if not self._tpms_last_update_time:
+            return False
+        idle = (
+            datetime.now(timezone.utc) - self._tpms_last_update_time
+        ).total_seconds()
+        if idle <= self._tpms_watchdog_timeout:
+            return False
+        _LOGGER.warning(
+            "Tire pressure subscription for vehicle %s stale, no updates for "
+            "%.1f minutes. Restarting...",
+            self.vehicle_id,
+            idle / 60,
+        )
+        await self._resubscribe_tpms()
+        return True
+
+    async def _resubscribe_tpms(self) -> None:
+        """Restart ONLY the tire-pressure subscription (S4).
+
+        Touches _unsub_tire_pressure exclusively -- unlike _unsubscribe(),
+        which also tears down Parallax, the main vehicleState stream and the
+        cloud-connection subscription. A dead TPMS stream must cost the 12
+        tyre-pressure entities, not a reset of everything else that was fine.
+        """
+        if unsub := self._unsub_tire_pressure:
+            await unsub()
+            self._unsub_tire_pressure = None
+        try:
+            self._unsub_tire_pressure = (
+                await self.api.subscribe_for_tire_pressure_updates(
+                    vehicle_id=self.vehicle_id,
+                    callback=self._process_tire_pressure_data,
+                )
+            )
+            self._tpms_last_update_time = datetime.now(timezone.utc)
+        except RivianApiException:
+            _LOGGER.exception(
+                "Tire pressure re-subscription failed for vehicle %s",
+                self.vehicle_id,
+            )
+            self._unsub_tire_pressure = None
+
+    def _start_watchdog(self) -> None:
+        """Start the subscription watchdog(s).
+
+        The base loop already drives _watchdog_tick every _watchdog_interval;
+        this adds a call to _tpms_watchdog_tick to the SAME loop rather than a
+        second background task, so _start_watchdog still creates exactly one
+        background task per vehicle (see
+        tests/test_coordinator_watchdog.py::TestTheWatchdogDoesNotBlockStartup,
+        which pins that count). The TPMS check itself stays its own method,
+        never merged into _watchdog_tick -- see _tpms_watchdog_tick's
+        docstring for why.
+        """
+        if self._watchdog_task and not self._watchdog_task.done():
+            return
+
+        async def _watchdog_loop() -> None:
+            while True:
+                await asyncio.sleep(self._watchdog_interval)
+                await self._watchdog_tick()
+                await self._tpms_watchdog_tick()
+
+        self._watchdog_task = self.config_entry.async_create_background_task(
+            self.hass,
+            _watchdog_loop(),
+            name=f"rivian {type(self).__name__} watchdog {self.vehicle_id}",
+        )
+        _LOGGER.debug(
+            "Started %s watchdog for vehicle %s", type(self).__name__, self.vehicle_id
+        )
 
     def __init__(
         self,
@@ -867,7 +961,15 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._initial = asyncio.Event()
         self._unsub_handler: Callable[[], Awaitable[None]] | None = None
         self._unsub_parallax: Callable[[], Awaitable[None]] | None = None
+        self._unsub_tire_pressure: Callable[[], Awaitable[None]] | None = None
         self._connection_unsub_handler: Callable[[], Awaitable[None]] | None = None
+        # S1: which vehicleState document (main) was last rejected, if any --
+        # diagnostics-only, mirrors what api.subscription_document() reports live.
+        self._last_document_error: str | None = None
+        # S4: the TPMS stream's OWN liveness clock. Deliberately separate from
+        # _last_update_time -- see _process_tire_pressure_data.
+        self._tpms_last_update_time: datetime | None = None
+        self._tpms_frames_seen = 0
         self._is_online: bool | None = None
         self._last_sync: str | None = None
         self._command_state_subscriptions: dict[str, Callable[[], Awaitable[None]]] = {}
@@ -890,6 +992,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # "is the key present", because once Parallax writes a key it IS present,
         # and a Parallax-only field must keep updating.
         self._subscription_keys: set[str] = set()
+        # Keys Parallax has actually written at least once, for diagnostics'
+        # provenance block (§G) -- the direct complement to _subscription_keys.
+        self._parallax_filled_keys: set[str] = set()
         # How many Parallax messages have arrived, per RVM topic.
         #
         # Without this, "the field is absent" is ambiguous between "the message
@@ -995,11 +1100,40 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 else "inactive/closed",
             )
 
-            self._unsub_handler = await self.api.subscribe_for_vehicle_updates(
-                vehicle_id=self.vehicle_id,
-                properties=VEHICLE_STATE_API_FIELDS,
-                callback=self._process_new_data,
-            )
+            try:
+                self._unsub_handler = await self.api.subscribe_for_vehicle_updates(
+                    vehicle_id=self.vehicle_id,
+                    properties=VEHICLE_STATE_SUBSCRIPTION_FIELDS,
+                    callback=self._process_new_data,
+                )
+                self._last_document_error = None
+            except RivianApiException as ex:
+                # S1: this still raises -- the client already tried the core
+                # fallback and failed too -- but the error is recorded first so
+                # diagnostics.subscription.last_document_error survives it.
+                self._last_document_error = str(ex)
+                raise
+
+            # Tire pressure. A sibling of the main subscription (§C, S4): its
+            # own document, so an unknown field there costs only the 12
+            # tyre-pressure entities, not the whole vehicleState. Same
+            # degrade-not-abort policy as Parallax below.
+            try:
+                self._unsub_tire_pressure = (
+                    await self.api.subscribe_for_tire_pressure_updates(
+                        vehicle_id=self.vehicle_id,
+                        callback=self._process_tire_pressure_data,
+                    )
+                )
+                self._tpms_last_update_time = datetime.now(timezone.utc)
+            except RivianApiException:
+                _LOGGER.exception(
+                    "Tire pressure subscription failed for vehicle %s; the 12 "
+                    "tyre-pressure entities will be unavailable until it is "
+                    "re-established",
+                    self.vehicle_id,
+                )
+                self._unsub_tire_pressure = None
 
             # Parallax. The RVM list is explicit, DEDUPED and decodable rather than
             # rvms=None: PARALLAX_RVMS and CHARGING_RVMS overlap by five topics, so
@@ -1170,6 +1304,13 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     except TypeError:
                         history = set()
                     vehicle_updates[k] = {"value": value, "history": history}
+            # getattr(..., set()) rather than |=: the coordinator fixtures in
+            # tests/test_parallax_gap_fill.py are MagicMock(spec=VehicleCoordinator)
+            # instances that never run __init__, so this attribute may not exist
+            # yet on first call there. Real instances always have it from __init__.
+            self._parallax_filled_keys = (
+                getattr(self, "_parallax_filled_keys", set()) | vehicle_updates.keys()
+            )
             new_data = (self.data or {}) | vehicle_updates
             self.async_set_updated_data(new_data)
             _LOGGER.debug(
@@ -1253,13 +1394,59 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 task = self._unsubscribe()
                 self.config_entry.async_create_task(self.hass, task, eager_start=True)
             return
-        vehicle_info = self._build_vehicle_info_dict(pdata.get(self.key, {}))
-        self.async_set_updated_data(vehicle_info)
+        self._apply_vehicle_frame(pdata.get(self.key, {}))
         self._error_count = 0
         self._initial.set()
 
         # Update watchdog timestamp
         self._last_update_time = datetime.now(timezone.utc)
+
+    def _apply_vehicle_frame(self, vijson: dict[str, Any]) -> dict[str, Any]:
+        """Build and publish the merged vehicle_info dict from a raw
+        vehicleState frame.
+
+        The frame-applying tail shared by the main vehicleState stream
+        (_process_new_data) and the TPMS stream (_process_tire_pressure_data)
+        below -- both select the same vehicleState(id:) root, so both kinds of
+        frame merge through _build_vehicle_info_dict into one vehicle_info
+        dict. Callers own their own liveness/initial-frame bookkeeping
+        (_last_update_time, _initial, _error_count): deliberately NOT done
+        here, so a TPMS frame cannot make a dead main stream look alive (S4).
+        """
+        vehicle_info = self._build_vehicle_info_dict(vijson)
+        self.async_set_updated_data(vehicle_info)
+        return vehicle_info
+
+    @callback
+    def _process_tire_pressure_data(self, data: dict[str, Any]) -> None:
+        """Process incoming tirePressureState frames (§C, S4).
+
+        A sibling of _process_new_data on its own subscription (see
+        subscribe_for_tire_pressure_updates()'s docstring): merges through the
+        same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
+        tyre-pressure names land in _subscription_keys (coordinator.py:1292,
+        provenance -- not liveness), which is what keeps Parallax from
+        overwriting gateway-delivered tyre pressures (:1120-1132).
+
+        Deliberately does NOT touch _last_update_time, _initial or
+        _error_count -- those belong to the main vehicleState stream. Letting
+        a TPMS frame advance _last_update_time would let tyre-pressure updates
+        alone make a dead main subscription look healthy to _watchdog_tick
+        for as long as they kept arriving.
+        """
+        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+            _LOGGER.error(
+                "Received an unknown tire pressure subscription update: %s. "
+                "WebSocket state: %s",
+                data,
+                "active"
+                if self.api._ws_monitor and self.api._ws_monitor.connected
+                else "inactive/closed",
+            )
+            return
+        self._apply_vehicle_frame(pdata.get(self.key, {}))
+        self._tpms_last_update_time = datetime.now(timezone.utc)
+        self._tpms_frames_seen += 1
 
     def _note_unusable(self, key: str, value: Any) -> None:
         """Record once, per field, that the vehicle reported it as unusable.
@@ -1289,7 +1476,20 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             if v
         }
         # Provenance, for the Parallax gap-fill rule in _process_parallax_data.
-        self._subscription_keys |= set(items)
+        #
+        # Value-based, not "is v truthy" (was `set(items)`, i.e. every key of
+        # the dict just built above): a {"timeStamp": ..., "value": None} frame
+        # is a non-empty dict -- itself truthy -- but supplies nothing usable.
+        # That used to still claim the key here, permanently blocking Parallax
+        # from a field the gateway was never actually delivering. Structured
+        # fields (gnssLocation, gnssError) have no top-level "value" key at all
+        # and keep claiming on the strength of the outer dict alone --
+        # gnssLocation MUST stay claimed or _process_parallax_data's
+        # unconditional branch (coordinator.py:1135) starts overwriting real
+        # GPS with Parallax's.
+        self._subscription_keys |= {
+            k for k, v in items.items() if "value" not in v or v["value"] is not None
+        }
 
         if items:
             _LOGGER.debug("Vehicle %s updated: %s", self.vehicle_id, redact(items))
@@ -1431,10 +1631,22 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         return self._last_sync
 
     async def _unsubscribe(self, close_monitor: bool = False):
-        """Unsubscribe."""
+        """Unsubscribe.
+
+        Tears down Parallax, the main vehicleState stream, TPMS and the
+        cloud-connection subscription -- all four. Used at shutdown and on a
+        full main-stream restart, both of which need every subscription
+        re-established from scratch; the S4 TPMS-only restart path
+        (_resubscribe_tpms) deliberately does NOT go through this method, or
+        it would tear down two subscriptions that were never unhealthy.
+        """
         if unsub := self._unsub_parallax:
             await unsub()
             self._unsub_parallax = None
+
+        if unsub := self._unsub_tire_pressure:
+            await unsub()
+            self._unsub_tire_pressure = None
 
         # Unsubscribe from vehicle state
         if unsub := self._unsub_handler:

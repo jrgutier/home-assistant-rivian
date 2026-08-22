@@ -40,8 +40,12 @@ VEHICLE_STATE_PROPERTIES: Final[set[str]] = {
     # Connectivity
     "cellularAntennaBars",
     "cellularCarrier",
+    "cellularMode",
     "cellularSignalStrength",
     "wifiAntennaBars",
+    "wifiFreq",
+    "wifiLinkSpeed",
+    "wifiSecureStatus",
     # "wifiSignal", not "wifiSignalStrength". Probed against the live gateway:
     # a query selecting wifiSignalStrength returns 400 GRAPHQL_VALIDATION_FAILED,
     # exactly like a field name invented for the control case, while wifiSignal
@@ -51,6 +55,8 @@ VEHICLE_STATE_PROPERTIES: Final[set[str]] = {
     # subscribes and never calls that method.
     "wifiSignal",
     "wifiSsid",
+    "wifiStaDisabledReason",
+    "wifiWpaStatus",
     # TimeStamped(String|[Nullable]Float|Int)
     "activeDriverName",
     "alarmSoundStatus",
@@ -130,12 +136,14 @@ VEHICLE_STATE_PROPERTIES: Final[set[str]] = {
     "otaCurrentVersionNumber",
     "otaCurrentVersionWeek",
     "otaCurrentVersionYear",
+    "otaDeploymentIntent",
     "otaDownloadProgress",
     "otaInstallDuration",
     "otaInstallProgress",
     "otaInstallReady",
     "otaInstallTime",
     "otaInstallType",
+    "otaSoftwareCategory",
     "otaStatus",
     "petModeStatus",
     "petModeTemperatureStatus",
@@ -194,6 +202,56 @@ VEHICLE_STATES_SUBSCRIPTION_ONLY_PROPERTIES: Final[set[str]] = {
 
 VEHICLE_STATES_SUBSCRIPTION_PROPERTIES = (
     VEHICLE_STATE_PROPERTIES | VEHICLE_STATES_SUBSCRIPTION_ONLY_PROPERTIES
+)
+
+# The 12 fields of the TPMS subscription: the app's own 8, requested verbatim by
+# its "subscription tirePressureState" operation
+# (com.rivian.android.consumer/java_src/sh/C19721Z9.java:59, operationName at
+# :81), plus the 4 tirePressureStatusValid* fields the server accepts but this
+# APK build does not request (gateway.graphql:884-895) -- already on today's
+# wire via VEHICLE_STATE_PROPERTIES.
+TIRE_PRESSURE_SUBSCRIPTION_PROPERTIES: Final[frozenset[str]] = frozenset(
+    {
+        "tirePressureFrontLeft",
+        "tirePressureFrontRight",
+        "tirePressureRearLeft",
+        "tirePressureRearRight",
+        "tirePressureStatusFrontLeft",
+        "tirePressureStatusFrontRight",
+        "tirePressureStatusRearLeft",
+        "tirePressureStatusRearRight",
+        "tirePressureStatusValidFrontLeft",
+        "tirePressureStatusValidFrontRight",
+        "tirePressureStatusValidRearLeft",
+        "tirePressureStatusValidRearRight",
+    }
+)
+
+# The degraded document retried once when the full vehicleState subscription is
+# rejected: one unknown field kills the whole document (const.py:1600-1610 in
+# the integration), so a single gateway field rename would otherwise take every
+# sensor unknown at once. This ~15-name subset reduces the blast radius of that
+# failure mode without eliminating it -- if the renamed field is itself one of
+# these 15, the core document dies identically. Every name here must also exist
+# in VEHICLE_STATE_PROPERTIES and be declared in gateway.graphql.
+CORE_VEHICLE_STATE_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "batteryLevel",
+        "vehicleMileage",
+        "powerState",
+        "doorFrontLeftClosed",
+        "doorFrontLeftLocked",
+        "doorFrontRightClosed",
+        "doorFrontRightLocked",
+        "doorRearLeftClosed",
+        "doorRearLeftLocked",
+        "doorRearRightClosed",
+        "doorRearRightLocked",
+        "otaCurrentVersion",
+        "gnssLocation",
+        "chargerState",
+        "distanceToEmpty",
+    }
 )
 
 

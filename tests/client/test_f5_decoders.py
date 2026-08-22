@@ -324,11 +324,15 @@ class TestNetworkState:
     independent source: its field names land one-to-one on the gateway schema f4
     rebuilt from the app's own vehicleState documents.
 
-    The cost of being wrong is bounded and stated: every field here except
-    `wifiSignal` is declared in the schema but NOT subscribed, so a bad decode
-    mis-fills sensors that do not exist rather than corrupting a working one. And
-    `wifiSignal` IS subscribed, so the gap-fill rule keeps the subscription's value
-    and this decoder cannot touch it.
+    UPDATE (T2b, field parity). This decoder's "cost of being wrong is bounded"
+    claim was written when the wire carried only `wifiSignal` among these eleven
+    names -- everything else it wrote was declared but not requested, so a bad
+    decode could only mis-fill sensors that did not exist yet. Field parity
+    (`docs/development/PARALLAX_DECODERS.md`, "field parity subscribes the other
+    ten") now requests the app's whole `wifi*`/`cellular*` list, so all eleven
+    names this decoder writes collide with the subscription. See
+    `test_the_wifi_and_cellular_overlap_with_the_subscription` for the mechanism
+    and what is and is not known about which one wins at runtime.
     """
 
     @staticmethod
@@ -399,13 +403,76 @@ class TestNetworkState:
         written = {key for key, _ in (*_WIFI_SPEC.values(), *_CELLULAR_SPEC.values())}
         assert written <= declared, sorted(written - declared)
 
-    def test_only_wifi_signal_can_collide_with_the_subscription(self) -> None:
-        """And the gap-fill rule means the subscription keeps it."""
-        from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+    def test_the_wifi_and_cellular_overlap_with_the_subscription(self) -> None:
+        """Pinned so a 12th overlapping name cannot slip in unnoticed.
+
+        This test used to assert that only `wifiSignal` collided with the
+        subscription -- true when the wire carried the derived 124-field set,
+        which had a subscribed name for a field only where a sensor read it. T2
+        (field parity) replaced that with the app's literal 129-field document,
+        which requests its whole `wifi*`/`cellular*` list regardless of whether
+        this integration has a sensor for it, so the collision surface grew from
+        1 name to all 11 this decoder writes. That is the intended effect of
+        field parity, not a regression -- but it is exactly the kind of change
+        this test exists to catch if it happens again unnoticed, so the fix is to
+        pin the new set, not to widen the assertion into a tautology (e.g.
+        `written & SUB == written`, which passes no matter what `written` is).
+
+        Only `wifiStaDisabledReason` -- the twelfth `wifi*`/`cellular*` name the
+        app itself requests -- has no decoder at all; this spec does not write it
+        and nothing else does either, so it is sourced from the subscription
+        alone.
+
+        WHO WINS is a separate, still-open question -- see the module-level
+        finding in `docs/development/PARALLAX_DECODERS.md` ("field parity
+        subscribes the other ten"). Briefly, by the mechanism at
+        `coordinator.py:1134` (`if k in self._subscription_keys: continue`) and
+        `coordinator.py:1285-1293` (`_subscription_keys` is fed from delivered
+        frames, keyed on the OUTER dict's truthiness, not on whether "value" is
+        non-null):
+
+          * gateway delivers a REAL value for the field -> the subscription wins
+            outright; this decoder's output for that field is discarded.
+          * gateway NAMES the field but delivers null -> today's `if v` bug
+            claims the key anyway (worker-4's pending value-based-provenance fix,
+            `coordinator.py:1292`), so Parallax is blocked from filling it even
+            though the subscription supplied nothing usable.
+          * gateway never names the field in a frame -> Parallax remains the
+            only source, exactly as before field parity.
+
+        Which case each of the ten newly-overlapping fields falls into is NOT
+        knowable from this repository -- the `UNPOPULATED_FIELDS.md` precedent
+        (four `tirePressureStatusValid*` names and `cabinHoldNotification`, all
+        schema-declared and subscribed, all null on the owner's R1T) makes the
+        second case at least plausible for some of these too, but that is a
+        hypothesis, not a finding. Settling it needs an f8-style live capture of
+        a `vehicleState` frame carrying `wifiSsid`/`wifiWpaStatus`/etc. after this
+        change ships, the same way UNPOPULATED_FIELDS.md settled its five.
+        """
+        from custom_components.rivian.const import VEHICLE_STATE_SUBSCRIPTION_FIELDS
         from custom_components.rivian.rivian_client.parallax import (
             _CELLULAR_SPEC,
             _WIFI_SPEC,
         )
 
         written = {key for key, _ in (*_WIFI_SPEC.values(), *_CELLULAR_SPEC.values())}
-        assert written & VEHICLE_STATE_API_FIELDS == {"wifiSignal"}
+        assert written == {
+            "cellularAntennaBars",
+            "cellularCarrier",
+            "cellularMode",
+            "cellularSignalStrength",
+            "wifiAntennaBars",
+            "wifiFreq",
+            "wifiLinkSpeed",
+            "wifiSecureStatus",
+            "wifiSignal",
+            "wifiSsid",
+            "wifiWpaStatus",
+        }, "the decoder's own output changed -- update this pin deliberately"
+
+        overlap = written & VEHICLE_STATE_SUBSCRIPTION_FIELDS
+        assert overlap == written, (
+            f"{sorted(written - overlap)} no longer collide with the subscription "
+            "-- if a field left VEHICLE_STATE_SUBSCRIPTION_FIELDS, this decoder is "
+            "its sole source again and any gap-fill assumption above is stale"
+        )

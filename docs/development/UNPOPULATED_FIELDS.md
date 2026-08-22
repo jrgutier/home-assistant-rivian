@@ -210,3 +210,34 @@ as covering this too: silence in that record was this bug, not the gateway.
 The lesson is the one this project already writes down and I failed to apply to my own tooling: an
 instrument is proved before its result is read. The control existed precisely to catch this, and it
 did catch it — twice — and twice I corrected something else.
+
+## T3 (2026-08-21) — the four validity fields now ride their own document
+
+The Rivian app splits tyre pressure onto a second subscription,
+`tirePressureState` (`sh/C19721Z9.java:59`, operationName at `:81` — see the
+"Correction" section above for how this project first misread that name), and
+this integration now sends that second document too
+(`subscribe_for_tire_pressure_updates`, `rivian_client/rivian.py`). The four
+`tirePressureStatusValid*` fields this file already covers moved with it: they
+are no longer part of `VEHICLE_STATE_SUBSCRIPTION_FIELDS` (the main, 137-name
+document) but of `TIRE_PRESSURE_SUBSCRIPTION_FIELDS` (the new, 12-name one).
+`VEHICLE_STATE_API_FIELDS` — the union both live under, and the symbol this
+file's verdicts above were written against — is unchanged and still contains
+all four, so none of those verdicts needed revisiting; only which wire
+document carries them changed. See
+`tests/test_apk_transcription.py::TestUnpopulatedFields::test_the_validity_fields_ride_the_tpms_document_not_the_main_one`
+and `tests/test_gateway_schema.py::TestTirePressureState::test_apj_and_our_tire_document_agree`.
+
+This is worth its own line because it is the split's own version of this
+document's central failure mode: if the TPMS document is ever rejected on an
+unknown name, these four go unknown along with the other eight tyre fields —
+but the main document, and everything else it carries, keeps working. That is
+strictly better than before the split, when one bad name anywhere in the
+combined field set could have taken all of it down together.
+
+**Restated, because this project keeps re-learning it under a new name each
+time it comes up:** an unpopulated or undelivered field is silence, not a live
+failure, and is never by itself grounds for deleting a sensor. It was true of
+`wheelsInstalled`'s neighbours before f4, it was true of these five fields
+through two failed f8 probes and one completed one, and it stays true of every
+field on either subscription document today, TPMS included.

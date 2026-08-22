@@ -29,6 +29,10 @@ def mock_vehicle_coordinator(
     mock_client.subscribe_for_parallax_messages = AsyncMock(
         return_value=AsyncMock()  # Mock unsubscribe handler
     )
+    # T4/S4: VehicleCoordinator also subscribes to the TPMS stream.
+    mock_client.subscribe_for_tire_pressure_updates = AsyncMock(
+        return_value=AsyncMock()  # Mock unsubscribe handler
+    )
     schedule_response = MagicMock()
     schedule_response.json = AsyncMock(
         return_value={"data": {"getVehicle": {"chargingSchedules": []}}}

@@ -60,19 +60,33 @@ contains "the doc states the verdict for each" 'Left in place' "$DOC"
 contains "the doc distinguishes accepted from populated" \
          'accepted but empty' "$DOC"
 
-# The ^ trap is closed, in the SOURCE not merely in the value. Rebuilding the set
-# in a check cannot catch this: the check would rebuild it correctly either way.
-line=$(grep -n '^VEHICLE_STATE_SANS_TPMS_API_FIELDS' "$CONST" | head -1)
-if printf '%s' "$line" | grep -qF 'VEHICLE_STATE_API_FIELDS - {'; then
-  ok "VEHICLE_STATE_SANS_TPMS_API_FIELDS uses subtraction"
-else
-  bad "VEHICLE_STATE_SANS_TPMS_API_FIELDS is not built with '-': $line"
-fi
-if printf '%s' "$line" | grep -qF '^'; then
-  bad "symmetric difference is back — a tire name leaving the base set re-adds it"
-else
-  ok "no symmetric difference in that expression"
-fi
+# N3: the PARALLAX_ONLY_FIELDS guard belongs on the two WIRE symbols, not on
+# VEHICLE_STATE_API_FIELDS (which this module documents as never sent as a
+# document). Checked in the SOURCE, not by rebuilding the set: a check that
+# reconstructs the expression would pass whether or not const.py still guards
+# the symbol that actually reaches the gateway.
+for sym in VEHICLE_STATE_SUBSCRIPTION_FIELDS TIRE_PRESSURE_SUBSCRIPTION_FIELDS; do
+  block=$(awk "/^${sym}: Final/{f=1} f{print; if (/^\)/ || /^}\) -/) exit}" "$CONST")
+  if printf '%s' "$block" | grep -qF -- '- PARALLAX_ONLY_FIELDS'; then
+    ok "$sym is guarded by '- PARALLAX_ONLY_FIELDS'"
+  else
+    bad "$sym is not guarded by '- PARALLAX_ONLY_FIELDS': $block"
+  fi
+  if printf '%s' "$block" | grep -qF '^'; then
+    bad "symmetric difference is back in $sym — a name leaving the base set re-adds it"
+  else
+    ok "no symmetric difference in $sym"
+  fi
+done
+
+# VEHICLE_STATE_API_FIELDS itself must still keep its historical name (eight
+# test modules and several scripts import it) while being the union of the two
+# WIRE symbols above, not a third independently-guarded set.
+contains "VEHICLE_STATE_API_FIELDS is still declared under its historical name" \
+         'VEHICLE_STATE_API_FIELDS: Final' "$CONST"
+contains "VEHICLE_STATE_API_FIELDS is the union of the two wire symbols" \
+         'VEHICLE_STATE_SUBSCRIPTION_FIELDS | TIRE_PRESSURE_SUBSCRIPTION_FIELDS' \
+         "$CONST"
 
 # Both third-row spellings, side by side.
 "$VENV_PY" - "$HA" <<'PYEOF'
@@ -115,8 +129,14 @@ for t in test_all_five_are_still_subscribed \
   if grep -qF "def $t" "$T"; then ok "asserts: $t"
   else bad "missing required assertion: $t"; fi
 done
-for t in test_the_sans_tpms_variant_is_still_a_strict_subset \
-         test_the_sans_tpms_set_uses_subtraction_in_the_source; do
+for t in test_every_subscribed_field_is_one_the_gateway_knows \
+         test_app_and_extra_documents_are_disjoint \
+         test_api_fields_is_the_union_of_both_wire_documents \
+         test_the_wire_documents_exclude_parallax_only_fields \
+         test_core_fields_are_a_subset_of_the_subscription_wire \
+         test_the_wire_field_lists_are_literal_not_derived \
+         test_every_description_field_is_requested_or_parallax_only \
+         test_every_requested_field_is_read_or_is_part_of_the_apps_document; do
   if grep -qF "def $t" "$HA/tests/test_init.py"; then ok "asserts: $t"
   else bad "missing required assertion: $t"; fi
 done

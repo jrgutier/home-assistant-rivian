@@ -174,13 +174,17 @@ OPTIONS_FLOW = {
 
 
 def _get_schema_credential_fields(
-    user_input: dict[str, Any], default_dict: dict[str, Any]
+    user_input: dict[str, Any] | None, default_dict: dict[str, Any]
 ) -> vol.Schema:
     """Get a schema using the default_dict as a backup."""
+    # The annotations, not the behaviour: the None branch below has always been
+    # correct and the sole caller (_show_credential_fields) has always been able to
+    # pass None. The signature said otherwise, and `_get_default` claimed to return
+    # None while returning the default value, which made every call site look wrong.
     if user_input is None:
         user_input = {}
 
-    def _get_default(key: str, fallback_default: Any = None) -> None:
+    def _get_default(key: str, fallback_default: Any = None) -> Any:
         """Get default value for key."""
         return user_input.get(key, default_dict.get(key, fallback_default))
 
@@ -281,7 +285,11 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Perform reauth upon an API authentication error."""
-        self._data.update(user_input)
+        # Guarded, not just annotated. The signature admits None and `dict.update(None)`
+        # raises TypeError, so an entry-less reauth would abort the flow with a stack
+        # trace instead of re-prompting for credentials.
+        if user_input:
+            self._data.update(user_input)
         return await self._show_credential_fields(user_input)
 
     async def _async_create_entry(self) -> FlowResult:

@@ -26,6 +26,7 @@ from homeassistant.core import HomeAssistant
 
 SUBSCRIBE_METHODS = [
     "subscribe_for_vehicle_updates",
+    "subscribe_for_tire_pressure_updates",
     "subscribe_for_charging_session",
     "subscribe_for_parallax_messages",
     "subscribe_for_cloud_connection",

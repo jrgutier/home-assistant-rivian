@@ -398,7 +398,7 @@
         "name": "Wheels installed"
       },
       "btm_oc_hardware_failure_status": {
-        "name": "BTM OC Hardware Failure Status"
+        "name": "Bluetooth Module Failure Status Overhead Console"
       },
       "vas_secure_element_faulted": {
         "name": "VAS Secure Element Faulted"
@@ -423,6 +423,81 @@
       },
       "known_location": {
         "name": "Known Location"
+      },
+      "cellular_antenna_bars": {
+        "name": "Cellular Signal Bars"
+      },
+      "cellular_carrier": {
+        "name": "Cellular Carrier"
+      },
+      "cellular_mode": {
+        "name": "Cellular Mode"
+      },
+      "cellular_signal_strength": {
+        "name": "Cellular Signal Strength"
+      },
+      "wifi_antenna_bars": {
+        "name": "WiFi Signal Bars"
+      },
+      "wifi_freq": {
+        "name": "WiFi Frequency"
+      },
+      "wifi_link_speed": {
+        "name": "WiFi Link Speed"
+      },
+      "wifi_secure_status": {
+        "name": "WiFi Security Status"
+      },
+      "wifi_ssid": {
+        "name": "WiFi Network Name"
+      },
+      "wifi_sta_disabled_reason": {
+        "name": "WiFi Station Disabled Reason"
+      },
+      "wifi_wpa_status": {
+        "name": "WiFi WPA Status"
+      },
+      "charging_trip_target_soc": {
+        "name": "Charging Trip Target State of Charge"
+      },
+      "charging_trip_target_mins_remaining": {
+        "name": "Charging Trip Target Time Remaining"
+      },
+      "charging_disabled_ac_fault_state": {
+        "name": "Charging Disabled AC Fault State"
+      },
+      "charging_disabled_all": {
+        "name": "Charging Disabled"
+      },
+      "charging_time_estimation_validity": {
+        "name": "Charging Time Estimation Validity"
+      },
+      "battery_needs_lfp_calibration": {
+        "name": "Battery Needs LFP Calibration"
+      },
+      "ota_deployment_intent": {
+        "name": "OTA Deployment Intent"
+      },
+      "ota_software_category": {
+        "name": "OTA Software Category"
+      },
+      "rear_hitch_status": {
+        "name": "Rear Hitch Status"
+      },
+      "geo_location": {
+        "name": "Geo Location"
+      },
+      "gnss_error_position_vertical": {
+        "name": "GNSS Vertical Position Error"
+      },
+      "gnss_error_position_horizontal": {
+        "name": "GNSS Horizontal Position Error"
+      },
+      "gnss_error_speed": {
+        "name": "GNSS Speed Error"
+      },
+      "gnss_error_bearing": {
+        "name": "GNSS Bearing Error"
       }
     },
     "binary_sensor": {

@@ -56,20 +56,26 @@ from homeassistant.helpers.entity import EntityDescription
 FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "entity_sets.json"
 
 # Sensors and binary sensors per model. Stated as literals so the numbers are
-# reviewable here rather than recomputed from the same source they are checking.
+# reviewable here rather than recomputed from the same source they are checking
+# (derived via `scripts/dump_entity_sets.py`, not guessed -- run it with
+# --check to confirm these against tests/fixtures/entity_sets.json).
+#
 # Deliberately raised by f5's follow-up, which added nine sensors -- the fields
 # the new Parallax decoders are the ONLY source for. Without them the decoders
 # wrote into the coordinator and nothing read the result: fourteen new decoders
 # and not one new entity. All nine are entity_registry_enabled_default=False.
+# Shared group 87 -> 96.
 #
-# Shared group 87 -> 96. Binary sensors are untouched.
+# Raised again by the field-parity release's 25 new sensors (const.py's §E),
+# all landing in the shared "R1" group -- every model gains all 25. Shared
+# group 96 -> 121. Binary sensors are untouched throughout.
 EXPECTED_COUNTS = {
-    "R1T": (99, 33),
-    "R1S": (99, 29),
-    "R2": (96, 27),
-    None: (96, 27),
-    "": (96, 27),
-    "R3X": (96, 27),
+    "R1T": (124, 33),
+    "R1S": (124, 29),
+    "R2": (121, 27),
+    None: (121, 27),
+    "": (121, 27),
+    "R3X": (121, 27),
 }
 
 

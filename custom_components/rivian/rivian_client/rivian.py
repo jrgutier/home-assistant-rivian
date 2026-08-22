@@ -9,7 +9,7 @@ import socket
 import sys
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Set as AbstractSet
 from typing import Any
 from warnings import warn
 
@@ -17,8 +17,9 @@ import aiohttp
 from aiohttp import ClientResponse, ClientWebSocketResponse
 
 from .const import (
+    CORE_VEHICLE_STATE_FIELDS,
     LIVE_SESSION_PROPERTIES,
-    VEHICLE_STATES_SUBSCRIPTION_ONLY_PROPERTIES,
+    TIRE_PRESSURE_SUBSCRIPTION_PROPERTIES,
     VEHICLE_STATES_SUBSCRIPTION_PROPERTIES,
     VehicleCommand,
 )
@@ -620,12 +621,58 @@ class Rivian:
         self,
         vehicle_id: str,
         callback: Callable[[dict[str, Any]], None],
-        properties: set[str] | None = None,
+        properties: AbstractSet[str] | None = None,
+        *,
+        allow_core_fallback: bool = True,
     ) -> Callable | None:
-        """Open a web socket connection to receive updates."""
+        """Open a web socket connection to receive updates.
+
+        S1 mitigation, default ON: a subscription the gateway rejects is
+        retried ONCE against CORE_VEHICLE_STATE_FIELDS (~15 names) before the
+        failure is raised -- regardless of whether `properties` was left to
+        its default or supplied explicitly, because the whole point of this
+        mitigation is to survive a caller-supplied field set going bad. Pass
+        `allow_core_fallback=False` to disable it (for a test or probe that
+        wants strict, no-retry behaviour). One renamed/unknown field then
+        costs a degraded-but-working integration rather than every
+        vehicleState entity going unknown at once (const.py:1600-1610: one
+        unknown name rejects the whole document). This reduces that
+        failure's blast radius; it does not eliminate it -- if the renamed
+        field is itself one of the 15 core names, the core document is
+        rejected identically and this still raises. Which document ended up
+        live is readable afterwards via `subscription_document(vehicle_id)`.
+        """
         if not properties:
             properties = VEHICLE_STATES_SUBSCRIPTION_PROPERTIES
 
+        try:
+            unsubscribe = await self._subscribe_vehicle_state_once(
+                vehicle_id, callback, properties
+            )
+        except RivianApiException:
+            if not allow_core_fallback:
+                raise
+            _LOGGER.warning(
+                "%s: vehicleState subscription rejected; retrying once with "
+                "the core field set",
+                vehicle_id,
+            )
+            unsubscribe = await self._subscribe_vehicle_state_once(
+                vehicle_id, callback, CORE_VEHICLE_STATE_FIELDS
+            )
+            self._subscriptions[vehicle_id] = "core"
+            return unsubscribe
+
+        self._subscriptions[vehicle_id] = "full"
+        return unsubscribe
+
+    async def _subscribe_vehicle_state_once(
+        self,
+        vehicle_id: str,
+        callback: Callable[[dict[str, Any]], None],
+        properties: AbstractSet[str],
+    ) -> Callable | None:
+        """The single-attempt body subscribe_for_vehicle_updates() retries."""
         try:
             await self._ws_connect()
             assert self._ws_monitor
@@ -638,6 +685,81 @@ class Rivian:
             }
             unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
             _LOGGER.debug("%s subscribed to updates", vehicle_id)
+            return unsubscribe
+        except RivianApiException:
+            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
+            # per-type handling (expired token, unauthenticated, rate limit)
+            # still sees the specific subclass rather than the base class.
+            raise
+        except Exception as ex:
+            # Returning None here made a dead subscription indistinguishable
+            # from a healthy one at every call site.
+            raise RivianApiException("Failed to establish subscription") from ex
+
+    def subscription_document(self, vehicle_id: str) -> str | None:
+        """Which vehicleState document is live for `vehicle_id`.
+
+        "full" or "core" once subscribe_for_vehicle_updates() has succeeded
+        for that vehicle; None before that -- and None is NOT the same as
+        "core": it means no successful subscribe has happened yet (never
+        connected, or still connecting). Diagnostics must not collapse the
+        two, or a never-connected vehicle would read as merely degraded.
+        This is the S1 fallback's signal for the coordinator/diagnostics to
+        report which document is live (see subscribe_for_vehicle_updates()'s
+        docstring).
+
+        Backed by `self._subscriptions`, declared in `__init__` but unwritten
+        since the client was vendored in (s07) -- this method is its first
+        reader and `subscribe_for_vehicle_updates()` its first writer, so
+        there is no prior semantics for either to preserve.
+        """
+        return self._subscriptions.get(vehicle_id)
+
+    async def subscribe_for_tire_pressure_updates(
+        self,
+        vehicle_id: str,
+        callback: Callable[[dict[str, Any]], None],
+        properties: AbstractSet[str] | None = None,
+    ) -> Callable | None:
+        """Open a web socket connection to receive tyre-pressure updates.
+
+        A sibling of subscribe_for_vehicle_updates(), on its own subscription
+        because that is what the app itself does: its "tirePressureState"
+        operation (com.rivian.android.consumer/java_src/sh/C19721Z9.java:59,
+        operationName at :81) selects only the 8 tirePressure* names, none of
+        which appear in its main vehicleState document. Both subscriptions
+        select the SAME root -- vehicleState(id:) -- which is what lets the
+        coordinator merge their frames into one vehicle_info dict.
+
+        The split halves the blast radius of the S1 failure mode
+        (subscribe_for_vehicle_updates()'s docstring): an unknown field name
+        in THIS document costs the 12 tyre-pressure entities, not every
+        vehicleState entity, because the gateway rejects each document
+        independently.
+
+        Observation, deliberately not "fixed": subscribe_for_vehicle_updates()
+        sends operationName "VehicleState" for a document also named
+        "vehicleState" -- the gateway tolerates the mismatch today. This
+        method instead sends the app's own operation name, "tirePressureState",
+        byte-identical to C19721Z9.java. The two methods are inconsistent with
+        each other on purpose: this one matches what the app actually sends,
+        the older one is left alone because nothing suggests the gateway cares.
+        """
+        if not properties:
+            properties = TIRE_PRESSURE_SUBSCRIPTION_PROPERTIES
+
+        try:
+            await self._ws_connect()
+            assert self._ws_monitor
+            async with async_timeout.timeout(self.request_timeout):
+                await self._ws_monitor.connection_ack.wait()
+            payload = {
+                "operationName": "tirePressureState",
+                "query": f"subscription tirePressureState($vehicleID: String!) {{ vehicleState(id: $vehicleID) {self._build_vehicle_state_fragment(properties)} }}",
+                "variables": {"vehicleID": vehicle_id},
+            }
+            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
+            _LOGGER.debug("%s subscribed to tire pressure updates", vehicle_id)
             return unsubscribe
         except RivianApiException:
             # Already one of ours: re-raise UNCHANGED so the coordinator\'s
@@ -1144,7 +1266,7 @@ class Rivian:
         """
         await self.close()
 
-    def _build_vehicle_state_fragment(self, properties: set[str]) -> str:
+    def _build_vehicle_state_fragment(self, properties: AbstractSet[str]) -> str:
         """Build GraphQL vehicle state fragment from properties."""
         frag = " ".join(
             f"{p} {TEMPLATE_MAP.get(p, VALUE_TEMPLATE)}" for p in properties

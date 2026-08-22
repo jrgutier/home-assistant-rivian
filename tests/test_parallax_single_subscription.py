@@ -26,6 +26,7 @@ from homeassistant.core import HomeAssistant
 def api() -> MagicMock:
     client = MagicMock()
     client.subscribe_for_vehicle_updates = AsyncMock(return_value=AsyncMock())
+    client.subscribe_for_tire_pressure_updates = AsyncMock(return_value=AsyncMock())
     client.subscribe_for_cloud_connection = AsyncMock(return_value=AsyncMock())
     client.subscribe_for_parallax_messages = AsyncMock(return_value=AsyncMock())
     schedule = MagicMock()

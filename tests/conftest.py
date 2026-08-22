@@ -45,6 +45,7 @@ def mock_rivian_client() -> Generator[MagicMock, None, None]:
     with patch("custom_components.rivian.coordinator.Rivian") as mock_client:
         client = MagicMock()
         client.subscribe_for_vehicle_updates = AsyncMock()
+        client.subscribe_for_tire_pressure_updates = AsyncMock()
         client.subscribe_for_cloud_connection = AsyncMock()
         client.subscribe_for_charging_session = AsyncMock()
         client.subscribe_for_parallax_messages = AsyncMock()

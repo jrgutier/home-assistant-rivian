@@ -10,6 +10,7 @@ from homeassistant.const import (
     DEGREE,
     PERCENTAGE,
     EntityCategory,
+    UnitOfDataRate,
     UnitOfEnergy,
     UnitOfLength,
     UnitOfPressure,
@@ -1019,30 +1020,29 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
         # should have sent one too. Its absence means the field was left unset,
         # i.e. UNSPECIFIED. Unknown, not healthy. The zero-means-healthy reading
         # holds only for _HARDWARE_FAILURE_MAP, where 0 IS "unspecified".
-        # DISABLED, and not because "it would read unknown" -- three mechanical
-        # reasons, any one of which is sufficient:
+        # REVERSED (field-parity release). The three points below justified
+        # entity_registry_enabled_default=False and a raw name for one release;
+        # both were an artefact of how this field arrived, not of the field
+        # itself, and both are now stale.
         #
-        # 1. VOCABULARY. Its five siblings (btm_ff, btm_rf, btm_ic, btm_rfd,
-        #    btm_lfd) arrive over the vehicleState subscription and read
-        #    `dtc_not_set`. This one is decoded through _HARDWARE_FAILURE_MAP
-        #    ({0: "unspecified", 1: "set"}) and can only ever read `unspecified` or
-        #    `set`. Enabling it does not give six consistent sensors; it gives five
-        #    saying dtc_not_set and a sixth speaking a different language for the
-        #    same thing. Consistency argues AGAINST enabling here.
-        # 2. It can never report healthy. Zero is omitted on the wire, so `set` --
-        #    faulted -- is the only value it can take. That is a fault latch, not a
-        #    status sensor; the right shape would be a binary_sensor with
-        #    device_class=PROBLEM, not a sensor wearing its siblings' naming.
-        # 3. NAMING. translations/en.json gives the siblings location names
-        #    ("... Door Front Left"); this one is the raw "BTM OC Hardware Failure
-        #    Status". Fix that before it is ever surfaced.
+        # btmOcHardwareFailureStatus is IN the app's own vehicleState document
+        # (sh/C19779dc.java:59) and is now subscribed alongside its five
+        # siblings (PARALLAX_ONLY_FIELDS shrunk 10 -> 7; see the comment there).
+        # The "can never report healthy" / _HARDWARE_FAILURE_MAP-only vocabulary
+        # was true only of the Parallax decode path: that decoder is proto3, and
+        # proto3 omits a zero value on the wire, so the ENABLED->0 case never
+        # arrived through it. The vehicleState subscription is not proto3 -- it
+        # is the same gateway document its siblings already read `dtc_not_set`
+        # from -- so this field now gets the same vocabulary as btm_ff/btm_rf/
+        # btm_ic/btm_rfd/btm_lfd and the naming/vocabulary objections both fall
+        # away with it. The Parallax decoder and _HARDWARE_FAILURE_MAP stay as a
+        # fallback source; they are simply no longer this field's only one.
         RivianSensorEntityDescription(
             key="btm_oc_hardware_failure_status",
             translation_key="btm_oc_hardware_failure_status",
             field="btmOcHardwareFailureStatus",
             icon="mdi:bluetooth",
             entity_category=EntityCategory.DIAGNOSTIC,
-            entity_registry_enabled_default=False,
         ),
         # ENABLED. Its message is proven to arrive (see above), and a fault
         # sensor is worthless unless armed BEFORE the fault -- Home Assistant
@@ -1215,6 +1215,223 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Obstructed While Closing Open Allowed",
             ],
             value_lambda=lambda v: v.replace("_", " ").title(),
+        ),
+        # The 25 fields the app's document has and this integration did not read
+        # (field-parity release, §E). 21 direct descriptions plus the 4-way split
+        # of gnssError below; batteryCellType, btmOcHardwareFailureStatus and
+        # coldRangeNotification are NOT here -- they already have descriptions
+        # above and only gained a second (subscribed) source.
+        #
+        # NO device_class=ENUM anywhere in this group. sensor.py appends an
+        # unrecognised value to the entity's `options` list permanently for the
+        # life of the process (observed live for cabinPreconditioningStatus and
+        # both rear seat heaters) -- promote a field once a live boot has
+        # recorded its real vocabulary, not before.
+        RivianSensorEntityDescription(
+            key="cellular_antenna_bars",
+            translation_key="cellular_antenna_bars",
+            field="cellularAntennaBars",
+            icon="mdi:antenna",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="cellular_carrier",
+            translation_key="cellular_carrier",
+            field="cellularCarrier",
+            icon="mdi:sim",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="cellular_mode",
+            translation_key="cellular_mode",
+            field="cellularMode",
+            icon="mdi:signal",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        # Mirrors wifi_signal above field-for-field.
+        RivianSensorEntityDescription(
+            key="cellular_signal_strength",
+            translation_key="cellular_signal_strength",
+            field="cellularSignalStrength",
+            icon="mdi:signal-cellular-3",
+            device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+            native_unit_of_measurement="dBm",
+            state_class=SensorStateClass.MEASUREMENT,
+        ),
+        RivianSensorEntityDescription(
+            key="wifi_antenna_bars",
+            translation_key="wifi_antenna_bars",
+            field="wifiAntennaBars",
+            icon="mdi:wifi-strength-outline",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        # PLAIN, deliberately: no device_class, no unit. FREQUENCY/MHz is only
+        # correct if the value is `2437`-style; if it reads `2`/`5` (a band
+        # selector, not a frequency) the unit would be a lie and HA statistics
+        # would inherit it. Upgrade once a live boot records the magnitude.
+        RivianSensorEntityDescription(
+            key="wifi_freq",
+            translation_key="wifi_freq",
+            field="wifiFreq",
+            icon="mdi:wifi",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        # DATA_RATE / Mbps: Android's WifiInfo.getLinkSpeed(), which this field
+        # almost certainly mirrors, is documented in Mbps. Flagged for live
+        # confirmation same as wifi_freq.
+        RivianSensorEntityDescription(
+            key="wifi_link_speed",
+            translation_key="wifi_link_speed",
+            field="wifiLinkSpeed",
+            icon="mdi:speedometer",
+            device_class=SensorDeviceClass.DATA_RATE,
+            native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="wifi_secure_status",
+            translation_key="wifi_secure_status",
+            field="wifiSecureStatus",
+            icon="mdi:wifi-lock",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="wifi_ssid",
+            translation_key="wifi_ssid",
+            field="wifiSsid",
+            icon="mdi:wifi-settings",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="wifi_sta_disabled_reason",
+            translation_key="wifi_sta_disabled_reason",
+            field="wifiStaDisabledReason",
+            icon="mdi:wifi-off",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="wifi_wpa_status",
+            translation_key="wifi_wpa_status",
+            field="wifiWpaStatus",
+            icon="mdi:wifi-lock-outline",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        # User-facing: what the trip planner set as its target, mirroring
+        # battery_limit's PERCENTAGE-with-no-device_class shape above.
+        RivianSensorEntityDescription(
+            key="charging_trip_target_soc",
+            translation_key="charging_trip_target_soc",
+            field="chargingTripTargetSoc",
+            icon="mdi:battery-charging-high",
+            native_unit_of_measurement=PERCENTAGE,
+        ),
+        RivianSensorEntityDescription(
+            key="charging_trip_target_mins_remaining",
+            translation_key="charging_trip_target_mins_remaining",
+            field="chargingTripTargetMinsRemaining",
+            icon="mdi:timer-sand",
+            device_class=SensorDeviceClass.DURATION,
+            native_unit_of_measurement=UnitOfTime.MINUTES,
+        ),
+        RivianSensorEntityDescription(
+            key="charging_disabled_ac_fault_state",
+            translation_key="charging_disabled_ac_fault_state",
+            field="chargingDisabledACFaultState",
+            icon="mdi:alert-circle-outline",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="charging_disabled_all",
+            translation_key="charging_disabled_all",
+            field="chargingDisabledAll",
+            icon="mdi:battery-off-outline",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="charging_time_estimation_validity",
+            translation_key="charging_time_estimation_validity",
+            field="chargingTimeEstimationValidity",
+            icon="mdi:clock-alert-outline",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="battery_needs_lfp_calibration",
+            translation_key="battery_needs_lfp_calibration",
+            field="batteryNeedsLfpCalibration",
+            icon="mdi:battery-sync",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="ota_deployment_intent",
+            translation_key="ota_deployment_intent",
+            field="otaDeploymentIntent",
+            icon="mdi:package-up",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="ota_software_category",
+            translation_key="ota_software_category",
+            field="otaSoftwareCategory",
+            icon="mdi:cog-outline",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        # User-facing, beside trailer_status above.
+        RivianSensorEntityDescription(
+            key="rear_hitch_status",
+            translation_key="rear_hitch_status",
+            field="rearHitchStatus",
+            icon="mdi:trailer",
+        ),
+        RivianSensorEntityDescription(
+            key="geo_location",
+            translation_key="geo_location",
+            field="geoLocation",
+            icon="mdi:map-marker",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        # gnssError has no `value` key -- it is
+        # {timeStamp, positionVertical, positionHorizontal, speed, bearing} -- so
+        # it becomes four descriptions, dotted through coordinator.get(), rather
+        # than one. All four share one `last_update` (sensor.py looks it up by
+        # the envelope key, not the leaf) since they describe one arrival.
+        RivianSensorEntityDescription(
+            key="gnss_error_position_vertical",
+            translation_key="gnss_error_position_vertical",
+            field="gnssError.positionVertical",
+            icon="mdi:arrow-up-down",
+            device_class=SensorDeviceClass.DISTANCE,
+            native_unit_of_measurement=UnitOfLength.METERS,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="gnss_error_position_horizontal",
+            translation_key="gnss_error_position_horizontal",
+            field="gnssError.positionHorizontal",
+            icon="mdi:arrow-expand-horizontal",
+            device_class=SensorDeviceClass.DISTANCE,
+            native_unit_of_measurement=UnitOfLength.METERS,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="gnss_error_speed",
+            translation_key="gnss_error_speed",
+            field="gnssError.speed",
+            icon="mdi:speedometer",
+            device_class=SensorDeviceClass.SPEED,
+            native_unit_of_measurement=UnitOfSpeed.METERS_PER_SECOND,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        RivianSensorEntityDescription(
+            key="gnss_error_bearing",
+            translation_key="gnss_error_bearing",
+            field="gnssError.bearing",
+            icon="mdi:compass-outline",
+            native_unit_of_measurement=DEGREE,
+            entity_category=EntityCategory.DIAGNOSTIC,
         ),
     ),
     "R1T": (
@@ -1595,12 +1812,15 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
     ),
 }
 
-# Fields a sensor reads but the GraphQL VehicleState type does not have.
+# Fields a sensor reads but the GraphQL VehicleState type does not have, or that
+# are declared by the schema but must never be requested in a subscription
+# document.
 #
-# VEHICLE_STATE_API_FIELDS below is DERIVED from every sensor's `field`, so any
-# sensor fed by Parallax rather than by the vehicle-state subscription silently
-# adds its field to the subscription query. Rivian's gateway rejects the whole
-# subscription on the first unknown field:
+# The wire lists just below (VEHICLE_STATE_SUBSCRIPTION_FIELDS and
+# TIRE_PRESSURE_SUBSCRIPTION_FIELDS) used to be one set, DERIVED from every
+# sensor's `field`. That meant any sensor fed by Parallax rather than by the
+# vehicle-state subscription silently added its field to the subscription query.
+# Rivian's gateway rejects the whole subscription on the first unknown field:
 #
 #   {"type":"error","payload":[{"message":
 #     "Cannot query field \"wheelsInstalled\" on type \"VehicleState\"."}]}
@@ -1612,67 +1832,232 @@ BINARY_SENSORS: Final[dict[str, tuple[RivianBinarySensorEntityDescription, ...]]
 # wheelsInstalled is computed by decode_vehicle_wheels (rivian_client/parallax.py)
 # from the vehicle.wheels.vehicle_wheels RVM, so excluding it here costs nothing:
 # the sensor still reads it out of the coordinator, which Parallax populates.
+#
+# Shrunk 10 -> 7 (batteryCellType, coldRangeNotification and
+# btmOcHardwareFailureStatus removed): all three are in the app's own
+# vehicleState document (sh/C19779dc.java:59) and are schema-declared, so
+# subscribing to them is exactly what the app does. The reason they were
+# excluded -- "a subscribed field is recorded in
+# VehicleCoordinator._subscription_keys, which blocks Parallax's only source for
+# it" -- rests on a misreading: `_subscription_keys` is populated from frames the
+# gateway actually DELIVERS, never from the set of fields requested, and
+# `test_parallax_gap_fill.py::test_falsy_entries_are_not_recorded_as_supplied`
+# already pins that. The remaining seven have no such document to point to.
 PARALLAX_ONLY_FIELDS: Final[set[str]] = {
-    "wheelsInstalled",
-    # The nine the f5 decoders are the only source for. Adding a sensor for each
-    # would otherwise put them in the subscription automatically, because
-    # VEHICLE_STATE_API_FIELDS is DERIVED from the sensor descriptions -- and that
-    # is the wheelsInstalled failure exactly: a name the server does not know takes
-    # down the WHOLE subscription, so the integration delivers nothing at all.
-    #
-    # There is a second reason, specific to the gap-fill rule. A subscribed field
-    # is recorded in VehicleCoordinator._subscription_keys, and Parallax skips
-    # anything in that set -- so subscribing to these would block their only
-    # source and pin all nine at unknown forever.
-    "batteryCellType",
-    "btmOcHardwareFailureStatus",
-    "coldRangeNotification",
     "consecutiveAlarmDisabledNotification",
     "knownLocation",
     "passiveEntryUnlockFailReason",
     "secureImmobilizerStatus",
     "vasAccessCanFaulted",
     "vasSecureElementFaulted",
+    "wheelsInstalled",
 }
 
-VEHICLE_STATE_API_FIELDS: Final[set[str]] = {
-    *(description.field for sensor in SENSORS.values() for description in sensor),
-    *(
-        field
-        for sensors in BINARY_SENSORS.values()
-        for sensor in sensors
-        for field in ([sensor.field] if isinstance(sensor.field, str) else sensor.field)
-    ),
-    "gnssLocation",
-    "otaCurrentVersion",
-    "otaCurrentVersionYear",
-    "otaCurrentVersionWeek",
-    "otaCurrentVersionNumber",
-    "otaCurrentVersionGitHash",
-    "otaAvailableVersion",
-    "otaAvailableVersionYear",
-    "otaAvailableVersionWeek",
-    "otaAvailableVersionNumber",
-    "otaAvailableVersionGitHash",
-    "otaInstallProgress",
-    # Front seat vent fields (removed from binary sensors, but still needed for combined enum sensors)
-    "seatFrontLeftVent",
-    "seatFrontRightVent",
-} - PARALLAX_ONLY_FIELDS
+# The app's own vehicleState subscription document, transcribed field-for-field
+# from com.rivian.android.consumer/java_src/sh/C19779dc.java:59 (operationName
+# "vehicleState") by parsing the GraphQL selection set by brace depth -- not
+# hand-typed. 127 scalar-shaped fields plus 2 structured ones (gnssLocation,
+# gnssError); geoLocation is selected as `{ value timeStamp }` and is
+# scalar-shaped like the rest. Zero duplicates, zero tirePressure* names -- the
+# app requests those separately (see TIRE_PRESSURE_SUBSCRIPTION_FIELDS below).
+APP_VEHICLE_STATE_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "activeDriverName",
+        "alarmSoundStatus",
+        "batteryCellType",
+        "batteryHvThermalEvent",
+        "batteryHvThermalEventPropagation",
+        "batteryLevel",
+        "batteryLimit",
+        "batteryNeedsLfpCalibration",
+        "btmFfHardwareFailureStatus",
+        "btmIcHardwareFailureStatus",
+        "btmLfdHardwareFailureStatus",
+        "btmOcHardwareFailureStatus",
+        "btmRfHardwareFailureStatus",
+        "btmRfdHardwareFailureStatus",
+        "cabinClimateDriverTemperature",
+        "cabinClimateInteriorTemperature",
+        "cabinHoldNotification",
+        "cabinHoldStatus",
+        "cabinPreconditioningStatus",
+        "cabinPreconditioningType",
+        "carWashMode",
+        "cellularAntennaBars",
+        "cellularCarrier",
+        "cellularMode",
+        "cellularSignalStrength",
+        "chargePortState",
+        "chargerDerateStatus",
+        "chargerState",
+        "chargerStatus",
+        "chargingDisabledACFaultState",
+        "chargingDisabledAll",
+        "chargingTimeEstimationValidity",
+        "chargingTripTargetMinsRemaining",
+        "chargingTripTargetSoc",
+        "closureChargePortDoorNextAction",
+        "closureFrunkClosed",
+        "closureFrunkLocked",
+        "closureFrunkNextAction",
+        "closureLiftgateClosed",
+        "closureLiftgateLocked",
+        "closureLiftgateNextAction",
+        "closureSideBinLeftClosed",
+        "closureSideBinLeftLocked",
+        "closureSideBinLeftNextAction",
+        "closureSideBinRightClosed",
+        "closureSideBinRightLocked",
+        "closureSideBinRightNextAction",
+        "closureTailgateClosed",
+        "closureTailgateLocked",
+        "closureTailgateNextAction",
+        "closureTonneauClosed",
+        "closureTonneauLocked",
+        "coldRangeNotification",
+        "defrostDefogStatus",
+        "distanceToEmpty",
+        "doorFrontLeftClosed",
+        "doorFrontLeftLocked",
+        "doorFrontRightClosed",
+        "doorFrontRightLocked",
+        "doorRearLeftClosed",
+        "doorRearLeftLocked",
+        "doorRearRightClosed",
+        "doorRearRightLocked",
+        "driveMode",
+        "gearGuardLocked",
+        "gearGuardVideoMode",
+        "gearGuardVideoStatus",
+        "gearGuardVideoTermsAccepted",
+        "gearStatus",
+        "geoLocation",
+        "gnssAltitude",
+        "gnssBearing",
+        "gnssError",
+        "gnssLocation",
+        "gnssSpeed",
+        "limitedAccelCold",
+        "limitedRegenCold",
+        "otaAvailableVersion",
+        "otaAvailableVersionGitHash",
+        "otaCurrentStatus",
+        "otaCurrentVersion",
+        "otaCurrentVersionGitHash",
+        "otaDeploymentIntent",
+        "otaDownloadProgress",
+        "otaInstallDuration",
+        "otaInstallProgress",
+        "otaInstallReady",
+        "otaInstallTime",
+        "otaInstallType",
+        "otaSoftwareCategory",
+        "otaStatus",
+        "petModeStatus",
+        "petModeTemperatureStatus",
+        "powerState",
+        "rangeThreshold",
+        "rearHitchStatus",
+        "remoteChargingAvailable",
+        "seatFrontLeftHeat",
+        "seatFrontLeftVent",
+        "seatFrontRightHeat",
+        "seatFrontRightVent",
+        "seatRearLeftHeat",
+        "seatRearRightHeat",
+        "seatThirdRowLeftHeat",
+        "seatThirdRowRightHeat",
+        "serviceMode",
+        "steeringWheelHeat",
+        "timeToEndOfCharge",
+        "trailerStatus",
+        "twelveVoltBatteryHealth",
+        "vehicleMileage",
+        "wifiAntennaBars",
+        "wifiFreq",
+        "wifiLinkSpeed",
+        "wifiSecureStatus",
+        "wifiSignal",
+        "wifiSsid",
+        "wifiStaDisabledReason",
+        "wifiWpaStatus",
+        "windowFrontLeftCalibrated",
+        "windowFrontLeftClosed",
+        "windowFrontRightCalibrated",
+        "windowFrontRightClosed",
+        "windowRearLeftCalibrated",
+        "windowRearLeftClosed",
+        "windowRearRightCalibrated",
+        "windowRearRightClosed",
+        "windowsNextAction",
+        "wiperFluidState",
+    }
+)
 
-# `-`, not `^`. Symmetric difference behaved as subtraction only while all four
-# tire names happened to be in the base set; the moment one left, `^` would ADD it
-# back, producing exactly the unknown-field subscription kill documented at
-# const.py:1441-1455 -- where a single name the server does not know took down the
-# entire subscription and the integration delivered nothing.
-#
-# f2 and f4 both edit the tire field set, so this is converted before either does.
-VEHICLE_STATE_SANS_TPMS_API_FIELDS: Final[set[str]] = VEHICLE_STATE_API_FIELDS - {
-    "tirePressureFrontLeft",
-    "tirePressureFrontRight",
-    "tirePressureRearLeft",
-    "tirePressureRearRight",
-}
+# Fields this integration reads that are not in the app's own document:
+# batteryCapacity and brakeFluidLow feed existing sensors, and the six
+# ota{Current,Available}Version{Year,Week,Number} fields feed the update
+# entity's version-string parsing. Disjoint from APP_VEHICLE_STATE_FIELDS.
+EXTRA_VEHICLE_STATE_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "batteryCapacity",
+        "brakeFluidLow",
+        "otaAvailableVersionNumber",
+        "otaAvailableVersionWeek",
+        "otaAvailableVersionYear",
+        "otaCurrentVersionNumber",
+        "otaCurrentVersionWeek",
+        "otaCurrentVersionYear",
+    }
+)
+
+# The main vehicleState subscription document -- THE WIRE. Guarded by the same
+# subtraction that used to sit on VEHICLE_STATE_API_FIELDS: that symbol is
+# labelled below as never sent as a document, so subtracting from it protected
+# nothing. This is where the guard belongs, because this is what
+# coordinator.py sends.
+VEHICLE_STATE_SUBSCRIPTION_FIELDS: Final[frozenset[str]] = (
+    APP_VEHICLE_STATE_FIELDS | EXTRA_VEHICLE_STATE_FIELDS
+) - PARALLAX_ONLY_FIELDS  # 137, the wire
+
+# The TPMS subscription document -- THE WIRE. The app's own 8 names, transcribed
+# from com.rivian.android.consumer/java_src/sh/C19721Z9.java:59 (operationName
+# "tirePressureState" at :81), plus our 4 tirePressureStatusValid* names
+# (gateway.graphql:884-895) -- already accepted on today's wire but not
+# requested by this APK build.
+TIRE_PRESSURE_SUBSCRIPTION_FIELDS: Final[frozenset[str]] = (
+    frozenset(
+        {
+            "tirePressureFrontLeft",
+            "tirePressureFrontRight",
+            "tirePressureRearLeft",
+            "tirePressureRearRight",
+            "tirePressureStatusFrontLeft",
+            "tirePressureStatusFrontRight",
+            "tirePressureStatusRearLeft",
+            "tirePressureStatusRearRight",
+            "tirePressureStatusValidFrontLeft",
+            "tirePressureStatusValidFrontRight",
+            "tirePressureStatusValidRearLeft",
+            "tirePressureStatusValidRearRight",
+        }
+    )
+    - PARALLAX_ONLY_FIELDS
+)  # 12, the wire
+
+# The union of both documents. Kept under its historical name because eight test
+# modules and several scripts import it -- but it is NEVER sent as a document;
+# coordinator.py and the TPMS subscribe send the two WIRE symbols above. The
+# subtraction on those two symbols is inert today: (APP | EXTRA | TPMS) and
+# PARALLAX_ONLY_FIELDS do not intersect, so this union already excludes nothing
+# PARALLAX_ONLY_FIELDS would have removed. It stays anyway -- not because it is
+# load-bearing today, but because it is what stops the next person adding a name
+# like knownLocation to one of the literal lists above without noticing it is
+# Parallax-only.
+VEHICLE_STATE_API_FIELDS: Final[frozenset[str]] = (
+    VEHICLE_STATE_SUBSCRIPTION_FIELDS | TIRE_PRESSURE_SUBSCRIPTION_FIELDS
+)  # 149, never sent as a document
+
 
 CHARGING_STATE_KEYS: Final[frozenset[str]] = frozenset(
     {

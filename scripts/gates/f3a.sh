@@ -76,9 +76,12 @@ if [ ! -x "$PY" ]; then bad "pytest not found"; summary f3a; exit 1; fi
 # from the same source. The literals live in the test module so they are
 # reviewable next to what they describe; the gate checks they are still there.
 # Raised from 90/33, 90/29, 87/27 when f5's follow-up added nine sensors for the
-# fields the new Parallax decoders are the only source for. Binary sensors are
-# unchanged, which is the check that says the addition was sensors only.
-for pair in '"R1T": (99, 33)' '"R1S": (99, 29)' '"R2": (96, 27)' 'None: (96, 27)'; do
+# fields the new Parallax decoders are the only source for (binary sensors
+# unchanged), then raised again from 99/33, 99/29, 96/27 when release 1's field
+# parity change added 25 more sensors (const.py; SENSORS 102 -> 127). Binary
+# sensors are again unchanged, which is the check that both additions were
+# sensors only.
+for pair in '"R1T": (124, 33)' '"R1S": (124, 29)' '"R2": (121, 27)' 'None: (121, 27)'; do
   if grep -qF "$pair" "$T"; then ok "count asserted: $pair"
   else bad "missing numeric count assertion: $pair"; fi
 done
@@ -87,7 +90,7 @@ done
 # silently regenerated fixture cannot drift with the code.
 python3 - "$FIX" <<'PYEOF'
 import json, sys
-want = {"R1T": (99, 33), "R1S": (99, 29), "R2": (96, 27), "__absent__": (96, 27)}
+want = {"R1T": (124, 33), "R1S": (124, 29), "R2": (121, 27), "__absent__": (121, 27)}
 data = json.load(open(sys.argv[1]))
 bad = []
 for model, (ns, nb) in want.items():
@@ -103,7 +106,7 @@ for model, (ns, nb) in want.items():
 if bad:
     print("\n".join(bad)); sys.exit(1)
 PYEOF
-check "the committed fixture holds 99/33, 99/29, 96/27, 96/27 with no duplicates" $?
+check "the committed fixture holds 124/33, 124/29, 121/27, 121/27 with no duplicates" $?
 
 for t in test_an_r2_gets_entities_at_all \
          test_no_duplicate_unique_ids \

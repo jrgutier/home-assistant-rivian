@@ -85,6 +85,44 @@ COMMANDS_ABSENT_FROM_THIS_APK = frozenset(
     }
 )
 
+# featureNames present as a VehicleFeature member in the decompiled TREE
+# (com.rivian.android.consumer/java_src/.../VehicleFeature.java, app 3.6.0,
+# versionCode 3989 per apktool.yml) that do NOT appear anywhere in
+# VEHICLE_FEATURE_NAMES -- the 3.15.0 TRANSCRIPTION. 60 members in the tree, 64
+# in the transcription, 15 withdrawn. This is a documentary assertion, not the
+# lint itself (see TestGateStringsUseOnlyTheCurrentVocabulary below): it exists
+# so a reader can see the finding without reconstructing the diff, and so it
+# fails loudly if someone regenerates the transcription without accounting for
+# the skew.
+#
+# Two of the 15 are, confusingly, still emitted by the live server today:
+# CLM_HOLD_AUTO_VENT and PREMIUM_SPEAKER both appear in
+# tests/fixtures/supported_features_observed.json (see the seven names listed
+# in this module's docstring). Server presence is NOT evidence a name is a
+# safe gate -- it only says the *feature* exists, not that this build of the
+# app has any control wired to it. That is the same asymmetry as TONNEAU_CMD
+# in reverse: absence from the app didn't prove the tonneau command was dead,
+# and presence on the server doesn't prove a withdrawn gate is safe to revive.
+WITHDRAWN_IN_3_15_0 = frozenset(
+    {
+        "ADDR_SHR",
+        "CHARG_CMD",
+        "CHARG_SCHED",
+        "CLM_HOLD_AUTO_VENT",
+        "FRUNK_NXT_ACT",
+        "HEATED_SEATS",
+        "HEATED_WHEEL",
+        "PRECON_CMD_RESP",
+        "PRECON_SCRN_PROT",
+        "PREMIUM_SPEAKER",
+        "RENAME_VEHICLE",
+        "SET_TEMP_CMD",
+        "TRIP_PLANNER",
+        "VENTED_SEATS",
+        "WIN_NXT_ACT",
+    }
+)
+
 
 class TestVehicleFeatureTranscription:
     def test_sixty_four_members(self) -> None:
@@ -175,6 +213,67 @@ class TestGateStringLint:
         """
         source = (REPO / "custom_components/rivian/switch.py").read_text()
         assert "supported_features" not in source
+
+
+class TestGateStringsUseOnlyTheCurrentVocabulary:
+    """`TestGateStringLint` above only asks that a gate name SOMETHING -- the
+    union of the 3.15.0 transcription and the observed fixture. That union is
+    too permissive for one specific mistake: gating a NEW control on a
+    `VehicleFeature` member that the app withdrew between 3.6.0 and 3.15.0.
+
+    Three facts, or this test will be misread later:
+
+    1. The decompiled TREE (`com.rivian.android.consumer/`) is app 3.6.0,
+       versionCode 3989 (`apktool.yml`). The TRANSCRIPTION
+       (`tests/apk/transcription.py`, `VEHICLE_FEATURE_NAMES`) is app 3.15.0,
+       64 members. The tree has 60, 15 of which do not appear in the
+       transcription at all -- `WITHDRAWN_IN_3_15_0` above. The lint below
+       exists BECAUSE of that skew: finding 2 established that the tree is
+       control-flow evidence only, and the transcription -- not the tree, and
+       not the observed fixture -- is the vocabulary a new gate must be drawn
+       from.
+    2. Gating on a withdrawn name reproduces the `TONNEAU_CMD` failure: a
+       control that exists for nobody, because nothing this build of the app
+       can send ever sets that flag, with nothing logged to say why.
+    3. `CLM_HOLD_AUTO_VENT` and `PREMIUM_SPEAKER` -- two of the 15 withdrawn
+       names -- are STILL emitted by the live server today (they are 2 of the
+       7 names in `OBSERVED_FEATURE_NAMES` that `VEHICLE_FEATURE_NAMES` does
+       not contain; see this module's docstring). Server presence is not
+       evidence a withdrawn name is a safe gate to revive -- it says the
+       *feature* still exists, not that this app build has any control wired
+       to it. That is the same asymmetry as `TONNEAU_CMD` in reverse, and it
+       is why the rule below is stated against the TRANSCRIPTION alone, not
+       `KNOWN_FEATURE_NAMES`.
+
+    The positive form subsumes the 15-name blocklist and needs no maintenance:
+    it also catches the 16th name Rivian withdraws next release, which a
+    hardcoded list never would.
+    """
+
+    def test_every_gate_string_is_in_the_current_transcription(self) -> None:
+        stale = TestGateStringLint._gates() - VEHICLE_FEATURE_NAMES
+        assert not stale, (
+            f"gate strings not in the 3.15.0 transcription: {sorted(stale)}. "
+            "A name that only the observed fixture or the 3.6.0 tree knows "
+            "about is not safe to gate a NEW control on -- see this class's "
+            "docstring."
+        )
+
+    def test_the_documentary_withdrawn_set_matches_the_actual_skew(self) -> None:
+        """Proves WITHDRAWN_IN_3_15_0 isn't stale prose: every name in it is
+        genuinely absent from the transcription, and the count is exactly 15."""
+        assert len(WITHDRAWN_IN_3_15_0) == 15
+        assert WITHDRAWN_IN_3_15_0.isdisjoint(VEHICLE_FEATURE_NAMES)
+
+    def test_no_current_gate_names_a_withdrawn_feature(self) -> None:
+        """The 15-name form of the same rule, kept as the documentary,
+        directly-legible assertion described in this class's docstring."""
+        withdrawn_gates = TestGateStringLint._gates() & WITHDRAWN_IN_3_15_0
+        assert not withdrawn_gates, (
+            f"gate strings name a feature app 3.6.0 had and 3.15.0 dropped: "
+            f"{sorted(withdrawn_gates)}. This is the TONNEAU_CMD failure mode: "
+            "a control that exists for nobody, with nothing logged."
+        )
 
 
 class TestRvmTopicTranscription:
@@ -439,6 +538,28 @@ class TestUnpopulatedFields:
         for field in (*self.VALIDITY_FIELDS, "cabinHoldNotification"):
             assert field in VEHICLE_STATE_API_FIELDS, field
 
+    def test_the_validity_fields_ride_the_tpms_document_not_the_main_one(
+        self,
+    ) -> None:
+        """The split is invisible to `test_all_five_are_still_subscribed` above:
+        VEHICLE_STATE_API_FIELDS (149) is the UNION of two documents and is
+        never itself sent on the wire, so all four validity fields staying in
+        that union proves nothing about which actual document they ride. The
+        wire symbols are VEHICLE_STATE_SUBSCRIPTION_FIELDS (137, the main
+        document) and TIRE_PRESSURE_SUBSCRIPTION_FIELDS (12, the TPMS
+        document) -- and the four tirePressureStatusValid* fields belong to
+        the SECOND one. Without this, folding TPMS back into the main
+        document (or the reverse) would leave every assertion in this class
+        green."""
+        from custom_components.rivian.const import (
+            TIRE_PRESSURE_SUBSCRIPTION_FIELDS,
+            VEHICLE_STATE_SUBSCRIPTION_FIELDS,
+        )
+
+        for field in self.VALIDITY_FIELDS:
+            assert field in TIRE_PRESSURE_SUBSCRIPTION_FIELDS, field
+            assert field not in VEHICLE_STATE_SUBSCRIPTION_FIELDS, field
+
     def test_none_of_them_is_named_by_the_app(self) -> None:
         """Which is why each needed a recorded finding rather than a deletion."""
         app_fields = {v["command"] for v in VAS_COMMANDS if v["command"]} | RVM_NAMES
@@ -458,6 +579,17 @@ class TestUnpopulatedFields:
         shipped. Subscribing to a name the server does not know takes the ENTIRE
         subscription down -- that is what wheelsInstalled did -- so this asserts
         the absence rather than leaving it to a comment.
+
+        This has NOT been superseded by the TPMS split, and reads as if it might
+        be: `subscribe_for_tire_pressure_updates` (rivian_client/rivian.py) now
+        sends `"tirePressureState"` as the GraphQL `operationName` for our own
+        TPMS subscription -- we adopted the OPERATION, deliberately, because
+        that is what the app itself does. The assertion below is about
+        something else entirely: whether `"tirePressureState"` is a FIELD name
+        inside a selection set. It is not, on the app's side or ours, and never
+        should be -- adopting the operation name changes nothing about that. Two
+        different questions, one string; do not read this as stale because the
+        operation got adopted.
         """
         from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
 

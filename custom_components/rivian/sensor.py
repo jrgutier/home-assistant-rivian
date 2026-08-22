@@ -199,7 +199,14 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return the state attributes of the device."""
         try:
-            entity = self.coordinator.data[self.entity_description.field]
+            # `field` may be dotted (e.g. "gnssError.positionVertical") for a
+            # sensor reading one leaf of a structured field. coordinator.data
+            # is keyed by the ENVELOPE name, not the leaf, so look up the base
+            # key -- and that is the correct lookup, not a workaround: the
+            # attributes below (last_update, history) describe when/how the
+            # whole envelope last changed, which every leaf sensor shares.
+            base_field = self.entity_description.field.partition(".")[0]
+            entity = self.coordinator.data[base_field]
             if entity is None:
                 return None
             if self.entity_description.value_lambda is None:

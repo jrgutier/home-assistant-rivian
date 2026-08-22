@@ -107,30 +107,42 @@ class TestSubscriptionWins:
         assert second["vasAccessCanFaulted"]["value"] == "failure"
 
     def test_a_mixed_message_writes_only_its_unsubscribed_half(self) -> None:
-        """security.access.btm carries six fields; five are subscribed and
-        btmOcHardwareFailureStatus is not."""
+        """SYNTHETIC keys, deliberately.
+
+        This used to be `security.access.btm`: five of its six fields subscribed,
+        `btmOcHardwareFailureStatus` the lone unsubscribed one. The §D shrink
+        subscribes it too, so that premise is now false -- all six of that
+        topic's real fields are subscribed and there is no genuinely split RVM
+        topic left to point this at (PARALLAX_ONLY_FIELDS is down to seven
+        fields, none of which shares an RVM topic with a subscribed field).
+
+        The mechanism under test -- a single Parallax message can be half
+        accepted and half dropped, per key -- is still real and still needs
+        coverage, so this keeps it with a made-up topic and made-up field names
+        that cannot be mistaken for real Rivian fields.
+        """
         coordinator = _coordinator()
         coordinator._subscription_keys = {
-            "btmFfHardwareFailureStatus",
-            "btmIcHardwareFailureStatus",
+            "syntheticSubscribedFieldA",
+            "syntheticSubscribedFieldB",
         }
         coordinator.data = {
-            "btmFfHardwareFailureStatus": {"value": "unspecified", "history": set()}
+            "syntheticSubscribedFieldA": {"value": "unspecified", "history": set()}
         }
 
         result = _parallax(
             coordinator,
-            "security.access.btm",
+            "synthetic.mixed.message",
             {
-                "btmFfHardwareFailureStatus": "set",
-                "btmIcHardwareFailureStatus": "set",
-                "btmOcHardwareFailureStatus": "set",
+                "syntheticSubscribedFieldA": "set",
+                "syntheticSubscribedFieldB": "set",
+                "syntheticUnsubscribedField": "set",
             },
         )
 
-        assert result["btmOcHardwareFailureStatus"]["value"] == "set"
-        assert result["btmFfHardwareFailureStatus"]["value"] == "unspecified"
-        assert "btmIcHardwareFailureStatus" not in result
+        assert result["syntheticUnsubscribedField"]["value"] == "set"
+        assert result["syntheticSubscribedFieldA"]["value"] == "unspecified"
+        assert "syntheticSubscribedFieldB" not in result
 
     def test_the_subscription_reclaims_a_field_parallax_had_filled(self) -> None:
         """If the subscription starts carrying a field, it takes it over and
@@ -181,64 +193,211 @@ class TestProvenanceIsRecorded:
         assert "gearStatus" in coordinator._subscription_keys
         assert "driveMode" not in coordinator._subscription_keys
 
+    def test_structured_fields_stay_claimed(self) -> None:
+        """gnssLocation and gnssError have no top-level "value" key at all --
+        they are nested structures (latitude/longitude, bearing/speed/...) -- so
+        the `"value" in v` branch in `_build_vehicle_info_dict` never fires for
+        them. They must still enter `_subscription_keys` on the strength of the
+        outer dict alone, or `_process_parallax_data`'s unconditional
+        `gnssLocation` branch (coordinator.py:1135) starts overwriting real GPS
+        with Parallax's."""
+        coordinator = _coordinator()
+        coordinator.data = None
 
-def test_the_nine_parallax_only_keys_are_what_we_think_they_are() -> None:
+        VehicleCoordinator._build_vehicle_info_dict(
+            coordinator,
+            {
+                "gnssLocation": {
+                    "latitude": 1.0,
+                    "longitude": 2.0,
+                    "timeStamp": "t0",
+                },
+                "gnssError": {
+                    "bearing": 1.0,
+                    "positionHorizontal": 2.0,
+                    "positionVertical": 3.0,
+                    "speed": 4.0,
+                    "timeStamp": "t0",
+                },
+            },
+        )
+
+        assert "gnssLocation" in coordinator._subscription_keys
+        assert "gnssError" in coordinator._subscription_keys
+
+
+class TestSubscribingDoesNotBlockParallax:
+    """The direct proof for the §D shrink: subscribing to a field does not, by
+    itself, claim it for the subscription -- only a DELIVERED, truthy frame
+    value does. `_subscription_keys` is fed at `_build_vehicle_info_dict`
+    (coordinator.py:1292) from frames the gateway actually sends, never from the
+    requested property set, so `batteryCellType`, `coldRangeNotification` and
+    `btmOcHardwareFailureStatus` moving out of PARALLAX_ONLY_FIELDS does not by
+    itself take Parallax's write path away from them.
+
+    Three cases per field, and the middle one is the one that matters: a frame
+    can name a key AND still not supply a usable value for it
+    (`{"timeStamp": ..., "value": None}` -- the server selected the field and
+    got nothing back). `_build_vehicle_info_dict` filters on the OUTER dict's
+    truthiness only (`if v` at coordinator.py:1289) -- a non-empty dict is
+    truthy regardless of what its "value" key holds -- so today that case is
+    wrongly claimed and Parallax is wrongly blocked. That is the second case
+    below, and it is written to demonstrate the bug, not to pass: it is expected
+    RED until the value-based provenance fix lands (coordinator.py:1292, wave 3).
+    """
+
+    NEWLY_SUBSCRIBABLE = (
+        "batteryCellType",
+        "coldRangeNotification",
+        "btmOcHardwareFailureStatus",
+    )
+
+    @pytest.mark.parametrize("field", NEWLY_SUBSCRIBABLE)
+    def test_a_null_top_level_frame_does_not_claim_the_key(self, field: str) -> None:
+        """The gateway named the field and returned nothing for it at all --
+        the ordinary "not delivered this frame" case. Parallax must remain
+        free to supply it."""
+        coordinator = _coordinator()
+        coordinator.data = None
+        VehicleCoordinator._build_vehicle_info_dict(coordinator, {field: None})
+        assert field not in coordinator._subscription_keys
+
+        result = _parallax(coordinator, "synthetic.newly.subscribable", {field: "px"})
+        assert result[field]["value"] == "px"
+
+    @pytest.mark.parametrize("field", NEWLY_SUBSCRIBABLE)
+    def test_a_wrapped_null_value_does_not_claim_the_key(self, field: str) -> None:
+        """EXPECTED RED until the value-based provenance fix lands.
+
+        The gateway named the field and wrapped it -- {"timeStamp": ...,
+        "value": None} -- but supplied no usable value. This must behave
+        identically to the top-level-None case above: the key stays free for
+        Parallax. It does not, because `if v` at coordinator.py:1289 only
+        checks the OUTER dict's truthiness, and a non-empty dict with
+        "value": None is still truthy -- so the key gets claimed anyway and
+        Parallax's write is wrongly blocked.
+        """
+        coordinator = _coordinator()
+        coordinator.data = None
+        VehicleCoordinator._build_vehicle_info_dict(
+            coordinator, {field: {"timeStamp": "t0", "value": None}}
+        )
+        assert field not in coordinator._subscription_keys
+
+        result = _parallax(coordinator, "synthetic.newly.subscribable", {field: "px"})
+        assert result[field]["value"] == "px"
+
+    @pytest.mark.parametrize("field", NEWLY_SUBSCRIBABLE)
+    def test_a_real_value_claims_the_key_and_blocks_parallax(self, field: str) -> None:
+        """The ordinary case once these three are genuinely subscribed and
+        delivering: the subscription value wins and Parallax is skipped."""
+        coordinator = _coordinator()
+        coordinator.data = None
+        VehicleCoordinator._build_vehicle_info_dict(
+            coordinator, {field: {"timeStamp": "t0", "value": "gateway"}}
+        )
+        assert field in coordinator._subscription_keys
+        coordinator.data = {field: {"value": "gateway", "history": {"gateway"}}}
+
+        result = _parallax(coordinator, "synthetic.newly.subscribable", {field: "px"})
+        assert result == {} or result[field]["value"] == "gateway"
+
+
+# The seven names PARALLAX_ONLY_FIELDS carries post-shrink. ONE hardcoded copy:
+# both the pinning test below and TestTheSevenHaveEntities parametrize off this
+# same tuple, rather than each keeping its own hand-typed list that could drift
+# from the other -- team-lead's correction to an earlier draft of this file,
+# which had exactly that duplication.
+#
+# They split 4/3 for two DIFFERENT reasons, checked directly against
+# rivian_client/schemas/gateway.graphql:
+#   - not declared in the schema at all -- subscribing to one of these is fatal,
+#     the wheelsInstalled failure, killing the WHOLE document:
+#     wheelsInstalled, consecutiveAlarmDisabledNotification, knownLocation,
+#     secureImmobilizerStatus
+#   - declared, but requested by no app document -- subscribing would not be
+#     fatal, it merely has no live precedent for actually arriving:
+#     passiveEntryUnlockFailReason, vasAccessCanFaulted, vasSecureElementFaulted
+# `vasAccessCanFaulted` arriving populated via Parallax
+# (TestTheSevenHaveEntities.ENABLED) is the only witness that
+# `security.access.vas_fault` lands at all -- the second group's reasoning has
+# that live evidence behind it and the first group's does not.
+PARALLAX_ONLY_SEVEN = (
+    "consecutiveAlarmDisabledNotification",
+    "knownLocation",
+    "passiveEntryUnlockFailReason",
+    "secureImmobilizerStatus",
+    "vasAccessCanFaulted",
+    "vasSecureElementFaulted",
+    "wheelsInstalled",
+)
+
+
+def test_the_seven_parallax_only_keys_are_what_we_think_they_are() -> None:
     """Pinned, so the split changes only in a diff someone reads.
 
-    If a future story subscribes to one of these, Parallax stops writing it
-    automatically and this test goes red to say so.
+    Was nine; the §D shrink moves batteryCellType, coldRangeNotification and
+    btmOcHardwareFailureStatus out (all three are in the app's document and now
+    subscribed) and PARALLAX_ONLY_FIELDS itself carries a tenth name,
+    wheelsInstalled, that this pinning historically left out -- so the set below
+    is now exactly PARALLAX_ONLY_FIELDS, not the historical minus-three. See
+    PARALLAX_ONLY_SEVEN's comment for why they split 4/3.
+
+    This does NOT say "if a future story subscribes to one of these, Parallax
+    stops writing it automatically" -- that was never true and this shrink is
+    the proof: `_subscription_keys` (coordinator.py:1292) is populated only from
+    frames the gateway actually DELIVERS with a truthy value, never from the
+    requested property set, so being named in the subscription document is not
+    what claims a key. TestSubscribingDoesNotBlockParallax above is the direct
+    demonstration. What this test actually pins is narrower and still real: none
+    of these seven should be REQUESTED in the subscription document, because a
+    name the server does not know takes the WHOLE document down (the
+    wheelsInstalled failure) and, for the six real sensor fields, a genuinely
+    delivered value WOULD claim the key and freeze Parallax as their only
+    source.
     """
-    from custom_components.rivian.const import VEHICLE_STATE_API_FIELDS
+    from custom_components.rivian.const import (
+        PARALLAX_ONLY_FIELDS,
+        VEHICLE_STATE_API_FIELDS,
+    )
 
-    parallax_only = {
-        "batteryCellType",
-        "btmOcHardwareFailureStatus",
-        "coldRangeNotification",
-        "consecutiveAlarmDisabledNotification",
-        "knownLocation",
-        "passiveEntryUnlockFailReason",
-        "secureImmobilizerStatus",
-        "vasAccessCanFaulted",
-        "vasSecureElementFaulted",
-    }
-    assert not (parallax_only & VEHICLE_STATE_API_FIELDS)
+    assert set(PARALLAX_ONLY_SEVEN) == PARALLAX_ONLY_FIELDS
+    assert not (set(PARALLAX_ONLY_SEVEN) & VEHICLE_STATE_API_FIELDS)
 
 
-class TestTheNineHaveEntities:
+class TestTheSevenHaveEntities:
     """Decoding a field and exposing it are different things.
 
     When the gap-fill rule landed, the fourteen f5 decoders surfaced NOTHING: the
-    19 overlapping keys were blocked by the subscription, and the nine
+    19 overlapping keys were blocked by the subscription, and the
     Parallax-only keys had no sensor description, so they were decoded into the
     coordinator and read by nobody. These tests are the guard against that state
     returning.
+
+    `wheelsInstalled` is one of the seven, but it is NOT one of the original
+    "nine" this class used to enumerate -- it is the f4 flagship case: a name
+    the gateway does not know at all, which took the ENTIRE subscription down
+    the one time it was requested. It backs a real sensor (`wheels_installed`)
+    same as the other six, so it belongs in this class's checks; its inclusion
+    is not lost history, just recorded here so the next count change does not
+    have to rediscover why it is different.
     """
 
-    NINE = (
-        "batteryCellType",
-        "btmOcHardwareFailureStatus",
-        "coldRangeNotification",
-        "consecutiveAlarmDisabledNotification",
-        "knownLocation",
-        "passiveEntryUnlockFailReason",
-        "secureImmobilizerStatus",
-        "vasAccessCanFaulted",
-        "vasSecureElementFaulted",
-    )
+    SEVEN = PARALLAX_ONLY_SEVEN
 
-    @pytest.mark.parametrize("field", NINE)
+    @pytest.mark.parametrize("field", SEVEN)
     def test_each_backs_a_sensor(self, field: str) -> None:
         from custom_components.rivian.const import SENSORS
 
         fields = {d.field for group in SENSORS.values() for d in group}
         assert field in fields, f"{field} is decoded but exposed by nothing"
 
-    @pytest.mark.parametrize("field", NINE)
+    @pytest.mark.parametrize("field", SEVEN)
     def test_none_of_them_reaches_the_subscription(self, field: str) -> None:
         """VEHICLE_STATE_API_FIELDS is DERIVED from the sensor descriptions, so
         adding a sensor puts its field in the subscription automatically.
 
-        For these nine that is doubly wrong. A name the server does not know takes
+        For these seven that is doubly wrong. A name the server does not know takes
         down the WHOLE subscription -- the wheelsInstalled failure -- and a
         subscribed field is recorded in _subscription_keys, which makes the
         gap-fill rule skip it and pins the sensor at unknown forever.
@@ -253,7 +412,7 @@ class TestTheNineHaveEntities:
         assert field in PARALLAX_ONLY_FIELDS
         assert field not in VEHICLE_STATE_API_FIELDS
 
-    # Which of the nine ship enabled, and WHY. The reason rides along as the
+    # Which of the seven ship enabled, and WHY. The reason rides along as the
     # parametrize id, so a failure names the ground the entity was standing on.
     #
     # The line is whether the message is PROVEN TO ARRIVE -- not whether a field
@@ -262,12 +421,16 @@ class TestTheNineHaveEntities:
     ENABLED = [
         ("vasAccessCanFaulted", "witness: arrived populated, proving its RVM lands"),
         ("vasSecureElementFaulted", "same message, and armed before the fault"),
-        ("batteryCellType", "static hardware fact"),
-        ("coldRangeNotification", "user-facing, no entity_category"),
         ("knownLocation", "user-facing, no entity_category"),
+        (
+            "wheelsInstalled",
+            (
+                "its own defect story (wheelsInstalled on the wire, f4) is "
+                "direct proof decode_vehicle_wheels fires"
+            ),
+        ),
     ]
     STILL_DISABLED = [
-        ("btmOcHardwareFailureStatus", "vocabulary clash with its five siblings"),
         ("passiveEntryUnlockFailReason", "arrival unwitnessed"),
         ("secureImmobilizerStatus", "arrival unwitnessed"),
         ("consecutiveAlarmDisabledNotification", "arrival unwitnessed"),
@@ -286,24 +449,23 @@ class TestTheNineHaveEntities:
     @pytest.mark.parametrize(
         "field", [f for f, _ in ENABLED], ids=[r for _, r in ENABLED]
     )
-    def test_the_five_proven_ones_ship_enabled(self, field: str) -> None:
+    def test_the_four_proven_ones_ship_enabled(self, field: str) -> None:
         assert self._enabled_default(field) is not False
 
     @pytest.mark.parametrize(
         "field", [f for f, _ in STILL_DISABLED], ids=[r for _, r in STILL_DISABLED]
     )
-    def test_the_four_unproven_ones_stay_disabled(self, field: str) -> None:
-        """Not "it would read unknown" -- that argument would condemn the five
-        enabled ones too. Three of these have no unsubscribed sibling, so absence
-        cannot be told apart from the decoder never firing; btm_oc additionally
-        speaks a different enum vocabulary than its five enabled siblings."""
+    def test_the_three_unproven_ones_stay_disabled(self, field: str) -> None:
+        """Not "it would read unknown" -- that argument would condemn the four
+        enabled ones too. All three have no unsubscribed sibling, so absence
+        cannot be told apart from the decoder never firing."""
         assert self._enabled_default(field) is False
 
-    def test_the_split_covers_all_nine_exactly_once(self) -> None:
-        assert len(self.ENABLED) + len(self.STILL_DISABLED) == len(self.NINE)
+    def test_the_split_covers_all_seven_exactly_once(self) -> None:
+        assert len(self.ENABLED) + len(self.STILL_DISABLED) == len(self.SEVEN)
         assert {f for f, _ in self.ENABLED} | {
             f for f, _ in self.STILL_DISABLED
-        } == set(self.NINE)
+        } == set(self.SEVEN)
 
     def test_absence_is_not_read_as_health(self) -> None:
         """The correction that produced this split.
@@ -342,7 +504,7 @@ class TestRvmArrivalCounters:
 
     Without it, a missing field is ambiguous between "the message arrived and the
     field was zero, which proto3 omits" and "the message never arrived". That
-    ambiguity is the stated reason three of the nine sensors ship disabled, so the
+    ambiguity is the stated reason three of the seven sensors ship disabled, so the
     counter is load-bearing rather than instrumentation for its own sake.
     """
 
@@ -410,7 +572,14 @@ class TestRvmArrivalCounters:
     def test_the_accessor_reports_never_delivered_as_absent(self) -> None:
         coordinator = _coordinator()
         _parallax(coordinator, "dynamics.vehicle.gear", {"gearStatus": "park"})
-        arrivals = VehicleCoordinator.rvm_arrivals.fget(coordinator)
+        # coordinator is MagicMock(spec=VehicleCoordinator), so plain attribute
+        # access would return a Mock rather than run the real property -- reach
+        # for the descriptor's getter directly. `property.fget` is typed
+        # Optional in general (a property need not have a getter); this one
+        # always does, so narrow it rather than silence the warning.
+        getter = VehicleCoordinator.rvm_arrivals.fget
+        assert getter is not None
+        arrivals = getter(coordinator)
         assert arrivals == {"dynamics.vehicle.gear": 1}
         assert "security.access.btm" not in arrivals
 

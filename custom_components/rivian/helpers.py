@@ -60,18 +60,30 @@ TO_REDACT = {
     CONF_EMAIL,
     CONF_LATITUDE,
     CONF_LONGITUDE,
+    "bearing",
+    "geoLocation",
     "hrid",
     "id",
     "identityId",
     "inviteId",
     "mappedIdentityId",
     "orderId",
+    # positionHorizontal/positionVertical/bearing/speed are the four gnssError
+    # fields (rivian_client/schemas/gateway.graphql:545-551) -- no sensor
+    # description reads them yet, but async_redact_data (checked: it recurses
+    # into nested Mapping/list values and matches by bare key name at any
+    # depth, not a dotted path) will already catch them by name the moment a
+    # description exists, so the redaction can't be forgotten after the fact.
+    "positionHorizontal",
+    "positionVertical",
     "serialNumber",
+    "speed",
     "userId",
     "vas",
     "vehicleId",
     "vin",
     "wallboxId",
+    "wifiSsid",
 }
 
 
