@@ -115,18 +115,6 @@ GEAR_STATUS_MAP = {
 }
 
 
-def _to_pascal_case(value: str) -> str:
-    """Convert snake_case to PascalCase.
-
-    Examples:
-        charging_active -> ChargingActive
-        signal_not_available -> SignalNotAvailable
-    """
-    if not value:
-        return ""
-    return "".join(word.capitalize() for word in value.split("_"))
-
-
 def _to_title_case(value: str) -> str:
     """Convert snake_case to Title Case with spaces.
 
@@ -271,7 +259,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Active Warning",
                 "Complete Maintain",
                 "Timeout Complete",
-                "Error SOC Low",
+                "Error Soc Low",
                 "Error System Fault",
                 "Timeout Temperature Not Achieved",
                 "Unavailable",
@@ -365,11 +353,11 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Charging Station Error",
                 "Charging Payment Error",
                 "Charging Cert Error",
-                "Charging Error AC Adapter Used On DC",
-                "Charging Error DC Adapter Used On AC",
+                "Charging Error Ac Adapter Used On Dc",
+                "Charging Error Dc Adapter Used On Ac",
                 "Charging Error Incompatible Charger",
                 "Charging Error Not Ready Or Incompatible Charger",
-                "Charging SD Compensation",
+                "Charging Sd Compensation",
                 "Signal Not Available",
             ],
             value_lambda=lambda v: _to_title_case(v) if v else "Signal Not Available",
@@ -390,7 +378,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Eoc Met",
                 "Fault",
             ],
-            value_lambda=lambda v: _charger_status_transform(v),
+            value_lambda=_charger_status_transform,
         ),
         RivianSensorEntityDescription(
             key="distance_to_empty",

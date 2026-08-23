@@ -52,7 +52,6 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
 
     entity_description: RivianClimateEntityDescription
 
-    _attr_hvac_mode = HVACMode.OFF
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL, HVACMode.HEAT]
     _attr_max_temp = 29
     _attr_min_temp = 16
@@ -112,7 +111,6 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
             return await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 1}
             )
-            return
         await self.async_set_temperature(
             temperature={"LO": 0, "HI": 63.5}.get(preset_mode)
         )

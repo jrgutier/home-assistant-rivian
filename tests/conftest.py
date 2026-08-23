@@ -55,99 +55,20 @@ def mock_rivian_client() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_vehicle_data() -> dict[str, Any]:
-    """Return mock vehicle state data."""
+def mock_vehicle() -> dict[str, Any]:
+    """Return the vehicle record platform entities are constructed from."""
     return {
-        "powerState": {"value": "go", "timeStamp": "2024-01-01T00:00:00Z"},
-        "chargerState": {
-            "value": "chg_station_disconnected",
-            "timeStamp": "2024-01-01T00:00:00Z",
-        },
-        "batteryLevel": {"value": 80.5, "timeStamp": "2024-01-01T00:00:00Z"},
+        "id": "test_vehicle_123",
+        "vin": "TEST123456789",
+        "name": "Test R1T",
+        "model": "R1T",
     }
 
 
 @pytest.fixture
-def mock_charging_data() -> dict[str, Any]:
-    """Return mock charging session data."""
-    return {
-        "payload": {
-            "data": {
-                "chargingSession": {
-                    "liveData": {
-                        "power": 11.0,
-                        "rangeAddedThisSession": 50,
-                    },
-                    "chartData": {
-                        "sessionId": "test_session_123",
-                    },
-                }
-            }
-        }
-    }
-
-
-@pytest.fixture
-def mock_vehicle_update() -> dict[str, Any]:
-    """Return mock vehicle update from subscription."""
-    return {
-        "payload": {
-            "data": {
-                "vehicleState": {
-                    "powerState": {
-                        "value": "go",
-                        "timeStamp": "2024-01-01T00:00:00Z",
-                    },
-                    "batteryLevel": {
-                        "value": 80.5,
-                        "timeStamp": "2024-01-01T00:00:00Z",
-                    },
-                }
-            }
-        }
-    }
-
-
-@pytest.fixture
-def mock_user_data() -> dict[str, Any]:
-    """Return mock user data."""
-    return {
-        "currentUser": {
-            "vehicles": [
-                {
-                    "id": "test_vehicle_id_123",
-                    "name": "Test R1T",
-                    "vehicle": {
-                        "vin": "TEST123456789",
-                        "modelYear": "2024",
-                        "vehicleState": {
-                            "supportedFeatures": [
-                                {"name": "FEATURE_1", "status": "AVAILABLE"}
-                            ]
-                        },
-                    },
-                    "vas": {
-                        "vasVehicleId": "test_vas_id",
-                        "vehiclePublicKey": "test_vehicle_public_key",
-                    },
-                }
-            ],
-            "enrolledPhones": [
-                {
-                    "vas": {
-                        "publicKey": "test_public_key",
-                        "vasPhoneId": "test_phone_id",
-                    },
-                    "enrolled": [
-                        {
-                            "vehicleId": "test_vehicle_id_123",
-                            "identityId": "test_identity_id",
-                        }
-                    ],
-                }
-            ],
-        }
-    }
+def mock_vehicle_paired(mock_vehicle: dict[str, Any]) -> dict[str, Any]:
+    """Return a vehicle record carrying a phone identity (control platforms)."""
+    return {**mock_vehicle, "phone_identity_id": "test_phone_id"}
 
 
 @pytest.fixture
@@ -203,25 +124,5 @@ def mock_vehicle_coordinator_with_parallax() -> MagicMock:
         return await method(vehicle_id=coordinator.vehicle_id, **kwargs)
 
     coordinator.send_parallax_command = _send_parallax_command
-
-    return coordinator
-
-
-@pytest.fixture
-def mock_vehicle_coordinator_without_pairing() -> MagicMock:
-    """Return a mocked VehicleCoordinator without pairing (no Parallax support)."""
-    coordinator = MagicMock()
-    coordinator.vehicle_id = "test_vehicle_id_123"
-    coordinator.vehicle_name = "Test R1T"
-    coordinator.vin = "TEST123456789"
-    coordinator.data = {
-        "powerState": {"value": "go", "timeStamp": "2024-01-01T00:00:00Z"},
-    }
-
-    # Mock API
-    coordinator.api = MagicMock()
-
-    # No pairing data (vehicle is not paired)
-    coordinator.get_pairing_data = MagicMock(return_value=None)
 
     return coordinator

@@ -64,10 +64,10 @@ Contains shared fixtures used across all tests:
 
 - `mock_config_entry`: Mock Home Assistant config entry
 - `mock_rivian_client`: Mock Rivian API client
-- `mock_vehicle_data`: Mock vehicle state data
-- `mock_charging_data`: Mock charging session data
-- `mock_user_data`: Mock user account data
+- `mock_vehicle`: Vehicle record that platform entities are constructed from
+- `mock_vehicle_paired`: `mock_vehicle` plus a phone identity, for control platforms
 - `setup_integration`: Helper to set up the integration for testing
+- `mock_vehicle_coordinator_with_parallax`: Mock `VehicleCoordinator` with Parallax support
 
 ### `test_init.py`
 

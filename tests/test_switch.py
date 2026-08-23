@@ -25,20 +25,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_on returns True when condition is met."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="true")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianSwitchEntityDescription(
             key="alarm",
@@ -52,7 +45,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.is_on is True
@@ -61,20 +54,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_on returns False when condition is not met."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="false")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianSwitchEntityDescription(
             key="alarm",
@@ -88,7 +74,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.is_on is False
@@ -97,6 +83,7 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test available property with custom lambda."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -109,14 +96,6 @@ class TestRivianSwitchEntity:
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
         description = RivianSwitchEntityDescription(
             key="charging_enabled",
             translation_key="charging_enabled",
@@ -130,7 +109,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should be available when lambda returns True
@@ -140,6 +119,7 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test available returns False when custom lambda fails."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -152,14 +132,6 @@ class TestRivianSwitchEntity:
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
         description = RivianSwitchEntityDescription(
             key="charging_enabled",
             translation_key="charging_enabled",
@@ -173,7 +145,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should not be available when lambda returns False
@@ -183,20 +155,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_on executes command."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="false")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianSwitchEntityDescription(
             key="alarm",
@@ -210,7 +175,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -225,20 +190,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_on executes command with params."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="Off")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianSwitchEntityDescription(
             key="steering_wheel_heat",
@@ -254,7 +212,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -271,20 +229,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_off executes command."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="true")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianSwitchEntityDescription(
             key="alarm",
@@ -298,7 +249,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -313,20 +264,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_off executes command with params."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="High")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianSwitchEntityDescription(
             key="steering_wheel_heat",
@@ -342,7 +286,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -359,20 +303,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_on with legacy turn_on function."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="false")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         turn_on_fn = AsyncMock()
         description = RivianSwitchEntityDescription(
@@ -386,7 +323,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_turn_on()
@@ -398,20 +335,13 @@ class TestRivianSwitchEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_off with legacy turn_off function."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="true")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         turn_off_fn = AsyncMock()
         description = RivianSwitchEntityDescription(
@@ -425,7 +355,7 @@ class TestRivianSwitchEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_turn_off()
@@ -598,21 +528,12 @@ class TestRivianSwitchEntityErrorPaths:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_off with neither command nor function defined."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianSwitchEntityDescription
 
         description = RivianSwitchEntityDescription(
             key="test_switch",
@@ -625,7 +546,7 @@ class TestRivianSwitchEntityErrorPaths:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should log error but not raise
@@ -635,21 +556,12 @@ class TestRivianSwitchEntityErrorPaths:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_turn_on with neither command nor function defined."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianSwitchEntityDescription
 
         description = RivianSwitchEntityDescription(
             key="test_switch",
@@ -662,7 +574,7 @@ class TestRivianSwitchEntityErrorPaths:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should log error but not raise

@@ -6,11 +6,11 @@ import pytest
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
-from custom_components.rivian.rivian_client.exceptions import RivianBadRequestError
 from custom_components.rivian.update import RivianUpdateEntity, async_setup_entry
-from homeassistant.components.update import UpdateEntityFeature
+from homeassistant.components.update import UpdateEntityDescription, UpdateEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 
 class TestRivianUpdateEntity:
@@ -20,19 +20,11 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test installed_version property."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -40,7 +32,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Mock _get_value
@@ -63,19 +55,11 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test installed_version shows hash when different from latest."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -83,7 +67,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Mock _get_value
@@ -107,19 +91,11 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test latest_version uses current when available is 0.0.0."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -127,7 +103,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Mock _get_value
@@ -150,19 +126,11 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test in_progress returns False when not installing."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -170,7 +138,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Mock _get_value
@@ -182,19 +150,11 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test in_progress returns percentage when installing."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -202,7 +162,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Mock _get_value
@@ -234,8 +194,6 @@ class TestRivianUpdateEntity:
             # No phone_identity_id
         }
 
-        from homeassistant.components.update import UpdateEntityDescription
-
         description = UpdateEntityDescription(key="software_ota")
 
         entity = RivianUpdateEntity(
@@ -257,20 +215,11 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test supported_features with install capability."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -278,7 +227,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _get_value
@@ -295,21 +244,12 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_install successfully triggers install."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
         coordinator.send_vehicle_command = AsyncMock()
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -317,7 +257,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _get_value
@@ -347,8 +287,6 @@ class TestRivianUpdateEntity:
             # No phone_identity_id
         }
 
-        from homeassistant.components.update import UpdateEntityDescription
-
         description = UpdateEntityDescription(key="software_ota")
 
         entity = RivianUpdateEntity(
@@ -358,27 +296,18 @@ class TestRivianUpdateEntity:
             vehicle=vehicle_data,
         )
 
-        with pytest.raises(RivianBadRequestError):
+        with pytest.raises(HomeAssistantError):
             await entity.async_install(version=None, backup=False)
 
     async def test_async_install_not_ready(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_install raises error when update not ready."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -386,51 +315,31 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _get_value
         entity._get_value = MagicMock(return_value="Installing")
 
-        with pytest.raises(RivianBadRequestError):
+        with pytest.raises(HomeAssistantError):
             await entity.async_install(version=None, backup=False)
 
     async def test_async_release_notes_with_details(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test async_release_notes fetches from API."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
         coordinator.vehicle_id = "test_vehicle_123"
 
-        # Mock API response
-        mock_response = MagicMock()
-        mock_response.json = AsyncMock(
-            return_value={
-                "data": {
-                    "getVehicle": {
-                        "availableOTAUpdateDetails": {
-                            "url": "https://rivian.software/2024-03-0/"
-                        }
-                    }
-                }
-            }
+        # The envelope unwrap lives on the coordinator now; the branch preference
+        # it encodes is pinned in tests/test_coordinator_base.py.
+        coordinator.get_ota_release_notes_url = AsyncMock(
+            return_value="https://rivian.software/2024-03-0/"
         )
-        coordinator.api = MagicMock()
-        coordinator.api.get_vehicle_ota_update_details = AsyncMock(
-            return_value=mock_response
-        )
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -438,7 +347,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         notes = await entity.async_release_notes()
@@ -451,6 +360,7 @@ class TestRivianUpdateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test async_release_notes falls back to generated URL."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -458,19 +368,7 @@ class TestRivianUpdateEntity:
         coordinator.vehicle_id = "test_vehicle_123"
 
         # Mock API error
-        coordinator.api = MagicMock()
-        coordinator.api.get_vehicle_ota_update_details = AsyncMock(
-            side_effect=KeyError("test")
-        )
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from homeassistant.components.update import UpdateEntityDescription
+        coordinator.get_ota_release_notes_url = AsyncMock(side_effect=KeyError("test"))
 
         description = UpdateEntityDescription(key="software_ota")
 
@@ -478,7 +376,7 @@ class TestRivianUpdateEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Mock _get_value for version

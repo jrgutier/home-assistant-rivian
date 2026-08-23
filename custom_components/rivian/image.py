@@ -77,4 +77,4 @@ class RivianVehicleImageEntity(RivianEntity, ImageEntity):
     @property
     def image_last_updated(self) -> datetime | None:
         """The time when the image was last updated."""
-        return self.coordinator._last_updated  # pylint: disable=protected-access
+        return self.coordinator.last_updated

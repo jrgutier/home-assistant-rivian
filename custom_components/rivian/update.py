@@ -13,6 +13,7 @@ from homeassistant.components.update import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,7 +21,6 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .entity import RivianVehicleEntity
 from .rivian_client import VehicleCommand
-from .rivian_client.exceptions import RivianBadRequestError
 
 INSTALLING_STATUS = ("Install_Countdown", "Awaiting_Install", "Installing")
 READY_FOR_INSTALL = ("Ready_To_Install", "Scheduled_To_Install")
@@ -120,9 +120,9 @@ class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
     ) -> None:
         """Install an update."""
         if not self.can_install:
-            raise RivianBadRequestError("Vehicle control is not enabled.")
+            raise HomeAssistantError("Vehicle control is not enabled.")
         if (status := self._get_value("otaStatus")) not in READY_FOR_INSTALL:
-            raise RivianBadRequestError(
+            raise HomeAssistantError(
                 f"Software update is {status}, please try again later"
             )
         await self.coordinator.send_vehicle_command(
@@ -131,15 +131,8 @@ class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
 
     async def async_release_notes(self) -> str | None:
         """Return Rivian release notes."""
-        vehicle_id = self.coordinator.vehicle_id
         try:
-            resp = await self.coordinator.api.get_vehicle_ota_update_details(vehicle_id)
-            resp_data = await resp.json()
-            data = resp_data["data"]["getVehicle"]
-            if details := data["availableOTAUpdateDetails"]:
-                url = details["url"]
-            else:
-                url = data["currentOTAUpdateDetails"]["url"]
+            url = await self.coordinator.get_ota_release_notes_url()
         except Exception:  # noqa: BLE001
             url = self._rivian_software_url
         return f"[Read release announcement]({url})"

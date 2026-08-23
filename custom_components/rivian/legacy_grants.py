@@ -50,8 +50,8 @@ from __future__ import annotations
 # the shared group twice: 114 duplicate-unique-id errors per vehicle.
 #
 # R2 also carries "LIFTGATE": an R2 is an SUV with a liftgate, but the three
-# liftgate state descriptions (const.py:1462 SENSORS["LIFTGATE"],
-# const.py:1847 BINARY_SENSORS["LIFTGATE"]) used to live in "R1S" only. R2 was
+# liftgate state descriptions (const.py:1450 SENSORS["LIFTGATE"],
+# const.py:1835 BINARY_SENSORS["LIFTGATE"]) used to live in "R1S" only. R2 was
 # ("R1",), so it got the liftgate CONTROL (cover.py:127, button.py:89 -- gated
 # on the LIFTGATE_CMD feature flag, not on this map) with no way to read
 # whether the liftgate was open or locked: it could open a door it couldn't

@@ -173,20 +173,13 @@ class TestRivianButtonEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test pressing button with command."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
         coordinator.send_vehicle_command = AsyncMock()
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianButtonEntityDescription(
             key="wake",
@@ -198,7 +191,7 @@ class TestRivianButtonEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command to bypass zone/park checks
@@ -215,19 +208,12 @@ class TestRivianButtonEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test pressing button with press_fn."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         press_fn = AsyncMock()
         description = RivianButtonEntityDescription(
@@ -240,7 +226,7 @@ class TestRivianButtonEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_press()
@@ -252,19 +238,12 @@ class TestRivianButtonEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test pressing button with command and parameters."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         command_params = {"param1": "value1"}
         description = RivianButtonEntityDescription(
@@ -278,7 +257,7 @@ class TestRivianButtonEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command to bypass zone/park checks
@@ -299,19 +278,12 @@ class TestRivianPairPhoneButtonEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test pressing button when pairing is already in progress."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.vehicle_id = "test_vehicle_123"
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = ButtonEntityDescription(key="pair", translation_key="pair")
 
@@ -319,7 +291,7 @@ class TestRivianPairPhoneButtonEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Set pairing flag
@@ -333,18 +305,11 @@ class TestRivianPairPhoneButtonEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test _handle_driver_update does nothing (intentionally blank)."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = ButtonEntityDescription(key="pair", translation_key="pair")
 
@@ -352,7 +317,7 @@ class TestRivianPairPhoneButtonEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should not raise any error

@@ -127,7 +127,7 @@ class TestStillUseful:
         assert "Login" in out
 
     def test_args_1_stays_parseable(self) -> None:
-        # home-assistant-rivian's config_flow.py:238 does exactly this to decide
+        # home-assistant-rivian's config_flow.py:236 does exactly this to decide
         # whether to re-prompt for an OTP. Reshaping args would break the flow.
         exc = RivianInvalidOTP(401, RESPONSE_JSON, HEADERS, OTP_BODY)
         assert (

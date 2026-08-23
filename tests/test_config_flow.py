@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 import voluptuous as vol
 
 from custom_components.rivian.config_flow import (
@@ -16,33 +17,32 @@ from homeassistant.core import HomeAssistant
 class TestGetSchemaCredentialFields:
     """Test _get_schema_credential_fields function."""
 
-    def test_with_none_user_input(self) -> None:
-        """Test schema with None user input."""
-        default_dict = {CONF_USERNAME: "default@example.com", CONF_PASSWORD: "default"}
+    DEFAULTS = {CONF_USERNAME: "default@example.com", CONF_PASSWORD: "default"}
 
-        schema = _get_schema_credential_fields(None, default_dict)
+    @pytest.mark.parametrize(
+        ("user_input", "expected"),
+        [
+            (None, {"username": "default@example.com", "password": "default"}),
+            ({}, {"username": "default@example.com", "password": "default"}),
+            (
+                {CONF_USERNAME: "user@example.com", CONF_PASSWORD: "userpass"},
+                {"username": "user@example.com", "password": "userpass"},
+            ),
+        ],
+        ids=["none", "empty", "user-input"],
+    )
+    def test_user_input_wins_over_the_defaults(self, user_input, expected) -> None:
+        """None and {} fall back to default_dict; a supplied value overrides it.
 
-        # Should return a vol.Schema
+        The old three tests asserted only `isinstance(schema, vol.Schema)`, which
+        the function's return statement guarantees for every input -- so they could
+        not tell the None branch from the override branch, the only thing this
+        function decides.
+        """
+        schema = _get_schema_credential_fields(user_input, self.DEFAULTS)
+
         assert isinstance(schema, vol.Schema)
-
-    def test_with_empty_user_input(self) -> None:
-        """Test schema with empty user input."""
-        default_dict = {CONF_USERNAME: "default@example.com", CONF_PASSWORD: "default"}
-
-        schema = _get_schema_credential_fields({}, default_dict)
-
-        # Should return a vol.Schema
-        assert isinstance(schema, vol.Schema)
-
-    def test_with_user_input(self) -> None:
-        """Test schema with user input."""
-        user_input = {CONF_USERNAME: "user@example.com", CONF_PASSWORD: "userpass"}
-        default_dict = {CONF_USERNAME: "default@example.com", CONF_PASSWORD: "default"}
-
-        schema = _get_schema_credential_fields(user_input, default_dict)
-
-        # Should return a vol.Schema
-        assert isinstance(schema, vol.Schema)
+        assert {str(key): key.default() for key in schema.schema} == expected
 
 
 class TestRivianFlowHandler:
@@ -57,7 +57,6 @@ class TestRivianFlowHandler:
         assert flow._errors == {}
         assert flow._access_token is None
         assert flow._refresh_token is None
-        assert flow._session_token is None
         assert flow._user_session_token is None
 
     def test_version(self) -> None:

@@ -167,15 +167,6 @@ class RivianSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
         """Return True if entity is on."""
         return self.entity_description.is_on(self.coordinator)
 
-    @property
-    def available(self) -> bool:
-        """Return the availability of the entity."""
-        return super().available and (
-            _fn(self.coordinator)
-            if (_fn := self.entity_description.available)
-            else True
-        )
-
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         if self.entity_description.command_off:

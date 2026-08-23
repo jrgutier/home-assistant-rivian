@@ -20,20 +20,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_closed returns True when cover is closed."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="closed")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="charge_port",
@@ -48,7 +41,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.is_closed is True
@@ -57,20 +50,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_closed returns False when cover is open."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="open")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="charge_port",
@@ -85,7 +71,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.is_closed is False
@@ -94,6 +80,7 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_closed with windows (all must be closed)."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -111,14 +98,6 @@ class TestRivianCoverEntity:
         coordinator.get = MagicMock(side_effect=mock_get)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         windows = (
             "windowFrontLeftClosed",
@@ -139,7 +118,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should be open because one window is open
@@ -149,20 +128,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_opening uses next action state."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value=None)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="frunk",
@@ -177,7 +149,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Without next action state, should be False
@@ -187,20 +159,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_closing uses next action state."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value=None)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="liftgate",
@@ -215,7 +180,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Without next action state, should be False
@@ -225,20 +190,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test extra_state_attributes without next action state."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value=None)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="charge_port",
@@ -253,7 +211,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         attrs = entity.extra_state_attributes
@@ -264,20 +222,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test cover has open and close features."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="closed")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="charge_port",
@@ -292,7 +243,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.supported_features == (
@@ -303,20 +254,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_close_cover executes command."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="open")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="charge_port",
@@ -331,7 +275,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -346,20 +290,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_open_cover executes command."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="closed")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="charge_port",
@@ -374,7 +311,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -389,20 +326,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_close_cover with parameters."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="open")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianCoverEntityDescription(
             key="charge_port",
@@ -418,7 +348,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -435,20 +365,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_close_cover with legacy close_cover function."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="open")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         close_fn = AsyncMock()
         description = RivianCoverEntityDescription(
@@ -463,7 +386,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_close_cover()
@@ -475,20 +398,13 @@ class TestRivianCoverEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_open_cover with legacy open_cover function."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="closed")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         open_fn = AsyncMock()
         description = RivianCoverEntityDescription(
@@ -503,7 +419,7 @@ class TestRivianCoverEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_open_cover()
@@ -669,22 +585,13 @@ class TestRivianCoverEntityNextActionEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test _get_next_action_state returns None when key not in mapping."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
         coordinator.get = MagicMock(return_value="some_value")
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianCoverEntityDescription
 
         # Create description with key not in NEXT_ACTION_MAPPING
         description = RivianCoverEntityDescription(
@@ -698,7 +605,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should return None when key not in mapping (line 150)
@@ -709,6 +616,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_closed uses next action when available."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -719,16 +627,6 @@ class TestRivianCoverEntityNextActionEdgeCases:
         mock_next_action = MagicMock()
         mock_next_action.is_closed = MagicMock(return_value=True)
         coordinator.get = MagicMock(return_value="CLOSED")
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianCoverEntityDescription
 
         description = RivianCoverEntityDescription(
             key="closureTonneauDoors",
@@ -741,7 +639,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _get_next_action_state to return mock with is_closed
@@ -756,6 +654,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_opening uses next action."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -764,16 +663,6 @@ class TestRivianCoverEntityNextActionEdgeCases:
 
         mock_next_action = MagicMock()
         mock_next_action.is_opening = MagicMock(return_value=True)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianCoverEntityDescription
 
         description = RivianCoverEntityDescription(
             key="closureTonneauDoors",
@@ -786,7 +675,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         entity._get_next_action_state = MagicMock(return_value=mock_next_action)
@@ -799,6 +688,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_closing uses next action."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -807,16 +697,6 @@ class TestRivianCoverEntityNextActionEdgeCases:
 
         mock_next_action = MagicMock()
         mock_next_action.is_closing = MagicMock(return_value=True)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianCoverEntityDescription
 
         description = RivianCoverEntityDescription(
             key="closureTonneauDoors",
@@ -829,7 +709,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         entity._get_next_action_state = MagicMock(return_value=mock_next_action)
@@ -842,6 +722,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test extra_state_attributes with all condition flags."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -858,16 +739,6 @@ class TestRivianCoverEntityNextActionEdgeCases:
         mock_next_action.needs_calibration = MagicMock(return_value=True)
         mock_next_action.needs_vehicle_angle_confirmation = MagicMock(return_value=True)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianCoverEntityDescription
-
         description = RivianCoverEntityDescription(
             key="closureTonneauDoors",
             translation_key="tonneau",
@@ -879,7 +750,7 @@ class TestRivianCoverEntityNextActionEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         entity._get_next_action_state = MagicMock(return_value=mock_next_action)

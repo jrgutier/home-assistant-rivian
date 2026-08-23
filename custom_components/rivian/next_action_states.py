@@ -7,9 +7,39 @@ and provide helper methods for determining component states.
 from __future__ import annotations
 
 from enum import Enum
+from typing import TypeVar
+
+_NextActionStateT = TypeVar("_NextActionStateT", bound="NextActionStateMixin")
 
 
-class FrunkNextActionState(Enum):
+class NextActionStateMixin:
+    """The `from_api_value` every state enum below shares.
+
+    Six byte-identical copies lived on the six enums, differing only in the
+    return annotation. A plain mixin rather than a shared Enum base: an Enum
+    that already has members cannot be subclassed, and the six vocabularies
+    are deliberately separate -- they mirror the app's own per-closure
+    NextActionState types (see this module's docstring). Only the conversion
+    is shared; no member list moves.
+    """
+
+    # PYI019 is suppressed below: ruff would rewrite this TypeVar to `Self`,
+    # which it imports from `typing_extensions` -- a runtime import the manifest
+    # does not declare and `scripts/load_test.sh` would not have installed.
+    @classmethod
+    def from_api_value(  # noqa: PYI019
+        cls: type[_NextActionStateT], value: str | None
+    ) -> _NextActionStateT | None:
+        """Convert API value to enum."""
+        if not value:
+            return None
+        try:
+            return cls(value.lower())
+        except ValueError:
+            return None
+
+
+class FrunkNextActionState(NextActionStateMixin, Enum):
     """Front trunk next action states."""
 
     SNA = "sna"
@@ -25,16 +55,6 @@ class FrunkNextActionState(Enum):
     CLOSE_NOT_ALLOWED_NO_POWERED_OPERATION = "close_not_allowed_no_powered_operation"
     OBSTRUCTED_WHILE_OPENING_CLOSE_ALLOWED = "obstructed_while_opening_close_allowed"
     OBSTRUCTED_WHILE_CLOSING_OPEN_ALLOWED = "obstructed_while_closing_open_allowed"
-
-    @classmethod
-    def from_api_value(cls, value: str | None) -> FrunkNextActionState | None:
-        """Convert API value to enum."""
-        if not value:
-            return None
-        try:
-            return cls(value.lower())
-        except ValueError:
-            return None
 
     def is_open(self) -> bool:
         """Check if frunk is opened (not closed)."""
@@ -81,7 +101,7 @@ class FrunkNextActionState(Enum):
         )
 
 
-class LiftgateNextActionState(Enum):
+class LiftgateNextActionState(NextActionStateMixin, Enum):
     """Liftgate next action states."""
 
     SNA = "sna"
@@ -105,16 +125,6 @@ class LiftgateNextActionState(Enum):
     OPEN_ALLOWED_OBSTACLE_DETECTED = "open_allowed_obstacle_detected"
     CLOSE_ALLOWED_OBSTACLE_DETECTED = "close_allowed_obstacle_detected"
     PROCESSING = "processing"
-
-    @classmethod
-    def from_api_value(cls, value: str | None) -> LiftgateNextActionState | None:
-        """Convert API value to enum."""
-        if not value:
-            return None
-        try:
-            return cls(value.lower())
-        except ValueError:
-            return None
 
     def is_open(self) -> bool:
         """Check if liftgate is opened (not closed)."""
@@ -180,7 +190,7 @@ class LiftgateNextActionState(Enum):
         )
 
 
-class TailgateNextActionState(Enum):
+class TailgateNextActionState(NextActionStateMixin, Enum):
     """Tailgate next action states."""
 
     SNA = "sna"
@@ -193,16 +203,6 @@ class TailgateNextActionState(Enum):
     OPEN_ALREADY_NO_ACTION_AVAILABLE = "open_already_no_action_available"
     OPEN_ALLOWED_CONFIRM_VEHICLE_ANGLE = "open_allowed_confirm_vehicle_angle"
     OPEN_ALLOWED_OBSTACLE_DETECTED = "open_allowed_obstacle_detected"
-
-    @classmethod
-    def from_api_value(cls, value: str | None) -> TailgateNextActionState | None:
-        """Convert API value to enum."""
-        if not value:
-            return None
-        try:
-            return cls(value.lower())
-        except ValueError:
-            return None
 
     def is_open(self) -> bool:
         """Check if tailgate is opened (dropped)."""
@@ -244,7 +244,7 @@ class TailgateNextActionState(Enum):
         return self == self.OPEN_ALLOWED_CONFIRM_VEHICLE_ANGLE
 
 
-class ChargePortDoorNextActionState(Enum):
+class ChargePortDoorNextActionState(NextActionStateMixin, Enum):
     """Charge port door next action states."""
 
     SNA = "sna"
@@ -259,16 +259,6 @@ class ChargePortDoorNextActionState(Enum):
     CLOSE_NOT_AVAILABLE = "close_not_available"
     CLOSE_NOT_ALLOWED_FAULTED = "close_not_allowed_faulted"
     CLOSING = "closing"
-
-    @classmethod
-    def from_api_value(cls, value: str | None) -> ChargePortDoorNextActionState | None:
-        """Convert API value to enum."""
-        if not value:
-            return None
-        try:
-            return cls(value.lower())
-        except ValueError:
-            return None
 
     def is_open(self) -> bool:
         """Check if charge port door is opened."""
@@ -315,7 +305,7 @@ class ChargePortDoorNextActionState(Enum):
         )
 
 
-class WindowsNextActionState(Enum):
+class WindowsNextActionState(NextActionStateMixin, Enum):
     """Windows next action states."""
 
     SNA = "sna"
@@ -331,16 +321,6 @@ class WindowsNextActionState(Enum):
     CLOSE_NOT_AVAILABLE = "close_not_available"
     OPEN_NOT_ALLOWED_FAULTED = "open_not_allowed_faulted"
     CLOSE_NOT_ALLOWED_FAULTED = "close_not_allowed_faulted"
-
-    @classmethod
-    def from_api_value(cls, value: str | None) -> WindowsNextActionState | None:
-        """Convert API value to enum."""
-        if not value:
-            return None
-        try:
-            return cls(value.lower())
-        except ValueError:
-            return None
 
     def is_open(self) -> bool:
         """Check if windows are opened (not fully closed)."""
@@ -391,7 +371,7 @@ class WindowsNextActionState(Enum):
         )
 
 
-class SideBinNextActionState(Enum):
+class SideBinNextActionState(NextActionStateMixin, Enum):
     """Side bin (gear tunnel) next action states."""
 
     SNA = "sna"
@@ -402,16 +382,6 @@ class SideBinNextActionState(Enum):
     STUCK_AJAR_WHILE_OPENING_OPEN_ALLOWED = "stuck_ajar_while_opening_open_allowed"
     OPEN_ALREADY_NO_ACTION_AVAILABLE = "open_already_no_action_available"
     OPEN_ALLOWED_CONFIRM_VEHICLE_ANGLE = "open_allowed_confirm_vehicle_angle"
-
-    @classmethod
-    def from_api_value(cls, value: str | None) -> SideBinNextActionState | None:
-        """Convert API value to enum."""
-        if not value:
-            return None
-        try:
-            return cls(value.lower())
-        except ValueError:
-            return None
 
     def is_open(self) -> bool:
         """Check if side bin is opened."""

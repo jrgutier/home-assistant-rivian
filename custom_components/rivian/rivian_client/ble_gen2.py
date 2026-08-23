@@ -396,13 +396,13 @@ async def pair_phone_gen2(
             # vehicle sends after this point is logged rather than discarded --
             # if this assumption is wrong, a WARNING here is what disproves it.
             # UNPROVEN (plan §3.5): zero APK evidence for Gen 2 bonding at all;
-            # this mirrors Gen 1's platform split (ble.py:286-295) as a default,
+            # this mirrors Gen 1's platform split (ble.py:281) as a default,
             # not a decoded requirement.
             _LOGGER.debug("Gen 2: attempting to trigger bonding")
             if platform.system() == "Darwin":
                 # Gen 1 has no explicit bonding API on macOS, so it subscribes to
                 # a protected characteristic to trigger bonding manually
-                # (ble.py:288-293). Gen 2 has no APK-confirmed equivalent
+                # (ble.py:284). Gen 2 has no APK-confirmed equivalent
                 # characteristic; the ENCRYPTED_DATA_OUT subscription established
                 # above is reused as that trigger rather than re-subscribing,
                 # which some bleak backends reject as a duplicate.
@@ -458,7 +458,7 @@ async def pair_phone_gen2(
             _LOGGER.debug("Gen 2: successfully paired with %s", device)
             return True
     except Exception:  # pylint: disable=broad-except  # BLE pairing state machine; changing exception semantics here is out of scope for a transport merge
-        _trace(lambda: trace.record_state(AuthState(state).name))
+        _trace(lambda: trace.record_state(state.name))
         _trace(lambda: trace.record_attempt_outcome("exception"))
-        _LOGGER.exception("Gen 2 pairing failed at state %s", AuthState(state).name)
+        _LOGGER.exception("Gen 2 pairing failed at state %s", state.name)
         return False

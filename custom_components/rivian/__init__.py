@@ -206,9 +206,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Set up Rivian services."""
 
-    async def get_vehicle_coordinator_from_device(
+    def get_vehicle_coordinator_from_device(
         device_id: str,
-    ) -> tuple[VehicleCoordinator, str] | None:
+    ) -> tuple[VehicleCoordinator, str]:
         """Get vehicle coordinator and vehicle_id from device ID."""
         device_registry = dr.async_get(hass)
         device_entry = device_registry.async_get(device_id)
@@ -250,7 +250,7 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
             raise ServiceValidationError("No device specified")
 
         device_id = call.data["device_id"]
-        coordinator, vehicle_id = await get_vehicle_coordinator_from_device(device_id)
+        coordinator, vehicle_id = get_vehicle_coordinator_from_device(device_id)
 
         # Parse time strings (HH:MM format)
         start_time = call.data.get("start_time")

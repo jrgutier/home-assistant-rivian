@@ -228,7 +228,7 @@ TIRE_PRESSURE_SUBSCRIPTION_PROPERTIES: Final[frozenset[str]] = frozenset(
 )
 
 # The degraded document retried once when the full vehicleState subscription is
-# rejected: one unknown field kills the whole document (const.py:1879 in
+# rejected: one unknown field kills the whole document (const.py:1867 in
 # the integration), so a single gateway field rename would otherwise take every
 # sensor unknown at once. This ~15-name subset reduces the blast radius of that
 # failure mode without eliminating it -- if the renamed field is itself one of

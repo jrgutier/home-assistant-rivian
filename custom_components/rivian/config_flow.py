@@ -153,10 +153,9 @@ async def validate_vehicle_control(
 
         # check if phone needs to be disenrolled
         elif vehicle_id not in control_vehicles and vehicle_id in vehicle_identity:
-            success = False
             try:
                 identity_id = vehicle_identity[vehicle_id]
-                if not (success := await api.disenroll_phone(identity_id=identity_id)):
+                if not await api.disenroll_phone(identity_id=identity_id):
                     _LOGGER.warning("Unable to disable control for %s", vehicle_name)
             except Exception as ex:  # noqa: BLE001
                 _LOGGER.error("Unable to disable control for %s: %s", vehicle_name, ex)
@@ -209,7 +208,6 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
 
         self._access_token = None
         self._refresh_token = None
-        self._session_token = None
         self._user_session_token = None
 
     @property
