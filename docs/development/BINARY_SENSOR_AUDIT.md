@@ -1,6 +1,6 @@
 # Binary sensor audit against the app's value vocabulary
 
-Read-only analysis. Audits all 35 `RivianBinarySensorEntityDescription` in `const.py:1501+`
+Read-only analysis. Audits all 35 `RivianBinarySensorEntityDescription` in `const.py:1510+`
 against the decompiled app, and the inverse: which of the 127 `RivianSensorEntityDescription`
 should be binary sensors instead.
 
@@ -121,7 +121,7 @@ Two problems today:
 - The closed value is **`close`**, not `closed`. Confirmed in fixtures (5 occurrences).
 - `opening`, `closing` and `in_transition` all fall to **off**, reported as Closed.
 - Unlike `powerState`, there is **no companion regular sensor** — `chargePortState` appears only
-  at `const.py:1506`. The five-state vocabulary reaches the user nowhere except the `value`
+  at `const.py:1515`. The five-state vocabulary reaches the user nowhere except the `value`
   attribute.
 
 Recommended: keep the binary sensor with `on_value=["open", "opening", "in_transition"]`

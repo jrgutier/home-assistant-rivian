@@ -712,17 +712,26 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             field="chargePortState",
             icon="mdi:ev-plug-ccs2",
             device_class=SensorDeviceClass.ENUM,
+            # No "Fault": `sensor.py` resolves anything in INVALID_SENSOR_STATES
+            # to None BEFORE the options check, so "Fault" can never be a state.
             options=[
                 "Open",
                 "Close",
                 "In Transition",
-                "Fault",
                 "Opening",
                 "Closing",
                 "Unknown",
             ],
+            # Tests INVALID_SENSOR_STATES, not `!= "sna"`. `_to_title_case`
+            # turns underscores into spaces, so "signal_not_available" became
+            # "Signal Not Available", whose lower() is "signal not available" --
+            # which is NOT in the set, so it slipped past sensor.py's filter,
+            # logged an error, and appended itself to this entity's own options
+            # for the life of the process.
             value_lambda=lambda v: (
-                _to_title_case(v) if v and v.lower() != "sna" else "Unknown"
+                _to_title_case(v)
+                if v and v.lower() not in INVALID_SENSOR_STATES
+                else "Unknown"
             ),
         ),
         RivianSensorEntityDescription(

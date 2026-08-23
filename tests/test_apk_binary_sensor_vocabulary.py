@@ -24,7 +24,11 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.rivian.const import BINARY_SENSORS, SENSORS
+from custom_components.rivian.const import (
+    BINARY_SENSORS,
+    INVALID_SENSOR_STATES,
+    SENSORS,
+)
 
 # --- transcription -----------------------------------------------------------
 
@@ -198,6 +202,36 @@ class TestChargePortVocabulary:
         """
         assert SENSOR["charge_port_status"].field == "chargePortState"
         assert BINARY["charge_port_state"].field == "chargePortState"
+
+
+class TestChargePortSensorSurvivesEveryValueItCanReceive:
+    """No value in the app's vocabulary may fall outside the ENUM options.
+
+    `sensor.py` applies `value_lambda` BEFORE testing INVALID_SENSOR_STATES, and
+    `_to_title_case` turns underscores into spaces. So a lambda that special-cases
+    the string "sna" lets "signal_not_available" through as "Signal Not Available",
+    which matches nothing in the set, misses the filter, logs an error, and
+    appends itself to the entity's own options list for the life of the process.
+
+    Asserting `"Fault" not in options` would pin the symptom. This pins the
+    property: every value the app can emit resolves to something renderable.
+    """
+
+    @pytest.mark.parametrize("value", CHARGE_PORT_VALUES)
+    def test_every_app_value_is_renderable(self, value: str) -> None:
+        description = SENSOR["charge_port_status"]
+        options = description.options or []
+        rendered = description.value_lambda(value)
+        # Either sensor.py will resolve it to None, or it must be a valid option.
+        filtered = str(rendered).lower() in INVALID_SENSOR_STATES
+        assert filtered or rendered in options, (
+            f"{value!r} -> {rendered!r} is neither filtered nor in options {options}"
+        )
+
+    def test_fault_is_unreachable_so_it_is_not_an_option(self) -> None:
+        """Kept out of `options` deliberately, not by oversight."""
+        assert "fault" in CHARGE_PORT_VALUES  # the app really does emit it
+        assert "Fault" not in (SENSOR["charge_port_status"].options or [])
 
 
 class TestPowerStateIsAlreadyHandled:
