@@ -15,7 +15,26 @@ working `to: "on"` trigger, and no red "Detected" badge. The full reasoning, and
 each field's vocabulary, is in
 [`docs/development/BINARY_SENSOR_AUDIT.md`](development/BINARY_SENSOR_AUDIT.md).
 
-Replace `<name>` with your vehicle's slug, e.g. `sensor.r1t_service_mode`.
+**Do not assume the new entity ID mirrors the old one.** Home Assistant generates a fresh ID for
+the new `binary_sensor`, and on a real install it does not always match the old `sensor` spelling.
+Verified on a live R1T:
+
+| | |
+|---|---|
+| old | `sensor.r1t_12v_battery` |
+| new | `binary_sensor.r1t_r1t_12v_battery` — note the **doubled** vehicle prefix |
+
+That doubling is a pre-existing quirk of how this integration registers new entities (54 of 226
+entities on that install already had it, including `cover.r1t_r1t_tonneau_cover`, which this
+change never touched). It is not introduced here, but it does mean the safest way to find a new
+entity is by its **friendly name** in Settings → Devices & Services → Entities, not by guessing
+the ID.
+
+So read the table below as *"this friendly name moved from the sensor domain to the binary_sensor
+domain"*. `<name>` is your vehicle's slug, and the new ID may carry it twice.
+
+**The old `sensor.*` entities are not removed.** They stay in the registry and read `unavailable`
+forever. Delete them from Settings → Entities once you have ported anything that referenced them.
 
 | Old entity | New entity | `on` means | Off state |
 |---|---|---|---|
