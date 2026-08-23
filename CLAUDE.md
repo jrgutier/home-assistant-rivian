@@ -103,8 +103,17 @@ straight to `master`, including for a one-line doc fix.
 (`s21-binary-sensor-apk-parity`). The `sNN:` commit prefix delineates one story from the next, and
 the branch boundary agrees with it.
 
-**Commit prefixes** use the repo's `sNN:` story convention. Version bumps are CI-owned
-(`chore: bump version [skip ci]`) — never bump by hand.
+**Commit prefixes** use the repo's `sNN:` story convention.
+
+**Releases are cut by hand, and so are version bumps.** Bump `manifest.json` *and* `const.py`'s
+`VERSION` in a normal PR, then run the **Pre-Release Build** workflow manually
+(`workflow_dispatch`). It tags exactly what the manifest says and refuses to re-cut an existing
+tag.
+
+This replaces a CI-owned bump (`chore: bump version [skip ci]`) that fired on every push to
+master. Protecting `master` broke it: the bot's push was rejected with `GH006` and swallowed by
+`|| echo "Push skipped"`, so the workflow reported success while the bump vanished. It also meant
+a merge published a beta before its own test run had finished.
 
 **Pre-commit needs `.venv/bin` on PATH** or commits fail with "pre-commit not found". Fix the PATH;
 never reach for `--no-verify`. One of its hooks is `f11`, which checks that every `file.py:NN`

@@ -1,10 +1,15 @@
 name: Pre-Release Build
 
+# Manual only. This used to fire on every push to master, which meant a merge
+# published a beta before its own test run had finished -- and, once master became
+# protected, the version-bump step at the end could no longer push. That push was
+# rejected with GH006 and swallowed by `|| echo "Push skipped"`, so the workflow
+# reported success while the bump silently vanished and the next run would have
+# recomputed the same version and collided with an existing tag.
+#
+# Cutting a release is now a deliberate act: bump the version in a normal PR, then
+# run this workflow.
 on:
-  push:
-    branches:
-      - master
-      - master-*
   workflow_dispatch:
 
 jobs:
@@ -26,45 +31,23 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $VERSION"
 
-      - name: Calculate next pre-release version
-        id: next_version
+      - name: Refuse to re-cut an existing tag
         run: |
-          CURRENT="${{ steps.current_version.outputs.version }}"
-
-          # Extract base version and beta number
-          # Pattern: X.Y.Z-betaN or X.Y.Z
-          if [[ "$CURRENT" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-beta([0-9]+)$ ]]; then
-            BASE="${BASH_REMATCH[1]}"
-            BETA_NUM="${BASH_REMATCH[2]}"
-            NEXT_BETA=$((BETA_NUM + 1))
-            NEXT_VERSION="${BASE}-beta${NEXT_BETA}"
-          elif [[ "$CURRENT" =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-            # No beta suffix, start at beta1
-            BASE="${BASH_REMATCH[1]}"
-            NEXT_VERSION="${BASE}-beta1"
-          else
-            echo "Error: Unable to parse version: $CURRENT"
+          VERSION="${{ steps.current_version.outputs.version }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag $VERSION already exists. Bump the version in a PR before releasing."
             exit 1
           fi
+          echo "Releasing $VERSION"
 
-          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
-          echo "Next version: $NEXT_VERSION"
-
-      - name: Update version in files
+      - name: Check the two version strings agree
         run: |
-          NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
-
-          # Update manifest.json
-          jq --arg v "$NEXT_VERSION" '.version = $v' custom_components/rivian/manifest.json > tmp.json
-          mv tmp.json custom_components/rivian/manifest.json
-
-          # Update const.py if VERSION is defined
-          if grep -q "^VERSION = " custom_components/rivian/const.py 2>/dev/null; then
-            sed -i "s/^VERSION = .*/VERSION = \"$NEXT_VERSION\"/" custom_components/rivian/const.py
+          VERSION="${{ steps.current_version.outputs.version }}"
+          CONST=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' custom_components/rivian/const.py)
+          if [ -n "$CONST" ] && [ "$CONST" != "$VERSION" ]; then
+            echo "::error::manifest.json says $VERSION but const.py says $CONST"
+            exit 1
           fi
-
-          echo "Updated to version: $NEXT_VERSION"
-          cat custom_components/rivian/manifest.json
 
       - name: Create zip package
         # Allow-list, not a bare recursive zip. This workflow fires on every push
@@ -86,12 +69,12 @@ jobs:
       - name: Create or update pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.next_version.outputs.next_version }}
-          name: "Pre-release ${{ steps.next_version.outputs.next_version }}"
+          tag_name: ${{ steps.current_version.outputs.version }}
+          name: "Pre-release ${{ steps.current_version.outputs.version }}"
           body: |
             ## Pre-release Build
 
-            **Version:** ${{ steps.next_version.outputs.next_version }}
+            **Version:** ${{ steps.current_version.outputs.version }}
             **Branch:** ${{ github.ref_name }}
             **Commit:** ${{ github.sha }}
 
@@ -104,14 +87,3 @@ jobs:
           files: rivian.zip
           prerelease: true
           generate_release_notes: true
-
-      - name: Commit version bump
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add custom_components/rivian/manifest.json
-          if [ -f custom_components/rivian/const.py ]; then
-            git add custom_components/rivian/const.py
-          fi
-          git commit -m "chore: bump version to ${{ steps.next_version.outputs.next_version }} [skip ci]" || echo "No changes to commit"
-          git push || echo "Push skipped (likely no changes)"
