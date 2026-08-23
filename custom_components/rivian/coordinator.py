@@ -1384,7 +1384,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                         # Dropping it here instead was tried and reverted: it
                         # made entities unavailable rather than show a
                         # stale-but-plausible state, which takes the matching
-                        # control down with the sensor (sensor.py:172-179,
+                        # control down with the sensor (sensor.py:186,
                         # binary_sensor.py:110).
                         self._note_unusable(k, value)
                     # `history` is a set, so an unhashable value (decode_vehicle_wheels

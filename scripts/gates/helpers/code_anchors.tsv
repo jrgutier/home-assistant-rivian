@@ -16,11 +16,11 @@ custom_components/rivian/rivian_client/rivian.py	raise err_cls(response.status, 
 custom_components/rivian/rivian_client/rivian.py	"Error occurred while reading the graphql response from Rivian.",	custom_components/rivian/rivian_client/exceptions.py	91d3a804be55	the five-positional-argument raise site (ERROR_CODE_CLASS_MAP fallback)
 custom_components/rivian/rivian_client/rivian.py	raise err_cls(response.status, response_json, headers, body)	custom_components/rivian/rivian_client/exceptions.py	11b1e1adbbdc	second mention of the four-arg site
 custom_components/rivian/rivian_client/rivian.py	"Error occurred while reading the graphql response from Rivian.",	custom_components/rivian/rivian_client/exceptions.py	75ea01bf155a	second mention of the five-arg site
-custom_components/rivian/sensor.py	if str(rval).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/binary_sensor.py	3d2ca2ea3e9b	off by one: sensor.py's INVALID_SENSOR_STATES check is :184, not :183
+custom_components/rivian/sensor.py	if str(rval).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/binary_sensor.py	c100b8e20f42	off by one: sensor.py's INVALID_SENSOR_STATES check is :184, not :183
 custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	88d6970dcb2f	binary_sensor.py's INVALID_SENSOR_STATES check
 custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	4151485ecfa7	second mention, same target
 custom_components/rivian/rivian_client/parallax.py	_CLIMATE_HOLD_STATUS = {	custom_components/rivian/switch.py	4151485ecfa7	the climateHoldStatus decode table
-custom_components/rivian/sensor.py	RivianVehicleEntity.available is driven by the field being present, and	custom_components/rivian/coordinator.py	01b4a9094b69	sensor.py's matching-control-down-with-sensor paragraph
+custom_components/rivian/sensor.py	RivianVehicleEntity.available is driven by the field being present, and	custom_components/rivian/coordinator.py	b727e28628c2	sensor.py's matching-control-down-with-sensor paragraph
 custom_components/rivian/binary_sensor.py	Returning None yields `unknown`, NOT `unavailable` --	custom_components/rivian/coordinator.py	5ccc95e7946a	binary_sensor.py's matching-control-down-with-sensor paragraph
 custom_components/rivian/update.py	current_version = self._get_value("otaCurrentVersion")	custom_components/rivian/const.py	4617e4d416b2	update.py's installed/latest-version construction
 custom_components/rivian/__init__.py	coor.async_config_entry_first_refresh()	custom_components/rivian/cover.py	d56688f2aeb4	the per-vehicle coordinator's first refresh

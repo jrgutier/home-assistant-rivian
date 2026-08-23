@@ -95,7 +95,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             return any(self._get_value(entity_key) in values for entity_key in fields)
         if (val := self._get_value(fields)) is not None:
             # A value the vehicle flags as unusable is not a state -- report
-            # unknown, mirroring sensor.py:184.
+            # unknown, mirroring sensor.py:205.
             #
             # This matters more here than it does for a sensor. A sensor showing
             # "SNA" at least looks wrong; a binary sensor silently resolves it,

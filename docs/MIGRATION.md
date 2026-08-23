@@ -98,6 +98,20 @@ Listed so you don't go hunting for renames that never happened:
 the port has five meaningful states and a boolean can only carry one question about them. This
 mirrors `powerState`, which has carried both a binary sensor and a sensor for some time.
 
+## Behaviour change: SNA now renders as `unknown`, not "Unknown"
+
+Sensors whose value mapping *rescued* an unusable vehicle value no longer do. `charge_port_status`
+and `power_state` mapped `sna` to the literal string `"Unknown"`; both now return Home Assistant's
+native `unknown` state instead.
+
+No entity ID changes. What changes is that a template comparing `states(...) == 'Unknown'` stops
+matching — use `is_state(..., 'unknown')`, or better `states(...) in ['unknown', 'unavailable']`.
+
+This is the visible half of a wider fix: `sensor.py` was testing the *mapped* value against the
+invalid-state list instead of the raw one, so `signal_not_available` slipped through on 27 of 31
+sensors and each one appended that bogus value to its own options list. See
+[`docs/development/SENSOR_INVALID_STATE_ORDERING.md`](development/SENSOR_INVALID_STATE_ORDERING.md).
+
 ## Behaviour change without an entity change
 
 Doors, windows and closures previously reported **Closed** for any value other than the exact

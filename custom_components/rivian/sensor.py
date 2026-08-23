@@ -167,8 +167,19 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
         if (val := self._get_value(self.entity_description.field)) is None:
             return STATE_UNAVAILABLE if not self.native_unit_of_measurement else None
 
-        rval = _fn(val) if (_fn := self.entity_description.value_lambda) else val
         # A value the vehicle flags as unusable is not a state -- report unknown.
+        #
+        # Tested on the RAW value, BEFORE value_lambda runs, exactly as
+        # binary_sensor.py's is_on does. It used to test the lambda's OUTPUT, and
+        # that let three of the four spellings through: most lambdas run
+        # _to_title_case, which turns underscores into spaces, so
+        # "signal_not_available" arrived here as "signal not available" and
+        # matched nothing in the set. 27 of the 31 ENUM sensors leaked that way.
+        #
+        # All four spellings are the app's own -- p069Ci/EnumC0996d.java declares
+        # FAULT, SIGNAL_NOT_AVAILABLE, SNA and UNDEFINED as distinct constants --
+        # so INVALID_SENSOR_STATES is already right. Only the comparison point
+        # was wrong.
         #
         # This is the right layer for it. Suppressing it in the coordinator was
         # tried twice and is wrong: the raw value has to keep flowing, because
@@ -181,6 +192,16 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
         # Without this, the branch below appends "SNA" to the entity's own options
         # list, so the vehicle's error code silently becomes a valid state for the
         # life of the process, and the select beside it shows "unknown".
+        if str(val).lower() in INVALID_SENSOR_STATES:
+            return None
+
+        rval = _fn(val) if (_fn := self.entity_description.value_lambda) else val
+        # Pre-existing, and kept deliberately. Probing every lambda over its own
+        # declared options plus the common wire spellings found ZERO cases where
+        # a valid input produces an invalid-looking output, so this is defensive
+        # rather than load-bearing -- but that probe is sampling, not proof, and
+        # this check predates the raw one above. Safe to delete only with an
+        # argument stronger than "the probe found nothing".
         if str(rval).lower() in INVALID_SENSOR_STATES:
             return None
 
