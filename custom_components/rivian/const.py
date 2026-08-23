@@ -115,28 +115,32 @@ GEAR_STATUS_MAP = {
 }
 
 
-def _to_pascal_case(value: str) -> str:
-    """Convert snake_case to PascalCase.
-
-    Examples:
-        charging_active -> ChargingActive
-        signal_not_available -> SignalNotAvailable
-    """
-    if not value:
-        return ""
-    return "".join(word.capitalize() for word in value.split("_"))
+# Tokens str.title() would render "Ac"/"Soc" but the Rivian app renders uppercase.
+# Sourced from the APK's own display strings, not taste: EnumC2614Z spells
+# CHARGING_ERROR_AC_ADAPTER_USED_ON_DC as "AC adapter on DC", and "SOC"/"SNA"
+# appear uppercase there too. Deliberately absent is SD -- the same enum spells
+# ACTIVELY_CHARGING_SD_COMPENSATION "Charging Sd Compensation", so .title() is
+# already APK-correct for it. Anything added here MUST also be respelled in every
+# `options` list that can carry it, or the option becomes unreachable and
+# sensor.py logs an error and appends the emitted value at runtime -- the exact
+# defect this set was introduced to fix. TestEnumOptionsAreReachable enforces that.
+_ACRONYMS: Final[frozenset[str]] = frozenset({"AC", "DC", "SOC", "SNA"})
 
 
 def _to_title_case(value: str) -> str:
-    """Convert snake_case to Title Case with spaces.
+    """Convert snake_case to Title Case with spaces, preserving known acronyms.
 
     Examples:
         trailer_present -> Trailer Present
         not_defined -> Not Defined
+        error_soc_low -> Error SOC Low
     """
     if not value:
         return ""
-    return value.replace("_", " ").title()
+    return " ".join(
+        word.upper() if word.upper() in _ACRONYMS else word
+        for word in value.replace("_", " ").title().split(" ")
+    )
 
 
 def _charger_status_transform(value: str) -> str:
@@ -256,7 +260,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Scheduled",
                 "Auto Cabin Ventilation",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title() if v else "None",
+            value_lambda=lambda v: _to_title_case(v) if v else "None",
         ),
         RivianSensorEntityDescription(
             key="cabin_preconditioning_status",
@@ -369,7 +373,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Charging Error DC Adapter Used On AC",
                 "Charging Error Incompatible Charger",
                 "Charging Error Not Ready Or Incompatible Charger",
-                "Charging SD Compensation",
+                "Charging Sd Compensation",
                 "Signal Not Available",
             ],
             value_lambda=lambda v: _to_title_case(v) if v else "Signal Not Available",
@@ -390,7 +394,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Eoc Met",
                 "Fault",
             ],
-            value_lambda=lambda v: _charger_status_transform(v),
+            value_lambda=_charger_status_transform,
         ),
         RivianSensorEntityDescription(
             key="distance_to_empty",
@@ -442,7 +446,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Trailer Present With Brakes",
                 "Trailer Invalid",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="gear_guard_video_mode",
@@ -454,7 +458,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Away From Home",
                 "Everywhere",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="gear_guard_video_status",
@@ -467,7 +471,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Enabled",
                 "Engaged",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         # DISABLED, deliberately. Populated (reads `true`) and not duplicated by
         # anything, unlike the ota_* block below -- but it is a one-time consent
@@ -480,7 +484,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             icon="mdi:cctv",
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         # The twelve ota_* version-component sensors below ship DISABLED because
         # update.rivian_* already carries all of it and carries it better:
@@ -538,7 +542,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             field="otaCurrentStatus",
             icon="mdi:package",
             entity_category=EntityCategory.DIAGNOSTIC,
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="ota_current_version",
@@ -645,14 +649,14 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Connection Lost",
             ],
             entity_category=EntityCategory.DIAGNOSTIC,
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="pet_mode_temperature_status",
             translation_key="pet_mode_temperature_status",
             field="petModeTemperatureStatus",
             icon="mdi:dog-side",
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="pet_mode_status",
@@ -680,14 +684,14 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             translation_key="cabin_hold_status",
             field="cabinHoldStatus",
             icon="mdi:hvac",
-            value_lambda=lambda v: v.replace("_", " ").title() if v else "Off",
+            value_lambda=lambda v: _to_title_case(v) if v else "Off",
         ),
         RivianSensorEntityDescription(
             key="cabin_hold_notification",
             translation_key="cabin_hold_notification",
             field="cabinHoldNotification",
             icon="mdi:hvac",
-            value_lambda=lambda v: v.replace("_", " ").title() if v else "None",
+            value_lambda=lambda v: _to_title_case(v) if v else "None",
         ),
         RivianSensorEntityDescription(
             key="power_state",
@@ -732,7 +736,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             translation_key="range_threshold",
             field="rangeThreshold",
             icon="mdi:map-marker-distance",
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="remote_charging_available",
@@ -863,7 +867,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             icon="mdi:window-closed",
             device_class=SensorDeviceClass.ENUM,
             options=[
-                "Sna",
+                "SNA",
                 "Open Allowed",
                 "Close Allowed",
                 "Opening",
@@ -878,7 +882,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Open Not Allowed Uncalibrated",
             ],
             entity_category=EntityCategory.DIAGNOSTIC,
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="wiper_fluid_state",
@@ -1103,7 +1107,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
             options=[
-                "Sna",
+                "SNA",
                 "Open Allowed",
                 "Open Not Available",
                 "Open Not Allowed Faulted",
@@ -1116,7 +1120,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Close Not Allowed Faulted",
                 "Closing",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="closure_frunk_next_action",
@@ -1126,7 +1130,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
             options=[
-                "Sna",
+                "SNA",
                 "Open Allowed",
                 "Close Allowed",
                 "Opening",
@@ -1140,7 +1144,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Obstructed While Opening Close Allowed",
                 "Obstructed While Closing Open Allowed",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         # The 25 fields the app's document has and this integration did not read
         # (field-parity release, §E). 21 direct descriptions plus the 4-way split
@@ -1377,7 +1381,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
             options=[
-                "Sna",
+                "SNA",
                 "Open Allowed",
                 "Opening",
                 "Open Not Available",
@@ -1388,7 +1392,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Open Allowed Obstacle Detected",
                 "Open Allowed Trailer Detected",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="closure_side_bin_left_next_action",
@@ -1398,7 +1402,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
             options=[
-                "Sna",
+                "SNA",
                 "Open Allowed",
                 "Opening",
                 "Open Not Available",
@@ -1407,7 +1411,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Open Already No Action Available",
                 "Open Allowed Confirm Vehicle Angle",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
         RivianSensorEntityDescription(
             key="closure_side_bin_right_next_action",
@@ -1417,7 +1421,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
             options=[
-                "Sna",
+                "SNA",
                 "Open Allowed",
                 "Opening",
                 "Open Not Available",
@@ -1426,7 +1430,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Open Already No Action Available",
                 "Open Allowed Confirm Vehicle Angle",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
     ),
     "R1S": (
@@ -1474,7 +1478,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
             device_class=SensorDeviceClass.ENUM,
             entity_category=EntityCategory.DIAGNOSTIC,
             options=[
-                "Sna",
+                "SNA",
                 "Open Allowed",
                 "Close Allowed",
                 "Opening",
@@ -1496,7 +1500,7 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Close Allowed Obstacle Detected",
                 "Processing",
             ],
-            value_lambda=lambda v: v.replace("_", " ").title(),
+            value_lambda=_to_title_case,
         ),
     ),
 }

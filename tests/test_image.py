@@ -280,7 +280,7 @@ class TestRivianVehicleImageEntity:
         coordinator = MagicMock(spec=VehicleImageCoordinator)
         coordinator.hass = hass
         last_updated = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
-        coordinator._last_updated = last_updated
+        coordinator.last_updated = last_updated
 
         data = {
             "url": "https://example.com/image.png",

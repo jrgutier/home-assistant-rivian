@@ -35,11 +35,11 @@ class RivianVehicleControlAvailableMixin:
 class RivianGateMixin:
     """The three EVIDENCE fields `helpers.py`'s `vehicle_supports()` reads.
 
-    s19 §A: plumbing only. Nothing constructs a description with any of these
-    set yet, and nothing calls `vehicle_supports()` outside its own tests --
-    switching a platform's `async_setup_entry` over to it is a later story.
-    Every field defaults to `None`, so adding this mixin changes no existing
-    description's behaviour.
+    s19 §A: `cover.py`'s tonneau description is the only thing that sets one of
+    these (`option_code`), and it gates on the field directly in its own
+    `async_setup_entry`; nothing calls `vehicle_supports()` outside its own
+    tests -- switching a platform over to that predicate is a later story.
+    Every field defaults to `None`, so no other description's behaviour changed.
 
     Deliberately NO field-presence evidence source ("does the vehicle report
     ANY value, valid or not, for this field"). `RivianCoverEntityDescription`
@@ -58,10 +58,10 @@ class RivianGateMixin:
 
     feature: the server's `supportedFeatures[].name` string (or several, ANY
         of which counts) -- `vehicle["supported_features"]`
-        (coordinator.py:850-856), NOT this integration's own group/key names.
+        (coordinator.py:889), NOT this integration's own group/key names.
     option_code: a member of the vehicle's `option_codes` list
-        (`vehicle["option_codes"]`, coordinator.py:859, built by
-        `_extract_option_codes()` at coordinator.py:767). List MEMBERSHIP
+        (`vehicle["option_codes"]`, coordinator.py:898, built by
+        `_extract_option_codes()` at coordinator.py:806). List MEMBERSHIP
         (`in` on the list), not comparing the whole field with `==` --
         confirmed against test_coordinator_base.py's own
         `"TON-P01" in option_codes` assertion, not guessed. `option_codes`

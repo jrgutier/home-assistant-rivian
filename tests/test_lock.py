@@ -25,6 +25,7 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_locked returns True when all closures are locked."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -32,14 +33,6 @@ class TestRivianLockEntity:
         coordinator.get = MagicMock(return_value="locked")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianLockEntityDescription(
             key="closures",
@@ -53,7 +46,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.is_locked is True
@@ -62,6 +55,7 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_locked returns False when any closure is unlocked."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -69,14 +63,6 @@ class TestRivianLockEntity:
         coordinator.get = MagicMock(return_value="unlocked")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianLockEntityDescription(
             key="closures",
@@ -90,7 +76,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.is_locked is False
@@ -99,6 +85,7 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test is_locked with complex lambda checking multiple entities."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -116,14 +103,6 @@ class TestRivianLockEntity:
         coordinator.get = MagicMock(side_effect=mock_get)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         lock_entities = [
             "doorFrontLeft",
@@ -145,7 +124,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should be unlocked because one door is unlocked
@@ -155,20 +134,13 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_lock executes command."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="unlocked")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianLockEntityDescription(
             key="closures",
@@ -182,7 +154,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -199,20 +171,13 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_lock executes command with params."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="unlocked")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianLockEntityDescription(
             key="closures",
@@ -227,7 +192,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -244,20 +209,13 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_unlock executes command."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="locked")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianLockEntityDescription(
             key="closures",
@@ -271,7 +229,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _execute_command
@@ -286,20 +244,13 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_lock with legacy lock function."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="unlocked")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         lock_fn = AsyncMock()
         description = RivianLockEntityDescription(
@@ -313,7 +264,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_lock()
@@ -325,20 +276,13 @@ class TestRivianLockEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_unlock with legacy unlock function."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="locked")
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         unlock_fn = AsyncMock()
         description = RivianLockEntityDescription(
@@ -352,7 +296,7 @@ class TestRivianLockEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_unlock()
@@ -447,23 +391,14 @@ class TestRivianLockEntityErrorPaths:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_lock with neither command nor function defined."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
         # Create description with neither command nor function
-        from custom_components.rivian.data_classes import RivianLockEntityDescription
-
         description = RivianLockEntityDescription(
             key="test_lock",
             translation_key="test_lock",
@@ -475,7 +410,7 @@ class TestRivianLockEntityErrorPaths:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should log error but not raise
@@ -485,21 +420,12 @@ class TestRivianLockEntityErrorPaths:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_unlock with neither command nor function defined."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianLockEntityDescription
 
         description = RivianLockEntityDescription(
             key="test_lock",
@@ -512,7 +438,7 @@ class TestRivianLockEntityErrorPaths:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should log error but not raise

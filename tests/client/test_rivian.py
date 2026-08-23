@@ -384,83 +384,27 @@ async def test_send_location_to_vehicle(aresponses: ResponsesMockServer) -> None
         await rivian.close()
 
 
-async def test_subscribe_for_charging_session() -> None:
-    """Test WebSocket subscription for charging session updates."""
+@pytest.mark.parametrize(
+    ("method", "kwargs"),
+    [
+        ("subscribe_for_charging_session", {"vehicle_id": "test-vehicle-123"}),
+        ("subscribe_for_cloud_connection", {"vehicle_id": "test-vehicle-123"}),
+        ("subscribe_for_command_state", {"command_id": "test-command-123"}),
+    ],
+)
+async def test_a_subscription_that_cannot_connect_raises(
+    method: str, kwargs: dict[str, Any]
+) -> None:
+    """A failed subscription must raise, not return None.
+
+    These previously asserted `is None`, describing the swallow as "designed to
+    return None when connection fails". That is the defect: a dead subscription
+    was indistinguishable from a healthy one.
+    """
     async with aiohttp.ClientSession():
         rivian = Rivian(
             csrf_token="token", app_session_token="token", user_session_token="token"
         )
-
-        # Create a simple callback to track if it's called
-        callback_called = False
-
-        def test_callback(data: dict[str, Any]) -> None:
-            nonlocal callback_called
-            callback_called = True
-
-        # Test that method can be called and returns None on error (no actual WebSocket server)
-        # The method is designed to return None when connection fails
-        # Previously this asserted `is None`, describing the swallow as
-        # "designed to return None when connection fails". That is the defect:
-        # a dead subscription was indistinguishable from a healthy one.
         with pytest.raises(RivianApiException):
-            await rivian.subscribe_for_charging_session(
-                vehicle_id="test-vehicle-123", callback=test_callback
-            )
-
-        await rivian.close()
-
-
-async def test_subscribe_for_cloud_connection() -> None:
-    """Test WebSocket subscription for cloud connection updates."""
-    async with aiohttp.ClientSession():
-        rivian = Rivian(
-            csrf_token="token", app_session_token="token", user_session_token="token"
-        )
-
-        # Create a simple callback to track if it's called
-        callback_called = False
-
-        def test_callback(data: dict[str, Any]) -> None:
-            nonlocal callback_called
-            callback_called = True
-
-        # Test that method can be called and returns None on error (no actual WebSocket server)
-        # The method is designed to return None when connection fails
-        # Previously this asserted `is None`, describing the swallow as
-        # "designed to return None when connection fails". That is the defect:
-        # a dead subscription was indistinguishable from a healthy one.
-        with pytest.raises(RivianApiException):
-            await rivian.subscribe_for_cloud_connection(
-                vehicle_id="test-vehicle-123", callback=test_callback
-            )
-
-        await rivian.close()
-
-
-async def test_subscribe_for_command_state() -> None:
-    """Test WebSocket subscription for command state updates."""
-    async with aiohttp.ClientSession():
-        rivian = Rivian(
-            csrf_token="token", app_session_token="token", user_session_token="token"
-        )
-
-        # Create a simple callback to track if it's called
-        callback_called = False
-
-        def test_callback(data: dict[str, Any]) -> None:
-            nonlocal callback_called
-            callback_called = True
-
-        # Test that method can be called and returns None on error (no actual WebSocket server)
-        # The method is designed to return None when connection fails
-        # Note: This method takes command_id instead of vehicle_id
-        # Previously this asserted `is None`, describing the swallow as
-        # "designed to return None when connection fails". That is the defect:
-        # a dead subscription was indistinguishable from a healthy one.
-        with pytest.raises(RivianApiException):
-            await rivian.subscribe_for_command_state(
-                command_id="test-command-123", callback=test_callback
-            )
-
+            await getattr(rivian, method)(callback=lambda data: None, **kwargs)
         await rivian.close()

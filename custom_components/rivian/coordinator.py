@@ -26,6 +26,9 @@ from .const import (
     CHARGING_STATE_KEYS,
     DEFAULT_CHARGING_SCHEDULE,
     DOMAIN,
+    EVENT_COMMAND_FAILED,
+    EVENT_COMMAND_INITIATED,
+    EVENT_COMMAND_SUCCESS,
     INVALID_SENSOR_STATES,
     VEHICLE_STATE_SUBSCRIPTION_FIELDS,
 )
@@ -245,12 +248,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         if idle <= self._watchdog_timeout:
             return False
 
-        age = (
-            (datetime.now(timezone.utc) - self._subscription_start_time).total_seconds()
-            / 60
-            if self._subscription_start_time
-            else 0
-        )
+        age = self._subscription_age_minutes()
         _LOGGER.warning(
             "%s subscription for vehicle %s stale, no updates for %.1f minutes. "
             "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting...",
@@ -259,9 +257,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
             idle / 60,
             self._subscription_count,
             age,
-            "active"
-            if self.api._ws_monitor and self.api._ws_monitor.connected
-            else "inactive/closed",
+            self._ws_state,
         )
         self._watchdog_restarts += 1
         self._last_restart_reason = f"stale for {idle / 60:.1f} min"
@@ -269,6 +265,10 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         task = self.async_request_refresh()
         self.config_entry.async_create_task(self.hass, task, eager_start=True)
         return True
+
+    async def _watchdog_ticks(self) -> None:
+        """Every liveness check this coordinator runs, once per loop pass."""
+        await self._watchdog_tick()
 
     def _start_watchdog(self) -> None:
         """Start the subscription watchdog, if it is not already running."""
@@ -278,7 +278,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         async def _watchdog_loop() -> None:
             while True:
                 await asyncio.sleep(self._watchdog_interval)
-                await self._watchdog_tick()
+                await self._watchdog_ticks()
 
         # A BACKGROUND task, deliberately. config_entry.async_create_task registers
         # work Home Assistant waits for while finishing startup, and _watchdog_loop
@@ -299,6 +299,108 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         if self._watchdog_task and not self._watchdog_task.done():
             self._watchdog_task.cancel()
         self._watchdog_task = None
+
+    @property
+    def _ws_state(self) -> str:
+        """The client's WebSocket state, for diagnostic log lines.
+
+        The one place that reaches into the client's monitor. Eight log sites
+        used to spell `self.api._ws_monitor and self.api._ws_monitor.connected`
+        out inline, so a change to the client's internals meant eight edits.
+        """
+        monitor = self.api._ws_monitor
+        return "active" if monitor and monitor.connected else "inactive/closed"
+
+    def _subscription_age_minutes(self, now: datetime | None = None) -> float:
+        """Age of the current subscription in minutes; 0 when it never started."""
+        if not self._subscription_start_time:
+            return 0
+        return (
+            (now or datetime.now(timezone.utc)) - self._subscription_start_time
+        ).total_seconds() / 60
+
+    # --- subscription frame envelope -------------------------------------
+    #
+    # Lifted from ChargingCoordinator and VehicleCoordinator, which carried
+    # near-identical ~60-line copies inside their own _process_new_data,
+    # differing only in log wording. Same reasoning as the watchdog above: a
+    # fix applied to one copy silently missed the other. The wording itself
+    # stays per-subclass -- see the format strings each one overrides.
+
+    _initial: asyncio.Event
+    _log_backend_error = (
+        "%s subscription received backend error: %s (HTTP %s). "
+        "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription..."
+    )
+    _log_unknown_frame = (
+        "Received an unknown subscription update: %s. "
+        "WebSocket state: %s, subscription age: %.1f min"
+    )
+    _log_too_many_errors = (
+        "Too many errors (%d) on vehicle %s subscription, unsubscribing"
+    )
+
+    def _frame_data(self, data: dict[str, Any], now: datetime) -> dict[str, Any] | None:
+        """Return the frame's payload.data, or None if the caller must return.
+
+        The error handling every subscription callback needs: a GraphQL error
+        frame (restart on 502/504) and a malformed payload (counted, and
+        unsubscribed once too many pile up). None means the frame has already
+        been logged, counted and acted on -- the caller must simply return.
+        """
+        if data.get("type") == "error":
+            error_payload = data.get("payload", [])
+            if isinstance(error_payload, list) and error_payload:
+                error_info = error_payload[0]
+                error_message = error_info.get("message", "Unknown error")
+                extensions = error_info.get("extensions", {})
+                rest_info = extensions.get("rest", {})
+                status_code = rest_info.get("status")
+
+                _LOGGER.warning(
+                    self._log_backend_error,
+                    self.vehicle_id,
+                    error_message,
+                    status_code or "unknown",
+                    self._subscription_count,
+                    self._subscription_age_minutes(now),
+                    self._ws_state,
+                )
+
+                # Immediately restart subscription on backend errors (504, 502, etc.)
+                # These indicate Rivian's backend is having issues and the subscription
+                # won't recover on its own
+                if status_code in (502, 504):
+                    task = self._unsubscribe()
+                    self.config_entry.async_create_task(
+                        self.hass, task, eager_start=True
+                    )
+                    # Request refresh to resubscribe
+                    refresh_task = self.async_request_refresh()
+                    self.config_entry.async_create_task(
+                        self.hass, refresh_task, eager_start=True
+                    )
+                return None
+
+        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+            _LOGGER.error(
+                self._log_unknown_frame,
+                data,
+                self._ws_state,
+                self._subscription_age_minutes(now),
+            )
+            self._error_count += 1
+            if not self._initial.is_set() or self._error_count > 5:
+                _LOGGER.warning(
+                    self._log_too_many_errors,
+                    self._error_count,
+                    self.vehicle_id,
+                )
+                task = self._unsubscribe()
+                self.config_entry.async_create_task(self.hass, task, eager_start=True)
+            return None
+
+        return pdata
 
     def get(self, key: str, default: Any | None = None) -> Any | None:
         """Get a data value by key, supporting dot notation for nested keys.
@@ -366,6 +468,19 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     _plugged_interval = 30  # 30 seconds
     _update_interval_seconds = 0  # disabled - data is pushed via Parallax
     _watchdog_timeout = 5 * 60  # 5 minutes
+    # Wording for _frame_data's log lines -- see VehicleCoordinator's copy for
+    # why each stream keeps its own verbatim strings.
+    _log_backend_error = (
+        "Charging subscription for vehicle %s received backend error: %s (HTTP %s). "
+        "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription..."
+    )
+    _log_unknown_frame = (
+        "Received unknown charging subscription update: %s. "
+        "WebSocket state: %s, subscription age: %.1f min"
+    )
+    _log_too_many_errors = (
+        "Too many errors (%d) on charging subscription for vehicle %s, unsubscribing"
+    )
 
     def __init__(
         self,
@@ -379,13 +494,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self.vehicle_id = vehicle_id
         self._initial = asyncio.Event()
         self._unsub_handler: Callable[[], Awaitable[None]] | None = None
-        self._last_update_time: datetime | None = None
-        self._watchdog_task: asyncio.Task | None = None
-        self._subscription_start_time: datetime | None = None
-        self._subscription_count = 0  # Track number of resubscriptions
         self._subscription_enabled = True  # Track if subscription should be active
-        self._is_charging: bool = False
-        self._session_start_time: datetime | None = None
         # True when the Parallax namespace's startTime was SYNTHESISED rather than
         # reported by the vehicle. Without this, the real startTime arriving later
         # differs from the invented one, looks like a brand-new session, and
@@ -444,9 +553,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "Creating charging subscription #%d for vehicle %s. WebSocket monitor state: %s",
                 self._subscription_count,
                 self.vehicle_id,
-                "active"
-                if self.api._ws_monitor and self.api._ws_monitor.connected
-                else "inactive/closed",
+                self._ws_state,
             )
 
             self._unsub_handler = await self.api.subscribe_for_charging_session(
@@ -558,64 +665,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     time_since_last / 60,
                 )
 
-        # Check for GraphQL error messages from Rivian backend
-        if data.get("type") == "error":
-            error_payload = data.get("payload", [])
-            if isinstance(error_payload, list) and error_payload:
-                error_info = error_payload[0]
-                error_message = error_info.get("message", "Unknown error")
-                extensions = error_info.get("extensions", {})
-                rest_info = extensions.get("rest", {})
-                status_code = rest_info.get("status")
-
-                _LOGGER.warning(
-                    "Charging subscription for vehicle %s received backend error: %s (HTTP %s). "
-                    "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription...",
-                    self.vehicle_id,
-                    error_message,
-                    status_code or "unknown",
-                    self._subscription_count,
-                    (now - self._subscription_start_time).total_seconds() / 60
-                    if self._subscription_start_time
-                    else 0,
-                    "active"
-                    if self.api._ws_monitor and self.api._ws_monitor.connected
-                    else "inactive/closed",
-                )
-
-                # Immediately restart subscription on backend errors (504, 502, etc.)
-                if status_code in (502, 504):
-                    task = self._unsubscribe()
-                    self.config_entry.async_create_task(
-                        self.hass, task, eager_start=True
-                    )
-                    # Request refresh to resubscribe
-                    refresh_task = self.async_request_refresh()
-                    self.config_entry.async_create_task(
-                        self.hass, refresh_task, eager_start=True
-                    )
-                return
-
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
-            _LOGGER.error(
-                "Received unknown charging subscription update: %s. WebSocket state: %s, subscription age: %.1f min",
-                data,
-                "active"
-                if self.api._ws_monitor and self.api._ws_monitor.connected
-                else "inactive/closed",
-                (now - self._subscription_start_time).total_seconds() / 60
-                if self._subscription_start_time
-                else 0,
-            )
-            self._error_count += 1
-            if not self._initial.is_set() or self._error_count > 5:
-                _LOGGER.warning(
-                    "Too many errors (%d) on charging subscription for vehicle %s, unsubscribing",
-                    self._error_count,
-                    self.vehicle_id,
-                )
-                task = self._unsubscribe()
-                self.config_entry.async_create_task(self.hass, task, eager_start=True)
+        if (pdata := self._frame_data(data, now)) is None:
             return
 
         charging_data = pdata.get("chargingSession", {})
@@ -678,12 +728,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "Unsubscribing from charging subscription #%d for vehicle %s (active for %.1f min)",
                 self._subscription_count,
                 self.vehicle_id,
-                (
-                    datetime.now(timezone.utc) - self._subscription_start_time
-                ).total_seconds()
-                / 60
-                if self._subscription_start_time
-                else 0,
+                self._subscription_age_minutes(),
             )
             await unsub()
             self._unsub_handler = None
@@ -719,12 +764,6 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             self._subscription_enabled = False
             if self._unsub_handler:
                 await self._unsubscribe()
-
-    # def adjust_update_interval(self, is_plugged_in: bool) -> None:
-    #     """Adjust update interval based on plugged in status."""
-    #     self._set_update_interval(
-    #         self._plugged_interval if is_plugged_in else self._unplugged_interval
-    #     )
 
 
 class DriverKeyCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
@@ -933,6 +972,21 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     key = "vehicleState"
     _update_interval_seconds = 15 * 60  # 15 minutes
     _watchdog_timeout = 5 * 60  # 5 minutes
+    # Wording for _frame_data's log lines. Kept verbatim per stream rather than
+    # parameterised: docs/development/WEBSOCKET_STALENESS_FIX.md and
+    # CHANGES_SUMMARY.md tell operators to grep the live host for these exact
+    # strings, so rendered output has to stay byte-identical.
+    _log_backend_error = (
+        "Vehicle %s subscription received backend error: %s (HTTP %s). "
+        "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription..."
+    )
+    _log_unknown_frame = (
+        "Received an unknown subscription update: %s. "
+        "WebSocket state: %s, subscription age: %.1f min"
+    )
+    _log_too_many_errors = (
+        "Too many errors (%d) on vehicle %s subscription, unsubscribing"
+    )
     # S4: its own timeout, not shared with _watchdog_timeout -- the two streams
     # are independent and a shared constant would be a coincidence, not a fact.
     _tpms_watchdog_timeout = 5 * 60
@@ -1003,35 +1057,19 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
             self._unsub_tire_pressure = None
 
-    def _start_watchdog(self) -> None:
-        """Start the subscription watchdog(s).
+    async def _watchdog_ticks(self) -> None:
+        """Both liveness checks, on the ONE background loop the base starts.
 
-        The base loop already drives _watchdog_tick every _watchdog_interval;
-        this adds a call to _tpms_watchdog_tick to the SAME loop rather than a
-        second background task, so _start_watchdog still creates exactly one
-        background task per vehicle (see
+        The TPMS check rides the base's loop rather than a second background
+        task, so _start_watchdog still creates exactly one background task per
+        vehicle (see
         tests/test_coordinator_watchdog.py::TestTheWatchdogDoesNotBlockStartup,
         which pins that count). The TPMS check itself stays its own method,
         never merged into _watchdog_tick -- see _tpms_watchdog_tick's
         docstring for why.
         """
-        if self._watchdog_task and not self._watchdog_task.done():
-            return
-
-        async def _watchdog_loop() -> None:
-            while True:
-                await asyncio.sleep(self._watchdog_interval)
-                await self._watchdog_tick()
-                await self._tpms_watchdog_tick()
-
-        self._watchdog_task = self.config_entry.async_create_background_task(
-            self.hass,
-            _watchdog_loop(),
-            name=f"rivian {type(self).__name__} watchdog {self.vehicle_id}",
-        )
-        _LOGGER.debug(
-            "Started %s watchdog for vehicle %s", type(self).__name__, self.vehicle_id
-        )
+        await self._watchdog_tick()
+        await self._tpms_watchdog_tick()
 
     def __init__(
         self,
@@ -1066,8 +1104,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._command_state_subscriptions: dict[str, Callable[[], Awaitable[None]]] = {}
         self._command_states: dict[str, dict[str, Any]] = {}
         self._command_tracking_started: dict[str, float] = {}
-        self._last_update_time: datetime | None = None
-        self._watchdog_task: asyncio.Task | None = None
         self._prev_charger_state: str | None = None
         # Field names the vehicleState SUBSCRIPTION has supplied at least once.
         #
@@ -1096,8 +1132,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._rvm_arrivals: dict[str, int] = {}
         # Fields already reported as unusable, so the warning fires once each.
         self._dropped_reported: set[str] = set()
-        self._subscription_start_time: datetime | None = None
-        self._subscription_count = 0  # Track number of resubscriptions
         self._charging_schedule: dict[str, Any] | None = None
         self._last_schedule_fetch: float = 0.0
 
@@ -1154,6 +1188,19 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._charging_schedule = current
         self.async_update_listeners()
 
+    async def get_ota_release_notes_url(self) -> str | None:
+        """Return the release-notes URL for the pending, else current, OTA.
+
+        The GraphQL envelope comes off here, not in the update entity: an entity
+        has no business knowing the response is {"data": {"getVehicle": ...}} on
+        an aiohttp response object.
+        """
+        response = await self.api.get_vehicle_ota_update_details(self.vehicle_id)
+        data = (await response.json())["data"]["getVehicle"]
+        if details := data["availableOTAUpdateDetails"]:
+            return details["url"]
+        return data["currentOTAUpdateDetails"]["url"]
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Get the latest data from Rivian."""
         await self.get_charging_schedule_data()
@@ -1186,9 +1233,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "Creating vehicle subscription #%d for vehicle %s. WebSocket monitor state: %s",
                 self._subscription_count,
                 self.vehicle_id,
-                "active"
-                if self.api._ws_monitor and self.api._ws_monitor.connected
-                else "inactive/closed",
+                self._ws_state,
             )
 
             try:
@@ -1424,66 +1469,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     self.get("powerState") or "unknown",
                 )
 
-        # Check for GraphQL error messages from Rivian backend
-        if data.get("type") == "error":
-            error_payload = data.get("payload", [])
-            if isinstance(error_payload, list) and error_payload:
-                error_info = error_payload[0]
-                error_message = error_info.get("message", "Unknown error")
-                extensions = error_info.get("extensions", {})
-                rest_info = extensions.get("rest", {})
-                status_code = rest_info.get("status")
-
-                _LOGGER.warning(
-                    "Vehicle %s subscription received backend error: %s (HTTP %s). "
-                    "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription...",
-                    self.vehicle_id,
-                    error_message,
-                    status_code or "unknown",
-                    self._subscription_count,
-                    (now - self._subscription_start_time).total_seconds() / 60
-                    if self._subscription_start_time
-                    else 0,
-                    "active"
-                    if self.api._ws_monitor and self.api._ws_monitor.connected
-                    else "inactive/closed",
-                )
-
-                # Immediately restart subscription on backend errors (504, 502, etc.)
-                # These indicate Rivian's backend is having issues and the subscription
-                # won't recover on its own
-                if status_code in (502, 504):
-                    task = self._unsubscribe()
-                    self.config_entry.async_create_task(
-                        self.hass, task, eager_start=True
-                    )
-                    # Request refresh to resubscribe
-                    refresh_task = self.async_request_refresh()
-                    self.config_entry.async_create_task(
-                        self.hass, refresh_task, eager_start=True
-                    )
-                return
-
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
-            _LOGGER.error(
-                "Received an unknown subscription update: %s. WebSocket state: %s, subscription age: %.1f min",
-                data,
-                "active"
-                if self.api._ws_monitor and self.api._ws_monitor.connected
-                else "inactive/closed",
-                (now - self._subscription_start_time).total_seconds() / 60
-                if self._subscription_start_time
-                else 0,
-            )
-            self._error_count += 1
-            if not self._initial.is_set() or self._error_count > 5:
-                _LOGGER.warning(
-                    "Too many errors (%d) on vehicle %s subscription, unsubscribing",
-                    self._error_count,
-                    self.vehicle_id,
-                )
-                task = self._unsubscribe()
-                self.config_entry.async_create_task(self.hass, task, eager_start=True)
+        if (pdata := self._frame_data(data, now)) is None:
             return
         self._apply_vehicle_frame(pdata.get(self.key, {}))
         self._error_count = 0
@@ -1515,9 +1501,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         A sibling of _process_new_data on its own subscription (see
         subscribe_for_tire_pressure_updates()'s docstring): merges through the
         same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
-        tyre-pressure names land in _subscription_keys (coordinator.py:1581,
+        tyre-pressure names land in _subscription_keys (coordinator.py:1565,
         provenance -- not liveness), which is what keeps Parallax from
-        overwriting gateway-delivered tyre pressures (:1358).
+        overwriting gateway-delivered tyre pressures (:1403).
 
         Deliberately does NOT touch _last_update_time, _initial or
         _error_count -- those belong to the main vehicleState stream. Letting
@@ -1530,9 +1516,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "Received an unknown tire pressure subscription update: %s. "
                 "WebSocket state: %s",
                 data,
-                "active"
-                if self.api._ws_monitor and self.api._ws_monitor.connected
-                else "inactive/closed",
+                self._ws_state,
             )
             return
         self._apply_vehicle_frame(pdata.get(self.key, {}))
@@ -1576,7 +1560,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # fields (gnssLocation, gnssError) have no top-level "value" key at all
         # and keep claiming on the strength of the outer dict alone --
         # gnssLocation MUST stay claimed or _process_parallax_data's
-        # unconditional branch (coordinator.py:1360) starts overwriting real
+        # unconditional branch (coordinator.py:1405) starts overwriting real
         # GPS with Parallax's.
         self._subscription_keys |= {
             k for k, v in items.items() if "value" not in v or v["value"] is not None
@@ -1697,12 +1681,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 _online_label(self._is_online),
                 self._last_sync,
                 self._subscription_count,
-                (
-                    datetime.now(timezone.utc) - self._subscription_start_time
-                ).total_seconds()
-                / 60
-                if self._subscription_start_time
-                else 0,
+                self._subscription_age_minutes(),
             )
             # Push the transition to the entities. This callback writes
             # `_is_online`, which is half of connectivity_state() -- and
@@ -1769,12 +1748,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "Unsubscribing from vehicle subscription #%d for vehicle %s (active for %.1f min)",
                 self._subscription_count,
                 self.vehicle_id,
-                (
-                    datetime.now(timezone.utc) - self._subscription_start_time
-                ).total_seconds()
-                / 60
-                if self._subscription_start_time
-                else 0,
+                self._subscription_age_minutes(),
             )
             await unsub()
             self._unsub_handler = None
@@ -1909,14 +1883,10 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         }
 
         if state == "COMPLETED_SUCCESS":
-            from .const import EVENT_COMMAND_SUCCESS
-
             self.hass.bus.fire(EVENT_COMMAND_SUCCESS, event_data)
             # Unsubscribe from this command
             asyncio.create_task(self._unsubscribe_command_state(command_id))
         elif state in ["COMPLETED_ERROR", "FAILED"]:
-            from .const import EVENT_COMMAND_FAILED
-
             self.hass.bus.fire(EVENT_COMMAND_FAILED, event_data)
             # Unsubscribe from this command
             asyncio.create_task(self._unsubscribe_command_state(command_id))
@@ -2013,8 +1983,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug("%s command sent with ID: %s", command, command_id)
 
             # Fire initiated event
-            from .const import EVENT_COMMAND_INITIATED
-
             self.hass.bus.fire(
                 EVENT_COMMAND_INITIATED,
                 {
@@ -2107,6 +2075,11 @@ class VehicleImageCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]])
         # The key extraction that used to live here is the base class's job now,
         # and calling .get on the response was the same bug in miniature.
         return response
+
+    @property
+    def last_updated(self) -> datetime | None:
+        """Return when the image set was last fetched, or None before the first fetch."""
+        return self._last_updated
 
 
 class WallboxCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]]):

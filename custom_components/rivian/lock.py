@@ -126,6 +126,14 @@ class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
             attrs["state_is_partial"] = usable < total
         return attrs
 
+    # The command/fallback/else dispatch below is repeated in cover.py, lock.py and
+    # switch.py, and the repetition is deliberate. Lifting it onto
+    # RivianVehicleControlEntity was built and measured (s25): a 3-argument
+    # _dispatch_command helper returning False for "neither defined" came to a NET
+    # +7 lines, because the helper costs more than the four lines each call site
+    # saves. It also introduces a silent-failure mode this form cannot have -- a
+    # caller that forgets to check the return value drops a vehicle command with no
+    # log at all. Explicit here beats shared.
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the lock."""
         if self.entity_description.command_lock:

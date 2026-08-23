@@ -901,6 +901,72 @@ class TestTheSubscriptionFieldList:
         )
 
 
+class TestEnumOptionsAreReachable:
+    """s25: three `charger_state` options and one on `cabin_preconditioning_status`
+    were spelled with acronyms ("Error SOC Low", "Charging Error AC Adapter Used On
+    DC") while every value_lambda routed through `_to_title_case`, whose `.title()`
+    cannot emit consecutive capitals. Nothing could ever equal them, so a vehicle
+    reporting those states hit sensor.py's `rval not in self.options` path, which
+    logs an error asking the user to file an issue and appends the value to the
+    shared options list at runtime. The options list and the transform are written
+    hundreds of lines apart, so nothing forced them to agree.
+    """
+
+    def test_every_option_is_producible_by_its_own_value_lambda(self) -> None:
+        """An `options` entry no `value_lambda` can emit is dead decoration.
+
+        Scoped to descriptions whose transform is a pure snake_case -> Title Case
+        round trip, which is the set where the wire value can be recovered from the
+        option. Map-backed transforms (DRIVE_MODE_MAP, the seat levels) are excluded
+        because their wire vocabulary is not derivable from the option text.
+        """
+        from custom_components.rivian.const import SENSORS
+
+        unreachable: list[str] = []
+        seen: set[str] = set()
+        for group in SENSORS.values():
+            for description in group:
+                options = getattr(description, "options", None)
+                value_lambda = getattr(description, "value_lambda", None)
+                if not options or not value_lambda or description.key in seen:
+                    continue
+                seen.add(description.key)
+                try:
+                    if value_lambda("trailer_present") != "Trailer Present":
+                        continue  # not a plain snake -> title transform
+                    fallback = value_lambda("")
+                except Exception:  # noqa: BLE001,S112 - not round-trippable
+                    continue
+                for option in options:
+                    wire = option.lower().replace(" ", "_")
+                    emitted = value_lambda(wire)
+                    if emitted != option and option != fallback:
+                        unreachable.append(
+                            f"{description.key}: {option!r} is unreachable, "
+                            f"the value_lambda emits {emitted!r}"
+                        )
+        assert not unreachable, "\n".join(unreachable)
+
+    def test_acronyms_survive_the_title_case_transform(self) -> None:
+        """The acronym set is APK-sourced, not taste. EnumC2614Z spells
+        CHARGING_ERROR_AC_ADAPTER_USED_ON_DC "AC adapter on DC", and SOC/SNA appear
+        uppercase there. SD is deliberately NOT in the set: the same enum spells
+        ACTIVELY_CHARGING_SD_COMPENSATION "Charging Sd Compensation".
+        """
+        from custom_components.rivian.const import _to_title_case
+
+        assert _to_title_case("error_soc_low") == "Error SOC Low"
+        assert (
+            _to_title_case("charging_error_ac_adapter_used_on_dc")
+            == "Charging Error AC Adapter Used On DC"
+        )
+        assert _to_title_case("sna") == "SNA"
+        assert _to_title_case("charging_sd_compensation") == "Charging Sd Compensation"
+        # ordinary words are untouched
+        assert _to_title_case("trailer_present") == "Trailer Present"
+        assert _to_title_case("") == ""
+
+
 class TestVocabularyMatchesTheVehicle:
     """Both of these were found by booting against the real vehicle; every unit
     test passed, because the values only appear in live data."""

@@ -6,6 +6,7 @@ import pytest
 
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
+from custom_components.rivian.data_classes import RivianSelectEntityDescription
 from custom_components.rivian.select import (
     RivianFrontSeatSelectEntity,
     RivianSelectEntity,
@@ -19,53 +20,27 @@ from homeassistant.core import HomeAssistant
 class TestGetSeatCommandAndLevel:
     """Test get_seat_command_and_level function."""
 
-    def test_off_left_seat(self):
-        """Test Off option for left seat."""
-        command, level = get_seat_command_and_level("Off", is_left_seat=True)
-        assert command == "CABIN_HVAC_LEFT_SEAT_HEAT"
-        assert level == 0
-
-    def test_off_right_seat(self):
-        """Test Off option for right seat."""
-        command, level = get_seat_command_and_level("Off", is_left_seat=False)
-        assert command == "CABIN_HVAC_RIGHT_SEAT_HEAT"
-        assert level == 0
-
-    def test_heat_level_1_left(self):
-        """Test Heat Level 1 for left seat."""
-        command, level = get_seat_command_and_level("Heat Level 1", is_left_seat=True)
-        assert command == "CABIN_HVAC_LEFT_SEAT_HEAT"
-        assert level == 2
-
-    def test_heat_level_2_right(self):
-        """Test Heat Level 2 for right seat."""
-        command, level = get_seat_command_and_level("Heat Level 2", is_left_seat=False)
-        assert command == "CABIN_HVAC_RIGHT_SEAT_HEAT"
-        assert level == 3
-
-    def test_heat_level_3_left(self):
-        """Test Heat Level 3 for left seat."""
-        command, level = get_seat_command_and_level("Heat Level 3", is_left_seat=True)
-        assert command == "CABIN_HVAC_LEFT_SEAT_HEAT"
-        assert level == 4
-
-    def test_cool_level_1_left(self):
-        """Test Cool Level 1 for left seat."""
-        command, level = get_seat_command_and_level("Cool Level 1", is_left_seat=True)
-        assert command == "CABIN_HVAC_LEFT_SEAT_VENT"
-        assert level == 2
-
-    def test_cool_level_2_right(self):
-        """Test Cool Level 2 for right seat."""
-        command, level = get_seat_command_and_level("Cool Level 2", is_left_seat=False)
-        assert command == "CABIN_HVAC_RIGHT_SEAT_VENT"
-        assert level == 3
-
-    def test_cool_level_3_left(self):
-        """Test Cool Level 3 for left seat."""
-        command, level = get_seat_command_and_level("Cool Level 3", is_left_seat=True)
-        assert command == "CABIN_HVAC_LEFT_SEAT_VENT"
-        assert level == 4
+    @pytest.mark.parametrize(
+        ("option", "is_left_seat", "command", "level"),
+        [
+            ("Off", True, "CABIN_HVAC_LEFT_SEAT_HEAT", 0),
+            ("Off", False, "CABIN_HVAC_RIGHT_SEAT_HEAT", 0),
+            ("Heat Level 1", True, "CABIN_HVAC_LEFT_SEAT_HEAT", 2),
+            ("Heat Level 2", False, "CABIN_HVAC_RIGHT_SEAT_HEAT", 3),
+            ("Heat Level 3", True, "CABIN_HVAC_LEFT_SEAT_HEAT", 4),
+            ("Cool Level 1", True, "CABIN_HVAC_LEFT_SEAT_VENT", 2),
+            ("Cool Level 2", False, "CABIN_HVAC_RIGHT_SEAT_VENT", 3),
+            ("Cool Level 3", True, "CABIN_HVAC_LEFT_SEAT_VENT", 4),
+        ],
+    )
+    def test_the_option_maps_to_a_command_and_level(
+        self, option: str, is_left_seat: bool, command: str, level: int
+    ) -> None:
+        """Each seat option picks the heat/vent command for its side and a level."""
+        assert get_seat_command_and_level(option, is_left_seat=is_left_seat) == (
+            command,
+            level,
+        )
 
 
 class TestRivianSelectEntity:
@@ -75,21 +50,12 @@ class TestRivianSelectEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test current_option returns field value."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianSelectEntityDescription
 
         description = RivianSelectEntityDescription(
             key="seat_rear_left_heat",
@@ -106,7 +72,7 @@ class TestRivianSelectEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _get_value
@@ -118,22 +84,13 @@ class TestRivianSelectEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_select_option calls select function."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
         coordinator.send_vehicle_command = AsyncMock()
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianSelectEntityDescription
 
         description = RivianSelectEntityDescription(
             key="seat_rear_left_heat",
@@ -150,7 +107,7 @@ class TestRivianSelectEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_select_option("Level_3")
@@ -162,261 +119,91 @@ class TestRivianSelectEntity:
         )
 
 
+def _front_seat_entity(
+    mock_config_entry: ConfigEntry, vehicle: dict, *, is_left: bool = True
+) -> RivianFrontSeatSelectEntity:
+    """Build the front-seat heat/vent select for one side."""
+    side = "left" if is_left else "right"
+    cap = "Left" if is_left else "Right"
+    coordinator = MagicMock(spec=VehicleCoordinator)
+    coordinator.is_online = MagicMock(return_value=True)
+    coordinator.data = {"gearStatus": {"value": "park"}}
+    return RivianFrontSeatSelectEntity(
+        coordinator=coordinator,
+        entry=mock_config_entry,
+        vehicle=vehicle,
+        seat_config={
+            "key": f"seat_front_{side}_heat_vent",
+            "translation_key": f"seat_front_{side}_heat_vent",
+            "heat_field": f"seatFront{cap}Heat",
+            "cool_field": f"seatFront{cap}Vent",
+            "is_left": is_left,
+        },
+    )
+
+
+def _reads(**fields: str) -> MagicMock:
+    """Return a _get_value stand-in reporting `fields`, Off for everything else."""
+    return MagicMock(side_effect=lambda field: fields.get(field, "Off"))
+
+
 class TestRivianFrontSeatSelectEntity:
     """Test RivianFrontSeatSelectEntity class."""
 
-    async def test_current_option_off(
+    @pytest.mark.parametrize(
+        ("is_left", "reported", "expected"),
+        [
+            (True, {}, "Off"),
+            (True, {"seatFrontLeftHeat": "Level_1"}, "Heat Level 1"),
+            (False, {"seatFrontRightVent": "Level_2"}, "Cool Level 2"),
+        ],
+    )
+    async def test_current_option(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
+        is_left: bool,
+        reported: dict,
+        expected: str,
     ) -> None:
-        """Test current_option returns Off when both heat and cool are off."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        seat_config = {
-            "key": "seat_front_left_heat_vent",
-            "translation_key": "seat_front_left_heat_vent",
-            "heat_field": "seatFrontLeftHeat",
-            "cool_field": "seatFrontLeftVent",
-            "is_left": True,
-        }
-
-        entity = RivianFrontSeatSelectEntity(
-            coordinator=coordinator,
-            entry=mock_config_entry,
-            vehicle=vehicle_data,
-            seat_config=seat_config,
+        """Test current_option reports the level reported for either side."""
+        entity = _front_seat_entity(
+            mock_config_entry, mock_vehicle_paired, is_left=is_left
         )
 
-        # Mock _get_value to return Off for both
-        entity._get_value = MagicMock(return_value="Off")
+        entity._get_value = _reads(**reported)
 
-        assert entity.current_option == "Off"
+        assert entity.current_option == expected
 
-    async def test_current_option_heat_level_1(
+    @pytest.mark.parametrize(
+        ("reported", "expected_icon"),
+        [
+            ({}, "mdi:car-seat"),
+            ({"seatFrontLeftHeat": "Level_2"}, "mdi:car-seat-heater"),
+            ({"seatFrontLeftVent": "Level_3"}, "mdi:car-seat-cooler"),
+        ],
+    )
+    async def test_icon(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
+        reported: dict,
+        expected_icon: str,
     ) -> None:
-        """Test current_option returns Heat Level 1 when heat is Level_1."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
+        """Test icon follows whether the seat is off, heating or cooling."""
+        entity = _front_seat_entity(mock_config_entry, mock_vehicle_paired)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
+        entity._get_value = _reads(**reported)
 
-        seat_config = {
-            "key": "seat_front_left_heat_vent",
-            "translation_key": "seat_front_left_heat_vent",
-            "heat_field": "seatFrontLeftHeat",
-            "cool_field": "seatFrontLeftVent",
-            "is_left": True,
-        }
-
-        entity = RivianFrontSeatSelectEntity(
-            coordinator=coordinator,
-            entry=mock_config_entry,
-            vehicle=vehicle_data,
-            seat_config=seat_config,
-        )
-
-        # Mock _get_value
-        def mock_get_value(field):
-            if field == "seatFrontLeftHeat":
-                return "Level_1"
-            return "Off"
-
-        entity._get_value = MagicMock(side_effect=mock_get_value)
-
-        assert entity.current_option == "Heat Level 1"
-
-    async def test_current_option_cool_level_2(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-    ) -> None:
-        """Test current_option returns Cool Level 2 when cool is Level_2."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        seat_config = {
-            "key": "seat_front_right_heat_vent",
-            "translation_key": "seat_front_right_heat_vent",
-            "heat_field": "seatFrontRightHeat",
-            "cool_field": "seatFrontRightVent",
-            "is_left": False,
-        }
-
-        entity = RivianFrontSeatSelectEntity(
-            coordinator=coordinator,
-            entry=mock_config_entry,
-            vehicle=vehicle_data,
-            seat_config=seat_config,
-        )
-
-        # Mock _get_value
-        def mock_get_value(field):
-            if field == "seatFrontRightVent":
-                return "Level_2"
-            return "Off"
-
-        entity._get_value = MagicMock(side_effect=mock_get_value)
-
-        assert entity.current_option == "Cool Level 2"
-
-    async def test_icon_off(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-    ) -> None:
-        """Test icon is car-seat when off."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        seat_config = {
-            "key": "seat_front_left_heat_vent",
-            "translation_key": "seat_front_left_heat_vent",
-            "heat_field": "seatFrontLeftHeat",
-            "cool_field": "seatFrontLeftVent",
-            "is_left": True,
-        }
-
-        entity = RivianFrontSeatSelectEntity(
-            coordinator=coordinator,
-            entry=mock_config_entry,
-            vehicle=vehicle_data,
-            seat_config=seat_config,
-        )
-
-        # Mock _get_value and current_option
-        entity._get_value = MagicMock(return_value="Off")
-
-        assert entity.icon == "mdi:car-seat"
-
-    async def test_icon_heat(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-    ) -> None:
-        """Test icon is car-seat-heater when heating."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        seat_config = {
-            "key": "seat_front_left_heat_vent",
-            "translation_key": "seat_front_left_heat_vent",
-            "heat_field": "seatFrontLeftHeat",
-            "cool_field": "seatFrontLeftVent",
-            "is_left": True,
-        }
-
-        entity = RivianFrontSeatSelectEntity(
-            coordinator=coordinator,
-            entry=mock_config_entry,
-            vehicle=vehicle_data,
-            seat_config=seat_config,
-        )
-
-        # Mock _get_value
-        def mock_get_value(field):
-            if field == "seatFrontLeftHeat":
-                return "Level_2"
-            return "Off"
-
-        entity._get_value = MagicMock(side_effect=mock_get_value)
-
-        assert entity.icon == "mdi:car-seat-heater"
-
-    async def test_icon_cool(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-    ) -> None:
-        """Test icon is car-seat-cooler when cooling."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        seat_config = {
-            "key": "seat_front_left_heat_vent",
-            "translation_key": "seat_front_left_heat_vent",
-            "heat_field": "seatFrontLeftHeat",
-            "cool_field": "seatFrontLeftVent",
-            "is_left": True,
-        }
-
-        entity = RivianFrontSeatSelectEntity(
-            coordinator=coordinator,
-            entry=mock_config_entry,
-            vehicle=vehicle_data,
-            seat_config=seat_config,
-        )
-
-        # Mock _get_value
-        def mock_get_value(field):
-            if field == "seatFrontLeftVent":
-                return "Level_3"
-            return "Off"
-
-        entity._get_value = MagicMock(side_effect=mock_get_value)
-
-        assert entity.icon == "mdi:car-seat-cooler"
+        assert entity.icon == expected_icon
 
     async def test_async_select_option_left_seat_heat(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_select_option for left seat heat."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -424,14 +211,6 @@ class TestRivianFrontSeatSelectEntity:
         coordinator.data = {"gearStatus": {"value": "park"}}
         coordinator.send_vehicle_command = AsyncMock()
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
         seat_config = {
             "key": "seat_front_left_heat_vent",
             "translation_key": "seat_front_left_heat_vent",
@@ -443,7 +222,7 @@ class TestRivianFrontSeatSelectEntity:
         entity = RivianFrontSeatSelectEntity(
             coordinator=coordinator,
             entry=mock_config_entry,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
             seat_config=seat_config,
         )
 
@@ -459,20 +238,13 @@ class TestRivianFrontSeatSelectEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_select_option for right seat cool."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
         coordinator.send_vehicle_command = AsyncMock()
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         seat_config = {
             "key": "seat_front_right_heat_vent",
@@ -485,7 +257,7 @@ class TestRivianFrontSeatSelectEntity:
         entity = RivianFrontSeatSelectEntity(
             coordinator=coordinator,
             entry=mock_config_entry,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
             seat_config=seat_config,
         )
 

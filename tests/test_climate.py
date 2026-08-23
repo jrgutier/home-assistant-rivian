@@ -21,6 +21,21 @@ from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 
 
+def _climate_entity(
+    mock_config_entry: ConfigEntry, vehicle: dict
+) -> RivianClimateEntity:
+    """Build the online, in-park cabin-climate entity every test here exercises."""
+    coordinator = MagicMock(spec=VehicleCoordinator)
+    coordinator.is_online = MagicMock(return_value=True)
+    coordinator.data = {"gearStatus": {"value": "park"}}
+    return RivianClimateEntity(
+        coordinator=coordinator,
+        config_entry=mock_config_entry,
+        description=Mock(key="cabin_climate"),
+        vehicle=vehicle,
+    )
+
+
 class TestRivianClimateEntity:
     """Test RivianClimateEntity class."""
 
@@ -28,27 +43,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test current_temperature property."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.get = MagicMock(return_value=22.5)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value
         entity._get_value = MagicMock(return_value=22.5)
@@ -59,27 +57,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test target_temperature property."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.get = MagicMock(return_value=20.0)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value
         entity._get_value = MagicMock(return_value=20.0)
@@ -90,26 +71,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test hvac_mode returns OFF when preconditioning is NONE."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value
         def mock_get_value(key):
@@ -127,26 +92,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test hvac_mode returns HEAT_COOL when preconditioning is active."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value
         def mock_get_value(key):
@@ -164,26 +113,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test hvac_mode returns HEAT when defrost/defog is active."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value
         def mock_get_value(key):
@@ -199,26 +132,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test preset_mode returns DEFROST_DEFOG when active."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value
         entity._get_value = MagicMock(return_value="On")
@@ -229,26 +146,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test preset_mode returns LO for temperature 0."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value and target_temperature
         def mock_get_value(key):
@@ -266,26 +167,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test preset_mode returns HI for temperature 63.5."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _get_value and target_temperature
         def mock_get_value(key):
@@ -303,26 +188,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test climate entity has correct supported features."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         assert entity.supported_features == (
             ClimateEntityFeature.TARGET_TEMPERATURE
@@ -335,26 +204,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test climate entity uses Celsius."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         assert entity.temperature_unit == UnitOfTemperature.CELSIUS
 
@@ -362,26 +215,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_hvac_mode to HEAT (defrost/defog)."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command
         entity._execute_command = AsyncMock()
@@ -397,26 +234,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_hvac_mode to OFF."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command
         entity._execute_command = AsyncMock()
@@ -432,26 +253,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_hvac_mode to HEAT_COOL."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command
         entity._execute_command = AsyncMock()
@@ -467,26 +272,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_preset_mode to DEFROST_DEFOG."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command
         entity._execute_command = AsyncMock()
@@ -502,26 +291,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_preset_mode to LO."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock async_set_temperature
         entity.async_set_temperature = AsyncMock()
@@ -535,26 +308,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_preset_mode to HI."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock async_set_temperature
         entity.async_set_temperature = AsyncMock()
@@ -568,26 +325,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_temperature basic case."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command and _get_value
         entity._execute_command = AsyncMock()
@@ -613,26 +354,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_temperature with no temperature parameter."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command
         entity._execute_command = AsyncMock()
@@ -646,26 +371,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_temperature when defrost is active."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command and _get_value
         entity._execute_command = AsyncMock()
@@ -695,26 +404,10 @@ class TestRivianClimateEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_temperature when HVAC is off."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.is_online = MagicMock(return_value=True)
-        coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        entity = RivianClimateEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=Mock(key="cabin_climate"),
-            vehicle=vehicle_data,
-        )
+        entity = _climate_entity(mock_config_entry, mock_vehicle_paired)
 
         # Mock _execute_command and _get_value
         entity._execute_command = AsyncMock()

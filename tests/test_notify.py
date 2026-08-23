@@ -167,6 +167,38 @@ async def test_async_unload_entry_no_data(
     assert result is True
 
 
+def _service(
+    hass: HomeAssistant,
+    mock_config_entry: ConfigEntry,
+    client: MagicMock,
+    *,
+    vehicle: dict | None = None,
+    service_name: str = "test_service",
+) -> RivianNotificationService:
+    """Build the per-vehicle navigation service under test.
+
+    The vehicle record is read exactly once, by notify.py's debug log, so one
+    shared default stands in for the near-identical records these tests used to
+    spell out; the name-less case passes its own record.
+    """
+    return RivianNotificationService(
+        hass=hass,
+        client=client,
+        vehicle_id="test_vehicle_123",
+        vehicle=vehicle
+        or {"id": "test_vehicle_123", "vin": "TEST123456789", "name": "Test R1T"},
+        service_name=service_name,
+        config_entry=mock_config_entry,
+    )
+
+
+def _call(data: dict) -> MagicMock:
+    """Return a service call carrying `data`."""
+    call = MagicMock()
+    call.data = data
+    return call
+
+
 class TestRivianNotificationService:
     """Test RivianNotificationService class."""
 
@@ -177,163 +209,60 @@ class TestRivianNotificationService:
     ) -> None:
         """Test service initialization."""
         mock_client = MagicMock()
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
+        service = _service(
+            hass,
+            mock_config_entry,
+            mock_client,
             service_name="rivian_test_r1t_456789_navigation",
-            config_entry=mock_config_entry,
         )
 
         assert service._vehicle_id == "test_vehicle_123"
         assert service._service_name == "rivian_test_r1t_456789_navigation"
         assert service._client == mock_client
 
-    async def test_async_send_message_success(
+    @pytest.mark.parametrize(
+        "message",
+        ["123 Main Street, Anytown, CA 12345", "37.7749,-122.4194"],
+    )
+    async def test_async_send_message_forwards_the_destination(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        message: str,
     ) -> None:
-        """Test sending a navigation destination successfully."""
+        """Test sending an address or coordinates as navigation destination."""
         mock_client = MagicMock()
         mock_client.send_location_to_vehicle = AsyncMock(
             return_value={"publishResponse": {"result": 0}}
         )
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
+        service = _service(hass, mock_config_entry, mock_client)
 
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
-            service_name="test_service",
-            config_entry=mock_config_entry,
-        )
-
-        # Create service call with MagicMock
-        call = MagicMock()
-        call.data = {"message": "123 Main Street, Anytown, CA 12345"}
-
-        await service.async_send_message(call)
+        await service.async_send_message(_call({"message": message}))
 
         # Should have called send_location_to_vehicle
         mock_client.send_location_to_vehicle.assert_called_once_with(
-            location_str="123 Main Street, Anytown, CA 12345",
+            location_str=message,
             vehicle_id="test_vehicle_123",
         )
 
-    async def test_async_send_message_with_coordinates(
+    @pytest.mark.parametrize("data", [{"message": ""}, {}])
+    async def test_async_send_message_without_a_message(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        data: dict,
     ) -> None:
-        """Test sending coordinates as navigation destination."""
-        mock_client = MagicMock()
-        mock_client.send_location_to_vehicle = AsyncMock(
-            return_value={"publishResponse": {"result": 0}}
-        )
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-        }
-
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
-            service_name="test_service",
-            config_entry=mock_config_entry,
-        )
-
-        call = MagicMock()
-        call.data = {"message": "37.7749,-122.4194"}
-
-        await service.async_send_message(call)
-
-        mock_client.send_location_to_vehicle.assert_called_once_with(
-            location_str="37.7749,-122.4194",
-            vehicle_id="test_vehicle_123",
-        )
-
-    async def test_async_send_message_empty_message(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-    ) -> None:
-        """Test handling of empty message."""
+        """Test handling of an empty message and of a missing message key."""
         mock_client = MagicMock()
         mock_client.send_location_to_vehicle = AsyncMock()
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-        }
+        service = _service(hass, mock_config_entry, mock_client)
 
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
-            service_name="test_service",
-            config_entry=mock_config_entry,
-        )
+        await service.async_send_message(_call(data))
 
-        call = MagicMock()
-        call.data = {"message": ""}
-
-        await service.async_send_message(call)
-
-        # Should not call API with empty message
-        mock_client.send_location_to_vehicle.assert_not_called()
-
-    async def test_async_send_message_no_message_key(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-    ) -> None:
-        """Test handling when message key is missing."""
-        mock_client = MagicMock()
-        mock_client.send_location_to_vehicle = AsyncMock()
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-        }
-
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
-            service_name="test_service",
-            config_entry=mock_config_entry,
-        )
-
-        call = MagicMock()
-        call.data = {}
-
-        await service.async_send_message(call)
-
-        # Should not call API when message key is missing
+        # Should not call API without a message
         mock_client.send_location_to_vehicle.assert_not_called()
 
     async def test_async_send_message_api_failure(
@@ -347,26 +276,10 @@ class TestRivianNotificationService:
             return_value={"publishResponse": {"result": 1}}  # Non-zero = failure
         )
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-        }
-
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
-            service_name="test_service",
-            config_entry=mock_config_entry,
-        )
-
-        call = MagicMock()
-        call.data = {"message": "San Francisco, CA"}
+        service = _service(hass, mock_config_entry, mock_client)
 
         # Should not raise exception, just log error
-        await service.async_send_message(call)
+        await service.async_send_message(_call({"message": "San Francisco, CA"}))
 
         # API should still have been called
         mock_client.send_location_to_vehicle.assert_called_once()
@@ -382,26 +295,10 @@ class TestRivianNotificationService:
             side_effect=Exception("API Error")
         )
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-        }
-
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
-            service_name="test_service",
-            config_entry=mock_config_entry,
-        )
-
-        call = MagicMock()
-        call.data = {"message": "123 Main St"}
+        service = _service(hass, mock_config_entry, mock_client)
 
         # Should not raise exception, just log error
-        await service.async_send_message(call)
+        await service.async_send_message(_call({"message": "123 Main St"}))
 
         # API should have been called
         mock_client.send_location_to_vehicle.assert_called_once()
@@ -417,26 +314,19 @@ class TestRivianNotificationService:
             return_value={"publishResponse": {"result": 0}}
         )
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "model": "R1T",
-            # No name field
-        }
-
-        service = RivianNotificationService(
-            hass=hass,
-            client=mock_client,
-            vehicle_id="test_vehicle_123",
-            vehicle=vehicle_data,
-            service_name="test_service",
-            config_entry=mock_config_entry,
+        service = _service(
+            hass,
+            mock_config_entry,
+            mock_client,
+            vehicle={
+                "id": "test_vehicle_123",
+                "vin": "TEST123456789",
+                "model": "R1T",
+                # No name field
+            },
         )
 
-        call = MagicMock()
-        call.data = {"message": "123 Main St"}
-
         # Should still work without vehicle name
-        await service.async_send_message(call)
+        await service.async_send_message(_call({"message": "123 Main St"}))
 
         mock_client.send_location_to_vehicle.assert_called_once()

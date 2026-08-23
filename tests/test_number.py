@@ -25,19 +25,12 @@ class TestRivianNumberEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test native_value returns field value."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianNumberEntityDescription(
             key="battery_limit",
@@ -55,7 +48,7 @@ class TestRivianNumberEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Mock _get_value
@@ -67,19 +60,12 @@ class TestRivianNumberEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test native_unit_of_measurement is percentage."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianNumberEntityDescription(
             key="battery_limit",
@@ -97,7 +83,7 @@ class TestRivianNumberEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.native_unit_of_measurement == PERCENTAGE
@@ -106,19 +92,12 @@ class TestRivianNumberEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test device_class is BATTERY."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianNumberEntityDescription(
             key="battery_limit",
@@ -136,7 +115,7 @@ class TestRivianNumberEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         assert entity.device_class == NumberDeviceClass.BATTERY
@@ -145,20 +124,13 @@ class TestRivianNumberEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_native_value calls set_fn."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
         coordinator.send_vehicle_command = AsyncMock()
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianNumberEntityDescription(
             key="battery_limit",
@@ -176,7 +148,7 @@ class TestRivianNumberEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_set_native_value(85)
@@ -190,20 +162,13 @@ class TestRivianNumberEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test async_set_native_value converts float to int."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.is_online = MagicMock(return_value=True)
         coordinator.data = {"gearStatus": {"value": "park"}}
         coordinator.send_vehicle_command = AsyncMock()
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
 
         description = RivianNumberEntityDescription(
             key="battery_limit",
@@ -221,7 +186,7 @@ class TestRivianNumberEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         await entity.async_set_native_value(85.7)

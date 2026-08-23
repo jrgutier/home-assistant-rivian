@@ -12,7 +12,8 @@ VEHICLE_KEY = "04334cc40a88768920b54bdfdcd38238df2ec65ce3605a1d343ef2ab8c1a1daa0
 def test_generate_key_pair() -> None:
     """Test generating an ECDH public-private key pair."""
     public_key, private_key = utils.generate_key_pair()
-    assert public_key, private_key
+    assert public_key
+    assert private_key
 
 
 def test_generate_ble_command_hmac() -> None:

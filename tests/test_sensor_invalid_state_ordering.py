@@ -101,9 +101,16 @@ class TestOrderingMatchesBinarySensor:
         assert _native_value(description, "signal_not_available") is None
 
     def test_the_same_holds_for_power_state(self) -> None:
-        """The other lambda that carried a now-removed guard."""
+        """The other lambda that carried a now-removed guard.
+
+        The rendered spelling is "SNA" because s25 taught `_to_title_case` to keep
+        APK-sourced acronyms; it was "Sna" before. Which is incidental -- the point
+        is that the lambda does not special-case the value at all, and the raw
+        invalid-state check drops it before the rendered string can matter.
+        `power_state` does not list either spelling in `options`.
+        """
         description = DESCRIPTIONS["power_state"]
-        assert description.value_lambda("sna") == "Sna"
+        assert description.value_lambda("sna") == "SNA"
         assert _native_value(description, "sna") is None
 
     def test_the_empty_value_branch_is_still_load_bearing(self) -> None:

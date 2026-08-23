@@ -1193,8 +1193,8 @@ def decode_battery_characteristics(payload: str) -> dict[str, Any]:
         - batteryCellType: str
 
     Fields 5 and 6 (user_total_kwh, user_max_kwh) are floats and would map to
-    batteryCapacity, but they are fixed32 on the wire and _decode_protobuf_fields
-    hands those back as raw bytes. Left undecoded rather than misdecoded: the
+    batteryCapacity, but they are fixed32 (wire type 5) and _decode_enum_fields
+    reads varints only. Left undecoded rather than misdecoded: the
     subscription already carries batteryCapacity, and a wrong kWh figure on the
     energy sensor is worse than no second source for it.
     """
@@ -1214,7 +1214,7 @@ def decode_btm_diagnosis(payload: str) -> dict[str, Any]:
           btmRfdHardwareFailureStatus, btmOcHardwareFailureStatus: str
 
     Six of the ten fields share one enum. Fields 7-10 are separate error counters
-    with no enum of their own; passed through as integers.
+    with no enum of their own, are not in the spec below, and so are dropped.
     """
     return _decode_enum_fields(
         payload,

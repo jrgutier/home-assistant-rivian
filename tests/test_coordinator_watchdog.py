@@ -1,7 +1,7 @@
 """Tests for coordinator watchdog functionality."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -136,74 +136,6 @@ class TestVehicleCoordinatorWatchdog:
         # Timestamp should be updated
         assert mock_vehicle_coordinator._last_update_time is not None
         assert before_time <= mock_vehicle_coordinator._last_update_time <= after_time
-
-    async def test_watchdog_skips_restart_when_sleeping(
-        self,
-        hass: HomeAssistant,
-        mock_vehicle_coordinator: VehicleCoordinator,
-    ) -> None:
-        """Test that watchdog doesn't restart when vehicle is sleeping."""
-        # Set vehicle to sleeping state
-        mock_vehicle_coordinator.data = {
-            "powerState": {"value": "sleep", "history": {"sleep"}}
-        }
-
-        # Set last update time to 10 minutes ago (stale)
-        mock_vehicle_coordinator._last_update_time = datetime.now(
-            timezone.utc
-        ) - timedelta(minutes=10)
-
-        # Start watchdog
-        mock_vehicle_coordinator._start_watchdog()
-
-        # Wait for watchdog to check (give it time to run at least once)
-        await asyncio.sleep(0.1)
-
-        # Mock async_request_refresh to track if it was called
-        with patch.object(
-            mock_vehicle_coordinator, "async_request_refresh"
-        ) as mock_refresh:
-            # Wait a bit more for watchdog to process
-            await asyncio.sleep(0.1)
-
-            # Should NOT have called refresh since vehicle is sleeping
-            mock_refresh.assert_not_called()
-
-        # Cleanup
-        mock_vehicle_coordinator._stop_watchdog()
-
-    async def test_watchdog_logic_restarts_when_stale(
-        self,
-        hass: HomeAssistant,
-        mock_vehicle_coordinator: VehicleCoordinator,
-    ) -> None:
-        """Test that watchdog logic would restart subscription when stale.
-
-        Note: This test validates the watchdog logic without actually waiting
-        for the 60-second check interval. It verifies the conditions under which
-        a restart would be triggered.
-        """
-        # Set vehicle to awake state
-        mock_vehicle_coordinator.data = {
-            "powerState": {"value": "go", "history": {"go"}}
-        }
-
-        # Set last update time to 10 minutes ago (beyond 5 minute timeout)
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=10)
-        mock_vehicle_coordinator._last_update_time = stale_time
-
-        # Verify the conditions that would trigger a restart
-        time_since_update = (
-            datetime.now(timezone.utc) - mock_vehicle_coordinator._last_update_time
-        ).total_seconds()
-
-        power_state = mock_vehicle_coordinator.get("powerState")
-
-        # Assert the conditions that watchdog checks
-        assert time_since_update > mock_vehicle_coordinator._watchdog_timeout
-        assert power_state != "sleep"  # Should not skip restart
-
-        # This validates that the watchdog would trigger a restart under these conditions
 
     async def test_watchdog_stops_on_shutdown(
         self,

@@ -167,15 +167,14 @@ class RivianSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
         """Return True if entity is on."""
         return self.entity_description.is_on(self.coordinator)
 
-    @property
-    def available(self) -> bool:
-        """Return the availability of the entity."""
-        return super().available and (
-            _fn(self.coordinator)
-            if (_fn := self.entity_description.available)
-            else True
-        )
-
+    # The command/fallback/else dispatch below is repeated in cover.py, lock.py and
+    # switch.py, and the repetition is deliberate. Lifting it onto
+    # RivianVehicleControlEntity was built and measured (s25): a 3-argument
+    # _dispatch_command helper returning False for "neither defined" came to a NET
+    # +7 lines, because the helper costs more than the four lines each call site
+    # saves. It also introduces a silent-failure mode this form cannot have -- a
+    # caller that forgets to check the return value drops a vehicle command with no
+    # log at all. Explicit here beats shared.
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         if self.entity_description.command_off:

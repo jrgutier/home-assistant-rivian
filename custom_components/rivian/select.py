@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
-from homeassistant.components.select import SelectEntity
+from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -148,10 +148,6 @@ class RivianSelectEntity(RivianVehicleControlEntity, SelectEntity):
 
     entity_description: RivianSelectEntityDescription
 
-    def _get_value(self, key: str) -> Any | None:
-        """Get a data value from the coordinator."""
-        return self.coordinator.get(key)
-
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
@@ -175,8 +171,6 @@ class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
         seat_config: dict[str, Any],
     ) -> None:
         """Initialize the front seat select entity."""
-        from homeassistant.components.select import SelectEntityDescription
-
         self._heat_field = seat_config["heat_field"]
         self._cool_field = seat_config["cool_field"]
         self._is_left = seat_config["is_left"]

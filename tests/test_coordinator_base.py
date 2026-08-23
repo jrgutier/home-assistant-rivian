@@ -17,6 +17,15 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
+def _response(payload: dict, status: int = 200) -> MagicMock:
+    """The client's real contract: an object with .status and awaitable .json()."""
+    response = MagicMock()
+    response.status = status
+    response.json = AsyncMock(return_value=payload)
+    response.raise_for_status = MagicMock()
+    return response
+
+
 class TestRivianDataUpdateCoordinatorBase:
     """Test base coordinator error handling and interval management."""
 
@@ -224,9 +233,7 @@ class TestRivianDataUpdateCoordinatorBase:
         # Mocked at the client's real contract -- a response with .status and an
         # awaitable .json() -- not as an already-unwrapped dict. Mocking the latter
         # is what hid the missing unwrap in _async_update_data until a live boot.
-        response = MagicMock()
-        response.status = 200
-        response.json = AsyncMock(return_value={"data": {"currentUser": {"id": "u1"}}})
+        response = _response({"data": {"currentUser": {"id": "u1"}}})
         mock_client.get_user_information = AsyncMock(return_value=response)
 
         coordinator = UserCoordinator(
@@ -540,20 +547,12 @@ class TestTheResponseIsUnwrapped:
     which unwraps from one which does not.
     """
 
-    @staticmethod
-    def _response(payload: dict, status: int = 200) -> MagicMock:
-        response = MagicMock()
-        response.status = status
-        response.json = AsyncMock(return_value=payload)
-        response.raise_for_status = MagicMock()
-        return response
-
     async def test_user_coordinator_returns_the_inner_object(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
         client = MagicMock()
         client.get_user_information = AsyncMock(
-            return_value=self._response(
+            return_value=_response(
                 {"data": {"currentUser": {"id": "u1", "vehicles": []}}}
             )
         )
@@ -573,7 +572,7 @@ class TestTheResponseIsUnwrapped:
     ) -> None:
         """Returning the response object on an error status is how a 500 turns into
         entities holding a ClientResponse instead of an error."""
-        response = self._response({"errors": [{"message": "boom"}]}, status=500)
+        response = _response({"errors": [{"message": "boom"}]}, status=500)
         response.raise_for_status = MagicMock(side_effect=RuntimeError("500"))
         client = MagicMock()
         client.get_user_information = AsyncMock(return_value=response)
@@ -591,11 +590,9 @@ class TestTheResponseIsUnwrapped:
     async def test_wallbox_coordinator_returns_the_inner_list(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
-        from custom_components.rivian.coordinator import WallboxCoordinator
-
         client = MagicMock()
         client.get_registered_wallboxes = AsyncMock(
-            return_value=self._response(
+            return_value=_response(
                 {"data": {"getRegisteredWallboxes": [{"serialNumber": "W1"}]}}
             )
         )
@@ -611,7 +608,7 @@ class TestTheResponseIsUnwrapped:
 
         client = MagicMock()
         client.get_drivers_and_keys = AsyncMock(
-            return_value=self._response({"data": {"getVehicle": {"invitedUsers": []}}})
+            return_value=_response({"data": {"getVehicle": {"invitedUsers": []}}})
         )
         coordinator = DriverKeyCoordinator(
             hass=hass, config_entry=mock_config_entry, client=client, vehicle_id="v1"
@@ -625,7 +622,7 @@ class TestTheResponseIsUnwrapped:
 
         client = MagicMock()
         client.get_vehicle_images = AsyncMock(
-            return_value=self._response(
+            return_value=_response(
                 {"data": {"getVehicleMobileImages": [{"url": "https://x/y.png"}]}}
             )
         )
@@ -725,9 +722,7 @@ class TestAMissingKeyFailsLoudly:
     async def test_a_missing_key_raises_update_failed(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
-        response = MagicMock()
-        response.status = 200
-        response.json = AsyncMock(return_value={"data": {"somethingElse": {}}})
+        response = _response({"data": {"somethingElse": {}}})
         client = MagicMock()
         client.get_user_information = AsyncMock(return_value=response)
 
@@ -742,11 +737,7 @@ class TestAMissingKeyFailsLoudly:
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
         """GraphQL may answer 200 with data: null alongside errors."""
-        response = MagicMock()
-        response.status = 200
-        response.json = AsyncMock(
-            return_value={"data": None, "errors": [{"message": "nope"}]}
-        )
+        response = _response({"data": None, "errors": [{"message": "nope"}]})
         client = MagicMock()
         client.get_user_information = AsyncMock(return_value=response)
 
@@ -755,3 +746,89 @@ class TestAMissingKeyFailsLoudly:
         )
         with pytest.raises(UpdateFailed):
             await coordinator._async_update_data()
+
+
+class TestOtaReleaseNotesUrl:
+    """The OTA release-notes URL is unwrapped by the coordinator, not the entity.
+
+    The update entity used to await .json() on the client's response and index
+    ["data"]["getVehicle"] itself. Moving that here is only safe if the branch
+    preference it encodes -- pending update wins, current update is the fallback
+    -- stays pinned somewhere, and the entity tests can no longer pin it because
+    they mock this method.
+    """
+
+    def _coordinator(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, payload
+    ):
+        from custom_components.rivian.coordinator import VehicleCoordinator
+
+        client = MagicMock()
+        client.get_vehicle_ota_update_details = AsyncMock(
+            return_value=_response(payload)
+        )
+        return VehicleCoordinator(
+            hass=hass,
+            config_entry=mock_config_entry,
+            client=client,
+            vehicle_id="v1",
+        )
+
+    async def test_pending_update_url_wins(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        coordinator = self._coordinator(
+            hass,
+            mock_config_entry,
+            {
+                "data": {
+                    "getVehicle": {
+                        "availableOTAUpdateDetails": {
+                            "url": "https://rivian.software/2024-04-0/"
+                        },
+                        "currentOTAUpdateDetails": {
+                            "url": "https://rivian.software/2024-03-0/"
+                        },
+                    }
+                }
+            },
+        )
+
+        assert (
+            await coordinator.get_ota_release_notes_url()
+            == "https://rivian.software/2024-04-0/"
+        )
+        coordinator.api.get_vehicle_ota_update_details.assert_awaited_once_with("v1")
+
+    async def test_falls_back_to_the_current_update(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """No pending update: the API sends availableOTAUpdateDetails as null."""
+        coordinator = self._coordinator(
+            hass,
+            mock_config_entry,
+            {
+                "data": {
+                    "getVehicle": {
+                        "availableOTAUpdateDetails": None,
+                        "currentOTAUpdateDetails": {
+                            "url": "https://rivian.software/2024-03-0/"
+                        },
+                    }
+                }
+            },
+        )
+
+        assert (
+            await coordinator.get_ota_release_notes_url()
+            == "https://rivian.software/2024-03-0/"
+        )
+
+    async def test_a_missing_envelope_raises_for_the_entity_to_catch(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """The entity's fallback to the generated URL depends on this raising."""
+        coordinator = self._coordinator(hass, mock_config_entry, {"data": {}})
+
+        with pytest.raises(KeyError):
+            await coordinator.get_ota_release_notes_url()

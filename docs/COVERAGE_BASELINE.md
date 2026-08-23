@@ -179,7 +179,7 @@ mutates the shared `MockConfigEntry` class for the entire session, so every late
 returned the wrong dict. That silently skipped the 2FA branch and the disenroll loop in
 `__init__.py`, producing "mock called 0 times" failures in `test_init.py` far from the cause.
 Replaced with `monkeypatch.setattr(..., raising=False)`, which restores on teardown.
-(`test_config_flow.py:110` uses the same idiom but is safe — a spec'd `MagicMock` gets its own
+(`test_config_flow.py:109` uses the same idiom but is safe — a spec'd `MagicMock` gets its own
 subclass, verified.)
 
 **3. A stale fixture.** `test_init.py::mock_vehicle_coordinator` was never updated when `f3e62e3`

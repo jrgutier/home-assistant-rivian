@@ -16,7 +16,10 @@ from custom_components.rivian.coordinator import (
     VehicleCoordinator,
     WallboxCoordinator,
 )
-from custom_components.rivian.data_classes import RivianSensorEntityDescription
+from custom_components.rivian.data_classes import (
+    RivianSensorEntityDescription,
+    RivianWallboxSensorEntityDescription,
+)
 from custom_components.rivian.sensor import (
     RivianChargingSensorEntity,
     RivianDriverSensorEntity,
@@ -37,17 +40,11 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test native_value when value_fn is defined."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {"batteryLevel": {"value": 80.5}}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianSensorEntityDescription(
             key="test_sensor",
@@ -60,7 +57,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.native_value == "custom_value"
@@ -69,18 +66,12 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test native_value retrieves from field."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {"batteryLevel": {"value": 80.5}}
         coordinator.get = MagicMock(return_value=80.5)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianSensorEntityDescription(
             key="battery_level",
@@ -92,7 +83,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.native_value == 80.5
@@ -101,17 +92,11 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test native_value applies value_lambda transformation."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value=80.6)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianSensorEntityDescription(
             key="battery_level",
@@ -124,7 +109,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.native_value == 81
@@ -133,18 +118,12 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test native_value returns None when field is None with unit."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value=None)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianSensorEntityDescription(
             key="battery_level",
@@ -157,7 +136,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # When field returns None with a unit, it returns None (not STATE_UNAVAILABLE)
@@ -167,18 +146,12 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test native_value returns STATE_UNAVAILABLE when field is None without unit."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value=None)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianSensorEntityDescription(
             key="power_state",
@@ -190,7 +163,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # When field returns None without a unit, it returns STATE_UNAVAILABLE
@@ -200,6 +173,7 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes includes native_value and timestamp."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -209,13 +183,6 @@ class TestRivianSensorEntity:
                 "timeStamp": "2024-01-01T00:00:00Z",
                 "history": ["80.5", "79.8"],
             }
-        }
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
         }
 
         description = RivianSensorEntityDescription(
@@ -229,7 +196,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         attrs = entity.extra_state_attributes
@@ -241,6 +208,7 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes only includes timestamp when no value_lambda."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -249,13 +217,6 @@ class TestRivianSensorEntity:
                 "value": "go",
                 "timeStamp": "2024-01-01T00:00:00Z",
             }
-        }
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
         }
 
         description = RivianSensorEntityDescription(
@@ -268,7 +229,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         attrs = entity.extra_state_attributes
@@ -279,6 +240,7 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """A dotted field (e.g. one leaf of gnssError) must look up the
         envelope's `last_update`, not KeyError against a literal dotted key
@@ -295,13 +257,6 @@ class TestRivianSensorEntity:
             }
         }
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         description = RivianSensorEntityDescription(
             key="gnss_error_position_vertical",
             translation_key="gnss_error_position_vertical",
@@ -312,7 +267,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         attrs = entity.extra_state_attributes
@@ -322,17 +277,11 @@ class TestRivianSensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes returns None when field is missing."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianSensorEntityDescription(
             key="battery_level",
@@ -344,7 +293,7 @@ class TestRivianSensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.extra_state_attributes is None
@@ -476,10 +425,6 @@ class TestRivianWallboxSensorEntity:
         hass: HomeAssistant,
     ) -> None:
         """Test native_value converts enum to lowercase."""
-        from custom_components.rivian.data_classes import (
-            RivianWallboxSensorEntityDescription,
-        )
-
         coordinator = MagicMock(spec=WallboxCoordinator)
 
         wallbox_data = {
@@ -511,10 +456,6 @@ class TestRivianWallboxSensorEntity:
         hass: HomeAssistant,
     ) -> None:
         """Test native_value returns raw value for non-enum."""
-        from custom_components.rivian.data_classes import (
-            RivianWallboxSensorEntityDescription,
-        )
-
         coordinator = MagicMock(spec=WallboxCoordinator)
 
         wallbox_data = {
@@ -756,6 +697,7 @@ class TestRivianSensorEntityEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test native_value with enum value not in options."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -767,16 +709,6 @@ class TestRivianSensorEntityEdgeCases:
             }
         }
         coordinator.get = MagicMock(return_value="unknown_value")
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from custom_components.rivian.data_classes import RivianSensorEntityDescription
-        from homeassistant.components.sensor import SensorDeviceClass
 
         description = RivianSensorEntityDescription(
             key="test_enum",
@@ -790,7 +722,7 @@ class TestRivianSensorEntityEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
         entity.hass = hass
         entity.entity_id = "sensor.test_enum"
@@ -804,6 +736,7 @@ class TestRivianSensorEntityEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes returns None when entity is None."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -811,15 +744,6 @@ class TestRivianSensorEntityEdgeCases:
         coordinator.data = {
             "test_field": None,  # Entity is None
         }
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from custom_components.rivian.data_classes import RivianSensorEntityDescription
 
         description = RivianSensorEntityDescription(
             key="test_sensor",
@@ -831,7 +755,7 @@ class TestRivianSensorEntityEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Should return None when entity is None (line 135)
@@ -851,8 +775,6 @@ class TestRivianDriverSensorEntityEdgeCases:
         coordinator = MagicMock(spec=DriverKeyCoordinator)
         coordinator.hass = hass
         coordinator.data = {}
-
-        from custom_components.rivian.data_classes import RivianSensorEntityDescription
 
         # Description without key="keys"
         description = RivianSensorEntityDescription(
@@ -889,9 +811,6 @@ class TestUnusableValuesDoNotBecomeStates:
     """
 
     def _sensor(self, value, options):
-        from custom_components.rivian.data_classes import RivianSensorEntityDescription
-        from custom_components.rivian.sensor import RivianSensorEntity
-
         entity = RivianSensorEntity.__new__(RivianSensorEntity)
         entity.entity_description = RivianSensorEntityDescription(
             key="k",

@@ -736,7 +736,7 @@ class Rivian:
         `allow_core_fallback=False` to disable it (for a test or probe that
         wants strict, no-retry behaviour). One renamed/unknown field then
         costs a degraded-but-working integration rather than every
-        vehicleState entity going unknown at once (const.py:1879: one
+        vehicleState entity going unknown at once (const.py:1883: one
         unknown name rejects the whole document). This reduces that
         failure's blast radius; it does not eliminate it -- if the renamed
         field is itself one of the 15 core names, the core document is
@@ -774,28 +774,14 @@ class Rivian:
         properties: AbstractSet[str],
     ) -> Callable | None:
         """The single-attempt body subscribe_for_vehicle_updates() retries."""
-        try:
-            await self._ws_connect()
-            assert self._ws_monitor
-            async with async_timeout.timeout(self.request_timeout):
-                await self._ws_monitor.connection_ack.wait()
-            payload = {
-                "operationName": "VehicleState",
-                "query": f"subscription VehicleState($vehicleID: String!) {{ vehicleState(id: $vehicleID) {self._build_vehicle_state_fragment(properties)} }}",
-                "variables": {"vehicleID": vehicle_id},
-            }
-            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
-            _LOGGER.debug("%s subscribed to updates", vehicle_id)
-            return unsubscribe
-        except RivianApiException:
-            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
-            # per-type handling (expired token, unauthenticated, rate limit)
-            # still sees the specific subclass rather than the base class.
-            raise
-        except Exception as ex:
-            # Returning None here made a dead subscription indistinguishable
-            # from a healthy one at every call site.
-            raise RivianApiException("Failed to establish subscription") from ex
+        payload = {
+            "operationName": "VehicleState",
+            "query": f"subscription VehicleState($vehicleID: String!) {{ vehicleState(id: $vehicleID) {self._build_vehicle_state_fragment(properties)} }}",
+            "variables": {"vehicleID": vehicle_id},
+        }
+        return await self._start_subscription(
+            payload, callback, "%s subscribed to updates", vehicle_id
+        )
 
     def subscription_document(self, vehicle_id: str) -> str | None:
         """Which vehicleState document is live for `vehicle_id`.
@@ -849,28 +835,14 @@ class Rivian:
         if not properties:
             properties = TIRE_PRESSURE_SUBSCRIPTION_PROPERTIES
 
-        try:
-            await self._ws_connect()
-            assert self._ws_monitor
-            async with async_timeout.timeout(self.request_timeout):
-                await self._ws_monitor.connection_ack.wait()
-            payload = {
-                "operationName": "tirePressureState",
-                "query": f"subscription tirePressureState($vehicleID: String!) {{ vehicleState(id: $vehicleID) {self._build_vehicle_state_fragment(properties)} }}",
-                "variables": {"vehicleID": vehicle_id},
-            }
-            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
-            _LOGGER.debug("%s subscribed to tire pressure updates", vehicle_id)
-            return unsubscribe
-        except RivianApiException:
-            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
-            # per-type handling (expired token, unauthenticated, rate limit)
-            # still sees the specific subclass rather than the base class.
-            raise
-        except Exception as ex:
-            # Returning None here made a dead subscription indistinguishable
-            # from a healthy one at every call site.
-            raise RivianApiException("Failed to establish subscription") from ex
+        payload = {
+            "operationName": "tirePressureState",
+            "query": f"subscription tirePressureState($vehicleID: String!) {{ vehicleState(id: $vehicleID) {self._build_vehicle_state_fragment(properties)} }}",
+            "variables": {"vehicleID": vehicle_id},
+        }
+        return await self._start_subscription(
+            payload, callback, "%s subscribed to tire pressure updates", vehicle_id
+        )
 
     async def subscribe_for_parallax_messages(
         self,
@@ -882,31 +854,21 @@ class Rivian:
         if not rvms:
             rvms = PARALLAX_RVMS
 
-        try:
-            await self._ws_connect()
-            assert self._ws_monitor
-            async with async_timeout.timeout(self.request_timeout):
-                await self._ws_monitor.connection_ack.wait()
-            payload = {
-                "operationName": "ParallaxMessages",
-                "query": "subscription ParallaxMessages($vehicleId: String!, $rvms: [String!]) { parallaxMessages(vehicleId: $vehicleId, rvms: $rvms) { payload timestamp rvm } }",
-                "variables": {
-                    "vehicleId": vehicle_id,
-                    "rvms": rvms,
-                },
-            }
-            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
-            _LOGGER.debug("%s subscribed to %d Parallax RVMs", vehicle_id, len(rvms))
-            return unsubscribe
-        except RivianApiException:
-            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
-            # per-type handling (expired token, unauthenticated, rate limit)
-            # still sees the specific subclass rather than the base class.
-            raise
-        except Exception as ex:
-            # Returning None here made a dead subscription indistinguishable
-            # from a healthy one at every call site.
-            raise RivianApiException("Failed to establish subscription") from ex
+        payload = {
+            "operationName": "ParallaxMessages",
+            "query": "subscription ParallaxMessages($vehicleId: String!, $rvms: [String!]) { parallaxMessages(vehicleId: $vehicleId, rvms: $rvms) { payload timestamp rvm } }",
+            "variables": {
+                "vehicleId": vehicle_id,
+                "rvms": rvms,
+            },
+        }
+        return await self._start_subscription(
+            payload,
+            callback,
+            "%s subscribed to %d Parallax RVMs",
+            vehicle_id,
+            len(rvms),
+        )
 
     async def _ws_connect(self) -> ClientWebSocketResponse[bool]:
         """Initiate a websocket connection."""
@@ -935,6 +897,35 @@ class Rivian:
         if ws_monitor.monitor is None or ws_monitor.monitor.done():
             await ws_monitor.start_monitor()
         return ws_monitor.websocket
+
+    async def _start_subscription(
+        self,
+        payload: dict[str, Any],
+        callback: Callable[[dict[str, Any]], None],
+        log_message: str,
+        *log_args: Any,
+    ) -> Callable | None:
+        """Connect, wait for the ack, and start `payload`'s subscription.
+
+        The single body every subscribe_for_* shares. The except pair is the
+        point: a RivianApiException is re-raised UNCHANGED so the coordinator's
+        per-type handling (expired token, unauthenticated, rate limit) still
+        sees the specific subclass rather than the base class; anything else
+        becomes a RivianApiException, because returning None here made a dead
+        subscription indistinguishable from a healthy one at every call site.
+        """
+        try:
+            await self._ws_connect()
+            assert self._ws_monitor
+            async with async_timeout.timeout(self.request_timeout):
+                await self._ws_monitor.connection_ack.wait()
+            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
+            _LOGGER.debug(log_message, *log_args)
+            return unsubscribe
+        except RivianApiException:
+            raise
+        except Exception as ex:
+            raise RivianApiException("Failed to establish subscription") from ex
 
     async def __graphql_query(
         self, headers: dict[str, str], url: str, body: dict[str, Any]
@@ -968,7 +959,7 @@ class Rivian:
         if errors := response_json.get("errors"):
             for error in errors:
                 if extensions := error.get("extensions"):
-                    code = extensions["code"]
+                    code = extensions.get("code")
                     if (code, extensions.get("reason")) in (
                         ("BAD_USER_INPUT", "INVALID_OTP"),
                         ("UNAUTHENTICATED", "OTP_TOKEN_EXPIRED"),
@@ -1127,8 +1118,6 @@ class Rivian:
             >>> result = await client.send_parallax_command("01-276948064", cmd, phone_id)
             >>> print(f"Success: {result['success']}")
         """
-        import base64
-
         # Decode the base64 payload from ParallaxCommand
         payload = (
             base64.b64decode(parallax_cmd.payload_b64)
@@ -1204,30 +1193,17 @@ class Rivian:
         Returns:
             Unsubscribe function or None if connection fails
         """
-        try:
-            await self._ws_connect()
-            assert self._ws_monitor
-            async with async_timeout.timeout(self.request_timeout):
-                await self._ws_monitor.connection_ack.wait()
-            payload = {
-                "operationName": "ChargingSession",
-                "query": "subscription ChargingSession($vehicleID: String!) { chargingSession(vehicleId: $vehicleID) { chartData { soc powerKW startTime endTime timeEstimationValidityStatus vehicleChargerState } liveData { powerKW kilometersChargedPerHour rangeAddedThisSession totalChargedEnergy timeElapsed timeRemaining price currency isFreeSession vehicleChargerState startTime } } }",
-                "variables": {"vehicleID": vehicle_id},
-            }
-            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
-            _LOGGER.debug(
-                "Vehicle %s subscribed to charging session updates", vehicle_id
-            )
-            return unsubscribe
-        except RivianApiException:
-            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
-            # per-type handling (expired token, unauthenticated, rate limit)
-            # still sees the specific subclass rather than the base class.
-            raise
-        except Exception as ex:
-            # Returning None here made a dead subscription indistinguishable
-            # from a healthy one at every call site.
-            raise RivianApiException("Failed to establish subscription") from ex
+        payload = {
+            "operationName": "ChargingSession",
+            "query": "subscription ChargingSession($vehicleID: String!) { chargingSession(vehicleId: $vehicleID) { chartData { soc powerKW startTime endTime timeEstimationValidityStatus vehicleChargerState } liveData { powerKW kilometersChargedPerHour rangeAddedThisSession totalChargedEnergy timeElapsed timeRemaining price currency isFreeSession vehicleChargerState startTime } } }",
+            "variables": {"vehicleID": vehicle_id},
+        }
+        return await self._start_subscription(
+            payload,
+            callback,
+            "Vehicle %s subscribed to charging session updates",
+            vehicle_id,
+        )
 
     async def subscribe_for_cloud_connection(
         self,
@@ -1243,30 +1219,17 @@ class Rivian:
         Returns:
             Unsubscribe function or None if connection fails
         """
-        try:
-            await self._ws_connect()
-            assert self._ws_monitor
-            async with async_timeout.timeout(self.request_timeout):
-                await self._ws_monitor.connection_ack.wait()
-            payload = {
-                "operationName": "VehicleCloudConnection",
-                "query": "subscription VehicleCloudConnection($vehicleID: String!) { vehicleCloudConnection(id: $vehicleID) { isOnline lastSync } }",
-                "variables": {"vehicleID": vehicle_id},
-            }
-            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
-            _LOGGER.debug(
-                "Vehicle %s subscribed to cloud connection updates", vehicle_id
-            )
-            return unsubscribe
-        except RivianApiException:
-            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
-            # per-type handling (expired token, unauthenticated, rate limit)
-            # still sees the specific subclass rather than the base class.
-            raise
-        except Exception as ex:
-            # Returning None here made a dead subscription indistinguishable
-            # from a healthy one at every call site.
-            raise RivianApiException("Failed to establish subscription") from ex
+        payload = {
+            "operationName": "VehicleCloudConnection",
+            "query": "subscription VehicleCloudConnection($vehicleID: String!) { vehicleCloudConnection(id: $vehicleID) { isOnline lastSync } }",
+            "variables": {"vehicleID": vehicle_id},
+        }
+        return await self._start_subscription(
+            payload,
+            callback,
+            "Vehicle %s subscribed to cloud connection updates",
+            vehicle_id,
+        )
 
     async def subscribe_for_command_state(
         self,
@@ -1282,28 +1245,14 @@ class Rivian:
         Returns:
             Unsubscribe function or None if connection fails
         """
-        try:
-            await self._ws_connect()
-            assert self._ws_monitor
-            async with async_timeout.timeout(self.request_timeout):
-                await self._ws_monitor.connection_ack.wait()
-            payload = {
-                "operationName": "VehicleCommandState",
-                "query": "subscription VehicleCommandState($id: String!) { vehicleCommandState(id: $id) { __typename id command createdAt state responseCode statusCode } }",
-                "variables": {"id": command_id},
-            }
-            unsubscribe = await self._ws_monitor.start_subscription(payload, callback)
-            _LOGGER.debug("Command %s subscribed to state updates", command_id)
-            return unsubscribe
-        except RivianApiException:
-            # Already one of ours: re-raise UNCHANGED so the coordinator\'s
-            # per-type handling (expired token, unauthenticated, rate limit)
-            # still sees the specific subclass rather than the base class.
-            raise
-        except Exception as ex:
-            # Returning None here made a dead subscription indistinguishable
-            # from a healthy one at every call site.
-            raise RivianApiException("Failed to establish subscription") from ex
+        payload = {
+            "operationName": "VehicleCommandState",
+            "query": "subscription VehicleCommandState($id: String!) { vehicleCommandState(id: $id) { __typename id command createdAt state responseCode statusCode } }",
+            "variables": {"id": command_id},
+        }
+        return await self._start_subscription(
+            payload, callback, "Command %s subscribed to state updates", command_id
+        )
 
     async def send_location_to_vehicle(
         self,

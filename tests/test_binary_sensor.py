@@ -24,18 +24,12 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on with simple field and matching value."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="closed")
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianBinarySensorEntityDescription(
             key="door_test",
@@ -48,7 +42,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.is_on is True
@@ -57,18 +51,12 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on with list of on_values."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="charging_active")
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianBinarySensorEntityDescription(
             key="charging",
@@ -81,7 +69,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.is_on is True
@@ -90,18 +78,12 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on returns False when value doesn't match."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="open")
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianBinarySensorEntityDescription(
             key="door_test",
@@ -114,7 +96,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.is_on is False
@@ -123,18 +105,12 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on with negate flag inverts result."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="closed")
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianBinarySensorEntityDescription(
             key="door_open",
@@ -148,7 +124,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Value is "closed" which matches on_value, but negate=True inverts it
@@ -158,18 +134,12 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on returns None when field value is None."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value=None)
         coordinator.data = {}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianBinarySensorEntityDescription(
             key="door_test",
@@ -182,7 +152,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.is_on is None
@@ -191,6 +161,7 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on with aggregate field (set of fields)."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -204,13 +175,6 @@ class TestRivianBinarySensorEntity:
         coordinator.get = MagicMock(side_effect=mock_get)
         coordinator.data = {}
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         description = RivianBinarySensorEntityDescription(
             key="any_door_open",
             translation_key="any_door_open",
@@ -222,7 +186,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Should be True because one door is "open"
@@ -232,6 +196,7 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test available with aggregate field."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -245,13 +210,6 @@ class TestRivianBinarySensorEntity:
 
         coordinator.get = MagicMock(side_effect=mock_get)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         description = RivianBinarySensorEntityDescription(
             key="any_door_open",
             translation_key="any_door_open",
@@ -263,7 +221,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Should be available because at least one field has a value
@@ -273,6 +231,7 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes includes value, timestamp, and history."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -285,13 +244,6 @@ class TestRivianBinarySensorEntity:
         }
         coordinator.get = MagicMock(return_value="closed")
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         description = RivianBinarySensorEntityDescription(
             key="door_test",
             translation_key="door_test",
@@ -303,7 +255,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         attrs = entity.extra_state_attributes
@@ -315,18 +267,12 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes returns None for aggregate fields."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
         coordinator.get = MagicMock(return_value="open")
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianBinarySensorEntityDescription(
             key="any_door_open",
@@ -339,7 +285,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.extra_state_attributes is None
@@ -348,18 +294,12 @@ class TestRivianBinarySensorEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes returns None when field is missing."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.data = {}
         coordinator.get = MagicMock(return_value=None)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
 
         description = RivianBinarySensorEntityDescription(
             key="door_test",
@@ -372,7 +312,7 @@ class TestRivianBinarySensorEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.extra_state_attributes is None
@@ -385,6 +325,7 @@ class TestRivianCloudConnectionBinarySensor:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test device class is CONNECTIVITY."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -393,17 +334,10 @@ class TestRivianCloudConnectionBinarySensor:
         coordinator.data = {}
         coordinator.get = MagicMock(return_value=None)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         entity = RivianCloudConnectionBinarySensor(
             coordinator=coordinator,
             config_entry=mock_config_entry,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.device_class == BinarySensorDeviceClass.CONNECTIVITY
@@ -412,6 +346,7 @@ class TestRivianCloudConnectionBinarySensor:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on returns True when coordinator reports online."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -420,17 +355,10 @@ class TestRivianCloudConnectionBinarySensor:
         coordinator.data = {}
         coordinator.get = MagicMock(return_value=None)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         entity = RivianCloudConnectionBinarySensor(
             coordinator=coordinator,
             config_entry=mock_config_entry,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.is_on is True
@@ -439,6 +367,7 @@ class TestRivianCloudConnectionBinarySensor:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test is_on returns False when coordinator reports offline."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -447,17 +376,10 @@ class TestRivianCloudConnectionBinarySensor:
         coordinator.data = {}
         coordinator.get = MagicMock(return_value=None)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         entity = RivianCloudConnectionBinarySensor(
             coordinator=coordinator,
             config_entry=mock_config_entry,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.is_on is False
@@ -466,6 +388,7 @@ class TestRivianCloudConnectionBinarySensor:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes includes last_sync."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -474,17 +397,10 @@ class TestRivianCloudConnectionBinarySensor:
         coordinator.data = {}
         coordinator.get = MagicMock(return_value=None)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         entity = RivianCloudConnectionBinarySensor(
             coordinator=coordinator,
             config_entry=mock_config_entry,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         attrs = entity.extra_state_attributes
@@ -548,6 +464,7 @@ class TestRivianBinarySensorEntityEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test available property with aggregate calls super."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -556,17 +473,6 @@ class TestRivianBinarySensorEntityEdgeCases:
             "field1": {"value": "open"},
             "field2": {"value": "closed"},
         }
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from custom_components.rivian.data_classes import (
-            RivianBinarySensorEntityDescription,
-        )
 
         # Create aggregate description
         description = RivianBinarySensorEntityDescription(
@@ -580,7 +486,7 @@ class TestRivianBinarySensorEntityEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Should call super().available (line 73)
@@ -591,6 +497,7 @@ class TestRivianBinarySensorEntityEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes returns None when entity is None."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -598,17 +505,6 @@ class TestRivianBinarySensorEntityEdgeCases:
         coordinator.data = {
             "test_field": None,  # Entity is None
         }
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        from custom_components.rivian.data_classes import (
-            RivianBinarySensorEntityDescription,
-        )
 
         description = RivianBinarySensorEntityDescription(
             key="test_sensor",
@@ -621,7 +517,7 @@ class TestRivianBinarySensorEntityEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Should return None when entity is None (line 98)

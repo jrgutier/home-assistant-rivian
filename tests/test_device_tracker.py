@@ -16,6 +16,35 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 
+def _tracker_entity(
+    mock_config_entry: ConfigEntry,
+    vehicle: dict,
+    *,
+    latitude: float = 37.7749,
+    longitude: float = -122.4194,
+    timestamp: str = "2024-01-01T00:00:00Z",
+) -> RivianDeviceEntity:
+    """Build the location tracker over one reported GNSS fix."""
+    coordinator = MagicMock(spec=VehicleCoordinator)
+    coordinator.data = {
+        "gnssLocation": {
+            "latitude": latitude,
+            "longitude": longitude,
+            "timeStamp": timestamp,
+        }
+    }
+    coordinator.get = MagicMock(return_value=None)
+    return RivianDeviceEntity(
+        coordinator=coordinator,
+        config_entry=mock_config_entry,
+        description=RivianTrackerEntityDescription(
+            key="location",
+            translation_key="location",
+        ),
+        vehicle=vehicle,
+    )
+
+
 class TestRivianDeviceEntity:
     """Test RivianDeviceEntity class."""
 
@@ -23,36 +52,10 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test device tracker initialization."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.data = {
-            "gnssLocation": {
-                "latitude": 37.7749,
-                "longitude": -122.4194,
-                "timeStamp": "2024-01-01T00:00:00Z",
-            }
-        }
-        coordinator.get = MagicMock(return_value=None)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        description = RivianTrackerEntityDescription(
-            key="location",
-            translation_key="location",
-        )
-
-        entity = RivianDeviceEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=vehicle_data,
-        )
+        entity = _tracker_entity(mock_config_entry, mock_vehicle)
 
         assert entity._attribute == "gnssLocation"
         assert entity._tracker_data["latitude"] == 37.7749
@@ -62,35 +65,11 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test latitude property."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.data = {
-            "gnssLocation": {
-                "latitude": 40.7128,
-                "longitude": -74.0060,
-                "timeStamp": "2024-01-01T00:00:00Z",
-            }
-        }
-        coordinator.get = MagicMock(return_value=None)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        description = RivianTrackerEntityDescription(
-            key="location",
-            translation_key="location",
-        )
-
-        entity = RivianDeviceEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=vehicle_data,
+        entity = _tracker_entity(
+            mock_config_entry, mock_vehicle, latitude=40.7128, longitude=-74.0060
         )
 
         assert entity.latitude == 40.7128
@@ -99,35 +78,11 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test longitude property."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.data = {
-            "gnssLocation": {
-                "latitude": 40.7128,
-                "longitude": -74.0060,
-                "timeStamp": "2024-01-01T00:00:00Z",
-            }
-        }
-        coordinator.get = MagicMock(return_value=None)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        description = RivianTrackerEntityDescription(
-            key="location",
-            translation_key="location",
-        )
-
-        entity = RivianDeviceEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=vehicle_data,
+        entity = _tracker_entity(
+            mock_config_entry, mock_vehicle, latitude=40.7128, longitude=-74.0060
         )
 
         assert entity.longitude == -74.0060
@@ -136,36 +91,10 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test source_type is GPS."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.data = {
-            "gnssLocation": {
-                "latitude": 37.7749,
-                "longitude": -122.4194,
-                "timeStamp": "2024-01-01T00:00:00Z",
-            }
-        }
-        coordinator.get = MagicMock(return_value=None)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        description = RivianTrackerEntityDescription(
-            key="location",
-            translation_key="location",
-        )
-
-        entity = RivianDeviceEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=vehicle_data,
-        )
+        entity = _tracker_entity(mock_config_entry, mock_vehicle)
 
         assert entity.source_type == SourceType.GPS
 
@@ -173,36 +102,10 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test force_update is False (polling via coordinator)."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.data = {
-            "gnssLocation": {
-                "latitude": 37.7749,
-                "longitude": -122.4194,
-                "timeStamp": "2024-01-01T00:00:00Z",
-            }
-        }
-        coordinator.get = MagicMock(return_value=None)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        description = RivianTrackerEntityDescription(
-            key="location",
-            translation_key="location",
-        )
-
-        entity = RivianDeviceEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=vehicle_data,
-        )
+        entity = _tracker_entity(mock_config_entry, mock_vehicle)
 
         assert entity.force_update is False
 
@@ -210,35 +113,11 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra_state_attributes includes last_update."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.data = {
-            "gnssLocation": {
-                "latitude": 37.7749,
-                "longitude": -122.4194,
-                "timeStamp": "2024-01-01T12:30:45Z",
-            }
-        }
-        coordinator.get = MagicMock(return_value=None)
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
-        description = RivianTrackerEntityDescription(
-            key="location",
-            translation_key="location",
-        )
-
-        entity = RivianDeviceEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=vehicle_data,
+        entity = _tracker_entity(
+            mock_config_entry, mock_vehicle, timestamp="2024-01-01T12:30:45Z"
         )
 
         attrs = entity.extra_state_attributes
@@ -248,6 +127,7 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test _handle_coordinator_update updates tracker data when timestamp changes."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -260,13 +140,6 @@ class TestRivianDeviceEntity:
         }
         coordinator.get = MagicMock(return_value=None)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         description = RivianTrackerEntityDescription(
             key="location",
             translation_key="location",
@@ -276,7 +149,7 @@ class TestRivianDeviceEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Initial location
@@ -308,6 +181,7 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test _handle_coordinator_update doesn't update when timestamp is the same."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -320,13 +194,6 @@ class TestRivianDeviceEntity:
         }
         coordinator.get = MagicMock(return_value=None)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         description = RivianTrackerEntityDescription(
             key="location",
             translation_key="location",
@@ -336,7 +203,7 @@ class TestRivianDeviceEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Mock async_write_ha_state
@@ -361,6 +228,7 @@ class TestRivianDeviceEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle: dict,
     ) -> None:
         """Test _handle_coordinator_update handles exception gracefully."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -373,13 +241,6 @@ class TestRivianDeviceEntity:
         }
         coordinator.get = MagicMock(return_value=None)
 
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-        }
-
         description = RivianTrackerEntityDescription(
             key="location",
             translation_key="location",
@@ -389,7 +250,7 @@ class TestRivianDeviceEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # A payload missing timeStamp. Before upstream 53f6d93 this raised KeyError

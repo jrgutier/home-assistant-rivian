@@ -12,6 +12,7 @@ from custom_components.rivian.coordinator import (
     VehicleCoordinator,
     WallboxCoordinator,
 )
+from custom_components.rivian.data_classes import RivianButtonEntityDescription
 from custom_components.rivian.entity import (
     RivianChargingEntity,
     RivianVehicleControlEntity,
@@ -21,17 +22,6 @@ from custom_components.rivian.entity import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityDescription
-
-
-@pytest.fixture
-def mock_vehicle_data() -> dict:
-    """Return mock vehicle data."""
-    return {
-        "id": "test_vehicle_123",
-        "vin": "TEST123456789",
-        "name": "Test R1T",
-        "model": "R1T",
-    }
 
 
 @pytest.fixture
@@ -56,7 +46,7 @@ class TestRivianVehicleEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test entity initialization."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -72,7 +62,7 @@ class TestRivianVehicleEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity._vin == "TEST123456789"
@@ -83,7 +73,7 @@ class TestRivianVehicleEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test device info contains correct vehicle data."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -96,7 +86,7 @@ class TestRivianVehicleEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         device_info = entity.device_info
@@ -112,7 +102,7 @@ class TestRivianVehicleEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test _get_value method retrieves data from coordinator."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -126,7 +116,7 @@ class TestRivianVehicleEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity._get_value("batteryLevel") == 85.5
@@ -136,12 +126,10 @@ class TestRivianVehicleEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test availability based on field existence."""
         from dataclasses import dataclass
-
-        from homeassistant.helpers.entity import EntityDescription
 
         # Create custom description class with field attribute
         @dataclass
@@ -159,7 +147,7 @@ class TestRivianVehicleEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Field exists
@@ -205,7 +193,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test control entity initialization."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -219,7 +207,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity._command_in_progress is None
@@ -230,7 +218,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """A control on an OFFLINE vehicle is unavailable.
 
@@ -258,7 +246,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.available is False
@@ -267,7 +255,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """A parked, SLEEPING vehicle keeps its controls. This is the whole change.
 
@@ -289,7 +277,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
         entity.hass = hass
 
@@ -299,7 +287,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """SLEEPING relaxes gate 1 only. The other four gates are untouched.
 
@@ -320,7 +308,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
         entity.hass = hass
 
@@ -330,7 +318,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test entity unavailable when not in park gear."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -346,7 +334,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity.available is False
@@ -354,7 +342,7 @@ class TestRivianVehicleControlEntity:
     async def test_available_with_zone_restriction_inside_zone(
         self,
         hass: HomeAssistant,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test entity available when inside restricted zone."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -395,7 +383,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Assign hass to entity
@@ -407,7 +395,7 @@ class TestRivianVehicleControlEntity:
     async def test_available_with_zone_restriction_outside_zone(
         self,
         hass: HomeAssistant,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test entity unavailable when outside restricted zone."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -448,7 +436,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         # Assign hass to entity
@@ -461,7 +449,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra state attributes when command is in progress."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -473,7 +461,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         entity._command_in_progress = "UNLOCK_ALL_CLOSURES"
@@ -485,7 +473,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """Test extra state attributes with last command status."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -497,7 +485,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         entity._last_command_status = {
@@ -515,7 +503,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """response_code and status_code are present as None before any command.
 
@@ -533,7 +521,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         assert entity._last_command_status == {}
@@ -547,7 +535,7 @@ class TestRivianVehicleControlEntity:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_vehicle_data: dict,
+        mock_vehicle: dict,
     ) -> None:
         """After a command, both codes carry the values from _last_command_status.
 
@@ -563,7 +551,7 @@ class TestRivianVehicleControlEntity:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=mock_vehicle_data,
+            vehicle=mock_vehicle,
         )
 
         entity._last_command_status = {
@@ -739,21 +727,12 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test available returns False when description.available returns False."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
         coordinator.data = {"powerState": "awake"}
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
-        }
-
-        from custom_components.rivian.data_classes import RivianButtonEntityDescription
 
         # Create description with available function that returns False
         description = RivianButtonEntityDescription(
@@ -766,7 +745,7 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should return False (lines 102-103)
@@ -777,6 +756,7 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
         monkeypatch,
+        mock_vehicle_paired: dict,
     ) -> None:
         """Test available returns False when vehicle is outside all zones."""
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -784,14 +764,6 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
         coordinator.data = {
             "gnssLocation": {"latitude": 10.0, "longitude": 20.0},
             "powerState": "awake",
-        }
-
-        vehicle_data = {
-            "id": "test_vehicle_123",
-            "vin": "TEST123456789",
-            "name": "Test R1T",
-            "model": "R1T",
-            "phone_identity_id": "test_phone_id",
         }
 
         # Mock config entry with zone option
@@ -813,8 +785,6 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
             },
         )
 
-        from custom_components.rivian.data_classes import RivianButtonEntityDescription
-
         description = RivianButtonEntityDescription(
             key="test_button",
             translation_key="test_button",
@@ -824,7 +794,7 @@ class TestRivianVehicleControlEntityAvailableEdgeCases:
             coordinator=coordinator,
             config_entry=mock_config_entry,
             description=description,
-            vehicle=vehicle_data,
+            vehicle=mock_vehicle_paired,
         )
 
         # Should return False when outside zone (line 111)

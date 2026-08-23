@@ -113,10 +113,6 @@ class RivianNumberEntity(RivianVehicleControlEntity, NumberEntity):
 
     entity_description: RivianNumberEntityDescription
 
-    def _get_value(self, key: str) -> Any | None:
-        """Get a data value from the coordinator."""
-        return self.coordinator.get(key)
-
     @property
     def native_value(self) -> float | None:
         """Return the value reported by the number."""
