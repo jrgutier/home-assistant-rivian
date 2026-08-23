@@ -94,6 +94,32 @@ merge path and is synced with `scripts/sync_upstream_client.sh`. Do not run
 `ruff --fix` across `rivian_client/` -- it is excluded in `pyproject.toml` because
 reformatting vendored code recreates the divergence vendoring removed.
 
+## Git Workflow
+
+**`master` is protected — everything lands via pull request.** There is no path that commits
+straight to `master`, including for a one-line doc fix.
+
+**One branch per story, cut from `origin/master`**, named for the story
+(`s21-binary-sensor-apk-parity`). The `sNN:` commit prefix delineates one story from the next, and
+the branch boundary agrees with it.
+
+**Commit prefixes** use the repo's `sNN:` story convention. Version bumps are CI-owned
+(`chore: bump version [skip ci]`) — never bump by hand.
+
+**Pre-commit needs `.venv/bin` on PATH** or commits fail with "pre-commit not found". Fix the PATH;
+never reach for `--no-verify`. One of its hooks is `f11`, which checks that every `file.py:NN`
+citation in `custom_components/` still points at what it claims; `scripts/gates/f11.sh --fix`
+repairs drift. Note its corpus is `custom_components/` only — citations in `docs/` and `tests/`
+are not checked and must be verified by hand.
+
+**Amend before pushing, never after.** Once pushed, amending means a force-push, which rewrites
+history under an open PR: review comments detach from the lines they were left on, and anyone who
+pulled the branch cannot fast-forward.
+
+**Worktrees.** Git refuses two worktrees on the same branch, so parallel agents each get a
+short-lived `wt/<lane>` branch cut from the story branch. Merge it back into the *story branch* —
+never into `master` — and delete both the branch and the worktree when the lane closes.
+
 ## Architecture
 
 ### Core Components

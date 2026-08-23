@@ -27,7 +27,7 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         key="alarm",
         translation_key="alarm",
         icon="mdi:alarm-light",
-        # Unknown, not off: any value outside {true, false} (binary_sensor.py:109).
+        # Unknown, not off: any value outside {true, false} (binary_sensor.py:115).
         is_on=lambda coor: {"true": True, "false": False}.get(
             coor.get("alarmSoundStatus")
         ),
@@ -83,7 +83,7 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         # both halves. Splitting them is what produced the two-writer conflict in
         # ChargingCoordinator. cabinHoldStatus still backs its own sensor.
         # Unknown, not off: the decoder also emits unspecified / unavailable /
-        # fault (parallax.py:648-654). Same policy as binary_sensor.py:109.
+        # fault (parallax.py:648-654). Same policy as binary_sensor.py:115.
         is_on=lambda coor: {"on": True, "off": False}.get(
             coor.get("climateHoldStatus")
         ),

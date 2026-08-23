@@ -88,13 +88,19 @@ FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "entity_sets.json"
 # (closure_liftgate_closed, closure_liftgate_locked). R1T, R1S, and the
 # no-model fallback are unchanged: R1S's liftgate entries only relabeled from
 # "R1S" membership to "LIFTGATE" membership, same keys either way.
+# s20: the APK parity audit moved 12 shared-group descriptions from SENSORS to
+# BINARY_SENSORS (the six btm_*_hardware_failure_status, both battery HV thermal
+# event fields, alarm_sound_status, twelve_volt_battery_health, service_mode,
+# ota_install_ready) and added one sensor (charge_port_status, the companion for
+# the binary charge_port_state). All 13 land in the shared "R1" group, so every
+# model moves by the same delta: sensors -11, binary sensors +12.
 EXPECTED_COUNTS = {
-    "R1T": (124, 33),
-    "R1S": (124, 29),
-    "R2": (122, 29),
-    None: (121, 27),
-    "": (121, 27),
-    "R3X": (121, 27),
+    "R1T": (113, 45),
+    "R1S": (113, 41),
+    "R2": (111, 41),
+    None: (110, 39),
+    "": (110, 39),
+    "R3X": (110, 39),
 }
 
 

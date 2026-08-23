@@ -167,8 +167,19 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
         if (val := self._get_value(self.entity_description.field)) is None:
             return STATE_UNAVAILABLE if not self.native_unit_of_measurement else None
 
-        rval = _fn(val) if (_fn := self.entity_description.value_lambda) else val
         # A value the vehicle flags as unusable is not a state -- report unknown.
+        #
+        # Tested on the RAW value, BEFORE value_lambda runs, exactly as
+        # binary_sensor.py's is_on does. It used to test the lambda's OUTPUT, and
+        # that let three of the four spellings through: most lambdas run
+        # _to_title_case, which turns underscores into spaces, so
+        # "signal_not_available" arrived here as "signal not available" and
+        # matched nothing in the set. 27 of the 31 ENUM sensors leaked that way.
+        #
+        # All four spellings are the app's own -- p069Ci/EnumC0996d.java declares
+        # FAULT, SIGNAL_NOT_AVAILABLE, SNA and UNDEFINED as distinct constants --
+        # so INVALID_SENSOR_STATES is already right. Only the comparison point
+        # was wrong.
         #
         # This is the right layer for it. Suppressing it in the coordinator was
         # tried twice and is wrong: the raw value has to keep flowing, because
@@ -181,6 +192,20 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
         # Without this, the branch below appends "SNA" to the entity's own options
         # list, so the vehicle's error code silently becomes a valid state for the
         # life of the process, and the select beside it shows "unknown".
+        if str(val).lower() in INVALID_SENSOR_STATES:
+            return None
+
+        rval = _fn(val) if (_fn := self.entity_description.value_lambda) else val
+        # NOT redundant with the raw check above, and not dead. A lambda can
+        # manufacture an invalid spelling out of a value that was perfectly fine
+        # on the wire. The live case is cabin_preconditioning_status, whose
+        # lambda is `_to_title_case(v) if v else "Undefined"`: an EMPTY value
+        # passes the raw test ("" is not one of the four spellings), then the
+        # lambda turns it into "Undefined", which is. Without this second test
+        # that entity renders a literal "Undefined" instead of unknown.
+        #
+        # An earlier revision of this comment claimed a probe "found ZERO cases".
+        # That probe simply never fed a lambda the empty string.
         if str(rval).lower() in INVALID_SENSOR_STATES:
             return None
 

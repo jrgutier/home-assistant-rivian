@@ -1,0 +1,153 @@
+# Migration notes
+
+Breaking changes that require you to edit automations, scripts, dashboards or templates.
+Nothing here happens silently — if an entity ID changed, it is listed.
+
+## Twelve sensors became binary sensors
+
+**What breaks:** the entity ID's domain changes, `sensor.*` → `binary_sensor.*`. Home Assistant
+does not follow that rename. Anything naming the old ID — an automation trigger, a template, a
+dashboard card, a history graph — stops resolving and silently reads as unavailable.
+
+**Why:** each of these fields carries exactly two meaningful values in the Rivian app's own model.
+Modelling a two-state field as a text sensor meant no `on`/`off` state, no `problem` styling, no
+working `to: "on"` trigger, and no red "Detected" badge. The full reasoning, and the evidence for
+each field's vocabulary, is in
+[`docs/development/BINARY_SENSOR_AUDIT.md`](development/BINARY_SENSOR_AUDIT.md).
+
+**Do not assume the new entity ID mirrors the old one.** Home Assistant generates a fresh ID for
+the new `binary_sensor`, and on a real install it does not always match the old `sensor` spelling.
+Verified on a live R1T:
+
+| | |
+|---|---|
+| old | `sensor.r1t_12v_battery` |
+| new | `binary_sensor.r1t_r1t_12v_battery` — note the **doubled** vehicle prefix |
+
+That doubling is a pre-existing quirk of how this integration registers new entities (54 of 226
+entities on that install already had it, including `cover.r1t_r1t_tonneau_cover`, which this
+change never touched). It is not introduced here, but it does mean the safest way to find a new
+entity is by its **friendly name** in Settings → Devices & Services → Entities, not by guessing
+the ID.
+
+So read the table below as *"this friendly name moved from the sensor domain to the binary_sensor
+domain"*. `<name>` is your vehicle's slug, and the new ID may carry it twice.
+
+**The old `sensor.*` entities are not removed.** They stay in the registry and read `unavailable`
+forever. Delete them from Settings → Entities once you have ported anything that referenced them.
+
+| Old entity | New entity | `on` means | Off state |
+|---|---|---|---|
+| `sensor.<name>_bluetooth_module_failure_status_fascia_front` | `binary_sensor.<name>_bluetooth_module_failure_status_fascia_front` | `detected` — a fault is present | `not_detected` |
+| `sensor.<name>_bluetooth_module_failure_status_overhead_console` | `binary_sensor.<name>_bluetooth_module_failure_status_overhead_console` | `detected` | `not_detected` |
+| `sensor.<name>_bluetooth_module_failure_status_fascia_rear` | `binary_sensor.<name>_bluetooth_module_failure_status_fascia_rear` | `detected` | `not_detected` |
+| `sensor.<name>_bluetooth_module_failure_status_instrument_controls` | `binary_sensor.<name>_bluetooth_module_failure_status_instrument_controls` | `detected` | `not_detected` |
+| `sensor.<name>_bluetooth_module_failure_status_door_front_right` | `binary_sensor.<name>_bluetooth_module_failure_status_door_front_right` | `detected` | `not_detected` |
+| `sensor.<name>_bluetooth_module_failure_status_door_front_left` | `binary_sensor.<name>_bluetooth_module_failure_status_door_front_left` | `detected` | `not_detected` |
+| `sensor.<name>_battery_thermal_status` | `binary_sensor.<name>_battery_thermal_status` | `detected` — thermal event present | `undetected` |
+| `sensor.<name>_battery_thermal_runaway_propagation` | `binary_sensor.<name>_battery_thermal_runaway_propagation` | `detected` | `undetected` |
+| `sensor.<name>_gear_guard_alarm_status` | `binary_sensor.<name>_gear_guard_alarm_status` | `active` **or** `true` — alarm sounding | `inactive` / `false` |
+| `sensor.<name>_12v_battery` | `binary_sensor.<name>_12v_battery` | `low` — **on means unhealthy** | `ok` |
+| `sensor.<name>_service_mode` | `binary_sensor.<name>_service_mode` | `on` — vehicle in service mode | `off` |
+| `sensor.<name>_ota_install_ready` | `binary_sensor.<name>_ota_install_ready` | `available` — update ready to install | `not_available` |
+
+Two rows deserve a second look before you port a template:
+
+- **`12v_battery` inverts.** The sensor read `OK` when healthy; the binary sensor is `on`
+  when the battery is **`low`**. A template that checked `== 'OK'` becomes `is_state(..., 'off')`,
+  not `'on'`.
+- **`gear_guard_alarm_status` accepts two spellings.** The field has been observed carrying both
+  `active`/`inactive` and `true`/`false`, so both map to `on`. You do not need to handle the
+  difference yourself.
+
+### Porting examples
+
+```yaml
+# before
+- condition: template
+  value_template: "{{ states('sensor.r1t_service_mode') == 'On' }}"
+# after
+- condition: state
+  entity_id: binary_sensor.r1t_service_mode
+  state: "on"
+
+# before -- note the inversion
+- condition: template
+  value_template: "{{ states('sensor.r1t_12v_battery') != 'OK' }}"
+# after
+- condition: state
+  entity_id: binary_sensor.r1t_12v_battery
+  state: "on"
+```
+
+### Three that look similar but did NOT change
+
+Listed so you don't go hunting for renames that never happened:
+
+| Sensor | Why it stayed a sensor |
+|---|---|
+| `sensor.<name>_wiper_fluid_level` | Three states (`normal` / `low` / `empty`), not two |
+| `sensor.<name>_brake_fluid_level_low` | No vocabulary evidence in the app at all — not guessed into a boolean |
+| `sensor.<name>_ota_deployment_intent` | Two values, but `unspecified` is the absence of an answer, not the negation of `performance_upgrade` |
+
+## New entity
+
+`sensor.<name>_charge_port_status` — the charge port's full state (`open`, `close`,
+`in_transition`, `fault`, `opening`, `closing`), alongside the existing
+`binary_sensor.<name>_charge_port_door`. Nothing breaks; the binary sensor stays. It exists because
+the port has five meaningful states and a boolean can only carry one question about them. This
+mirrors `powerState`, which has carried both a binary sensor and a sensor for some time.
+
+## Behaviour change: SNA now renders as `unknown`
+
+**36 sensors** are affected. `sensor.py` was testing the *mapped* value against the invalid-state
+list instead of the raw one, so `signal_not_available` slipped through — and each ENUM sensor that
+it hit appended that bogus value to its own `options` list for the life of the process. Details in
+[`docs/development/SENSOR_INVALID_STATE_ORDERING.md`](development/SENSOR_INVALID_STATE_ORDERING.md).
+
+No entity IDs change. What changes is what these entities show when the vehicle says it does not
+know.
+
+(You may also see **27 of 31** quoted in the development note. That is a different measure, not a
+contradiction: 27 counts the ENUM sensors that *mutated their own options list*, 36 counts every
+sensor whose *displayed state* changed. The note has the full breakdown.)
+
+Most of the 36 are unambiguous repairs. The nine seat heat/vent sensors and `steering_wheel_heat`
+literally displayed the string **`signal not available`** as their state; they now show `unknown`.
+The same applies to every `*_next_action` closure sensor, the cabin/climate and gear-guard status
+sensors, `charger_status`, `charger_state`, `ota_status`, `ota_current_status`, `trailer_status`,
+`range_threshold` and `wiper_fluid_state`.
+
+`charge_port_status` and `power_state` previously showed the literal string `"Unknown"` for
+`fault` / `sna` / `undefined`; they now show HA's native `unknown`. A template comparing
+`states(...) == 'Unknown'` stops matching — use `is_state(..., 'unknown')`.
+
+### `gear_status` deserves a closer look
+
+This is the row most likely to break something. Its mapping is
+`GEAR_STATUS_MAP.get(v, "Not Defined")` — an explicit **default** — so *any* unrecognised value fell
+to `"Not Defined"`, including `sna`, `fault` and `undefined`.
+
+But `"Not Defined"` is also a **real gear value**: the app's own `GEAR_STATUS_MAP` carries
+`not_defined` as an entry. So two genuinely different facts rendered identically —
+
+| the vehicle says | rendered before | renders now |
+|---|---|---|
+| gear is `not_defined` | `Not Defined` | `Not Defined` (unchanged) |
+| SNA / fault — it does not know | `Not Defined` | `unknown` |
+
+If you have an automation keyed on the string `'Not Defined'` and were relying on it to catch the
+"no signal" case, it will stop firing for that case. It still fires for a genuine `not_defined`
+gear. Separating them is the point of the change.
+
+## Behaviour change without an entity change
+
+Doors, windows and closures previously reported **Closed** for any value other than the exact
+string `open`. The Rivian app treats `opened` as open too, and `ajar` as open for the frunk.
+
+So a **frunk left ajar reported Closed** — not `unknown`, but a confident Closed. A "close the
+frunk before leaving" automation never fired on it. Those descriptions now accept the full set.
+
+No entity ID or device class changed. If you built a workaround for this — reading
+`state_attr('binary_sensor.<name>_hood', 'value')` and comparing to `'ajar'` yourself — it still
+works, but it is no longer necessary.
