@@ -196,12 +196,16 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
             return None
 
         rval = _fn(val) if (_fn := self.entity_description.value_lambda) else val
-        # Pre-existing, and kept deliberately. Probing every lambda over its own
-        # declared options plus the common wire spellings found ZERO cases where
-        # a valid input produces an invalid-looking output, so this is defensive
-        # rather than load-bearing -- but that probe is sampling, not proof, and
-        # this check predates the raw one above. Safe to delete only with an
-        # argument stronger than "the probe found nothing".
+        # NOT redundant with the raw check above, and not dead. A lambda can
+        # manufacture an invalid spelling out of a value that was perfectly fine
+        # on the wire. The live case is cabin_preconditioning_status, whose
+        # lambda is `_to_title_case(v) if v else "Undefined"`: an EMPTY value
+        # passes the raw test ("" is not one of the four spellings), then the
+        # lambda turns it into "Undefined", which is. Without this second test
+        # that entity renders a literal "Undefined" instead of unknown.
+        #
+        # An earlier revision of this comment claimed a probe "found ZERO cases".
+        # That probe simply never fed a lambda the empty string.
         if str(rval).lower() in INVALID_SENSOR_STATES:
             return None
 

@@ -16,7 +16,7 @@ custom_components/rivian/rivian_client/rivian.py	raise err_cls(response.status, 
 custom_components/rivian/rivian_client/rivian.py	"Error occurred while reading the graphql response from Rivian.",	custom_components/rivian/rivian_client/exceptions.py	91d3a804be55	the five-positional-argument raise site (ERROR_CODE_CLASS_MAP fallback)
 custom_components/rivian/rivian_client/rivian.py	raise err_cls(response.status, response_json, headers, body)	custom_components/rivian/rivian_client/exceptions.py	11b1e1adbbdc	second mention of the four-arg site
 custom_components/rivian/rivian_client/rivian.py	"Error occurred while reading the graphql response from Rivian.",	custom_components/rivian/rivian_client/exceptions.py	75ea01bf155a	second mention of the five-arg site
-custom_components/rivian/sensor.py	if str(rval).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/binary_sensor.py	c100b8e20f42	off by one: sensor.py's INVALID_SENSOR_STATES check is :184, not :183
+custom_components/rivian/sensor.py	if str(rval).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/binary_sensor.py	a95057ae823c	off by one: sensor.py's INVALID_SENSOR_STATES check is :184, not :183
 custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	88d6970dcb2f	binary_sensor.py's INVALID_SENSOR_STATES check
 custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	4151485ecfa7	second mention, same target
 custom_components/rivian/rivian_client/parallax.py	_CLIMATE_HOLD_STATUS = {	custom_components/rivian/switch.py	4151485ecfa7	the climateHoldStatus decode table

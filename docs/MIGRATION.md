@@ -98,19 +98,43 @@ Listed so you don't go hunting for renames that never happened:
 the port has five meaningful states and a boolean can only carry one question about them. This
 mirrors `powerState`, which has carried both a binary sensor and a sensor for some time.
 
-## Behaviour change: SNA now renders as `unknown`, not "Unknown"
+## Behaviour change: SNA now renders as `unknown`
 
-Sensors whose value mapping *rescued* an unusable vehicle value no longer do. `charge_port_status`
-and `power_state` mapped `sna` to the literal string `"Unknown"`; both now return Home Assistant's
-native `unknown` state instead.
-
-No entity ID changes. What changes is that a template comparing `states(...) == 'Unknown'` stops
-matching — use `is_state(..., 'unknown')`, or better `states(...) in ['unknown', 'unavailable']`.
-
-This is the visible half of a wider fix: `sensor.py` was testing the *mapped* value against the
-invalid-state list instead of the raw one, so `signal_not_available` slipped through on 27 of 31
-sensors and each one appended that bogus value to its own options list. See
+**36 sensors** are affected. `sensor.py` was testing the *mapped* value against the invalid-state
+list instead of the raw one, so `signal_not_available` slipped through — and each ENUM sensor that
+it hit appended that bogus value to its own `options` list for the life of the process. Details in
 [`docs/development/SENSOR_INVALID_STATE_ORDERING.md`](development/SENSOR_INVALID_STATE_ORDERING.md).
+
+No entity IDs change. What changes is what these entities show when the vehicle says it does not
+know.
+
+Most of the 36 are unambiguous repairs. The nine seat heat/vent sensors and `steering_wheel_heat`
+literally displayed the string **`signal not available`** as their state; they now show `unknown`.
+The same applies to every `*_next_action` closure sensor, the cabin/climate and gear-guard status
+sensors, `charger_status`, `charger_state`, `ota_status`, `ota_current_status`, `trailer_status`,
+`range_threshold` and `wiper_fluid_state`.
+
+`charge_port_status` and `power_state` previously showed the literal string `"Unknown"` for
+`fault` / `sna` / `undefined`; they now show HA's native `unknown`. A template comparing
+`states(...) == 'Unknown'` stops matching — use `is_state(..., 'unknown')`.
+
+### `gear_status` deserves a closer look
+
+This is the row most likely to break something. Its mapping is
+`GEAR_STATUS_MAP.get(v, "Not Defined")` — an explicit **default** — so *any* unrecognised value fell
+to `"Not Defined"`, including `sna`, `fault` and `undefined`.
+
+But `"Not Defined"` is also a **real gear value**: the app's own `GEAR_STATUS_MAP` carries
+`not_defined` as an entry. So two genuinely different facts rendered identically —
+
+| the vehicle says | rendered before | renders now |
+|---|---|---|
+| gear is `not_defined` | `Not Defined` | `Not Defined` (unchanged) |
+| SNA / fault — it does not know | `Not Defined` | `unknown` |
+
+If you have an automation keyed on the string `'Not Defined'` and were relying on it to catch the
+"no signal" case, it will stop firing for that case. It still fires for a genuine `not_defined`
+gear. Separating them is the point of the change.
 
 ## Behaviour change without an entity change
 
