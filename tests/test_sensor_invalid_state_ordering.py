@@ -81,16 +81,39 @@ class TestNoInvalidSpellingReachesTheOptionsCheck:
 class TestOrderingMatchesBinarySensor:
     """The raw value is tested BEFORE the lambda, not after."""
 
-    def test_a_lambda_that_would_rescue_an_invalid_value_does_not_get_to(self) -> None:
-        """`charge_port_status` maps every invalid spelling to "Unknown".
+    def test_the_raw_check_is_the_only_thing_protecting_the_entity(self) -> None:
+        """There is no safety net under the raw check, and none is needed.
 
-        That mapping is fine and stays -- but it must never be what decides the
-        outcome, because a lambda that rescues an invalid value is exactly how the
-        old ordering hid the bug. The raw check has to win first.
+        This assertion used to read the other way round: the lambda mapped every
+        invalid spelling to "Unknown", and the test showed the raw check won
+        anyway. That guard has since been removed, precisely BECAUSE the raw
+        check made it unreachable -- so the lambda now passes an invalid value
+        straight through, and the property is stronger for it.
+
+        `signal_not_available` -> "Signal Not Available" is a string that is not
+        in `options` and is not a valid state. Nothing downstream would catch it.
+        The raw check does, before the lambda is ever reached.
         """
         description = DESCRIPTIONS["charge_port_status"]
-        assert description.value_lambda("signal_not_available") == "Unknown"
+        rendered = description.value_lambda("signal_not_available")
+        assert rendered == "Signal Not Available"
+        assert rendered not in (description.options or [])
         assert _native_value(description, "signal_not_available") is None
+
+    def test_the_same_holds_for_power_state(self) -> None:
+        """The other lambda that carried a now-removed guard."""
+        description = DESCRIPTIONS["power_state"]
+        assert description.value_lambda("sna") == "Sna"
+        assert _native_value(description, "sna") is None
+
+    def test_the_empty_value_branch_is_still_load_bearing(self) -> None:
+        """`""` passes the raw check, so the lambda's `if v` still matters.
+
+        This is the half of the guard that was NOT removed. Deleting it too
+        would make both entities render an empty string.
+        """
+        for key in ("charge_port_status", "power_state"):
+            assert _native_value(DESCRIPTIONS[key], "") == "Unknown", key
 
     def test_valid_values_still_pass_through_the_lambda(self) -> None:
         """The fix must not break the normal path."""

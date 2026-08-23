@@ -24,6 +24,19 @@ Measured before the fix: **27 of the 31** options-carrying sensors leaked on
 `trailer_status`, `power_state`, and all nine seat heat/vent sensors. `sensor.py`'s own comment
 notes the rear seat heaters report SNA whenever the vehicle is parked, so this was not exotic.
 
+### 27 here, 36 in MIGRATION.md — both correct
+
+They count different harms, so neither contradicts the other:
+
+| | count | of what | what it counts |
+|---|---|---|---|
+| here | **27** | of the 31 options-carrying sensors | leaked `signal_not_available` into the ENUM check and **mutated their own `options` list** |
+| MIGRATION.md | **36** | of the 38 lambda-carrying sensors | their **displayed state** changed, on any of the four spellings |
+
+The nine in the gap are there for one of two reasons: six carry no `options` at all, so they
+displayed a wrong string but had nothing to mutate; and `gear_status` and `charge_port_status`
+changed on spellings beyond `signal_not_available` — all four, in their case.
+
 ## Why the constant was already right
 
 The app is normative and it agrees with us. `java_src/p069Ci/EnumC0996d.java` declares all four as

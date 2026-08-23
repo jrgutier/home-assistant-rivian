@@ -108,6 +108,10 @@ it hit appended that bogus value to its own `options` list for the life of the p
 No entity IDs change. What changes is what these entities show when the vehicle says it does not
 know.
 
+(You may also see **27 of 31** quoted in the development note. That is a different measure, not a
+contradiction: 27 counts the ENUM sensors that *mutated their own options list*, 36 counts every
+sensor whose *displayed state* changed. The note has the full breakdown.)
+
 Most of the 36 are unambiguous repairs. The nine seat heat/vent sensors and `steering_wheel_heat`
 literally displayed the string **`signal not available`** as their state; they now show `unknown`.
 The same applies to every `*_next_action` closure sensor, the cabin/climate and gear-guard status

@@ -702,9 +702,9 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Go",
                 "Unknown",
             ],
-            value_lambda=lambda v: (
-                _to_title_case(v) if v and v.lower() != "sna" else "Unknown"
-            ),
+            # See charge_port_status above: the raw check in sensor.py makes an
+            # invalid-value guard here unreachable.
+            value_lambda=lambda v: _to_title_case(v) if v else "Unknown",
         ),
         RivianSensorEntityDescription(
             key="charge_port_status",
@@ -722,17 +722,10 @@ SENSORS: Final[dict[str, tuple[RivianSensorEntityDescription, ...]]] = {
                 "Closing",
                 "Unknown",
             ],
-            # Tests INVALID_SENSOR_STATES, not `!= "sna"`. `_to_title_case`
-            # turns underscores into spaces, so "signal_not_available" became
-            # "Signal Not Available", whose lower() is "signal not available" --
-            # which is NOT in the set, so it slipped past sensor.py's filter,
-            # logged an error, and appended itself to this entity's own options
-            # for the life of the process.
-            value_lambda=lambda v: (
-                _to_title_case(v)
-                if v and v.lower() not in INVALID_SENSOR_STATES
-                else "Unknown"
-            ),
+            # No invalid-value guard here: sensor.py resolves every spelling in
+            # INVALID_SENSOR_STATES to None on the RAW value, before this runs.
+            # The empty-value branch is still needed -- "" reaches the lambda.
+            value_lambda=lambda v: _to_title_case(v) if v else "Unknown",
         ),
         RivianSensorEntityDescription(
             key="range_threshold",
