@@ -690,6 +690,12 @@
       "seat_rear_right_heat": {
         "name": "Rear Right Seat Heating"
       },
+      "seat_third_row_left_heat": {
+        "name": "Third Row Left Seat Heating"
+      },
+      "seat_third_row_right_heat": {
+        "name": "Third Row Right Seat Heating"
+      },
       "seat_front_left_heat_vent": {
         "name": "Front Left Seat Climate"
       },

@@ -464,12 +464,13 @@ async def test_async_setup_entry(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # A vehicle advertising NO capability flags still gets the two unconditional
-    # covers. frunk is deliberately among them: gating it behind FRUNK_NXT_ACT
+    # A vehicle advertising NO capability flags still gets the one unconditional
+    # cover. frunk is deliberately ungated: gating it behind FRUNK_NXT_ACT
     # left vehicles that do not advertise that flag with no frunk control at all.
-    assert len(entities_added) == 2
+    # windows moved to COVERS["WINDOWS_CMD"] and is not created here.
+    assert len(entities_added) == 1
     assert all(isinstance(e, RivianCoverEntity) for e in entities_added)
-    assert {e.entity_description.key for e in entities_added} == {"frunk", "windows"}
+    assert {e.entity_description.key for e in entities_added} == {"frunk"}
 
 
 @pytest.mark.asyncio
@@ -503,6 +504,7 @@ async def test_async_setup_entry_with_all_features(
                 "CHARG_PORT_DOOR_COMMAND",
                 "LIFTGATE_CMD",
                 "FRUNK_NXT_ACT",
+                "WINDOWS_CMD",
             ],
             "option_codes": ["TON-P01"],
         }
@@ -524,10 +526,11 @@ async def test_async_setup_entry_with_all_features(
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # frunk and windows unconditionally, tonneau because this vehicle has
-    # option_codes=["TON-P01"] (NOT because it reports closureTonneauClosed --
-    # that's supplied too, precisely to prove it is not what's granting this),
-    # plus charge_port and liftgate from the feature flags.
+    # frunk unconditionally, windows because of WINDOWS_CMD, tonneau because
+    # this vehicle has option_codes=["TON-P01"] (NOT because it reports
+    # closureTonneauClosed -- that's supplied too, precisely to prove it is
+    # not what's granting this), plus charge_port and liftgate from the
+    # remaining feature flags.
     assert len(entities_added) == 5
     assert {e.entity_description.key for e in entities_added} == {
         "frunk",

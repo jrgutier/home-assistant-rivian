@@ -14,6 +14,7 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSelectEntityDescription
 from .entity import RivianVehicleControlEntity
+from .helpers import vehicle_supports
 from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
@@ -83,6 +84,32 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
             params={"level": int(option)},
         ),
     ),
+    RivianSelectEntityDescription(
+        key="seat_third_row_left_heat",
+        translation_key="seat_third_row_left_heat",
+        icon="mdi:car-seat-heater",
+        options=LEVELS,
+        field="seatThirdRowLeftHeat",
+        feature="HEATED_SEATS_THIRD",
+        entity_registry_enabled_default=False,
+        select=lambda coordinator, option: coordinator.send_vehicle_command(
+            command=VehicleCommand.CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT,
+            params={"level": int(option)},
+        ),
+    ),
+    RivianSelectEntityDescription(
+        key="seat_third_row_right_heat",
+        translation_key="seat_third_row_right_heat",
+        icon="mdi:car-seat-heater",
+        options=LEVELS,
+        field="seatThirdRowRightHeat",
+        feature="HEATED_SEATS_THIRD",
+        entity_registry_enabled_default=False,
+        select=lambda coordinator, option: coordinator.send_vehicle_command(
+            command=VehicleCommand.CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT,
+            params={"level": int(option)},
+        ),
+    ),
 )
 
 
@@ -120,8 +147,9 @@ async def async_setup_entry(
         [
             RivianSelectEntity(coordinators[vehicle_id], entry, description, vehicle)
             for vehicle_id, vehicle in vehicles.items()
-            if vehicle.get("phone_identity_id")
             for description in SELECTS
+            if vehicle.get("phone_identity_id")
+            and vehicle_supports(description, vehicle)
         ]
     )
 

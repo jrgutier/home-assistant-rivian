@@ -389,7 +389,7 @@ class TestTheSevenHaveEntities:
     def test_each_backs_a_sensor(self, field: str) -> None:
         from custom_components.rivian.const import SENSORS
 
-        fields = {d.field for group in SENSORS.values() for d in group}
+        fields = {d.field for d in SENSORS}
         assert field in fields, f"{field} is decoded but exposed by nothing"
 
     @pytest.mark.parametrize("field", SEVEN)
@@ -440,10 +440,9 @@ class TestTheSevenHaveEntities:
     def _enabled_default(field: str) -> bool:
         from custom_components.rivian.const import SENSORS
 
-        for group in SENSORS.values():
-            for description in group:
-                if description.field == field:
-                    return description.entity_registry_enabled_default
+        for description in SENSORS:
+            if description.field == field:
+                return description.entity_registry_enabled_default
         raise AssertionError(f"{field} backs no sensor")
 
     @pytest.mark.parametrize(

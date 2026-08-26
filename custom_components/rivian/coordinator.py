@@ -1429,8 +1429,8 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                         # Dropping it here instead was tried and reverted: it
                         # made entities unavailable rather than show a
                         # stale-but-plausible state, which takes the matching
-                        # control down with the sensor (sensor.py:186,
-                        # binary_sensor.py:110).
+                        # control down with the sensor (sensor.py:185,
+                        # binary_sensor.py:109).
                         self._note_unusable(k, value)
                     # `history` is a set, so an unhashable value (decode_vehicle_wheels
                     # returns a LIST) raised `unhashable type: 'list'` and killed the

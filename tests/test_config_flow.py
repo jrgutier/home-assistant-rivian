@@ -113,6 +113,21 @@ class TestRivianFlowHandler:
         # Should return SchemaOptionsFlowHandler instance
         assert isinstance(flow_handler, SchemaOptionsFlowHandler)
 
+    def test_vehicle_control_filter_includes_r1s_r1t_r2(self) -> None:
+        """Enrollment/pairing widening, not the zone picker (CONF_ZONE)."""
+        from custom_components.rivian.config_flow import OPTIONS_SCHEMA, R1S, R1T, R2
+        from custom_components.rivian.const import CONF_VEHICLE_CONTROL
+
+        key = next(
+            k
+            for k in OPTIONS_SCHEMA.schema
+            if getattr(k, "schema", None) == CONF_VEHICLE_CONTROL
+        )
+        selector = OPTIONS_SCHEMA.schema[key]
+        models = {item["model"] for item in selector.config["filter"]}
+        assert models == {"R1S", "R1T", "R2"}
+        assert selector.config["filter"] == [R1S, R1T, R2]
+
     async def test_show_credential_fields(self, hass: HomeAssistant) -> None:
         """Test _show_credential_fields method."""
         flow = RivianFlowHandler()

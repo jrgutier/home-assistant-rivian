@@ -1,47 +1,23 @@
-"""Which entity groups a vehicle gets, decided by an exact map rather than `in`.
+"""Optional-hardware gating for sensors and binary sensors.
 
-The predicate was `if model in vehicle["model"]` -- a SUBSTRING test over the
-group keys `R1`, `R1T`, `R1S`. It works by accident for the two models it was
-written against and fails silently for everything else:
+Every vehicle receives every description that `vehicle_supports()` grants.
+Ungated descriptions (no `feature=` / `option_code=`) are the floor: R2 still
+gets entities, which is the f3a substring-map bug. Optional hardware is
+created only when a live featureName or option code matches.
 
-    "R1"  in "R1T"  -> True     (intended)
-    "R1"  in "R2"   -> False    <-- an R2 receives ZERO entities
-    "R1T" in "R1S"  -> False    (intended)
+Counts are asserted NUMERICALLY, not as set equality. A set dedupes, so a
+set-equality assertion passes vacuously against exactly the duplication an
+`ALL` group would cause.
 
-An R2 owner gets no sensors and no binary sensors at all, with nothing logged.
-
-The replacement is an explicit map. Two things it deliberately does not do:
-
-  * It adds no `"ALL"` key populated from `"R1"`. The platform comprehensions
-    build LISTS, and every description shares `unique_id = f"{vin}-{key}"`
-    (entity.py:49), so giving R1T the groups ALL, R1 and R1T would add 87 sensors
-    and 27 binary sensors twice -- 114 duplicate-unique-id errors per vehicle.
-
-  * It does not raise on an unknown model. An exact map is less forgiving than
-    the substring test it replaces, and a KeyError here removes every entity for
-    that vehicle. Unknown falls back to the shared `R1` group.
-
-The counts below are asserted NUMERICALLY, not as set equality. A set dedupes,
-so a set-equality assertion passes vacuously against exactly the duplication the
-first bullet is about.
-
-s19 follow-up: fixing the empty-group bug did not fix R2 fully. Liftgate STATE
-(closure_liftgate_closed, closure_liftgate_locked, closure_liftgate_next_action)
-lived only in "R1S", so an R2 -- an SUV with a liftgate -- got the liftgate
-CONTROL (gated separately on the LIFTGATE_CMD feature flag) with none of the
-state to go with it: it could open a liftgate it couldn't see the position of.
-Those three descriptions moved to their own "LIFTGATE" group in const.py, and
-both "R1S" and "R2" now include it. Rejected: `R2 -> ("R1", "R1S")`, which
-would also hand the R2 the two third-row seat heaters in "R1S" -- no R2
-configuration has a third row. See legacy_grants.py's VEHICLE_MODEL_GRANTS
-comment (moved there from helpers.py in the s19 SECTION A follow-up; groups_for_model
-itself is still imported from helpers.py, unchanged).
+s19 inverted (accepted): R2/R1S without `LIFTGATE_CMD` lose liftgate *state*.
+Liftgate control stays dict-key gated on that same flag in cover.py.
 """
 
 from __future__ import annotations
 
 import json
 import pathlib
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -60,103 +36,170 @@ from custom_components.rivian.const import (
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.cover import async_setup_entry as cover_setup
 from custom_components.rivian.entity import RivianVehicleEntity
-from custom_components.rivian.helpers import groups_for_model
 from custom_components.rivian.sensor import async_setup_entry as sensor_setup
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityDescription
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+from dump_entity_sets import SCENARIOS, entity_keys_for_scenario
+
 FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "entity_sets.json"
 
-# Sensors and binary sensors per model. Stated as literals so the numbers are
+# Flag-dependent, not model-dependent. Stated as literals so the numbers are
 # reviewable here rather than recomputed from the same source they are checking
 # (derived via `scripts/dump_entity_sets.py`, not guessed -- run it with
 # --check to confirm these against tests/fixtures/entity_sets.json).
-#
-# Deliberately raised by f5's follow-up, which added nine sensors -- the fields
-# the new Parallax decoders are the ONLY source for. Without them the decoders
-# wrote into the coordinator and nothing read the result: fourteen new decoders
-# and not one new entity. All nine are entity_registry_enabled_default=False.
-# Shared group 87 -> 96.
-#
-# Raised again by the field-parity release's 25 new sensors (const.py's §E),
-# all landing in the shared "R1" group -- every model gains all 25. Shared
-# group 96 -> 121. Binary sensors are untouched throughout.
-#
-# s19: R2 raised again, from the "LIFTGATE" group fix above -- 121 -> 122
-# sensors (closure_liftgate_next_action), 27 -> 29 binary sensors
-# (closure_liftgate_closed, closure_liftgate_locked). R1T, R1S, and the
-# no-model fallback are unchanged: R1S's liftgate entries only relabeled from
-# "R1S" membership to "LIFTGATE" membership, same keys either way.
-# s20: the APK parity audit moved 12 shared-group descriptions from SENSORS to
-# BINARY_SENSORS (the six btm_*_hardware_failure_status, both battery HV thermal
-# event fields, alarm_sound_status, twelve_volt_battery_health, service_mode,
-# ota_install_ready) and added one sensor (charge_port_status, the companion for
-# the binary charge_port_state). All 13 land in the shared "R1" group, so every
-# model moves by the same delta: sensors -11, binary sensors +12.
-EXPECTED_COUNTS = {
-    "R1T": (113, 45),
-    "R1S": (113, 41),
-    "R2": (111, 41),
-    None: (110, 39),
-    "": (110, 39),
-    "R3X": (110, 39),
+NO_FLAG_COUNTS = (110, 39)
+
+R1T_FULL_FEATURES = (
+    "WINDOWS_CMD",
+    "TAILGATE_CMD",
+    "TAILGATE_NXT_ACT",
+    "SIDE_BIN_NXT_ACT",
+    "CHARG_PORT_DOOR_COMMAND",
+)
+
+# Dump scenario labels after --write. Sensors/binaries only -- pairing does
+# not change those two platforms.
+FIXTURE_COUNTS = {
+    "R1T": (110, 39),
+    "R1S": (110, 39),
+    "R2": (110, 39),
+    "__absent__": (110, 39),
+    "unpaired": (110, 39),
+    "R1T_full_hardware": (113, 45),
+    "R1S_full_hardware": (113, 41),
+    "R2_full_hardware": (111, 41),
 }
 
+STAY_UNGATED_KEYS = frozenset(
+    {
+        # binary_sensor.py / BINARY_SENSORS
+        "closure_tailgate_closed",
+        "closure_tailgate_locked",
+        "charge_port_state",
+        "window_front_left_closed",
+        "window_front_right_closed",
+        "window_rear_left_closed",
+        "window_rear_right_closed",
+        "car_wash_mode",
+        "alarm_sound_status",
+        "gear_guard_locked",
+        # sensor.py / SENSORS
+        "charge_port_status",
+        "windows_next_action",
+        "trailer_status",
+        "cabin_hold_status",
+        "gear_guard_video_mode",
+        "gear_guard_video_status",
+        "gear_guard_video_terms_accepted",
+        "seat_front_left_heat",
+        "seat_front_left_vent",
+        "seat_front_right_heat",
+        "seat_front_right_vent",
+        "seat_rear_left_heat",
+        "seat_rear_right_heat",
+        "pet_mode_status",
+        "pet_mode_temperature_status",
+        # cover.py COVERS[None]
+        "frunk",
+        # switch.py SWITCHES
+        "cabin_climate_hold",
+        "charging_enabled",
+        "gear_guard_video",
+        "alarm",
+        # select.py SELECTS + FRONT_SEAT_SELECTS
+        "seat_front_left_heat_vent",
+        "seat_front_right_heat_vent",
+    }
+)
 
-class TestGroupsForModel:
-    """The map itself."""
+GATED_ABSENT_FROM_NO_FLAG_R1T = frozenset(
+    {
+        "closure_liftgate_next_action",
+        "closure_liftgate_closed",
+        "closure_liftgate_locked",
+        "seat_third_row_left_heat",
+        "seat_third_row_right_heat",
+        "closure_side_bin_left_next_action",
+        "closure_side_bin_right_next_action",
+        "closure_side_bin_left_closed",
+        "closure_side_bin_left_locked",
+        "closure_side_bin_right_closed",
+        "closure_side_bin_right_locked",
+        "closure_tailgate_next_action",
+        "closure_tonneau_closed",
+        "closure_tonneau_locked",
+        "windows",
+        "charge_port",
+        "liftgate",
+        "tonneau",
+        "open_gear_tunnel_left",
+        "open_gear_tunnel_right",
+        "drop_tailgate",
+        "open_tailgate",
+        "open_liftgate",
+    }
+)
 
-    @pytest.mark.parametrize(
-        ("model", "expected"),
-        [
-            ("R1T", ("R1", "R1T")),
-            ("R1S", ("R1", "R1S", "LIFTGATE")),
-            ("R2", ("R1", "LIFTGATE")),
-        ],
-    )
-    def test_known_models(self, model: str, expected: tuple[str, ...]) -> None:
-        assert groups_for_model(model) == expected
 
-    @pytest.mark.parametrize("model", [None, "", "R2T", "R3X", "unknown"])
-    def test_unknown_or_missing_falls_back_to_the_shared_group(
-        self, model: str | None
-    ) -> None:
-        """Never raise. A KeyError here removes every entity for that vehicle."""
-        assert groups_for_model(model) == ("R1",)
+def _r1t_no_flag_dump_keys() -> set[str]:
+    scenario = next(s for s in SCENARIOS if s.label == "R1T")
+    return {
+        key
+        for platform_keys in entity_keys_for_scenario(scenario).values()
+        for key in platform_keys
+    }
 
-    def test_r2_is_not_empty_which_is_the_bug_being_fixed(self) -> None:
-        assert groups_for_model("R2") == ("R1", "LIFTGATE")
-        assert "R1" in groups_for_model("R2")
 
-    def test_r2_gets_liftgate_state_which_is_the_s19_bug_being_fixed(self) -> None:
-        """R2 is an SUV with a liftgate; it must not be state-blind for it."""
-        assert "LIFTGATE" in groups_for_model("R2")
-        # And it must not gain the third-row seat heaters that come bundled
-        # with "R1S" -- no R2 configuration has a third row.
-        assert "R1S" not in groups_for_model("R2")
+def _scenario(label: str):
+    return next(s for s in SCENARIOS if s.label == label)
 
-    def test_no_all_group_exists(self) -> None:
-        """An `ALL` key would double-add the shared group -- 114 duplicates."""
-        assert "ALL" not in SENSORS
-        assert "ALL" not in BINARY_SENSORS
-        for model in ("R1T", "R1S", "R2", None):
-            assert "ALL" not in groups_for_model(model)
 
-    def test_groups_are_returned_without_repeats(self) -> None:
-        """The comprehensions build lists; a repeated group is a duplicate entity."""
-        for model in ("R1T", "R1S", "R2", None, "", "nonsense"):
-            groups = groups_for_model(model)
-            assert len(groups) == len(set(groups)), model
+def _keys_with_feature(collection, *names: str) -> set[str]:
+    wanted = set(names)
+    out: set[str] = set()
+    for d in collection:
+        feat = d.feature
+        if feat is None:
+            continue
+        have = {feat} if isinstance(feat, str) else set(feat)
+        if have & wanted:
+            out.add(d.key)
+    return out
 
-    def test_every_returned_group_actually_exists(self) -> None:
-        for model in ("R1T", "R1S", "R2", None, "nonsense"):
-            for group in groups_for_model(model):
-                assert group in SENSORS or group in BINARY_SENSORS, group
+
+def _keys_with_option(collection, code: str) -> set[str]:
+    return {d.key for d in collection if d.option_code == code}
+
+
+class TestUniqueKeys:
+    """Keys unique across SENSORS and across BINARY_SENSORS.
+
+    unique_id is vin-plus-key (entity.py). A repeated key is a duplicate
+    entity regardless of which flag granted it.
+    """
+
+    def test_sensor_keys_are_unique(self) -> None:
+        keys = [d.key for d in SENSORS]
+        assert len(keys) == len(set(keys)), sorted(
+            {k for k in keys if keys.count(k) > 1}
+        )
+
+    def test_binary_sensor_keys_are_unique(self) -> None:
+        keys = [d.key for d in BINARY_SENSORS]
+        assert len(keys) == len(set(keys)), sorted(
+            {k for k in keys if keys.count(k) > 1}
+        )
 
 
 async def _setup(
-    hass: HomeAssistant, entry: ConfigEntry, model: str | None
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    model: str | None,
+    features: tuple[str, ...] = (),
+    option_codes: tuple[str, ...] = (),
 ) -> tuple[list, list]:
     """Run both platforms for one vehicle and return (sensors, binary sensors)."""
     vehicle = {
@@ -164,7 +207,8 @@ async def _setup(
         "vin": "TESTVIN0000000001",
         "name": "Test Vehicle",
         "phone_identity_id": "phone-1",
-        "supported_features": [],
+        "supported_features": list(features),
+        "option_codes": list(option_codes),
     }
     if model is not None:
         vehicle["model"] = model
@@ -199,8 +243,29 @@ async def _setup(
     return sensors, binaries
 
 
+class TestStayUngatedAndGatedAbsent:
+    """Stay-ungated keys must remain; gated keys must leave no-flag R1T."""
+
+    def test_stay_ungated_keys_are_in_no_flag_r1t_dump(self) -> None:
+        assert STAY_UNGATED_KEYS <= _r1t_no_flag_dump_keys()
+
+    async def test_stay_ungated_sensor_binary_keys_are_in_no_flag_r1t_setup(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        sensors, binaries = await _setup(hass, mock_config_entry, "R1T", features=())
+        keys = {
+            e.entity_description.key
+            for e in (*_vehicle_only(sensors), *_vehicle_only(binaries))
+        }
+        sensor_or_binary = {d.key for d in SENSORS} | {d.key for d in BINARY_SENSORS}
+        assert STAY_UNGATED_KEYS & sensor_or_binary <= keys
+
+    def test_gated_absent_disjoint_from_no_flag_r1t_dump(self) -> None:
+        assert GATED_ABSENT_FROM_NO_FLAG_R1T.isdisjoint(_r1t_no_flag_dump_keys())
+
+
 def _vehicle_only(entities: list) -> list:
-    """Drop the charging/wallbox/cloud entities the model map does not govern."""
+    """Drop the charging/wallbox/cloud entities the creation predicate does not govern."""
     return [
         e
         for e in entities
@@ -208,15 +273,53 @@ def _vehicle_only(entities: list) -> list:
     ]
 
 
-@pytest.mark.parametrize("model", sorted(EXPECTED_COUNTS, key=lambda m: str(m)))
+@pytest.mark.parametrize("model", ["R1T", "R1S", "R2", None, "", "R3X"])
 async def test_entity_counts_per_model(
     hass: HomeAssistant, mock_config_entry: ConfigEntry, model: str | None
 ) -> None:
-    """Numeric list lengths -- NOT set equality, which dedupes."""
+    """Numeric list lengths -- NOT set equality, which dedupes.
+
+    Default `_setup(features=())` is the floor. Every model, including R2,
+    gets the ungated counts.
+    """
     sensors, binaries = await _setup(hass, mock_config_entry, model)
-    want_sensors, want_binaries = EXPECTED_COUNTS[model]
+    want_sensors, want_binaries = NO_FLAG_COUNTS
     assert len(_vehicle_only(sensors)) == want_sensors, model
     assert len(_vehicle_only(binaries)) == want_binaries, model
+
+
+async def test_r1t_full_hardware_counts(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    sensors, binaries = await _setup(
+        hass,
+        mock_config_entry,
+        "R1T",
+        features=R1T_FULL_FEATURES,
+        option_codes=("TON-P01",),
+    )
+    assert len(_vehicle_only(sensors)) == 113
+    assert len(_vehicle_only(binaries)) == 45
+
+
+async def test_liftgate_cmd_only_counts(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    sensors, binaries = await _setup(
+        hass, mock_config_entry, "R2", features=("LIFTGATE_CMD",)
+    )
+    assert len(_vehicle_only(sensors)) == 111
+    assert len(_vehicle_only(binaries)) == 41
+
+
+async def test_heated_seats_third_only_counts(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    sensors, binaries = await _setup(
+        hass, mock_config_entry, "R1S", features=("HEATED_SEATS_THIRD",)
+    )
+    assert len(_vehicle_only(sensors)) == 112
+    assert len(_vehicle_only(binaries)) == 39
 
 
 @pytest.mark.parametrize("model", ["R1T", "R1S", "R2"])
@@ -236,7 +339,7 @@ async def test_no_duplicate_unique_ids(
 async def test_an_r2_gets_entities_at_all(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
-    """The bug, stated as its own test so a regression is unmissable."""
+    """The f3a bug, stated as its own test so a regression is unmissable."""
     sensors, binaries = await _setup(hass, mock_config_entry, "R2")
     assert _vehicle_only(sensors), "an R2 received ZERO sensors"
     assert _vehicle_only(binaries), "an R2 received ZERO binary sensors"
@@ -245,46 +348,47 @@ async def test_an_r2_gets_entities_at_all(
 async def test_r2_is_the_shared_group_plus_liftgate(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
-    """Explicit membership, not non-emptiness.
-
-    Before s19 this compared R2 against "R1T minus R1T-only", which happened
-    to hold because R2 was exactly the shared "R1" group. It no longer holds:
-    R2 now also carries "LIFTGATE", which R1T never had at all. R2's actual
-    definition is the shared group plus liftgate state -- assert that
-    directly instead.
-    """
-    r2_s, r2_b = await _setup(hass, mock_config_entry, "R2")
+    """With-flag liftgate state: ungated floor plus LIFTGATE_CMD descriptions."""
+    r2_s, r2_b = await _setup(hass, mock_config_entry, "R2", features=("LIFTGATE_CMD",))
+    floor_s, floor_b = await _setup(hass, mock_config_entry, "R2")
 
     def keys(entities: list) -> set[str]:
         return {e.entity_description.key for e in _vehicle_only(entities)}
 
-    want_sensors = {d.key for d in SENSORS["R1"]} | {d.key for d in SENSORS["LIFTGATE"]}
-    want_binaries = {d.key for d in BINARY_SENSORS["R1"]} | {
-        d.key for d in BINARY_SENSORS["LIFTGATE"]
-    }
-    assert keys(r2_s) == want_sensors
-    assert keys(r2_b) == want_binaries
+    liftgate_sensors = _keys_with_feature(SENSORS, "LIFTGATE_CMD")
+    liftgate_binaries = _keys_with_feature(BINARY_SENSORS, "LIFTGATE_CMD")
+    assert keys(r2_s) == keys(floor_s) | liftgate_sensors
+    assert keys(r2_b) == keys(floor_b) | liftgate_binaries
 
-    # Still no R1T-only or R1S-only (third-row seat heater) entities.
-    r1t_only_sensors = {d.key for d in SENSORS["R1T"]}
-    r1t_only_binaries = {d.key for d in BINARY_SENSORS["R1T"]}
-    r1s_only_sensors = {d.key for d in SENSORS["R1S"]}
-    assert not (keys(r2_s) & r1t_only_sensors)
-    assert not (keys(r2_b) & r1t_only_binaries)
-    assert not (keys(r2_s) & r1s_only_sensors)
+    r1t_sensors = _keys_with_feature(
+        SENSORS, "SIDE_BIN_NXT_ACT", "TAILGATE_CMD", "TAILGATE_NXT_ACT"
+    )
+    r1t_binaries = _keys_with_feature(BINARY_SENSORS, "SIDE_BIN_NXT_ACT") | (
+        _keys_with_option(BINARY_SENSORS, "TON-P01")
+    )
+    third_row = _keys_with_feature(SENSORS, "HEATED_SEATS_THIRD")
+    assert not (keys(r2_s) & r1t_sensors)
+    assert not (keys(r2_b) & r1t_binaries)
+    assert not (keys(r2_s) & third_row)
+
+
+async def test_r2_without_liftgate_cmd_has_no_liftgate_state(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """s19 inverted, accepted: no LIFTGATE_CMD means no liftgate *state*."""
+    sensors, binaries = await _setup(hass, mock_config_entry, "R2")
+    keys = {
+        e.entity_description.key
+        for e in (*_vehicle_only(sensors), *_vehicle_only(binaries))
+    }
+    assert "closure_liftgate_next_action" not in keys
+    assert not {"closure_liftgate_closed", "closure_liftgate_locked"} & keys
 
 
 async def test_r2_gets_liftgate_state_paired_with_liftgate_control(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
-    """The actual s19 bug: control without state.
-
-    An R2 with LIFTGATE_CMD in supported_features got a `cover.liftgate` it
-    could open and close, but (before this fix) none of the three sensors that
-    say whether the liftgate is open or locked. Model-gated state (sensor.py /
-    binary_sensor.py) and feature-flag-gated control (cover.py) are two
-    independent gates; this test is the only one in the suite that exercises
-    both together for the same vehicle, which is what the bug needed to hide.
+    """Control and state share LIFTGATE_CMD; both appear together.
 
     SYNTHETIC: no R2 fixture exists anywhere in tests/fixtures/community/ --
     only R1T (issue-171.json) and R1S (issue-222.json, issue-245.json)
@@ -340,21 +444,27 @@ async def test_r2_gets_liftgate_state_paired_with_liftgate_control(
 async def test_r1t_only_entities_do_not_reach_an_r1s_and_vice_versa(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
-    """The owner drives an R1T, so an R1T-only pin is blind to R1S regressions."""
+    """No-flag models share the ungated floor; optional hardware stays off both."""
     r1t_s, r1t_b = await _setup(hass, mock_config_entry, "R1T")
     r1s_s, r1s_b = await _setup(hass, mock_config_entry, "R1S")
 
     def keys(entities: list) -> set[str]:
         return {e.entity_description.key for e in _vehicle_only(entities)}
 
-    assert not (keys(r1s_b) & {d.key for d in BINARY_SENSORS["R1T"]})
-    # "R1S" no longer has binary sensor descriptions of its own -- both moved
-    # to "LIFTGATE" (see const.py's SENSORS/BINARY_SENSORS["LIFTGATE"]) -- so
-    # BINARY_SENSORS.get(..., ()) rather than a bare index, which would
-    # KeyError on the now-absent key.
-    assert not (keys(r1t_b) & {d.key for d in BINARY_SENSORS.get("R1S", ())})
-    assert not (keys(r1s_s) & {d.key for d in SENSORS["R1T"]})
-    assert not (keys(r1t_s) & {d.key for d in SENSORS["R1S"]})
+    r1t_sensors = _keys_with_feature(
+        SENSORS, "SIDE_BIN_NXT_ACT", "TAILGATE_CMD", "TAILGATE_NXT_ACT"
+    )
+    r1t_binaries = _keys_with_feature(BINARY_SENSORS, "SIDE_BIN_NXT_ACT") | (
+        _keys_with_option(BINARY_SENSORS, "TON-P01")
+    )
+    r1s_sensors = _keys_with_feature(SENSORS, "HEATED_SEATS_THIRD", "LIFTGATE_CMD")
+    r1s_binaries = _keys_with_feature(BINARY_SENSORS, "LIFTGATE_CMD")
+    assert not (keys(r1s_s) & r1t_sensors)
+    assert not (keys(r1s_b) & r1t_binaries)
+    assert not (keys(r1t_s) & r1s_sensors)
+    assert not (keys(r1t_b) & r1s_binaries)
+    assert keys(r1t_s) == keys(r1s_s)
+    assert keys(r1t_b) == keys(r1s_b)
 
 
 class TestDeviceRegistration:
@@ -414,24 +524,23 @@ class TestDeviceRegistration:
 
 
 class TestCommittedFixture:
-    """The baseline every later story is checked against.
-
-    f0 took a transient snapshot deliberately: f3b-a adds the tonneau cover
-    between f0 and here, so a snapshot committed then would have gone red at the
-    very next story with no legal move under the stop rule. This is the one that
-    is committed.
-    """
+    """The baseline every later story is checked against."""
 
     def test_fixture_exists(self) -> None:
         assert FIXTURE.is_file(), f"missing committed fixture: {FIXTURE}"
 
-    @pytest.mark.parametrize("model", ["R1T", "R1S", "R2", "__absent__"])
+    @pytest.mark.parametrize("label", sorted(FIXTURE_COUNTS))
     async def test_entity_sets_match_the_fixture(
-        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, model: str
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, label: str
     ) -> None:
-        expected = json.loads(FIXTURE.read_text())[model]
+        scenario = _scenario(label)
+        expected = json.loads(FIXTURE.read_text())[label]
         sensors, binaries = await _setup(
-            hass, mock_config_entry, None if model == "__absent__" else model
+            hass,
+            mock_config_entry,
+            scenario.model,
+            features=tuple(scenario.features),
+            option_codes=tuple(scenario.option_codes or ()),
         )
         assert (
             sorted(e.entity_description.key for e in _vehicle_only(sensors))
@@ -445,17 +554,13 @@ class TestCommittedFixture:
     def test_the_fixture_records_lengths_too(self) -> None:
         """So a regression that swaps entities one-for-one is still caught."""
         data = json.loads(FIXTURE.read_text())
-        for model, (n_sensors, n_binaries) in (
-            ("R1T", EXPECTED_COUNTS["R1T"]),
-            ("R1S", EXPECTED_COUNTS["R1S"]),
-            ("R2", EXPECTED_COUNTS["R2"]),
-        ):
-            assert len(data[model]["sensors"]) == n_sensors, model
-            assert len(data[model]["binary_sensors"]) == n_binaries, model
+        for label, (n_sensors, n_binaries) in FIXTURE_COUNTS.items():
+            assert len(data[label]["sensors"]) == n_sensors, label
+            assert len(data[label]["binary_sensors"]) == n_binaries, label
 
 
 class TestTailgateStaysShared:
-    """`closure_tailgate_*` is in the shared group, and stays there.
+    """`closure_tailgate_*` has no `feature=` / `option_code=`, and stays that way.
 
     An R1S has a liftgate, not a tailgate, so these two entities do not apply to
     it. That is not a reason to remove them. The functional argument -- that an
@@ -471,20 +576,24 @@ class TestTailgateStaysShared:
 
     TAILGATE_KEYS = {"closure_tailgate_closed", "closure_tailgate_locked"}
 
-    def test_the_tailgate_entities_are_in_the_shared_group(self) -> None:
-        shared = {d.key for d in BINARY_SENSORS["R1"]}
-        assert self.TAILGATE_KEYS <= shared
+    def test_the_tailgate_entities_have_no_feature_or_option_code(self) -> None:
+        found = {d.key: d for d in BINARY_SENSORS if d.key in self.TAILGATE_KEYS}
+        assert set(found) == self.TAILGATE_KEYS
+        for description in found.values():
+            assert description.feature is None, description.key
+            assert description.option_code is None, description.key
 
-    def test_they_are_not_in_an_r1t_only_group(self) -> None:
-        """If they were, this file would be describing a removal that happened."""
-        r1t_only = {d.key for d in BINARY_SENSORS["R1T"]}
-        assert not (self.TAILGATE_KEYS & r1t_only)
+    def test_they_appear_under_no_flags(self) -> None:
+        """Static: they are on the tuple with both gates None, so features=() grants them."""
+        found = [d for d in BINARY_SENSORS if d.key in self.TAILGATE_KEYS]
+        assert {d.key for d in found} == self.TAILGATE_KEYS
+        assert all(d.feature is None and d.option_code is None for d in found)
 
     @pytest.mark.parametrize("model", ["R1T", "R1S", "R2"])
     async def test_every_model_still_receives_them(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry, model: str
     ) -> None:
-        _, binaries = await _setup(hass, mock_config_entry, model)
+        _, binaries = await _setup(hass, mock_config_entry, model, features=())
         keys = {e.entity_description.key for e in _vehicle_only(binaries)}
         assert self.TAILGATE_KEYS <= keys, model
 
@@ -505,7 +614,7 @@ class TestTailgateStaysShared:
         from custom_components.rivian.binary_sensor import RivianBinarySensorEntity
 
         (description,) = [
-            d for d in BINARY_SENSORS["R1"] if d.key == "closure_tailgate_closed"
+            d for d in BINARY_SENSORS if d.key == "closure_tailgate_closed"
         ]
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.get = MagicMock(return_value="signal_not_available")

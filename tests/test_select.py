@@ -7,7 +7,11 @@ import pytest
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.data_classes import RivianSelectEntityDescription
+from custom_components.rivian.rivian_client import VehicleCommand
 from custom_components.rivian.select import (
+    LEVEL_MAP,
+    LEVELS,
+    SELECTS,
     RivianFrontSeatSelectEntity,
     RivianSelectEntity,
     async_setup_entry,
@@ -311,7 +315,60 @@ async def test_async_setup_entry(
     # - halloween_mode, cabin_ventilation_mode
     # The two PARALLAX_SELECTS were removed in s09a (their RVMs return
     # INTERNAL_SERVER_ERROR); the four seat/steering selects remain.
+    # Third-row heat selects require HEATED_SEATS_THIRD and are not in this set.
     assert len(entities_added) == 4
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_with_heated_seats_third(
+    hass: HomeAssistant,
+    mock_config_entry: ConfigEntry,
+) -> None:
+    """HEATED_SEATS_THIRD adds two disabled-by-default third-row selects."""
+    vehicle_coordinator = MagicMock(spec=VehicleCoordinator)
+    vehicle_coordinator.data = {}
+
+    vehicle_data = {
+        "test_vehicle_123": {
+            "id": "test_vehicle_123",
+            "vin": "TEST123456789",
+            "name": "Test R1S",
+            "model": "R1S",
+            "phone_identity_id": "test_phone_id",
+            "supported_features": ["HEATED_SEATS_THIRD"],
+        }
+    }
+
+    hass.data[DOMAIN] = {
+        mock_config_entry.entry_id: {
+            ATTR_VEHICLE: vehicle_data,
+            ATTR_COORDINATOR: {
+                ATTR_VEHICLE: {"test_vehicle_123": vehicle_coordinator},
+            },
+        }
+    }
+
+    entities_added = []
+
+    def mock_add_entities(entities):
+        entities_added.extend(entities)
+
+    await async_setup_entry(hass, mock_config_entry, mock_add_entities)
+
+    assert len(entities_added) == 6
+    extra = [
+        e
+        for e in entities_added
+        if e.entity_description.key
+        in {"seat_third_row_left_heat", "seat_third_row_right_heat"}
+    ]
+    assert {e.entity_description.key for e in extra} == {
+        "seat_third_row_left_heat",
+        "seat_third_row_right_heat",
+    }
+    assert all(
+        e.entity_description.entity_registry_enabled_default is False for e in extra
+    )
 
 
 @pytest.mark.asyncio
@@ -351,3 +408,35 @@ async def test_async_setup_entry_no_phone_identity(
 
     # Should not have created any select entities (no vehicle control)
     assert len(entities_added) == 0
+
+
+class TestThirdRowHeatSelects:
+    """Third-row heat SELECTS: feature-gated, disabled by default."""
+
+    @pytest.mark.parametrize(
+        ("key", "command"),
+        [
+            (
+                "seat_third_row_left_heat",
+                VehicleCommand.CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT,
+            ),
+            (
+                "seat_third_row_right_heat",
+                VehicleCommand.CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT,
+            ),
+        ],
+    )
+    def test_description(self, key: str, command: VehicleCommand) -> None:
+        matches = [d for d in SELECTS if d.key == key]
+        assert len(matches) == 1, key
+        description = matches[0]
+        assert description.feature == "HEATED_SEATS_THIRD"
+        assert description.entity_registry_enabled_default is False
+        assert description.options is LEVELS
+        coordinator = MagicMock(spec=VehicleCoordinator)
+        coordinator.send_vehicle_command = MagicMock()
+        description.select(coordinator, LEVEL_MAP["Level_1"])
+        coordinator.send_vehicle_command.assert_called_once_with(
+            command=command,
+            params={"level": int(LEVEL_MAP["Level_1"])},
+        )

@@ -858,10 +858,9 @@ class TestWifiFreqBandIndexGuard:
     def _value_lambda():
         from custom_components.rivian.const import SENSORS
 
-        for group in SENSORS.values():
-            for description in group:
-                if description.key == "wifi_freq":
-                    return description.value_lambda
+        for description in SENSORS:
+            if description.key == "wifi_freq":
+                return description.value_lambda
         raise AssertionError("wifi_freq backs no sensor")
 
     @pytest.mark.parametrize("band_index", [2, 5])

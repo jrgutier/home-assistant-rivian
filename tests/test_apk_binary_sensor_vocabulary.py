@@ -78,7 +78,7 @@ TWO_STATE_BINARY = {
 
 
 def _descriptions(collection):
-    return {d.key: d for group in collection.values() for d in group}
+    return {d.key: d for d in collection}
 
 
 BINARY = _descriptions(BINARY_SENSORS)
