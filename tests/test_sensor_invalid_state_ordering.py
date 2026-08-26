@@ -26,7 +26,7 @@ import pytest
 from custom_components.rivian.const import INVALID_SENSOR_STATES, SENSORS
 from custom_components.rivian.sensor import RivianSensorEntity
 
-DESCRIPTIONS = {d.key: d for group in SENSORS.values() for d in group}
+DESCRIPTIONS = {d.key: d for d in SENSORS}
 WITH_OPTIONS = sorted(k for k, d in DESCRIPTIONS.items() if getattr(d, "options", None))
 
 

@@ -278,11 +278,9 @@ async def test_the_entity_set_is_exactly_what_binary_sensors_declares(
     added: list = []
     await async_setup_entry(hass, mock_config_entry, lambda e: added.extend(e))
 
-    expected = 1 + sum(
-        len(descriptions)
-        for model, descriptions in BINARY_SENSORS.items()
-        if model in VEHICLE["model"]
-    )
+    from custom_components.rivian.helpers import vehicle_supports
+
+    expected = 1 + sum(1 for d in BINARY_SENSORS if vehicle_supports(d, VEHICLE))
     assert len(added) == expected
     assert sum(1 for e in added if e.unique_id.endswith("-cloud_connected")) == 1
 
@@ -364,7 +362,7 @@ class TestLockSignalsAreComplements:
         from custom_components.rivian.const import BINARY_SENSORS
         from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 
-        (description,) = [d for d in BINARY_SENSORS["R1"] if d.key == "locked_state"]
+        (description,) = [d for d in BINARY_SENSORS if d.key == "locked_state"]
         assert description.device_class is BinarySensorDeviceClass.LOCK
         assert description.on_value == "unlocked"
 
@@ -372,7 +370,7 @@ class TestLockSignalsAreComplements:
         """So a future edit to one cannot desynchronise them silently."""
         from custom_components.rivian.const import BINARY_SENSORS, LOCK_STATE_ENTITIES
 
-        (description,) = [d for d in BINARY_SENSORS["R1"] if d.key == "locked_state"]
+        (description,) = [d for d in BINARY_SENSORS if d.key == "locked_state"]
         assert set(description.field) == set(LOCK_STATE_ENTITIES)
 
     def test_live_sna_combination_still_complements(

@@ -667,9 +667,7 @@ class TestTheSubscriptionFieldList:
         rather than deleting the entity."""
         from custom_components.rivian.const import SENSORS
 
-        fields = {
-            description.field for sensors in SENSORS.values() for description in sensors
-        }
+        fields = {description.field for description in SENSORS}
         assert "wheelsInstalled" in fields
 
     def test_app_and_extra_documents_are_disjoint(self) -> None:
@@ -805,13 +803,10 @@ class TestTheSubscriptionFieldList:
         """
         from custom_components.rivian.const import BINARY_SENSORS, SENSORS
 
-        raw: set[str] = {
-            description.field for sensors in SENSORS.values() for description in sensors
-        }
-        for sensors in BINARY_SENSORS.values():
-            for description in sensors:
-                field = description.field
-                raw.update([field] if isinstance(field, str) else field)
+        raw: set[str] = {description.field for description in SENSORS}
+        for description in BINARY_SENSORS:
+            field = description.field
+            raw.update([field] if isinstance(field, str) else field)
         return {f.partition(".")[0] for f in raw}
 
     def test_every_description_field_is_requested_or_parallax_only(self) -> None:
@@ -924,27 +919,26 @@ class TestEnumOptionsAreReachable:
 
         unreachable: list[str] = []
         seen: set[str] = set()
-        for group in SENSORS.values():
-            for description in group:
-                options = getattr(description, "options", None)
-                value_lambda = getattr(description, "value_lambda", None)
-                if not options or not value_lambda or description.key in seen:
-                    continue
-                seen.add(description.key)
-                try:
-                    if value_lambda("trailer_present") != "Trailer Present":
-                        continue  # not a plain snake -> title transform
-                    fallback = value_lambda("")
-                except Exception:  # noqa: BLE001,S112 - not round-trippable
-                    continue
-                for option in options:
-                    wire = option.lower().replace(" ", "_")
-                    emitted = value_lambda(wire)
-                    if emitted != option and option != fallback:
-                        unreachable.append(
-                            f"{description.key}: {option!r} is unreachable, "
-                            f"the value_lambda emits {emitted!r}"
-                        )
+        for description in SENSORS:
+            options = getattr(description, "options", None)
+            value_lambda = getattr(description, "value_lambda", None)
+            if not options or not value_lambda or description.key in seen:
+                continue
+            seen.add(description.key)
+            try:
+                if value_lambda("trailer_present") != "Trailer Present":
+                    continue  # not a plain snake -> title transform
+                fallback = value_lambda("")
+            except Exception:  # noqa: BLE001,S112 - not round-trippable
+                continue
+            for option in options:
+                wire = option.lower().replace(" ", "_")
+                emitted = value_lambda(wire)
+                if emitted != option and option != fallback:
+                    unreachable.append(
+                        f"{description.key}: {option!r} is unreachable, "
+                        f"the value_lambda emits {emitted!r}"
+                    )
         assert not unreachable, "\n".join(unreachable)
 
     def test_acronyms_survive_the_title_case_transform(self) -> None:
@@ -992,9 +986,7 @@ class TestVocabularyMatchesTheVehicle:
         becomes whatever the vehicle happened to send."""
         from custom_components.rivian.const import SENSORS, _to_title_case
 
-        description = next(
-            d for sensors in SENSORS.values() for d in sensors if d.field == field
-        )
+        description = next(d for d in SENSORS if d.field == field)
         missing = [
             _to_title_case(v)
             for v in emitted

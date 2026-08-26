@@ -2,13 +2,13 @@
 """Print (or write) the entity_sets.json fixture, derived from source.
 
 s19 SECTION A follow-up: this used to cover only `sensor.py`/`binary_sensor.py`
-(the `SENSORS`/`BINARY_SENSORS` dicts, gated purely by `groups_for_model`).
-That is roughly half the entity surface, and the half that has never had a
-creation bug -- the tonneau bug this story fixed lived in `cover.py`, which
-this script did not watch. Extended to every platform that builds entities
-from a static description collection: `covers`, `buttons`, `switches`,
-`locks`, `selects`, `numbers`, `climate`, `time`, `device_tracker`, `update`,
-alongside the original `sensors`/`binary_sensors`.
+(the `SENSORS`/`BINARY_SENSORS` collections). That is roughly half the entity
+surface, and the half that has never had a creation bug -- the tonneau bug
+this story fixed lived in `cover.py`, which this script did not watch.
+Extended to every platform that builds entities from a static description
+collection: `covers`, `buttons`, `switches`, `locks`, `selects`, `numbers`,
+`climate`, `time`, `device_tracker`, `update`, alongside the original
+`sensors`/`binary_sensors`.
 
 Excluded, and why -- not an oversight:
 
@@ -46,11 +46,11 @@ are gated by model, feature, option_code, or `phone_identity_id` -- created
 for every vehicle unconditionally, same as the platforms above. The
 ORIGINAL (pre-s19) version of this script covered `sensors`/
 `binary_sensors` and still missed these; they were never part of `SENSORS`/
-`BINARY_SENSORS`, so `groups_for_model` never saw them. Recorded as their
+`BINARY_SENSORS`. Recorded as their
 own `sensor_extras` / `binary_sensor_extras` keys rather than folded into
 `sensors`/`binary_sensors`, because those two keys are numerically pinned
-elsewhere (`tests/test_model_entity_groups.py`'s `EXPECTED_COUNTS`,
-`scripts/gates/f3a.sh`) against `SENSORS`/`BINARY_SENSORS` specifically --
+elsewhere (`tests/test_model_entity_groups.py`'s `NO_FLAG_COUNTS` /
+`FIXTURE_COUNTS`) against `SENSORS`/`BINARY_SENSORS` specifically --
 widening their contents would break a working, narrower invariant to
 express a different, also-true one.
 
@@ -67,11 +67,11 @@ GATE_FIELD_EVIDENCE.md set.
 
 Read-only against the source of truth -- it does not reach the network, mock
 a coordinator, or need a live vehicle -- so it stays usable as a committed
-regenerator even though it does not build actual entities. Each platform's
-predicate is reproduced here rather than imported, because there is nothing
-to import: `async_setup_entry`'s list comprehension IS the gate. Kept in
-sync by tests/test_full_entity_sets.py, which runs the REAL
-`async_setup_entry()` for every scenario in SCENARIOS and asserts it
+regenerator even though it does not build actual entities. Sensors,
+binary sensors, and SELECTS import `vehicle_supports` (the same predicate
+the platforms call). Covers and buttons still reproduce their dict-key
+loops here. Kept in sync by tests/test_full_entity_sets.py, which runs the
+REAL `async_setup_entry()` for every scenario in SCENARIOS and asserts it
 returns exactly what this script computed -- so a predicate drifting from
 its platform file fails a test, not just this docstring's claim.
 
@@ -96,7 +96,7 @@ from custom_components.rivian.climate import CLIMATE
 from custom_components.rivian.const import BINARY_SENSORS, SENSORS
 from custom_components.rivian.cover import COVERS
 from custom_components.rivian.device_tracker import LOCATION_DESCRIPTION
-from custom_components.rivian.helpers import groups_for_model
+from custom_components.rivian.helpers import vehicle_supports
 from custom_components.rivian.lock import LOCKS
 from custom_components.rivian.number import CHARGING_SCHEDULE_AMPERAGE_NUMBER, NUMBERS
 from custom_components.rivian.select import FRONT_SEAT_SELECTS, SELECTS
@@ -109,12 +109,47 @@ FIXTURE = (
     Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "entity_sets.json"
 )
 
-# Every feature-flag string COVERS or BUTTONS gate on, read from the gate
-# tables themselves (not retyped) so a new gate string is picked up here
-# automatically and a typo in a Scenario below is caught by the assertion
-# just under this constant, rather than silently producing an empty set.
+# Feature-flag strings the dump may name: COVERS/BUTTONS dict keys, plus
+# description.feature on sensors/binaries/SELECTS, plus an allowlist so a
+# Scenario can name a flag before it is a dict key / description.feature.
+# A typo in a Scenario below is caught by the assertion just under this
+# constant.
+EXTRA_FEATURE_ALLOWLIST = frozenset(
+    {
+        "WINDOWS_CMD",
+        "TAILGATE_NXT_ACT",
+        "HEATED_SEATS_THIRD",
+    }
+)
+
+
+def _all_descriptions(collection):
+    """SENSORS / BINARY_SENSORS / SELECTS are tuples. Dict branch is defensive."""
+    if isinstance(collection, dict):
+        return tuple(d for group in collection.values() for d in group)
+    return tuple(collection)
+
+
+def _features_from(collection) -> set[str]:
+    out: set[str] = set()
+    for d in _all_descriptions(collection):
+        feat = getattr(d, "feature", None)
+        if feat is None:
+            continue
+        if isinstance(feat, str):
+            out.add(feat)
+        else:
+            out.update(feat)
+    return out
+
+
 ALL_KNOWN_FEATURES: frozenset[str] = frozenset(
-    {f for f in COVERS if f is not None} | {f for f in BUTTONS if f is not None}
+    {f for f in COVERS if f is not None}
+    | {f for f in BUTTONS if f is not None}
+    | _features_from(SENSORS)
+    | _features_from(BINARY_SENSORS)
+    | _features_from(SELECTS)
+    | EXTRA_FEATURE_ALLOWLIST
 )
 
 
@@ -158,14 +193,22 @@ SCENARIOS: tuple[Scenario, ...] = (
         "R1T_full_hardware",
         model="R1T",
         features=frozenset(
-            {"TAILGATE_CMD", "SIDE_BIN_NXT_ACT", "CHARG_PORT_DOOR_COMMAND"}
+            {
+                "TAILGATE_CMD",
+                "TAILGATE_NXT_ACT",
+                "SIDE_BIN_NXT_ACT",
+                "CHARG_PORT_DOOR_COMMAND",
+                "WINDOWS_CMD",
+            }
         ),
         option_codes=("TON-P01",),
     ),
     Scenario(
         "R1S_full_hardware",
         model="R1S",
-        features=frozenset({"LIFTGATE_CMD", "CHARG_PORT_DOOR_COMMAND"}),
+        features=frozenset(
+            {"LIFTGATE_CMD", "CHARG_PORT_DOOR_COMMAND", "HEATED_SEATS_THIRD"}
+        ),
         option_codes=(),
     ),
     Scenario(
@@ -191,11 +234,14 @@ del _s
 def entity_keys_for_scenario(s: Scenario) -> dict[str, list[str]]:
     """The full entity-key surface one Scenario produces, platform by platform.
 
-    Each block below reproduces the exact predicate its platform's
-    `async_setup_entry` list comprehension applies -- see this module's
-    docstring for why nothing is imported to do it instead.
+    Sensors, binary sensors, and SELECTS go through vehicle_supports.
+    Covers and buttons stay dict-key loops.
     """
-    groups = groups_for_model(s.model)
+    vehicle = {
+        "model": s.model,
+        "supported_features": list(s.features),  # NOT "features"
+        "option_codes": list(s.option_codes or []),
+    }
     option_codes = list(s.option_codes or [])
 
     covers: list[str] = []
@@ -223,15 +269,20 @@ def entity_keys_for_scenario(s: Scenario) -> dict[str, list[str]]:
         paired_switches = [d.key for d in SWITCHES]
         locks = sorted(d.key for d in LOCKS)
         selects = sorted(
-            [d.key for d in SELECTS] + [seat["key"] for seat in FRONT_SEAT_SELECTS]
+            [d.key for d in SELECTS if vehicle_supports(d, vehicle)]
+            + [seat["key"] for seat in FRONT_SEAT_SELECTS]
         )
         paired_numbers = [d.key for d in NUMBERS]
         climate = [CLIMATE.key]
 
     return {
-        "sensors": sorted(d.key for group in groups for d in SENSORS.get(group, ())),
+        "sensors": sorted(
+            d.key for d in _all_descriptions(SENSORS) if vehicle_supports(d, vehicle)
+        ),
         "binary_sensors": sorted(
-            d.key for group in groups for d in BINARY_SENSORS.get(group, ())
+            d.key
+            for d in _all_descriptions(BINARY_SENSORS)
+            if vehicle_supports(d, vehicle)
         ),
         "covers": covers,
         "buttons": buttons,

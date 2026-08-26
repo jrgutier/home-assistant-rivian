@@ -475,9 +475,9 @@ class TestClosuresIgnoreInvalidMembers:
 
     Shape (b): ignore members in INVALID_SENSOR_STATES, compute over the rest,
     None only if none are valid. (a) "None if any invalid" is permanently
-    unknown here -- three members are SNA right now. (c) model-scoping the
-    member set does not save it: tailgate and tonneau are genuine R1T
-    closures (BINARY_SENSORS "R1" / "R1T"), not R1S-only liftgate.
+    unknown here -- three members are SNA right now. (c) dropping gated
+    members does not save it: tailgate closed/locked stay ungated, and
+    tonneau / side-bin are option/feature gated, not R1S-only liftgate.
     """
 
     @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
@@ -499,21 +499,19 @@ class TestClosuresIgnoreInvalidMembers:
         assert _production_is_locked(values) is None
 
     def test_model_scoping_would_not_drop_the_live_sna_members(self) -> None:
-        """Scoping LOCK_STATE_ENTITIES the way BINARY_SENSORS is removes
-        closureLiftgateLocked (R1S-only) and keeps both keys the live
-        record holds as SNA."""
+        """Tailgate stays ungated; tonneau/side-bin carry option_code/feature."""
         from custom_components.rivian.const import BINARY_SENSORS
 
-        r1_fields = {d.field for d in BINARY_SENSORS["R1"] if isinstance(d.field, str)}
-        r1t_fields = {
-            d.field for d in BINARY_SENSORS["R1T"] if isinstance(d.field, str)
-        }
+        by_field = {d.field: d for d in BINARY_SENSORS if isinstance(d.field, str)}
+        tailgate = by_field["closureTailgateLocked"]
+        tonneau = by_field["closureTonneauLocked"]
+        side_bin = by_field["closureSideBinRightLocked"]
         assert "closureTailgateLocked" in LOCK_STATE_ENTITIES
         assert "closureTonneauLocked" in LOCK_STATE_ENTITIES
         assert "closureSideBinRightLocked" in LOCK_STATE_ENTITIES
-        assert "closureTailgateLocked" in r1_fields
-        assert "closureTonneauLocked" in r1t_fields
-        assert "closureSideBinRightLocked" in r1t_fields
+        assert tailgate.feature is None and tailgate.option_code is None
+        assert tonneau.option_code == "TON-P01"
+        assert side_bin.feature == "SIDE_BIN_NXT_ACT"
 
 
 class TestClosureCoverageAttribute:

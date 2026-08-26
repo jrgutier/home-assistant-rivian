@@ -77,6 +77,7 @@ KNOWN_FEATURE_NAMES = {
     "LIFTGATE_CMD",
     "SIDE_BIN_NXT_ACT",
     "CHARG_PORT_DOOR_COMMAND",
+    "WINDOWS_CMD",
 }
 
 
@@ -215,10 +216,9 @@ async def test_the_flag_alone_no_longer_conjures_the_cover(
 async def test_the_unconditional_covers_are_unaffected(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
-    """frunk and windows stay unconditional; this story adds a third case, not a
-    new filter over the existing two."""
+    """frunk stays unconditional; windows now requires WINDOWS_CMD."""
     added = await _setup(hass, mock_config_entry, data={}, option_codes=[])
-    assert _keys(added) == {"frunk", "windows"}
+    assert _keys(added) == {"frunk"}
 
 
 async def test_the_other_gates_are_real_feature_names(

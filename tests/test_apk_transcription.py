@@ -160,16 +160,29 @@ class TestGateStringLint:
     matched nothing, so the control was never created for anyone, silently.
 
     The deliberately ungated `None` groups are skipped rather than flagged:
-    cover.py's frunk and windows and button.py's wake are unconditional on
-    purpose, because gating the frunk behind FRUNK_NXT_ACT left vehicles that do
-    not advertise the flag with no frunk control at all.
+    cover.py's frunk and button.py's wake are unconditional on purpose, because
+    gating the frunk behind FRUNK_NXT_ACT left vehicles that do not advertise
+    the flag with no frunk control at all. windows is gated on WINDOWS_CMD.
     """
 
     @staticmethod
     def _gates() -> set[str]:
-        return {f for f in COVERS if f is not None} | {
+        from custom_components.rivian.const import BINARY_SENSORS, SENSORS
+        from custom_components.rivian.select import SELECTS
+
+        gates = {f for f in COVERS if f is not None} | {
             f for f in BUTTONS if f is not None
         }
+        for collection in (SENSORS, BINARY_SENSORS, SELECTS):
+            for description in collection:
+                feat = getattr(description, "feature", None)
+                if feat is None:
+                    continue
+                if isinstance(feat, str):
+                    gates.add(feat)
+                else:
+                    gates.update(feat)
+        return gates
 
     def test_every_gate_string_is_a_name_something_emits(self) -> None:
         unknown = self._gates() - KNOWN_FEATURE_NAMES
@@ -201,7 +214,22 @@ class TestGateStringLint:
             "LIFTGATE_CMD",
             "SIDE_BIN_NXT_ACT",
             "CHARG_PORT_DOOR_COMMAND",
+            "WINDOWS_CMD",
+            "TAILGATE_NXT_ACT",
+            "HEATED_SEATS_THIRD",
         }
+
+    def test_no_cover_or_button_has_both_a_dict_key_and_option_code(self) -> None:
+        """tonneau in COVERS[None] + option_code is allowed; a keyed group is not."""
+        dual = []
+        for collection in (COVERS, BUTTONS):
+            for feature, descriptions in collection.items():
+                if feature is None:
+                    continue
+                for description in descriptions:
+                    if getattr(description, "option_code", None) is not None:
+                        dual.append((feature, description.key, description.option_code))
+        assert not dual
 
     def test_switch_py_is_deliberately_ungated(self) -> None:
         """Recorded as a decision, not left as an oversight.
@@ -431,9 +459,10 @@ class TestWhatWeShipVersusWhatTheAppNames:
     def test_being_in_the_enum_is_not_the_same_as_being_wired(self) -> None:
         """A distinction f6 turns on.
 
-        The four third-row commands exist as enum members and back no entity. That
-        is deliberate: which spelling a given vehicle accepts is a live question,
-        and wiring both blind is how eleven dead controls were shipped before.
+        The 3RD_ROW pair is wired to the HEATED_SEATS_THIRD selects. The
+        THIRD_ROW spelling stays unwired: which spelling a given vehicle
+        accepts was the live question, and wiring both blind is how eleven
+        dead controls were shipped before.
         """
         # Entity tables reach VehicleCommand through lambdas, so membership is
         # read from the platform sources rather than from a `command` attribute.
@@ -449,13 +478,18 @@ class TestWhatWeShipVersusWhatTheAppNames:
                 "lock.py",
             )
         )
-        for unwired in (
-            "CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT",
-            "CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT",
+        ours = {c.value for c in VehicleCommand}
+        for wired in (
             "CABIN_HVAC_3RD_ROW_REAR_LEFT_SEAT_HEAT",
             "CABIN_HVAC_3RD_ROW_REAR_RIGHT_SEAT_HEAT",
         ):
-            assert unwired in {c.value for c in VehicleCommand}
+            assert wired in ours
+            assert wired in platforms, f"{wired} should back the third-row selects"
+        for unwired in (
+            "CABIN_HVAC_THIRD_ROW_LEFT_SEAT_HEAT",
+            "CABIN_HVAC_THIRD_ROW_RIGHT_SEAT_HEAT",
+        ):
+            assert unwired in ours
             assert unwired not in platforms, f"{unwired} is now wired -- see f6"
 
     def test_the_invalid_wrapper_seven_are_members_and_wired_to_nothing(self) -> None:

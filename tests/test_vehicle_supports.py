@@ -1,19 +1,13 @@
-"""s19 SECTION A: `helpers.py`'s `vehicle_supports()` -- gate plumbing, not gating.
+"""vehicle_supports() truth table and dump wiring.
 
-INERT by construction: nothing outside this file calls `vehicle_supports()`.
-sensor.py, binary_sensor.py, and every other platform still call
-`groups_for_model()` directly, which is why `scripts/dump_entity_sets.py
---check` (also exercised below) has to show zero movement -- landing this
-predicate must not be observable from any platform's entity set. Switching a
-platform's `async_setup_entry` over to this predicate is a later story.
+Dump MUST import vehicle_supports. groups_for_model is gone; vehicle_supports
+is the sensor / binary-sensor / SELECTS creation predicate.
 """
 
 from __future__ import annotations
 
 import pathlib
 import re
-import subprocess
-import sys
 
 import pytest
 
@@ -37,12 +31,12 @@ def _vehicle(
 
 
 class TestEmptyGateIsUngated:
-    """A description with none of the three gating fields set is unconditional.
+    """A description with none of the two gating fields set is unconditional.
 
     This is NOT the same thing as a description that has gating fields set
     which simply do not match a particular vehicle -- see
-    TestTruthTable.test_none_of_the_three_match below for that case, which
-    yields the empty frozenset instead.
+    TestTruthTable.test_none_match_yields_empty_not_ungated below for that
+    case, which yields the empty frozenset instead.
     """
 
     @pytest.mark.parametrize("model", ["R1T", "R1S", "R2", None, "", "R3X"])
@@ -58,61 +52,61 @@ class TestEmptyGateIsUngated:
 
 
 class TestTruthTable:
-    """All eight (legacy, feature, option) combinations. UNION, never AND.
+    """Feature and option combinations. UNION, never AND. No legacy_group."""
 
-    The description below has all three gating fields set. `legacy_group`
-    ("LIFTGATE") is granted by groups_for_model() only for "R1S" and "R2"
-    (legacy_grants.py), never "R1T" -- so R1T/R2 stand in for
-    legacy-absent/legacy-present without needing a fourth model axis.
-    """
-
-    DESCRIPTION = RivianGateMixin(
-        legacy_group="LIFTGATE", feature="LIFTGATE_CMD", option_code="TON-P01"
-    )
+    FEATURE_ONLY = RivianGateMixin(feature="LIFTGATE_CMD")
+    OPTION_ONLY = RivianGateMixin(option_code="TON-P01")
+    BOTH = RivianGateMixin(feature="LIFTGATE_CMD", option_code="TON-P01")
 
     @pytest.mark.parametrize(
-        ("model", "features", "option_codes", "expected"),
+        ("which", "features", "option_codes", "expected"),
         [
-            # no evidence source fires
-            ("R1T", [], [], frozenset()),
-            # exactly one source
-            ("R2", [], [], frozenset({"legacy"})),
-            ("R1T", ["LIFTGATE_CMD"], [], frozenset({"feature"})),
-            ("R1T", [], ["TON-P01"], frozenset({"option"})),
-            # exactly two sources
-            ("R2", ["LIFTGATE_CMD"], [], frozenset({"legacy", "feature"})),
-            ("R2", [], ["TON-P01"], frozenset({"legacy", "option"})),
-            ("R1T", ["LIFTGATE_CMD"], ["TON-P01"], frozenset({"feature", "option"})),
-            # all three
-            (
-                "R2",
-                ["LIFTGATE_CMD"],
-                ["TON-P01"],
-                frozenset({"legacy", "feature", "option"}),
-            ),
+            ("feature", ["LIFTGATE_CMD"], [], frozenset({"feature"})),
+            ("feature", [], [], frozenset()),
+            ("option", [], ["TON-P01"], frozenset({"option"})),
+            ("option", [], [], frozenset()),
+            ("both", ["LIFTGATE_CMD"], ["TON-P01"], frozenset({"feature", "option"})),
+            ("both", ["LIFTGATE_CMD"], [], frozenset({"feature"})),
+            ("both", [], ["TON-P01"], frozenset({"option"})),
+            ("both", [], [], frozenset()),
+        ],
+        ids=[
+            "feature-only-match",
+            "feature-only-miss",
+            "option-only-match",
+            "option-only-miss",
+            "both-match",
+            "both-only-feature",
+            "both-only-option",
+            "none-match",
         ],
     )
-    def test_union_over_all_eight_combinations(
+    def test_union_over_feature_and_option(
         self,
-        model: str,
+        which: str,
         features: list[str],
         option_codes: list[str],
         expected: GateEvidence,
     ) -> None:
-        vehicle = _vehicle(model, features, option_codes)
-        assert vehicle_supports(self.DESCRIPTION, vehicle) == expected, (
-            model,
+        description = {
+            "feature": self.FEATURE_ONLY,
+            "option": self.OPTION_ONLY,
+            "both": self.BOTH,
+        }[which]
+        vehicle = _vehicle("R1T", features, option_codes)
+        assert vehicle_supports(description, vehicle) == expected, (
+            which,
             features,
             option_codes,
         )
 
-    def test_none_of_the_three_match_yields_empty_not_ungated(self) -> None:
+    def test_none_match_yields_empty_not_ungated(self) -> None:
         """Gating fields ARE set on the description; they just don't apply here.
 
         Contrast TestEmptyGateIsUngated, where no gating field is set at all.
         """
         vehicle = _vehicle("R1T", [], [])
-        assert vehicle_supports(self.DESCRIPTION, vehicle) == frozenset()
+        assert vehicle_supports(self.BOTH, vehicle) == frozenset()
 
 
 class TestFeatureAcceptsATuple:
@@ -207,22 +201,14 @@ class TestNoBoolComparisonLint:
 
 
 class TestEntitySetsUnmovedByThisPlumbing:
-    """The proof this section is inert: dump_entity_sets.py --check.
+    """Dump MUST import vehicle_supports. groups_for_model is gone from dump."""
 
-    That script derives entity sets from `groups_for_model()` and
-    `SENSORS`/`BINARY_SENSORS` only -- it does not import `vehicle_supports`
-    at all -- so a passing --check here is direct evidence that adding
-    RivianGateMixin to every description class and adding this predicate
-    changed no vehicle's entity set, run from inside the test suite rather
-    than trusted as something a human ran once before committing.
-    """
-
-    def test_dump_entity_sets_check_passes(self) -> None:
-        result = subprocess.run(
-            [sys.executable, "scripts/dump_entity_sets.py", "--check"],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
+    def test_dump_imports_vehicle_supports(self) -> None:
+        source = (REPO_ROOT / "scripts" / "dump_entity_sets.py").read_text(
+            encoding="utf-8"
         )
-        assert result.returncode == 0, result.stderr
+        assert "from custom_components.rivian.helpers import vehicle_supports" in source
+        assert "from custom_components.rivian.helpers import groups_for_model" not in (
+            source
+        )
+        assert "groups_for_model(" not in source
