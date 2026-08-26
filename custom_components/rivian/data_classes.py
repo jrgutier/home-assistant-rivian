@@ -33,13 +33,12 @@ class RivianVehicleControlAvailableMixin:
 
 @dataclass(kw_only=True)
 class RivianGateMixin:
-    """The three EVIDENCE fields `helpers.py`'s `vehicle_supports()` reads.
+    """The two EVIDENCE fields `helpers.py`'s `vehicle_supports()` reads.
 
-    s19 §A: `cover.py`'s tonneau description is the only thing that sets one of
-    these (`option_code`), and it gates on the field directly in its own
-    `async_setup_entry`; nothing calls `vehicle_supports()` outside its own
-    tests -- switching a platform over to that predicate is a later story.
-    Every field defaults to `None`, so no other description's behaviour changed.
+    `vehicle_supports()` is the sensor / binary-sensor / SELECTS creation
+    predicate: a non-empty result means the description is created for that
+    vehicle. Covers and buttons stay dict-key gated this story and do not
+    call it.
 
     Deliberately NO field-presence evidence source ("does the vehicle report
     ANY value, valid or not, for this field"). `RivianCoverEntityDescription`
@@ -68,14 +67,10 @@ class RivianGateMixin:
         can be `None` (the mobileConfiguration fragment was rejected) as
         well as `[]` (accepted, no matching options); this mixin does not
         distinguish the two, since both mean no evidence.
-    legacy_group: one of `legacy_grants.py`'s group names ("R1T", "R1S",
-        "LIFTGATE", ...), matched against what `groups_for_model()` returns
-        for the vehicle. The permanent floor -- see that module's docstring.
     """
 
     feature: str | tuple[str, ...] | None = None
     option_code: str | None = None
-    legacy_group: str | None = None
 
 
 @dataclass(kw_only=True)

@@ -23,7 +23,7 @@ from .const import (
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianBinarySensorEntityDescription
 from .entity import RivianVehicleEntity
-from .helpers import groups_for_model
+from .helpers import vehicle_supports
 
 
 async def async_setup_entry(
@@ -37,9 +37,8 @@ async def async_setup_entry(
     entities = [
         RivianBinarySensorEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        for model, descriptions in BINARY_SENSORS.items()
-        if model in groups_for_model(vehicle.get("model"))
-        for description in descriptions
+        for description in BINARY_SENSORS
+        if vehicle_supports(description, vehicle)
     ]
 
     # Add cloud connection binary sensor for each vehicle
@@ -95,7 +94,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             return any(self._get_value(entity_key) in values for entity_key in fields)
         if (val := self._get_value(fields)) is not None:
             # A value the vehicle flags as unusable is not a state -- report
-            # unknown, mirroring sensor.py:209.
+            # unknown, mirroring sensor.py:208.
             #
             # This matters more here than it does for a sensor. A sensor showing
             # "SNA" at least looks wrong; a binary sensor silently resolves it,

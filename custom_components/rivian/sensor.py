@@ -49,7 +49,7 @@ from .entity import (
     RivianVehicleEntity,
     RivianWallboxEntity,
 )
-from .helpers import groups_for_model
+from .helpers import vehicle_supports
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,9 +74,8 @@ async def async_setup_entry(
             vehicle_coordinators[vehicle_id], entry, description, vehicle
         )
         for vehicle_id, vehicle in vehicles.items()
-        for model, descriptions in SENSORS.items()
-        if model in groups_for_model(vehicle.get("model"))
-        for description in descriptions
+        for description in SENSORS
+        if vehicle_supports(description, vehicle)
     ]
 
     # Add charging entities

@@ -71,14 +71,6 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             command_close=VehicleCommand.CLOSE_FRUNK,
             command_open=VehicleCommand.OPEN_FRUNK,
         ),
-        RivianCoverEntityDescription(
-            key="windows",
-            translation_key="windows",
-            device_class=CoverDeviceClass.WINDOW,
-            is_closed=lambda coor: not any(coor.get(key) == "open" for key in WINDOWS),
-            command_close=VehicleCommand.CLOSE_ALL_WINDOWS,
-            command_open=VehicleCommand.OPEN_ALL_WINDOWS,
-        ),
         # Gated on the vehicle's option codes, not on TONNEAU_CMD and not on
         # field presence.
         #
@@ -112,6 +104,16 @@ COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
             is_closed=lambda coor: coor.get("closureTonneauClosed") != "open",
             command_close=VehicleCommand.CLOSE_TONNEAU_COVER,
             command_open=VehicleCommand.OPEN_TONNEAU_COVER,
+        ),
+    ),
+    "WINDOWS_CMD": (
+        RivianCoverEntityDescription(
+            key="windows",
+            translation_key="windows",
+            device_class=CoverDeviceClass.WINDOW,
+            is_closed=lambda coor: not any(coor.get(key) == "open" for key in WINDOWS),
+            command_close=VehicleCommand.CLOSE_ALL_WINDOWS,
+            command_open=VehicleCommand.OPEN_ALL_WINDOWS,
         ),
     ),
     "CHARG_PORT_DOOR_COMMAND": (

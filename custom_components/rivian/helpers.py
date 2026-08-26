@@ -12,26 +12,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_USER_SESSION_TOKEN
-from .legacy_grants import DEFAULT_MODEL_GRANTS, VEHICLE_MODEL_GRANTS
 from .rivian_client import Rivian
 
-
-def groups_for_model(model: str | None) -> tuple[str, ...]:
-    """Return the entity groups a vehicle of this model receives.
-
-    See legacy_grants.py's VEHICLE_MODEL_GRANTS for the map and its reasoning
-    -- this function is the one call path onto it, kept here (rather than
-    moved alongside the map) because sensor.py and binary_sensor.py already
-    import it from `helpers`.
-    """
-    if not model:
-        return DEFAULT_MODEL_GRANTS
-    return VEHICLE_MODEL_GRANTS.get(model, DEFAULT_MODEL_GRANTS)
-
-
 # GateEvidence: every source that grants an entity to a vehicle, as a set of
-# names rather than a bool. A subset of {"ungated", "legacy", "feature",
-# "option"} -- plain alias, not a NewType, so see TestNoBoolComparisonLint in
+# names rather than a bool. A subset of {"ungated", "feature", "option"} --
+# plain alias, not a NewType, so see TestNoBoolComparisonLint in
 # tests/test_vehicle_supports.py for why nothing may compare its result to a
 # bool.
 GateEvidence = frozenset[str]
@@ -40,12 +25,8 @@ GateEvidence = frozenset[str]
 def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
     """Every source that grants `description` to `vehicle`. Non-empty -> create it.
 
-    s19 SECTION A: plumbing only. Nothing calls this outside its own tests yet --
-    sensor.py, binary_sensor.py and the other platforms keep calling
-    groups_for_model() directly. Wiring a platform's async_setup_entry over
-    to this predicate is a later story; this function's job today is only to
-    exist correctly, proven by its own truth-table tests plus
-    dump_entity_sets.py --check showing landing it moved zero entities.
+    Sensor, binary-sensor, and SELECTS setup call this as the creation
+    predicate. Covers and buttons stay dict-key gated and do not.
 
     UNION, never intersection. Two recorded failures of this codebase, in
     opposite directions, are why:
@@ -68,9 +49,6 @@ def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
 
     Evidence sources:
 
-      * "legacy" -- description.legacy_group is one of the groups
-        groups_for_model(vehicle.get("model")) returns. The permanent floor;
-        see legacy_grants.py.
       * "feature" -- description.feature (a string, or a tuple of which ANY
         one counts) is present in vehicle.get("supported_features", []).
       * "option" -- description.option_code is a member of
@@ -88,20 +66,13 @@ def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
         rejected) as well as `[]` (accepted, no matches); both mean no
         evidence here.
 
-    An "empty gate" -- a description with all three fields unset, i.e. it
+    An "empty gate" -- a description with both fields unset, i.e. it
     carries no gating criteria to evaluate at all -- yields {"ungated"}:
-    unconditional creation, the same default behaviour an ungated description
-    already has today. That is different from a description WITH gating
+    unconditional creation. That is different from a description WITH gating
     fields set that simply do not match this vehicle, which yields the empty
     frozenset (excluded).
     """
     evidence: set[str] = set()
-
-    legacy_group = getattr(description, "legacy_group", None)
-    if legacy_group is not None and legacy_group in groups_for_model(
-        vehicle.get("model")
-    ):
-        evidence.add("legacy")
 
     feature = getattr(description, "feature", None)
     if feature is not None:
@@ -116,7 +87,7 @@ def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
         if option_code in option_codes:
             evidence.add("option")
 
-    if legacy_group is None and feature is None and option_code is None:
+    if feature is None and option_code is None:
         return frozenset({"ungated"})
 
     return frozenset(evidence)
