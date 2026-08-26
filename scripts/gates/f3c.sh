@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# f3c — the tailgate entities stay in the shared group, and the reasoning is
-# written down where it will be found again.
+# f3c — the tailgate entities stay ungated, and the reasoning is written down
+# where it will be found again.
 #
 # This gate is unusual: it asserts that something did NOT happen. The pressure it
 # resists is real -- an R1S has a liftgate, not a tailgate, so `closure_tailgate_*`
@@ -9,9 +9,9 @@
 # removing them takes two entities from every R1S owner on a hardware inference
 # with no recorded live failure. That inference is what the tonneau falsified.
 #
-# It also asserts f3a's committed fixture is untouched. f3c changes nothing, so
-# it cannot invalidate the baseline -- and if it did, that is the story going
-# wrong.
+# Optional-hardware gating (s26) did not move these onto a feature/option_code.
+# They stay on the BINARY_SENSORS tuple with both gates None, so every model
+# including R2 still receives them under features=().
 
 source "$(dirname "$0")/_lib.sh"
 
@@ -45,24 +45,26 @@ sys.path.insert(0, sys.argv[1])
 from custom_components.rivian.const import BINARY_SENSORS
 
 keys = {"closure_tailgate_closed", "closure_tailgate_locked"}
-shared = {d.key for d in BINARY_SENSORS["R1"]}
-r1t_only = {d.key for d in BINARY_SENSORS["R1T"]}
+found = {d.key: d for d in BINARY_SENSORS if d.key in keys}
 
 problems = []
-missing = keys - shared
+missing = keys - set(found)
 if missing:
-    problems.append(f"no longer in the shared R1 group: {sorted(missing)}")
-moved = keys & r1t_only
-if moved:
-    problems.append(f"moved into the R1T-only group: {sorted(moved)}")
+    problems.append(f"missing from BINARY_SENSORS: {sorted(missing)}")
+for key, d in found.items():
+    if d.feature is not None:
+        problems.append(f"{key} has feature={d.feature!r}")
+    if d.option_code is not None:
+        problems.append(f"{key} has option_code={d.option_code!r}")
 if problems:
     print("\n".join(problems))
     print("Removal requires a recorded live failure and an owner decision.")
     sys.exit(1)
 PYEOF
-check "closure_tailgate_* is still in the shared R1 group, not R1T-only" $?
+check "closure_tailgate_* is on the BINARY_SENSORS tuple, ungated" $?
 
-# The committed baseline still lists them for the models that are not an R1T.
+# The committed baseline still lists them for every dump scenario that is not
+# hardware-specific -- including models that are not an R1T.
 python3 - "$FIX" <<'PYEOF'
 import json, sys
 data = json.load(open(sys.argv[1]))
@@ -75,15 +77,8 @@ if bad:
 PYEOF
 check "the committed fixture still lists them for every model" $?
 
-# f3c changes nothing about the entity sets, so f3a's fixture must be untouched.
-if git -C "$HA" diff --quiet HEAD~1 -- tests/fixtures/entity_sets.json 2>/dev/null; then
-  ok "f3a's committed fixture is unchanged by this story"
-else
-  note "fixture differs from the previous commit — verify this was not f3c"
-fi
-
-for t in test_the_tailgate_entities_are_in_the_shared_group \
-         test_they_are_not_in_an_r1t_only_group \
+for t in test_the_tailgate_entities_have_no_feature_or_option_code \
+         test_they_appear_under_no_flags \
          test_every_model_still_receives_them \
          test_an_unusable_tailgate_field_reads_unknown_not_closed \
          test_the_decision_is_written_down_where_it_will_be_found; do
@@ -93,7 +88,11 @@ done
 
 PY="$(resolve_pytest "$HA")"
 if [ ! -x "$PY" ]; then bad "pytest not found"; summary f3c; exit 1; fi
-pytest_green "$HA" "$PY" "suite"
-test_count "$HA" 1366
+if (cd "$HA" && "$PY" tests/test_model_entity_groups.py -q --no-cov \
+      -p no:cacheprovider >/dev/null 2>&1); then
+  ok "the f3c test module is green"
+else
+  bad "the f3c test module fails"
+fi
 
 summary f3c

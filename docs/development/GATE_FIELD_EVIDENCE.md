@@ -12,8 +12,8 @@ like it settled the question. The third — an R1T — did not, and that result
 is the reason this file exists: it reports three usable values for hardware
 (third-row seats, a liftgate) an R1T does not have.
 
-This file checks the premise properly: every one of the **14 gated field
-descriptions** the integration currently has (not just the five originally
+This file checks the premise properly: every one of the **14 optional-hardware
+field descriptions** the integration currently has (not just the five originally
 sampled), across every source available, including the project's own live
 R1T. No code change or plan edit is proposed here — this is evidence only.
 
@@ -33,21 +33,29 @@ R1T. No code change or plan edit is proposed here — this is evidence only.
   wire history, and every gated field's history is flat everywhere. See
   Findings 5a and 5.
 
-## The 14 gated descriptions
+## The 14 optional-hardware descriptions
 
-Two model-scoped groups in `const.py` gate on field presence (not a
-`supportedFeatures` flag — see `docs/development/MODEL_SPECIFIC_ENTITIES.md`
-for why field-presence gating replaced flag gating after the `TONNEAU_CMD`
-finding):
+`SENSORS` and `BINARY_SENSORS` are flat tuples. Optional hardware is created
+only when `description.feature` or `description.option_code` matches a live
+vehicle (`vehicle_supports` in `helpers.py`). Cover and button dict keys are a
+**separate** gate and are listed after the table; they are not in this 14.
 
-| Group | Sensors (`SENSORS[...]`, `const.py:1437-1559`) | Binary sensors (`BINARY_SENSORS[...]`, `const.py:1753-1812`) |
-|---|---|---|
-| `R1T` (3 + 6 = 9) | `closure_tailgate_next_action`, `closure_side_bin_left_next_action`, `closure_side_bin_right_next_action` | `closure_side_bin_left_closed`, `closure_side_bin_left_locked`, `closure_side_bin_right_closed`, `closure_side_bin_right_locked`, `closure_tonneau_closed`, `closure_tonneau_locked` |
-| `R1S` (3 + 2 = 5) | `seat_third_row_left_heat`, `seat_third_row_right_heat`, `closure_liftgate_next_action` | `closure_liftgate_closed`, `closure_liftgate_locked` |
+| Keys | Gate |
+|---|---|
+| `closure_liftgate_next_action`, `closure_liftgate_closed`, `closure_liftgate_locked` | `feature="LIFTGATE_CMD"` |
+| `closure_side_bin_left_next_action`, `closure_side_bin_right_next_action`, `closure_side_bin_left_closed`, `closure_side_bin_left_locked`, `closure_side_bin_right_closed`, `closure_side_bin_right_locked` | `feature="SIDE_BIN_NXT_ACT"` |
+| `closure_tailgate_next_action` | `feature=("TAILGATE_CMD", "TAILGATE_NXT_ACT")` |
+| `closure_tonneau_closed`, `closure_tonneau_locked` | `option_code="TON-P01"` only (no `feature=`) |
+| `seat_third_row_left_heat`, `seat_third_row_right_heat` | `feature="HEATED_SEATS_THIRD"` |
+
+Cover / button dict keys (not `vehicle_supports`): `cover.windows` on
+`WINDOWS_CMD`, `cover.charge_port` on `CHARG_PORT_DOOR_COMMAND`,
+`cover.liftgate` / `button.open_liftgate` on `LIFTGATE_CMD`. Tonneau cover
+lives in `COVERS[None]` with `option_code="TON-P01"`.
 
 `closure_tailgate_closed`/`closure_tailgate_locked` are deliberately **not**
-in this set — they live in the shared `R1` group and are out of scope here
-(`MODEL_SPECIFIC_ENTITIES.md:19-43` covers why).
+in this set — they have `feature is None` and `option_code is None` and are
+out of scope here (`MODEL_SPECIFIC_ENTITIES.md` covers why).
 
 `sensor.py:184` and `binary_sensor.py:109` both filter on the same
 `INVALID_SENSOR_STATES` set, so "usable" means the same thing on both

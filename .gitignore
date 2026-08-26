@@ -186,6 +186,10 @@ config-dev/
 # copies the handful of classes it cites into docs/development/apk/ instead.
 com.rivian.android.consumer/
 
+# Local 3.15.0 download + jadx tree (REGENERATION.md). Not interchangeable with
+# the 3.6.0 apktool tree above.
+.apk/
+
 # The nine decompiled classes the entity-exposure plan cites. This is a public
 # HACS repository and these are proprietary sources, so the files are kept out of
 # the index the same way the 31,105-file tree above is. They are a pre-flight
