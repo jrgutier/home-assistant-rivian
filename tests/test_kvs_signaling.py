@@ -8,6 +8,7 @@ import json
 import pytest
 
 from custom_components.rivian.kvs_signaling import (
+    KVS_MAX_MESSAGE_PAYLOAD,
     client_id_from_endpoint,
     decode_payload,
     encode_payload,
@@ -15,6 +16,7 @@ from custom_components.rivian.kvs_signaling import (
     ice_servers_from_config,
     ice_ttl_from_config,
     ice_usable_seconds,
+    offer_exceeds_kvs_limit,
     offer_message,
     parse_signaling_event,
     signaling_ws_url,
@@ -179,6 +181,50 @@ def test_ice_ttl_ignores_junk_and_falls_back() -> None:
     assert ice_ttl_from_config([{"url": "stun:example", "ttl": 0}]) == 300
     assert ice_ttl_from_config(["not-a-dict"]) == 300
     assert ice_ttl_from_config([{"url": "stun:example", "ttl": "nope"}]) == 300
+
+
+def _sdp_of_length(length: int) -> str:
+    """A CRLF-heavy SDP of roughly `length` bytes, like a real browser offer."""
+    head = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+    line = "a=fmtp:96 profile-level-id=42e01f;packetization-mode=1\r\n"
+    return head + line * max(0, (length - len(head)) // len(line))
+
+
+def test_offer_over_the_kvs_payload_limit_is_detected() -> None:
+    """KVS drops an oversized frame in silence -- the socket stays open and the
+    vehicle simply never answers -- so nothing downstream can detect this.
+
+    Sizes are deliberately clear of the boundary: this pins the decision, and
+    test_the_limit_is_measured_on_the_encoded_payload_not_the_sdp pins where
+    the boundary actually falls.
+    """
+    # A full Chrome offer -- every codec, rtx for each -- runs past 7KB.
+    assert offer_exceeds_kvs_limit(_sdp_of_length(9000))
+    # Pinning H264 brings it to roughly 2KB, with ample room.
+    assert not offer_exceeds_kvs_limit(_sdp_of_length(2000))
+
+
+def test_the_limit_is_measured_on_the_encoded_payload_not_the_sdp() -> None:
+    """CRLF escaping and base64 cost ~1.42x, so an SDP well under 10000 bytes
+    can still overflow. Measuring the SDP length instead would miss it."""
+    sdp = _sdp_of_length(8000)
+    assert len(sdp) < KVS_MAX_MESSAGE_PAYLOAD
+    assert len(offer_message(sdp, "c-1")["messagePayload"]) > KVS_MAX_MESSAGE_PAYLOAD
+    assert offer_exceeds_kvs_limit(sdp)
+
+
+def test_the_cliff_is_the_payload_boundary_itself() -> None:
+    """Measured against the vehicle: a 9978-byte payload was answered and a
+    10375-byte one was not. The limit is the boundary, not a margin below it,
+    so an offer is refused only once its own payload actually crosses 10000.
+    """
+    sizes = (2000, 4000, 6000, 8000, 10000, 12000)
+    for size in sizes:
+        sdp = _sdp_of_length(size)
+        payload = offer_message(sdp, "c-1")["messagePayload"]
+        assert offer_exceeds_kvs_limit(sdp) is (
+            len(payload) > KVS_MAX_MESSAGE_PAYLOAD
+        ), f"disagreed with its own payload at {size} bytes of SDP"
 
 
 def test_usable_seconds_takes_the_margin_off_the_ttl() -> None:

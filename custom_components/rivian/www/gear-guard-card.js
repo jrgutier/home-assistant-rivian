@@ -75,7 +75,13 @@ class RivianGearGuardCard extends HTMLElement {
       this._video = this._root.querySelector("video");
       this._status = this._root.querySelector("#status");
       this._cams = this._root.querySelector("#cams");
-      this._root.querySelector("#play").addEventListener("click", () => this._play());
+      this._root.querySelector("#play").addEventListener("click", () =>
+        // Without this the card sits on "starting…" forever when _play throws.
+        this._play().catch((err) => {
+          this._busy = String(err?.message || err);
+          this._render();
+        })
+      );
       this._root.querySelector("#stop").addEventListener("click", () => this._stop());
       this._built = true;
     }
@@ -117,14 +123,39 @@ class RivianGearGuardCard extends HTMLElement {
     // The vehicle's KVS relay only exists once the master session has been
     // started, which the offer does not do until the peer connection is
     // already built. gear_guard_prepare starts it first and answers in
-    // get_client_config's shape, so there is one shape to read either way.
-    // It falls back to HA's default STUN when the session never started —
-    // the view will fail, but it fails visibly rather than hanging here.
-    const cfg = await this._hass.connection.sendMessagePromise({
-      type: "rivian/gear_guard_prepare",
-      entity_id: this._config.camera,
-    });
-    return cfg?.configuration?.iceServers || [];
+    // get_client_config's own shape, so both branches below read one shape.
+    try {
+      const prep = await this._hass.connection.sendMessagePromise({
+        type: "rivian/gear_guard_prepare",
+        entity_id: this._config.camera,
+      });
+      return prep?.configuration?.iceServers || [];
+    } catch (_err) {
+      // Pointed at a camera that is not a Rivian live view: prepare rejects.
+      // Degrade to stock HA WebRTC rather than leaving the card on "starting".
+      const cfg = await this._hass.connection.sendMessagePromise({
+        type: "camera/webrtc/get_client_config",
+        entity_id: this._config.camera,
+      });
+      return cfg?.configuration?.iceServers || [];
+    }
+  }
+
+  _preferH264(tx) {
+    // KVS drops a signaling frame over 10000 bytes of encoded payload without
+    // any error, and the vehicle then never answers. Offering everything the
+    // browser supports — AV1, VP9, VP8, four H264 profiles, red, ulpfec, and
+    // an rtx line for each — pushed the SDP past 7KB and over that limit.
+    // The vehicle only ever answers H264, so the rest was padding that cost
+    // us the session.
+    try {
+      const caps = RTCRtpReceiver.getCapabilities?.("video");
+      if (!caps || !tx.setCodecPreferences) return;
+      const wanted = caps.codecs.filter((c) => /H264|rtx/i.test(c.mimeType));
+      if (wanted.length) tx.setCodecPreferences(wanted);
+    } catch (_err) {
+      // Older browsers: the offer stays large and the backend guard reports it.
+    }
   }
 
   _sendCandidate(candidate) {
@@ -151,7 +182,8 @@ class RivianGearGuardCard extends HTMLElement {
     const iceServers = await this._iceServers();
     this._pc = new RTCPeerConnection({ iceServers });
     this._dc = this._pc.createDataChannel("data", { ordered: true });
-    this._pc.addTransceiver("video", { direction: "recvonly" });
+    const tx = this._pc.addTransceiver("video", { direction: "recvonly" });
+    this._preferH264(tx);
     this._pc.ontrack = (ev) => {
       if (this._video && ev.streams[0]) this._video.srcObject = ev.streams[0];
     };

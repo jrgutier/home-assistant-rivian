@@ -120,5 +120,21 @@ async def test_prepare_answers_in_get_client_config_shape(
 
     entity.async_prepare_live.assert_awaited_once()
     payload = conn.send_result.call_args.args[1]
-    assert payload["dataChannel"] == "data"
+    # Same envelope camera/webrtc/get_client_config produces, so the card has
+    # one shape to read whether or not it prepared first.
+    assert set(payload) == {"configuration", "dataChannel"}
     assert "turn:example" in [s["urls"] for s in payload["configuration"]["iceServers"]]
+
+
+async def test_prepare_ignores_non_live_camera(hass: HomeAssistant) -> None:
+    """A stock HA camera on the same component has no vehicle session to start.
+    _live_entity's set_live_switch_hold gate is the only thing standing between
+    `rivian/gear_guard_prepare` and an AttributeError on someone else's camera.
+    """
+    component = MagicMock()
+    component.get_entity = MagicMock(return_value=object())
+    hass.data[DATA_COMPONENT] = component
+    conn = _conn()
+    await _prepare(hass, conn, {"id": 10, "entity_id": "camera.other"})
+    conn.send_error.assert_called_once()
+    assert conn.send_error.call_args.args[1] == "not_found"

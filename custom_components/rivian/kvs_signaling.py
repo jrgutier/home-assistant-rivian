@@ -29,6 +29,14 @@ def new_client_id() -> str:
     return str(uuid4())
 
 
+# KVS rejects a signaling frame whose messagePayload exceeds this, silently:
+# the socket stays open, nothing is echoed back, and the peer simply never
+# answers. Budget accordingly -- JSON escapes each CRLF to four characters and
+# base64 adds a further 4/3, so an SDP costs roughly 1.42x its own length here
+# and the practical ceiling is a little over 7000 bytes of SDP.
+KVS_MAX_MESSAGE_PAYLOAD: Final = 10000
+
+
 def encode_payload(obj: dict[str, Any]) -> str:
     """Base64-encode a signaling inner payload the way the app does."""
     raw = json.dumps(obj, separators=(",", ":")).encode()
@@ -62,6 +70,18 @@ def offer_message(sdp: str, client_id: str) -> dict[str, str]:
         "senderClientId": client_id,
         "messagePayload": encode_payload({"type": "offer", "sdp": _crlf_sdp(sdp)}),
     }
+
+
+def offer_exceeds_kvs_limit(sdp: str) -> bool:
+    """Whether this SDP would overflow a KVS signaling frame once encoded.
+
+    Measures the real encoded payload rather than the SDP length, because the
+    CRLF escaping and base64 expansion are what actually decide it.
+    """
+    return (
+        len(encode_payload({"type": "offer", "sdp": _crlf_sdp(sdp)}))
+        > KVS_MAX_MESSAGE_PAYLOAD
+    )
 
 
 def ice_candidate_message(

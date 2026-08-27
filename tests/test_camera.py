@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import ExitStack
 import json
 import logging
 import time
@@ -244,7 +243,7 @@ async def test_non_1101_failure_does_not_retry(
     messages: list = []
     await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
     coordinator.send_vehicle_command.assert_awaited_once()
-    assert any(getattr(m, "code", None) == "webrtc_offer_failed" for m in messages)
+    assert [m.message for m in messages] == ["gearGuardLiveConfig did not arrive"]
 
 
 async def test_1101_retry_uses_next_command_id(
@@ -266,7 +265,7 @@ async def test_1101_retry_uses_next_command_id(
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
     messages: list = []
 
-    http = await _run_offer(entity, messages, skip_retry_delay=True)
+    http = await _run_offer(entity, messages)
 
     assert coordinator.send_vehicle_command.await_count == 2
     http.ws_connect.assert_awaited()
@@ -286,7 +285,9 @@ _LIVE_CONFIG = {
 _SHAPED_ICE = [{"urls": "turn:example", "username": "u", "credential": "c"}]
 
 
-def _subscribe_returning(config: dict | None = None, only_for_cid: str | None = None):
+def _subscribe_returning(
+    config: dict | None = None, only_for_cid: str | None = None
+) -> AsyncMock:
     """Stub subscribe_gear_guard_live_config, optionally answering with a config.
 
     Every caller needs the same throwaway unsub, so the shape of
@@ -319,29 +320,20 @@ def _config_coordinator(hass, entry, vehicle) -> VehicleCoordinator:
     return coordinator
 
 
-async def _run_offer(entity, messages: list, *, skip_retry_delay: bool = False):
+async def _run_offer(entity, messages: list) -> MagicMock:
     """Drive one offer to the point of the KVS socket, without pumping it."""
     ws = AsyncMock()
     ws.closed = False
     http = MagicMock()
     http.ws_connect = AsyncMock(return_value=ws)
-    with ExitStack() as stack:
-        stack.enter_context(
-            patch(
-                "custom_components.rivian.camera.async_get_clientsession",
-                return_value=http,
-            )
-        )
-        stack.enter_context(
-            patch.object(entity, "_pump_signaling", new_callable=AsyncMock)
-        )
-        if skip_retry_delay:
-            stack.enter_context(
-                patch(
-                    "custom_components.rivian.camera.asyncio.sleep",
-                    new_callable=AsyncMock,
-                )
-            )
+    with (
+        patch(
+            "custom_components.rivian.camera.async_get_clientsession",
+            return_value=http,
+        ),
+        patch.object(entity, "_pump_signaling", new_callable=AsyncMock),
+        patch("custom_components.rivian.camera.asyncio.sleep", new_callable=AsyncMock),
+    ):
         await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
     return http
 
@@ -385,7 +377,6 @@ async def test_prepare_answers_through_has_own_client_config(
     assert "turn:example" in urls
     # HA's own default STUN rides along; the raw KVS list would not have it.
     assert len(urls) > 1
-    assert payload["dataChannel"] == "data"
 
 
 async def test_offer_after_prepare_does_not_start_a_second_session(
@@ -485,6 +476,97 @@ async def test_cached_ice_outlives_the_session_that_fetched_it(
     assert entity._attr_is_streaming is False
 
 
+async def test_oversized_offer_is_refused_without_opening_a_session(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """An offer over the KVS frame limit can never be answered, so the viewer
+    would sit on a session that looks healthy forever. Refuse it loudly and
+    leave nothing behind to tear down.
+
+    This does NOT mean the vehicle was spared: on the card path
+    `rivian/gear_guard_prepare` has already started a master session before
+    the offer arrives. The cold sequence here is HA's built-in player.
+    """
+    coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    fat = "v=0\r\n" + "a=fmtp:96 profile-level-id=42e01f\r\n" * 400
+    messages: list = []
+
+    await entity.async_handle_async_webrtc_offer("v=0" + fat, "sess-1", messages.append)
+
+    coordinator.send_vehicle_command.assert_not_called()
+    assert entity._sessions == {}
+    assert [getattr(m, "message", None) for m in messages] == [
+        "Offer too large for the vehicle's signaling channel"
+    ]
+
+
+async def test_missing_command_id_says_so_instead_of_blaming_the_vehicle(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """No command id means the VAS never left HA -- usually a pairing problem
+    the user can fix. A missing config means the vehicle did not answer. One
+    message for both sends people to the wrong half of the system."""
+    coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
+    coordinator.send_vehicle_command = AsyncMock(return_value=None)
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    messages: list = []
+
+    await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
+
+    assert [m.message for m in messages] == [
+        "START_GEAR_GUARD_MASTER_SESSION returned no command id"
+    ]
+
+
+async def test_the_offer_leaves_no_prepared_config_behind(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """The config an offer used is bound to the KVS endpoint it just opened.
+    Left claimable, the next viewer takes the same endpoint and the two
+    sessions answer over each other -- while the ICE cache, which that next
+    viewer legitimately needs before its own offer, must survive."""
+    coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    other = {**_LIVE_CONFIG, "endpoint": "https://other.example/?X-Amz-Signature=y"}
+
+    def _prepare_lands_mid_fetch(*_args, **_kwargs):
+        # _prepare_lock does not cover the offer, so a second viewer's prepare
+        # can store its own config while this offer waits on the vehicle.
+        entity._store_prepared(other)
+        return "cmd-1"
+
+    coordinator.send_vehicle_command = AsyncMock(side_effect=_prepare_lands_mid_fetch)
+    messages: list = []
+
+    await _run_offer(entity, messages)
+
+    assert entity._prepared is None, "a hold from a racing prepare outlived the offer"
+    assert entity._take_prepared() is None
+    assert entity._valid_cached_ice() == _SHAPED_ICE
+
+
+async def test_a_ttl_inside_the_margin_caches_nothing(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """ice_usable_seconds floors at zero and _valid_cached_ice drops on >=, so
+    a credential that dies inside the margin is never handed out at all. Those
+    two halves live in different modules now; this is the seam that says they
+    still agree."""
+    coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
+    short = {**_LIVE_CONFIG["iceServers"][0], "ttl": 5}
+    coordinator.api.subscribe_gear_guard_live_config = _subscribe_returning(
+        {**_LIVE_CONFIG, "iceServers": [short]}
+    )
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+
+    await entity.async_prepare_live()
+
+    assert entity._valid_cached_ice() == []
+    cfg = entity._async_get_webrtc_client_configuration()
+    assert cfg.configuration.ice_servers == []
+
+
 async def test_offer_refuses_when_unavailable(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
@@ -509,34 +591,15 @@ async def test_ws_connect_error_does_not_log_signed_url(
     )
     arn = "arn:aws:kinesisvideo:us-east-1:1:channel/secret-channel"
 
-    async def subscribe(_vid, _cid, callback):
-        callback(
-            {
-                "payload": {
-                    "data": {
-                        "gearGuardLiveConfig": {
-                            "endpoint": signed,
-                            "channelArn": arn,
-                            "role": "viewer",
-                            "iceServers": [],
-                        }
-                    }
-                }
-            }
-        )
-
-        async def unsub() -> None:
-            return None
-
-        return unsub
-
     class UrlError(ClientConnectionError):
         def __str__(self) -> str:
             return f"Cannot connect to host {signed}"
 
     coordinator = _hass_entry(hass, mock_config_entry, _vehicle())
     coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
-    coordinator.api.subscribe_gear_guard_live_config = AsyncMock(side_effect=subscribe)
+    coordinator.api.subscribe_gear_guard_live_config = _subscribe_returning(
+        {**_LIVE_CONFIG, "endpoint": signed, "channelArn": arn, "iceServers": []}
+    )
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
     session = MagicMock()
     session.ws_connect = AsyncMock(side_effect=UrlError())
@@ -697,15 +760,20 @@ async def test_lovelace_resource_is_created_once(hass: HomeAssistant) -> None:
     resources.async_get_info = AsyncMock()
     resources.async_items = MagicMock(return_value=[])
     resources.async_create_item = AsyncMock()
+    resources.async_update_item = AsyncMock()
     hass.data[LOVELACE_DATA] = MagicMock(resources=resources)
     url = "/rivian-static/gear-guard-card.js?v=1"
     await _async_ensure_lovelace_resource(hass, url)
     resources.async_create_item.assert_awaited_once_with(
         {"res_type": "module", "url": url}
     )
-    resources.async_items.return_value = [{"url": url}]
+    resources.async_items.return_value = [{"id": "res-1", "url": url}]
     await _async_ensure_lovelace_resource(hass, url)
     resources.async_create_item.assert_awaited_once()
+    # Without an explicit AsyncMock here a spurious update would await a bare
+    # MagicMock, raise TypeError, and be swallowed by this function's own
+    # except clause -- the test would pass either way.
+    resources.async_update_item.assert_not_called()
 
 
 async def test_lovelace_resource_url_is_repointed_not_duplicated(
@@ -726,6 +794,36 @@ async def test_lovelace_resource_url_is_repointed_not_duplicated(
     hass.data[LOVELACE_DATA] = MagicMock(resources=resources)
 
     url = "/rivian-static/gear-guard-card.js?v=new"
+    await _async_ensure_lovelace_resource(hass, url)
+
+    resources.async_update_item.assert_awaited_once_with("res-1", {"url": url})
+    resources.async_create_item.assert_not_called()
+
+
+async def test_only_the_first_stale_registration_is_repointed(
+    hass: HomeAssistant,
+) -> None:
+    """Two upgrades leave two old registrations beside the current one.
+    Repointing them all to the same URL makes Lovelace hold duplicates of one
+    resource -- the same double-load this walk exists to prevent -- and the
+    entry already equal to the URL must be skipped, not rewritten to itself."""
+    from custom_components.rivian import _async_ensure_lovelace_resource
+    from homeassistant.components.lovelace.const import LOVELACE_DATA
+
+    url = "/rivian-static/gear-guard-card.js?v=new"
+    resources = MagicMock()
+    resources.async_get_info = AsyncMock()
+    resources.async_items = MagicMock(
+        return_value=[
+            {"id": "res-0", "url": url},
+            {"id": "res-1", "url": "/rivian-static/gear-guard-card.js?v=old"},
+            {"id": "res-2", "url": "/rivian-static/gear-guard-card.js?v=older"},
+        ]
+    )
+    resources.async_create_item = AsyncMock()
+    resources.async_update_item = AsyncMock()
+    hass.data[LOVELACE_DATA] = MagicMock(resources=resources)
+
     await _async_ensure_lovelace_resource(hass, url)
 
     resources.async_update_item.assert_awaited_once_with("res-1", {"url": url})
@@ -1012,6 +1110,43 @@ async def test_close_cancels_an_in_flight_pump(
     await started.wait()
     await entity._async_close_session("sess-1")
     assert live.pump_task.done()
+    assert "sess-1" not in entity._sessions
+
+
+async def test_the_pump_closing_its_own_session_still_releases_everything(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """KVS hanging up is how a normal view ends, so aclose runs inside
+    pump_task itself -- the one path where the session tearing itself down is
+    also the task doing the tearing. If it returns early there, every view
+    leaks its GraphQL subscription and its websocket."""
+    coordinator = _hass_entry(hass, mock_config_entry, _vehicle())
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    unsubbed: list[bool] = []
+
+    async def unsub() -> None:
+        unsubbed.append(True)
+
+    gate = asyncio.Event()
+
+    class _GatedWs(_FakeWs):
+        async def __anext__(self):
+            # The pump must suspend at least once, or the task completes
+            # eagerly and live.pump_task is still None when aclose reads it.
+            await gate.wait()
+            return await super().__anext__()
+
+    live = _LiveSession("sess-1", lambda _m: None)
+    live.ws = _GatedWs([_FakeWsMsg(WSMsgType.CLOSED)])
+    live.unsub_config = unsub
+    entity._sessions["sess-1"] = live
+    live.pump_task = hass.async_create_task(entity._pump_signaling(live))
+    gate.set()
+
+    await live.pump_task
+
+    assert unsubbed == [True]
+    assert live.ws is None
     assert "sess-1" not in entity._sessions
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Final, NamedTuple
+from typing import Any, Final, Literal, NamedTuple
 
 from aiohttp import ClientError, ClientWebSocketResponse, WSMsgType
 from webrtc_models import RTCConfiguration, RTCIceCandidateInit, RTCIceServer
@@ -42,6 +42,7 @@ from .kvs_signaling import (
     ice_servers_from_config,
     ice_usable_seconds,
     new_client_id,
+    offer_exceeds_kvs_limit,
     offer_message,
     parse_signaling_event,
     signaling_ws_url,
@@ -60,9 +61,6 @@ LIVE_START_RETRY_DELAY: Final = 0.2
 # claims it. Long enough for the browser to build a peer connection and
 # gather, short enough that the signed KVS endpoint is still good.
 PREPARE_REUSE_SECONDS: Final = 60
-# async_prepare_live runs a session that only ever fetches a config: it is
-# never registered in _sessions and has no viewer to send anything to.
-_PREPARE_SESSION: Final = "prepare"
 
 
 @callback
@@ -109,6 +107,9 @@ def _log_session_failure(err: BaseException, what: str) -> None:
         type(err).__name__,
         getattr(err, "status", None),
     )
+
+
+_FetchReason = Literal["ok", "closed", "no_command_id", "no_config", "error"]
 
 
 class _Prepared(NamedTuple):
@@ -242,24 +243,21 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
             config=config, camera=self._session_camera, at=self.hass.loop.time()
         )
 
-    def _prepared_is_fresh(self) -> bool:
-        """Whether the held config still suits the offer that would claim it."""
+    def _suits_offer(self, prepared: _Prepared) -> bool:
+        """Whether a held config still suits the offer that would claim it."""
         return (
-            self._prepared is not None
-            and self._prepared.camera == self._vas_camera
-            and self.hass.loop.time() - self._prepared.at <= PREPARE_REUSE_SECONDS
+            prepared.camera == self._vas_camera
+            and self.hass.loop.time() - prepared.at <= PREPARE_REUSE_SECONDS
         )
 
     def _take_prepared(self) -> dict[str, Any] | None:
         """Claim a config async_prepare_live fetched, if it is still usable.
 
-        Always clears the hold: a config this offer rejected as stale is no
-        more usable to the next one, and leaving it claimable would hand two
-        viewers the same KVS endpoint.
+        The hold is single-use: claimed or discarded, it is never left for a
+        second offer, which would hand two viewers the same KVS endpoint.
         """
-        fresh = self._prepared_is_fresh()
         prepared, self._prepared = self._prepared, None
-        if not fresh or prepared is None:
+        if prepared is None or not self._suits_offer(prepared):
             return None
         self._session_camera = prepared.camera
         return prepared.config
@@ -281,9 +279,16 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
         unprepared one are answered from the same place.
         """
         async with self._prepare_lock:
-            if self._valid_cached_ice() and self._prepared_is_fresh():
+            held = self._prepared
+            if (
+                self._valid_cached_ice()
+                and held is not None
+                and self._suits_offer(held)
+            ):
                 return
-            live = _LiveSession(session_id=_PREPARE_SESSION, send_message=_noop_message)
+            # Only ever fetches a config: never registered in _sessions, and
+            # with no viewer attached there is nothing to send anything to.
+            live = _LiveSession(session_id="prepare", send_message=_noop_message)
             try:
                 config, reason = await self._async_fetch_live_config(live)
             except Exception as err:  # noqa: BLE001 -- never leak signed URLs
@@ -310,6 +315,30 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
             )
             return
 
+        # KVS drops an oversized signaling frame without a word, so the vehicle
+        # simply never answers and the viewer waits forever on a session that
+        # looks healthy from here. Refusing here still opens no KVS socket and
+        # sends no second VAS -- but note it does NOT save the vehicle a wake:
+        # on the card path `rivian/gear_guard_prepare` has already started a
+        # master session by now, and there is no command to stop one. Only a
+        # viewer that keeps its offer small avoids that, which is why the card
+        # pins H264 rather than relying on this guard.
+        if offer_exceeds_kvs_limit(offer_sdp):
+            _LOGGER.warning(
+                "Offer is too large for KVS signaling (%d bytes of SDP); the "
+                "vehicle would never answer it. A viewer that offers every "
+                "codec it supports overflows the channel -- the bundled card "
+                "pins H264 to stay under.",
+                len(offer_sdp),
+            )
+            send_message(
+                WebRTCError(
+                    "webrtc_offer_failed",
+                    "Offer too large for the vehicle's signaling channel",
+                )
+            )
+            return
+
         live = _LiveSession(session_id=session_id, send_message=send_message)
         self._sessions[session_id] = live
         for existing in list(self._sessions):
@@ -332,7 +361,7 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
 
     async def _async_fetch_live_config(
         self, live: _LiveSession
-    ) -> tuple[dict[str, Any] | None, str]:
+    ) -> tuple[dict[str, Any] | None, _FetchReason]:
         """START_GEAR_GUARD_MASTER_SESSION until gearGuardLiveConfig arrives.
 
         Retries only on STREAMING_UNAVAILABLE, the way ji8.java:51-57 does.
@@ -366,7 +395,6 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
     async def _async_run_offer(self, live: _LiveSession, offer_sdp: str) -> None:
         """Reuse or fetch a live config, connect KVS, send SDP_OFFER."""
         config = self._take_prepared()
-        reason = "ok"
         if config is None:
             config, reason = await self._async_fetch_live_config(live)
             if live.closed:
@@ -398,6 +426,11 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
         if bound := client_id_from_endpoint(config["endpoint"]):
             live.client_id = bound
         self._store_ice(config)
+        # A prepare may have landed while the fetch above was waiting on the
+        # vehicle. Its config is for a different session than the one we are
+        # about to open, and `_cached_ice` now describes ours, so discard it
+        # rather than let the next offer claim a mismatched endpoint.
+        self._prepared = None
         url = signaling_ws_url(config["endpoint"], config["channelArn"], live.client_id)
         if live.closed:
             return

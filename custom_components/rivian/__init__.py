@@ -109,7 +109,7 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
     matching = [
         item for item in resources.async_items() if stem in str(item.get("url") or "")
     ]
-    stale = next((item for item in matching if str(item.get("url")) != url), None)
+    stale = next((item for item in matching if str(item.get("url") or "") != url), None)
     try:
         if stale is not None:
             # A resource URL that differs from the extra_js_url one makes the
