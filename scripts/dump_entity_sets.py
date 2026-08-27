@@ -92,11 +92,11 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from custom_components.rivian.button import BUTTONS
-from custom_components.rivian.camera import CAMERAS
 from custom_components.rivian.climate import CLIMATE
 from custom_components.rivian.const import BINARY_SENSORS, SENSORS
 from custom_components.rivian.cover import COVERS
 from custom_components.rivian.device_tracker import LOCATION_DESCRIPTION
+from custom_components.rivian.gear_guard import CAMERAS
 from custom_components.rivian.helpers import vehicle_supports
 from custom_components.rivian.lock import LOCKS
 from custom_components.rivian.number import CHARGING_SCHEDULE_AMPERAGE_NUMBER, NUMBERS

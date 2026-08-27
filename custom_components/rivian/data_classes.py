@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription
 from homeassistant.components.button import ButtonEntityDescription
-from homeassistant.components.camera import CameraEntityDescription
 from homeassistant.components.climate import ClimateEntityDescription
 from homeassistant.components.cover import CoverEntityDescription
 from homeassistant.components.lock import LockEntityDescription
@@ -118,8 +117,13 @@ class RivianButtonEntityDescription(
 
 
 @dataclass(kw_only=True)
-class RivianCameraEntityDescription(CameraEntityDescription, RivianGateMixin):
-    """Gear Guard live camera. `camera` is the VAS params.camera name."""
+class RivianCameraEntityDescription(EntityDescription, RivianGateMixin):
+    """Gear Guard live camera. `camera` is the VAS params.camera name.
+
+    Inherits EntityDescription, not CameraEntityDescription: importing
+    homeassistant.components.camera at package import pulls stream/img_util
+    (numpy, PyTurboJPEG, av) and takes every platform down with it.
+    """
 
     camera: str = "left"
 

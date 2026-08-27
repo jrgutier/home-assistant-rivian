@@ -18,11 +18,11 @@ from custom_components.rivian.camera import (
     _LiveSession,
     _unsub_config,
     async_setup_entry,
-    gear_guard_camera_options,
 )
 from custom_components.rivian.connectivity import ConnectivityState
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
+from custom_components.rivian.gear_guard import gear_guard_camera_options
 from custom_components.rivian.kvs_signaling import encode_payload
 from custom_components.rivian.rivian_client import VehicleCommand
 from custom_components.rivian.select import (

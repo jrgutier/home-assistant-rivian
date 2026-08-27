@@ -10,11 +10,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .camera import CAMERAS, gear_guard_camera_options
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSelectEntityDescription
 from .entity import RivianVehicleControlEntity, RivianVehicleEntity
+from .gear_guard import CAMERAS, gear_guard_camera_options
 from .helpers import vehicle_supports
 from .rivian_client import VehicleCommand
 

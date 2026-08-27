@@ -34,6 +34,7 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import COMMAND_STATE_CONTINUE, VehicleCoordinator
 from .data_classes import RivianCameraEntityDescription
 from .entity import COMMAND_TIMEOUT_SLEEPING, RivianVehicleControlEntity
+from .gear_guard import CAMERAS
 from .helpers import vehicle_supports
 from .kvs_signaling import (
     client_id_from_endpoint,
@@ -54,34 +55,6 @@ CONFIG_TIMEOUT: Final = 30
 STREAMING_UNAVAILABLE: Final = 1101
 LIVE_START_ATTEMPTS: Final = 3
 LIVE_START_RETRY_DELAY: Final = 0.2
-
-# RivianMotionCamera camName values. Default is LEFT / DEFAULT_MOTION_CAMERA.
-DEFAULT_MOTION_CAMERA: Final = "left"
-EXTERIOR_CAMERAS: Final = ("left", "right", "front", "rear")
-BED_CAMERA: Final = "bed"
-INTERIOR_CAMERA: Final = "interior"
-
-CAMERAS: Final[tuple[RivianCameraEntityDescription, ...]] = (
-    RivianCameraEntityDescription(
-        key="gear_guard_live",
-        translation_key="gear_guard_live",
-        icon="mdi:cctv",
-        feature=("LIVE_CAM", "MOTION_CAM"),
-        camera=DEFAULT_MOTION_CAMERA,
-    ),
-)
-
-
-def gear_guard_camera_options(vehicle: dict[str, Any]) -> tuple[str, ...]:
-    """Cameras the live-view picker lists, matching the app's enum."""
-    options = list(EXTERIOR_CAMERAS)
-    model = str(vehicle.get("model") or "").upper()
-    if "R1T" in model:
-        options.append(BED_CAMERA)
-    features = vehicle.get("supported_features") or []
-    if "INTERIOR_CAMERA" in features:
-        options.append(INTERIOR_CAMERA)
-    return tuple(options)
 
 
 async def async_setup_entry(
