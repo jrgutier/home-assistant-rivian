@@ -106,20 +106,16 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
         return
     await resources.async_get_info()
     stem = "/rivian-static/gear-guard-card.js"
-    stale = [
-        item
-        for item in resources.async_items()
-        if stem in str(item.get("url") or "") and str(item.get("url")) != url
+    matching = [
+        item for item in resources.async_items() if stem in str(item.get("url") or "")
     ]
+    stale = next((item for item in matching if str(item.get("url")) != url), None)
     try:
-        for item in stale:
+        if stale is not None:
             # A resource URL that differs from the extra_js_url one makes the
             # browser fetch the card twice under two module identities.
-            await resources.async_update_item(item["id"], {"url": url})
-            return
-        if not any(
-            stem in str(item.get("url") or "") for item in resources.async_items()
-        ):
+            await resources.async_update_item(stale["id"], {"url": url})
+        elif not matching:
             await resources.async_create_item({"res_type": "module", "url": url})
     except (HomeAssistantError, AttributeError, TypeError, KeyError):
         _LOGGER.debug("Lovelace resource not persisted")

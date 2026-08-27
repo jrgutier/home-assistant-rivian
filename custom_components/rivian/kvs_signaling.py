@@ -17,7 +17,7 @@ import base64
 import binascii
 import json
 import re
-from typing import Any
+from typing import Any, Final
 from urllib.parse import parse_qs, quote, urlparse, urlunparse
 from uuid import uuid4
 
@@ -153,20 +153,37 @@ def client_id_from_endpoint(endpoint: str) -> str | None:
     return None
 
 
-def ice_ttl_from_config(ice_servers: list[Any] | None, default: int = 300) -> int:
+# KVS omits ttl on some entries; five minutes is what its own SDK assumes.
+DEFAULT_ICE_TTL: Final = 300
+# Stop handing out TURN credentials this long before KVS expires them.
+ICE_EXPIRY_MARGIN: Final = 30
+
+
+def ice_ttl_from_config(ice_servers: list[Any] | None) -> int:
     """Shortest `ttl` KVS gave us, in seconds.
 
     The TURN username carries its own expiry epoch and the credential stops
     working at it, so a cached server list is only reusable for this long.
     """
-    ttls = [
-        int(server["ttl"])
-        for server in ice_servers or []
-        if isinstance(server, dict)
-        and isinstance(server.get("ttl"), (int, float))
-        and int(server["ttl"]) > 0
-    ]
-    return min(ttls) if ttls else default
+    return min(
+        (
+            int(server["ttl"])
+            for server in ice_servers or []
+            if isinstance(server, dict)
+            and isinstance(server.get("ttl"), (int, float))
+            and int(server["ttl"]) > 0
+        ),
+        default=DEFAULT_ICE_TTL,
+    )
+
+
+def ice_usable_seconds(ice_servers: list[Any] | None) -> int:
+    """How long these servers may be handed out, margin already taken off.
+
+    Callers cache against this rather than the raw ttl so the arithmetic that
+    decides when a KVS credential dies stays next to the ttl it comes from.
+    """
+    return max(0, ice_ttl_from_config(ice_servers) - ICE_EXPIRY_MARGIN)
 
 
 def ice_servers_from_config(ice_servers: list[Any] | None) -> list[dict[str, Any]]:

@@ -43,16 +43,22 @@ async def ws_gear_guard_prepare(
 
     camera/webrtc/get_client_config runs before the offer, so on a cold entity
     it has no relay to report and the viewer ends up with host candidates the
-    vehicle cannot reach. This starts the vehicle session first; the offer that
-    follows reuses it.
+    vehicle cannot reach. This starts the vehicle session first, then answers
+    exactly as that command would; the offer that follows reuses the session.
     """
     entity = _live_entity(hass, msg["entity_id"])
-    if entity is None or not hasattr(entity, "async_prepare_live"):
+    if entity is None:
         connection.send_error(
             msg["id"], "not_found", "Gear Guard live camera not found"
         )
         return
-    connection.send_result(msg["id"], {"iceServers": await entity.async_prepare_live()})
+    await entity.async_prepare_live()
+    # Answer in camera/webrtc/get_client_config's own shape, via the same
+    # @final wrapper, so a prepared viewer and an unprepared one get the same
+    # thing -- including any ICE servers the user registered with HA.
+    connection.send_result(
+        msg["id"], entity.async_get_webrtc_client_configuration().to_frontend_dict()
+    )
 
 
 @websocket_api.websocket_command(

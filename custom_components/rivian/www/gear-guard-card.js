@@ -116,18 +116,12 @@ class RivianGearGuardCard extends HTMLElement {
   async _iceServers() {
     // The vehicle's KVS relay only exists once the master session has been
     // started, which the offer does not do until the peer connection is
-    // already built. Ask the integration to start it first.
-    try {
-      const prep = await this._hass.connection.sendMessagePromise({
-        type: "rivian/gear_guard_prepare",
-        entity_id: this._config.camera,
-      });
-      if (prep?.iceServers?.length) return prep.iceServers;
-    } catch (_err) {
-      /* older integration build: fall through */
-    }
+    // already built. gear_guard_prepare starts it first and answers in
+    // get_client_config's shape, so there is one shape to read either way.
+    // It falls back to HA's default STUN when the session never started —
+    // the view will fail, but it fails visibly rather than hanging here.
     const cfg = await this._hass.connection.sendMessagePromise({
-      type: "camera/webrtc/get_client_config",
+      type: "rivian/gear_guard_prepare",
       entity_id: this._config.camera,
     });
     return cfg?.configuration?.iceServers || [];
@@ -161,7 +155,6 @@ class RivianGearGuardCard extends HTMLElement {
     this._pc.ontrack = (ev) => {
       if (this._video && ev.streams[0]) this._video.srcObject = ev.streams[0];
     };
-    this._pending = [];
     this._pc.onicecandidate = (ev) => {
       if (!ev.candidate) return;
       // Gathering finishes long before the offer subscription answers with a
@@ -196,7 +189,7 @@ class RivianGearGuardCard extends HTMLElement {
     if (!event || !this._pc) return;
     if (event.type === "session") {
       this._sessionId = event.session_id;
-      const held = this._pending || [];
+      const held = this._pending;
       this._pending = [];
       for (const candidate of held) this._sendCandidate(candidate);
       return;

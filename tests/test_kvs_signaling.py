@@ -14,6 +14,7 @@ from custom_components.rivian.kvs_signaling import (
     ice_candidate_message,
     ice_servers_from_config,
     ice_ttl_from_config,
+    ice_usable_seconds,
     offer_message,
     parse_signaling_event,
     signaling_ws_url,
@@ -178,6 +179,16 @@ def test_ice_ttl_ignores_junk_and_falls_back() -> None:
     assert ice_ttl_from_config([{"url": "stun:example", "ttl": 0}]) == 300
     assert ice_ttl_from_config(["not-a-dict"]) == 300
     assert ice_ttl_from_config([{"url": "stun:example", "ttl": "nope"}]) == 300
+
+
+def test_usable_seconds_takes_the_margin_off_the_ttl() -> None:
+    """Handing out a credential that dies mid-session is worse than refetching:
+    the viewer gets a relay it cannot authenticate to and simply stalls."""
+    assert ice_usable_seconds([{"url": "turn:example", "ttl": 300}]) == 270
+    assert ice_usable_seconds(None) == 270
+    # A ttl shorter than the margin must floor at zero, never go negative --
+    # a negative window would date the cache into the past on arrival.
+    assert ice_usable_seconds([{"url": "turn:example", "ttl": 5}]) == 0
 
 
 def test_decode_payload_falls_back_to_standard_base64() -> None:

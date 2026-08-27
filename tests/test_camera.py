@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import ExitStack
 import json
 import logging
 import time
@@ -33,6 +34,7 @@ from custom_components.rivian.select import (
 from homeassistant.components.camera import CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.setup import async_setup_component
 
 
 def _vehicle(**overrides) -> dict:
@@ -210,13 +212,6 @@ async def test_failed_vas_does_not_wait_full_config_timeout(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
     """1101 is STREAMING_UNAVAILABLE; fail-fast, then ji8 retries."""
-
-    async def subscribe(_vid, _cid, _callback):
-        async def unsub() -> None:
-            return None
-
-        return unsub
-
     coordinator = _hass_entry(hass, mock_config_entry, _vehicle())
     coordinator.send_vehicle_command = AsyncMock(
         side_effect=["cmd-1", "cmd-2", "cmd-3"]
@@ -224,7 +219,7 @@ async def test_failed_vas_does_not_wait_full_config_timeout(
     coordinator.get_command_state = MagicMock(
         return_value={"state": 4, "responseCode": 1101}
     )
-    coordinator.api.subscribe_gear_guard_live_config = AsyncMock(side_effect=subscribe)
+    coordinator.api.subscribe_gear_guard_live_config = _subscribe_returning()
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
     messages: list = []
     started = time.monotonic()
@@ -239,19 +234,12 @@ async def test_non_1101_failure_does_not_retry(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
     """1031 is missing camera; retrying would not change the params."""
-
-    async def subscribe(_vid, _cid, _callback):
-        async def unsub() -> None:
-            return None
-
-        return unsub
-
     coordinator = _hass_entry(hass, mock_config_entry, _vehicle())
     coordinator.send_vehicle_command = AsyncMock(return_value="cmd-1")
     coordinator.get_command_state = MagicMock(
         return_value={"state": 4, "responseCode": 1031}
     )
-    coordinator.api.subscribe_gear_guard_live_config = AsyncMock(side_effect=subscribe)
+    coordinator.api.subscribe_gear_guard_live_config = _subscribe_returning()
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
     messages: list = []
     await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
@@ -263,32 +251,6 @@ async def test_1101_retry_uses_next_command_id(
     hass: HomeAssistant, mock_config_entry: ConfigEntry
 ) -> None:
     """A later 490 on the same identity must start a new command id."""
-
-    async def subscribe(_vid, cid, callback):
-        if cid == "cmd-2":
-            callback(
-                {
-                    "payload": {
-                        "data": {
-                            "gearGuardLiveConfig": {
-                                "endpoint": (
-                                    "https://v-test.kinesisvideo.us-east-1"
-                                    ".amazonaws.com/?X-Amz-Signature=x"
-                                ),
-                                "channelArn": "arn:aws:kinesisvideo:us-east-1:1:channel/x",
-                                "role": "viewer",
-                                "iceServers": [],
-                            }
-                        }
-                    }
-                }
-            )
-
-        async def unsub() -> None:
-            return None
-
-        return unsub
-
     coordinator = _hass_entry(hass, mock_config_entry, _vehicle())
     coordinator.send_vehicle_command = AsyncMock(side_effect=["cmd-1", "cmd-2"])
     coordinator.get_command_state = MagicMock(
@@ -298,22 +260,14 @@ async def test_1101_retry_uses_next_command_id(
             else {"state": 0, "responseCode": 490}
         )
     )
-    coordinator.api.subscribe_gear_guard_live_config = AsyncMock(side_effect=subscribe)
+    coordinator.api.subscribe_gear_guard_live_config = _subscribe_returning(
+        {**_LIVE_CONFIG, "iceServers": []}, only_for_cid="cmd-2"
+    )
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
     messages: list = []
-    ws = AsyncMock()
-    ws.closed = False
-    http = MagicMock()
-    http.ws_connect = AsyncMock(return_value=ws)
-    with (
-        patch("custom_components.rivian.camera.asyncio.sleep", new_callable=AsyncMock),
-        patch(
-            "custom_components.rivian.camera.async_get_clientsession",
-            return_value=http,
-        ),
-        patch.object(entity, "_pump_signaling", new_callable=AsyncMock),
-    ):
-        await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
+
+    http = await _run_offer(entity, messages, skip_retry_delay=True)
+
     assert coordinator.send_vehicle_command.await_count == 2
     http.ws_connect.assert_awaited()
     assert not any(getattr(m, "code", None) == "webrtc_offer_failed" for m in messages)
@@ -332,6 +286,26 @@ _LIVE_CONFIG = {
 _SHAPED_ICE = [{"urls": "turn:example", "username": "u", "credential": "c"}]
 
 
+def _subscribe_returning(config: dict | None = None, only_for_cid: str | None = None):
+    """Stub subscribe_gear_guard_live_config, optionally answering with a config.
+
+    Every caller needs the same throwaway unsub, so the shape of
+    `subscribe_gear_guard_live_config(vehicle_id, command_id, callback)` is
+    asserted here once rather than in each test that stubs it.
+    """
+
+    async def subscribe(_vid, cid, callback):
+        if config is not None and only_for_cid in (None, cid):
+            callback({"payload": {"data": {"gearGuardLiveConfig": config}}})
+
+        async def unsub() -> None:
+            return None
+
+        return unsub
+
+    return AsyncMock(side_effect=subscribe)
+
+
 def _config_coordinator(hass, entry, vehicle) -> VehicleCoordinator:
     """A coordinator whose VAS answers with one usable live config."""
     coordinator = _hass_entry(hass, entry, vehicle)
@@ -339,32 +313,35 @@ def _config_coordinator(hass, entry, vehicle) -> VehicleCoordinator:
     coordinator.get_command_state = MagicMock(
         return_value={"state": 0, "responseCode": 490}
     )
-
-    async def subscribe(_vid, _cid, callback):
-        callback({"payload": {"data": {"gearGuardLiveConfig": _LIVE_CONFIG}}})
-
-        async def unsub() -> None:
-            return None
-
-        return unsub
-
-    coordinator.api.subscribe_gear_guard_live_config = AsyncMock(side_effect=subscribe)
+    coordinator.api.subscribe_gear_guard_live_config = _subscribe_returning(
+        _LIVE_CONFIG
+    )
     return coordinator
 
 
-async def _run_offer(entity, messages: list) -> MagicMock:
+async def _run_offer(entity, messages: list, *, skip_retry_delay: bool = False):
     """Drive one offer to the point of the KVS socket, without pumping it."""
     ws = AsyncMock()
     ws.closed = False
     http = MagicMock()
     http.ws_connect = AsyncMock(return_value=ws)
-    with (
-        patch(
-            "custom_components.rivian.camera.async_get_clientsession",
-            return_value=http,
-        ),
-        patch.object(entity, "_pump_signaling", new_callable=AsyncMock),
-    ):
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch(
+                "custom_components.rivian.camera.async_get_clientsession",
+                return_value=http,
+            )
+        )
+        stack.enter_context(
+            patch.object(entity, "_pump_signaling", new_callable=AsyncMock)
+        )
+        if skip_retry_delay:
+            stack.enter_context(
+                patch(
+                    "custom_components.rivian.camera.asyncio.sleep",
+                    new_callable=AsyncMock,
+                )
+            )
         await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
     return http
 
@@ -380,13 +357,35 @@ async def test_prepare_hands_over_the_relay_before_any_offer(
     cold = entity._async_get_webrtc_client_configuration()
     assert cold.configuration.ice_servers == []
 
-    assert await entity.async_prepare_live() == _SHAPED_ICE
+    await entity.async_prepare_live()
 
     warm = entity._async_get_webrtc_client_configuration()
     assert warm.configuration.ice_servers[0].urls == "turn:example"
     assert warm.configuration.ice_servers[0].credential == "c"
-    # The throwaway session it ran on must not be left behind as a viewer.
+    # The config-only session it ran on must not be left behind as a viewer.
     assert entity._sessions == {}
+
+
+async def test_prepare_answers_through_has_own_client_config(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """async_get_webrtc_client_configuration is @final and appends whatever
+    ICE servers the user registered with HA. Prepare has to answer through it
+    or a user with their own TURN server silently loses it on this path."""
+    # camera declares web_rtc as a dependency, so a real HA has always run it;
+    # the @final wrapper reads the registry it sets up.
+    assert await async_setup_component(hass, "web_rtc", {})
+    coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    await entity.async_prepare_live()
+
+    payload = entity.async_get_webrtc_client_configuration().to_frontend_dict()
+
+    urls = [s["urls"] for s in payload["configuration"]["iceServers"]]
+    assert "turn:example" in urls
+    # HA's own default STUN rides along; the raw KVS list would not have it.
+    assert len(urls) > 1
+    assert payload["dataChannel"] == "data"
 
 
 async def test_offer_after_prepare_does_not_start_a_second_session(
@@ -413,9 +412,10 @@ async def test_repeated_prepare_reuses_the_live_config(
     """The card may prepare on every play; only the first should reach the car."""
     coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
-    assert await entity.async_prepare_live() == _SHAPED_ICE
-    assert await entity.async_prepare_live() == _SHAPED_ICE
+    await entity.async_prepare_live()
+    await entity.async_prepare_live()
     assert coordinator.send_vehicle_command.await_count == 1
+    assert entity._valid_cached_ice() == _SHAPED_ICE
 
 
 async def test_stale_prepare_is_refetched_by_the_offer(
@@ -426,7 +426,9 @@ async def test_stale_prepare_is_refetched_by_the_offer(
     coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
     await entity.async_prepare_live()
-    entity._prepared_at -= PREPARE_REUSE_SECONDS + 1
+    entity._prepared = entity._prepared._replace(
+        at=entity._prepared.at - PREPARE_REUSE_SECONDS - 1
+    )
 
     messages: list = []
     await _run_offer(entity, messages)
@@ -460,7 +462,9 @@ async def test_prepare_that_gets_no_config_reports_no_servers(
     coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
     coordinator.send_vehicle_command = AsyncMock(return_value=None)
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
-    assert await entity.async_prepare_live() == []
+    await entity.async_prepare_live()
+    assert entity._valid_cached_ice() == []
+    assert entity._prepared is None
     assert entity._sessions == {}
 
 
