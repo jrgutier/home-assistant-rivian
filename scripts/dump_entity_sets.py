@@ -68,9 +68,9 @@ GATE_FIELD_EVIDENCE.md set.
 Read-only against the source of truth -- it does not reach the network, mock
 a coordinator, or need a live vehicle -- so it stays usable as a committed
 regenerator even though it does not build actual entities. Sensors,
-binary sensors, and SELECTS import `vehicle_supports` (the same predicate
-the platforms call). Covers and buttons still reproduce their dict-key
-loops here. Kept in sync by tests/test_full_entity_sets.py, which runs the
+binary sensors, SELECTS, and cameras import `vehicle_supports` (the same
+predicate the platforms call). Covers and buttons still reproduce their
+dict-key loops here. Kept in sync by tests/test_full_entity_sets.py, which runs the
 REAL `async_setup_entry()` for every scenario in SCENARIOS and asserts it
 returns exactly what this script computed -- so a predicate drifting from
 its platform file fails a test, not just this docstring's claim.
@@ -96,6 +96,7 @@ from custom_components.rivian.climate import CLIMATE
 from custom_components.rivian.const import BINARY_SENSORS, SENSORS
 from custom_components.rivian.cover import COVERS
 from custom_components.rivian.device_tracker import LOCATION_DESCRIPTION
+from custom_components.rivian.gear_guard import CAMERAS
 from custom_components.rivian.helpers import vehicle_supports
 from custom_components.rivian.lock import LOCKS
 from custom_components.rivian.number import CHARGING_SCHEDULE_AMPERAGE_NUMBER, NUMBERS
@@ -149,6 +150,7 @@ ALL_KNOWN_FEATURES: frozenset[str] = frozenset(
     | _features_from(SENSORS)
     | _features_from(BINARY_SENSORS)
     | _features_from(SELECTS)
+    | _features_from(CAMERAS)
     | EXTRA_FEATURE_ALLOWLIST
 )
 
@@ -199,6 +201,8 @@ SCENARIOS: tuple[Scenario, ...] = (
                 "SIDE_BIN_NXT_ACT",
                 "CHARG_PORT_DOOR_COMMAND",
                 "WINDOWS_CMD",
+                "LIVE_CAM",
+                "MOTION_CAM",
             }
         ),
         option_codes=("TON-P01",),
@@ -207,7 +211,13 @@ SCENARIOS: tuple[Scenario, ...] = (
         "R1S_full_hardware",
         model="R1S",
         features=frozenset(
-            {"LIFTGATE_CMD", "CHARG_PORT_DOOR_COMMAND", "HEATED_SEATS_THIRD"}
+            {
+                "LIFTGATE_CMD",
+                "CHARG_PORT_DOOR_COMMAND",
+                "HEATED_SEATS_THIRD",
+                "LIVE_CAM",
+                "MOTION_CAM",
+            }
         ),
         option_codes=(),
     ),
@@ -234,7 +244,7 @@ del _s
 def entity_keys_for_scenario(s: Scenario) -> dict[str, list[str]]:
     """The full entity-key surface one Scenario produces, platform by platform.
 
-    Sensors, binary sensors, and SELECTS go through vehicle_supports.
+    Sensors, binary sensors, SELECTS, and cameras go through vehicle_supports.
     Covers and buttons stay dict-key loops.
     """
     vehicle = {
@@ -251,6 +261,7 @@ def entity_keys_for_scenario(s: Scenario) -> dict[str, list[str]]:
     selects: list[str] = []
     paired_numbers: list[str] = []
     climate: list[str] = []
+    cameras: list[str] = []
 
     if s.paired:
         covers = sorted(
@@ -268,9 +279,11 @@ def entity_keys_for_scenario(s: Scenario) -> dict[str, list[str]]:
         )
         paired_switches = [d.key for d in SWITCHES]
         locks = sorted(d.key for d in LOCKS)
+        cameras = sorted(d.key for d in CAMERAS if vehicle_supports(d, vehicle))
         selects = sorted(
             [d.key for d in SELECTS if vehicle_supports(d, vehicle)]
             + [seat["key"] for seat in FRONT_SEAT_SELECTS]
+            + (["gear_guard_camera"] if cameras else [])
         )
         paired_numbers = [d.key for d in NUMBERS]
         climate = [CLIMATE.key]
@@ -291,6 +304,7 @@ def entity_keys_for_scenario(s: Scenario) -> dict[str, list[str]]:
         "selects": selects,
         "numbers": sorted(paired_numbers + [CHARGING_SCHEDULE_AMPERAGE_NUMBER.key]),
         "climate": climate,
+        "cameras": cameras,
         "time": sorted(d.key for d in TIME_ENTITIES),
         "device_tracker": [LOCATION_DESCRIPTION.key],
         "update": [UPDATE_DESCRIPTION.key],

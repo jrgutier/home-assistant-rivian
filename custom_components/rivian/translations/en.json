@@ -633,6 +633,11 @@
         "name": "Pair"
       }
     },
+    "camera": {
+      "gear_guard_live": {
+        "name": "Gear Guard Live"
+      }
+    },
     "switch": {
       "alarm": {
         "name": "Alarm"
@@ -701,6 +706,17 @@
       },
       "seat_front_right_heat_vent": {
         "name": "Front Right Seat Climate"
+      },
+      "gear_guard_camera": {
+        "name": "Gear Guard Camera",
+        "state": {
+          "left": "Left",
+          "right": "Right",
+          "front": "Front",
+          "rear": "Rear",
+          "bed": "Bed",
+          "interior": "Interior"
+        }
       }
     },
     "climate": {

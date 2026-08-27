@@ -47,6 +47,7 @@
     "buttons": [
       "wake"
     ],
+    "cameras": [],
     "climate": [
       "cabin_climate"
     ],
@@ -261,6 +262,9 @@
       "open_liftgate",
       "wake"
     ],
+    "cameras": [
+      "gear_guard_live"
+    ],
     "climate": [
       "cabin_climate"
     ],
@@ -280,6 +284,7 @@
       "charging_schedule_amperage"
     ],
     "selects": [
+      "gear_guard_camera",
       "seat_front_left_heat_vent",
       "seat_front_right_heat_vent",
       "seat_rear_left_heat",
@@ -479,6 +484,7 @@
     "buttons": [
       "wake"
     ],
+    "cameras": [],
     "climate": [
       "cabin_climate"
     ],
@@ -700,6 +706,9 @@
       "open_tailgate",
       "wake"
     ],
+    "cameras": [
+      "gear_guard_live"
+    ],
     "climate": [
       "cabin_climate"
     ],
@@ -720,6 +729,7 @@
       "charging_schedule_amperage"
     ],
     "selects": [
+      "gear_guard_camera",
       "seat_front_left_heat_vent",
       "seat_front_right_heat_vent",
       "seat_rear_left_heat",
@@ -917,6 +927,7 @@
     "buttons": [
       "wake"
     ],
+    "cameras": [],
     "climate": [
       "cabin_climate"
     ],
@@ -1131,6 +1142,7 @@
       "open_liftgate",
       "wake"
     ],
+    "cameras": [],
     "climate": [
       "cabin_climate"
     ],
@@ -1345,6 +1357,7 @@
     "buttons": [
       "wake"
     ],
+    "cameras": [],
     "climate": [
       "cabin_climate"
     ],
@@ -1554,6 +1567,7 @@
       "window_rear_right_closed"
     ],
     "buttons": [],
+    "cameras": [],
     "climate": [],
     "covers": [],
     "device_tracker": [

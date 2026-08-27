@@ -91,6 +91,27 @@ class TestDiagnosticsPayloadRedaction:
         # Untouched: only the four sensitive sub-fields are named in TO_REDACT.
         assert redacted["timeStamp"] == "2024-01-01T00:00:00Z"
 
+    def test_gear_guard_live_config_keys_are_redacted(self) -> None:
+        """Latent until coordinator data holds a session; named so it cannot leak."""
+        from custom_components.rivian.helpers import TO_REDACT, redact
+
+        assert {"channelArn", "iceServers", "credential", "endpoint"} <= TO_REDACT
+        payload = {
+            "gearGuardLiveConfig": {
+                "endpoint": (
+                    "wss://v-secret.kinesisvideo.us-east-1.amazonaws.com/"
+                    "?X-Amz-Signature=deadbeef"
+                ),
+                "channelArn": "arn:aws:kinesisvideo:secret",
+                "iceServers": [{"credential": "turn-secret"}],
+            }
+        }
+        dumped = str(redact(payload))
+        assert "arn:aws:kinesisvideo:secret" not in dumped
+        assert "turn-secret" not in dumped
+        assert "deadbeef" not in dumped
+        assert "v-secret" not in dumped
+
 
 class TestTheCoordinatorUsesIt:
     async def test_an_unredacted_exception_does_not_reach_the_log(

@@ -56,7 +56,7 @@ jobs:
         run: |
           cd custom_components/rivian
           zip -q -r ../../rivian.zip ./ \
-            -i '*.py' '*.json' '*.graphql' '*.proto' '*.yaml' 'py.typed'
+            -i '*.py' '*.json' '*.js' '*.graphql' '*.proto' '*.yaml' 'py.typed'
           cd ../..
           unzip -l rivian.zip | tail -1
 

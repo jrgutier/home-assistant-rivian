@@ -52,12 +52,21 @@ if echo "$test_runs" | grep -q 'load_test.sh' && echo "$test_runs" | grep -q 'sc
 else
   bad "test.yaml does not run the load test and artifact scan"
 fi
+for f in "$REL" "$PRE" "$TEST"; do
+  b=$(basename "$f")
+  runs=$(runs_of "$f")
+  if echo "$runs" | grep -Fq "'*.js'"; then
+    ok "$b zip includes *.js (Gear Guard card)"
+  else
+    bad "$b zip omits *.js — Lovelace card would not ship"
+  fi
+done
 
 # --- positive assertions: actually build one and check it --------------------
 # An absence is always satisfiable by deleting; these run the real thing.
 ZIP="$(mktemp -d)/rivian.zip"
 if (cd "$HA/custom_components/rivian" && zip -q -r "$ZIP" ./ \
-      -i '*.py' '*.json' '*.graphql' '*.proto' '*.yaml' 'py.typed'); then
+      -i '*.py' '*.json' '*.js' '*.graphql' '*.proto' '*.yaml' 'py.typed'); then
   try "built artifact passes the secret/content scan" \
       bash "$HA/scripts/scan_artifact.sh" "$ZIP"
 else

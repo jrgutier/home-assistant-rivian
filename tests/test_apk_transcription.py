@@ -476,6 +476,7 @@ class TestWhatWeShipVersusWhatTheAppNames:
                 "number.py",
                 "climate.py",
                 "lock.py",
+                "camera.py",
             )
         )
         ours = {c.value for c in VehicleCommand}
@@ -510,6 +511,7 @@ class TestWhatWeShipVersusWhatTheAppNames:
                 "number.py",
                 "climate.py",
                 "lock.py",
+                "camera.py",
             )
         )
         for command in sorted(INVALID_WRAPPER_COMMANDS):
@@ -700,7 +702,7 @@ class TestCommandCoverage:
         assert buttons["open_liftgate"]["name"] == "Open Liftgate"
 
     def test_start_gear_guard_master_session_is_declared_but_unwired(self) -> None:
-        """A streaming feature, not a control. Declared so the name is recorded."""
+        """Wired on camera.py (s28), not as a control button/switch/cover."""
         ours = {c.value for c in VehicleCommand}
         assert "START_GEAR_GUARD_MASTER_SESSION" in ours
         platforms = "".join(
@@ -708,6 +710,8 @@ class TestCommandCoverage:
             for name in ("button.py", "switch.py", "select.py", "cover.py", "number.py")
         )
         assert "START_GEAR_GUARD_MASTER_SESSION" not in platforms
+        camera = (REPO / "custom_components/rivian/camera.py").read_text()
+        assert "VehicleCommand.START_GEAR_GUARD_MASTER_SESSION" in camera
 
     def test_the_invalid_wrapper_seven_are_still_unwired(self) -> None:
         """INVERTED by owner ruling 11 (2026-08-19). Name kept: f6.sh lists it.
@@ -726,6 +730,7 @@ class TestCommandCoverage:
                 "number.py",
                 "climate.py",
                 "lock.py",
+                "camera.py",
             )
         )
         for command in sorted(INVALID_WRAPPER_COMMANDS):
@@ -746,6 +751,23 @@ class TestCommandCoverage:
         for command in sorted(COMMANDS_ABSENT_FROM_THIS_APK):
             assert command in text, command
         assert "START_GEAR_GUARD_MASTER_SESSION" in text
+
+
+class TestGearGuardLiveConfigQuery:
+    """The live-stream signaling subscription is the APK document, not a guess."""
+
+    def test_query_matches_apk_dj8(self) -> None:
+        from custom_components.rivian.rivian_client.rivian import (
+            GEAR_GUARD_LIVE_CONFIG_QUERY,
+        )
+
+        # 3.15.0 defpackage/dj8.java:19
+        assert GEAR_GUARD_LIVE_CONFIG_QUERY == (
+            "subscription gearGuardRemoteConfig($vehicleId: String!, "
+            "$commandId: String!) { gearGuardLiveConfig(vehicleId: $vehicleId, "
+            "commandId: $commandId) { endpoint channelArn role iceServers { "
+            "url username credential ttl } } }"
+        )
 
 
 class TestCommandStateVocabulary:

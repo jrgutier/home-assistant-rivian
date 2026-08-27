@@ -29,6 +29,7 @@ from custom_components.rivian.binary_sensor import (
     async_setup_entry as binary_sensor_setup,
 )
 from custom_components.rivian.button import async_setup_entry as button_setup
+from custom_components.rivian.camera import async_setup_entry as camera_setup
 from custom_components.rivian.climate import async_setup_entry as climate_setup
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
@@ -61,6 +62,7 @@ PLATFORM_SETUP = {
     "selects": select_setup,
     "numbers": number_setup,
     "climate": climate_setup,
+    "cameras": camera_setup,
     "time": time_setup,
     "device_tracker": device_tracker_setup,
     "update": update_setup,
@@ -186,6 +188,7 @@ async def test_script_matches_the_real_platforms(
     assert _keys(got["selects"]) == set(want["selects"]), scenario.label
     assert _keys(got["numbers"]) == set(want["numbers"]), scenario.label
     assert _keys(got["climate"]) == set(want["climate"]), scenario.label
+    assert _keys(got["cameras"]) == set(want["cameras"]), scenario.label
     assert _keys(got["time"]) == set(want["time"]), scenario.label
     assert _keys(got["device_tracker"]) == set(want["device_tracker"]), scenario.label
     assert _keys(got["update"]) == set(want["update"]), scenario.label

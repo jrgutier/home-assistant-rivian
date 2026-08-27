@@ -79,9 +79,36 @@ fi
 # user would actually have on disk -- not the working tree.
 ( cd custom_components/rivian
   zip -q -r "$WORK/rivian.zip" ./ \
-    -i '*.py' '*.json' '*.graphql' '*.proto' '*.yaml' 'py.typed' )
+    -i '*.py' '*.json' '*.js' '*.graphql' '*.proto' '*.yaml' 'py.typed' )
 mkdir -p "$WORK/custom_components/rivian"
 unzip -q "$WORK/rivian.zip" -d "$WORK/custom_components/rivian"
+
+install_ha_camera_reqs() {
+  # camera.py is a camera platform. Importing it loads HA's camera+stream
+  # components; HA itself installs those manifests' requirements when
+  # Platform.CAMERA is forwarded. They are not ours to list in manifest.json.
+  if [ ! -f "$WORK/custom_components/rivian/camera.py" ]; then
+    return
+  fi
+  HA_CAMERA_REQS=$("$VENV/bin/python" - <<'PY'
+import json, pathlib, homeassistant
+root = pathlib.Path(homeassistant.__file__).parent / "components"
+seen: list[str] = []
+for domain in ("camera", "stream"):
+    man = json.loads((root / domain / "manifest.json").read_text())
+    for req in man.get("requirements") or []:
+        if req not in seen:
+            seen.append(req)
+            print(req)
+PY
+)
+  if [ -n "$HA_CAMERA_REQS" ]; then
+    echo "  ha camera/stream reqs: $(echo "$HA_CAMERA_REQS" | tr '\n' ' ')"
+    # shellcheck disable=SC2086
+    VIRTUAL_ENV="$VENV" uv pip install -q $HA_CAMERA_REQS
+  fi
+}
+install_ha_camera_reqs
 
 run_import() {
   ( cd "$WORK"
@@ -113,6 +140,7 @@ if ! run_import; then
   if [ "$reused" -eq 1 ]; then
     echo "  recreating (retry after import failure)"
     install_venv
+    install_ha_camera_reqs
     run_import
   else
     exit 1

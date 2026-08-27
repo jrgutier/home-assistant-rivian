@@ -21,6 +21,13 @@ bleak>=0.21
 # exercises that path with platform.system patched to Linux.
 dbus-fast
 
+# homeassistant.components.camera (imported by camera.py) loads stream + img_util.
+# HA installs these when Platform.CAMERA is forwarded; pytest imports camera.py
+# at collection. Pins match HA 2026.8.2 camera/stream manifests.
+PyTurboJPEG==1.8.3
+av==17.0.1
+numpy==2.3.2
+
 # Pulled in by homeassistant.components.bluetooth, which tests/test_button.py imports.
 # Absent from HA's own metadata, so without these the bluetooth import fails and
 # test_button.py errors at collection. Installed rather than mocked -- the previous

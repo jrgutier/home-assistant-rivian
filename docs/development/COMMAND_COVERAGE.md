@@ -23,13 +23,34 @@ f2 added `CABIN_HVAC_3RD_ROW_REAR_{LEFT,RIGHT}_SEAT_HEAT`; f6 added
 |---|---|
 | `OPEN_LIFTGATE` | Wired as `button.open_liftgate`, **disabled by default** — it moves a closure and has not been actuated (f7) |
 | `OPEN_TAILGATE` | Wired as `button.open_tailgate`, **disabled by default**, same reason |
-| `START_GEAR_GUARD_MASTER_SESSION` | Starts a live camera session. A streaming feature, not a control; this integration has no surface for it |
 | `CABIN_HVAC_THIRD_ROW_*` | **ANSWERED by f7, 2026-08-19: REJECTED** (`CONFLICT/VEHICLE_COMMAND_ERROR`) on an R1T with `params={"level": 0}` |
 | `CABIN_HVAC_3RD_ROW_REAR_*` | **ANSWERED by f7, 2026-08-19: ACCEPTED**, terminal in ~1.5 s, same params, same truck, seconds apart |
 | `HONK_AND_FLASH_LIGHTS` | **ANSWERED by f7, 2026-08-22: REJECTED** (`CONFLICT/VEHICLE_COMMAND_ERROR`), same R1T. See "f7 results, 2026-08-22" below -- this one is NOT one of the seven `generateInvalidCloudDataWrapper` commands, so the "wrong envelope" theory below does not cover it |
 
 The two closure-openers ship `entity_registry_enabled_default=False`. Shipping an
 untested opener enabled puts it one tap away.
+
+## START_GEAR_GUARD_MASTER_SESSION (wired s28)
+
+Wired as `camera.gear_guard_live`. The app's live-view path, not a control
+button: VAS `START_GEAR_GUARD_MASTER_SESSION` with `params.camera` (APK
+default `"left"`), subscribe `gearGuardLiveConfig`, then Amazon KVS WebRTC
+signaling as `role=viewer`. Tear-down is local; there is no stop VASCommand.
+Clip download (`START_VIDEO_DOWNLOADING_SESSION`) is a different path and
+stays unwired.
+
+**Live measurement gate, 2026-08-26, 2022 R1T …002984, `camera=left`:**
+
+- Gateway accepted (`command_id` `04-38b7b303ee1d25fc0830`).
+- `vehicleCommandState` 2 → 3 → 0, `responseCode` 490.
+- **GATE PASS:** `gearGuardLiveConfig` arrived with `endpoint` (host
+  `kinesisvideo.us-east-1.amazonaws.com`), `channelArn` present,
+  `role=viewer`, 3 `iceServers`, credentials present.
+- Secrets are not recorded: no full endpoint URL, no `channelArn` value, no
+  ICE username/credential.
+
+Same day, send **without** `params.camera`: terminal state 4 / `responseCode`
+1031, no live-config frame. The camera param is required.
 
 ## The seven built with `generateInvalidCloudDataWrapper`
 

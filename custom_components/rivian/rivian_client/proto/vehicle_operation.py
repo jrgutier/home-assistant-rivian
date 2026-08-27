@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
+import uuid
 
 
 def _encode_varint(value: int) -> bytes:

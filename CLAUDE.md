@@ -90,9 +90,9 @@ resolves imports that a user's install would not.
 
 **Tracking upstream:** see [docs/UPSTREAM_MERGE_REHEARSAL.md](docs/UPSTREAM_MERGE_REHEARSAL.md).
 The integration merges from `upstream/main` normally; the vendored client has no
-merge path and is synced with `scripts/sync_upstream_client.sh`. Do not run
-`ruff --fix` across `rivian_client/` -- it is excluded in `pyproject.toml` because
-reformatting vendored code recreates the divergence vendoring removed.
+merge path and is synced with `scripts/sync_upstream_client.sh`. `rivian_client/`
+is linted with the rest of `custom_components/` (ruff check/format). After a
+sync, run ruff so an upstream patch cannot reintroduce style drift.
 
 ## Git Workflow
 

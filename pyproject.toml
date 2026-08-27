@@ -1,11 +1,8 @@
 [tool.ruff]
 required-version = ">=0.16.2"
-# The vendored client is NOT ours to reformat. It is maintained in
-# jrgutier/rivian-python-client under that repo's own ruff config, and its
-# proto/*_pb2.py{,i} files are protoc output that a regeneration must reproduce
-# byte for byte. Running this repo's rules over it rewrote 23 files in a single
-# --fix pass -- exactly the permanent divergence vendoring exists to eliminate.
-extend-exclude = ["custom_components/rivian/rivian_client"]
+# rivian_client/ is edited in place and linted with the rest of
+# custom_components/. proto/vehicle_operation.py is hand-rolled, not protoc
+# *_pb2.py output.
 
 [tool.ruff.lint]
 ignore = [

@@ -1339,7 +1339,9 @@ _WIFI_SECURITY_MAP: Final[dict[int, str]] = {
 }
 
 
-def _submessage(data: bytes, spec: dict[int, tuple[str, dict[int, str] | None]]) -> dict[str, Any]:
+def _submessage(
+    data: bytes, spec: dict[int, tuple[str, dict[int, str] | None]]
+) -> dict[str, Any]:
     """Decode a nested message's varint and string fields against `spec`."""
     out: dict[str, Any] = {}
     for num, wire, value in _decode_protobuf_fields(data):

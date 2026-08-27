@@ -35,10 +35,10 @@ class RivianVehicleControlAvailableMixin:
 class RivianGateMixin:
     """The two EVIDENCE fields `helpers.py`'s `vehicle_supports()` reads.
 
-    `vehicle_supports()` is the sensor / binary-sensor / SELECTS creation
-    predicate: a non-empty result means the description is created for that
-    vehicle. Covers and buttons stay dict-key gated this story and do not
-    call it.
+    `vehicle_supports()` is the sensor / binary-sensor / SELECTS / camera
+    creation predicate: a non-empty result means the description is created
+    for that vehicle. Covers and buttons stay dict-key gated this story and
+    do not call it.
 
     Deliberately NO field-presence evidence source ("does the vehicle report
     ANY value, valid or not, for this field"). `RivianCoverEntityDescription`
@@ -114,6 +114,18 @@ class RivianButtonEntityDescription(
     command: VehicleCommand | None = None
     command_params: dict[str, Any] | None = None
     press_fn: Callable[[VehicleCoordinator], Awaitable[str | None]] | None = None
+
+
+@dataclass(kw_only=True)
+class RivianCameraEntityDescription(EntityDescription, RivianGateMixin):
+    """Gear Guard live camera. `camera` is the VAS params.camera name.
+
+    Inherits EntityDescription, not CameraEntityDescription: importing
+    homeassistant.components.camera at package import pulls stream/img_util
+    (numpy, PyTurboJPEG, av) and takes every platform down with it.
+    """
+
+    camera: str = "left"
 
 
 @dataclass(kw_only=True)
