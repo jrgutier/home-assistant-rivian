@@ -1,4 +1,4 @@
-"""Websocket helpers for Gear Guard live: hold + SWITCH_CAMERA payload."""
+"""Websocket helpers for Gear Guard live: ICE prefetch, hold, SWITCH_CAMERA."""
 
 from __future__ import annotations
 
@@ -25,6 +25,34 @@ def _live_entity(hass: HomeAssistant, entity_id: str):
     if entity is None or not hasattr(entity, "set_live_switch_hold"):
         return None
     return entity
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "rivian/gear_guard_prepare",
+        vol.Required("entity_id"): cv.entity_id,
+    }
+)
+@websocket_api.async_response
+async def ws_gear_guard_prepare(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Hand the browser real KVS ICE servers before it builds its peer.
+
+    camera/webrtc/get_client_config runs before the offer, so on a cold entity
+    it has no relay to report and the viewer ends up with host candidates the
+    vehicle cannot reach. This starts the vehicle session first; the offer that
+    follows reuses it.
+    """
+    entity = _live_entity(hass, msg["entity_id"])
+    if entity is None or not hasattr(entity, "async_prepare_live"):
+        connection.send_error(
+            msg["id"], "not_found", "Gear Guard live camera not found"
+        )
+        return
+    connection.send_result(msg["id"], {"iceServers": await entity.async_prepare_live()})
 
 
 @websocket_api.websocket_command(
@@ -81,6 +109,7 @@ def async_setup_camera_ws(hass: HomeAssistant) -> None:
     key = f"{DOMAIN}_camera_ws"
     if hass.data.get(key):
         return
+    websocket_api.async_register_command(hass, ws_gear_guard_prepare)
     websocket_api.async_register_command(hass, ws_gear_guard_hold)
     websocket_api.async_register_command(hass, ws_gear_guard_switch_payload)
     hass.data[key] = True

@@ -1,13 +1,14 @@
-"""Custom-card websocket: hold VAS teardown, encode SWITCH_CAMERA."""
+"""Custom-card websocket: ICE prefetch, hold VAS teardown, SWITCH_CAMERA."""
 
 from __future__ import annotations
 
 import inspect
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.rivian.camera import CAMERAS, RivianLiveCameraEntity
 from custom_components.rivian.camera_ws import (
     ws_gear_guard_hold,
+    ws_gear_guard_prepare,
     ws_gear_guard_switch_payload,
 )
 from custom_components.rivian.coordinator import VehicleCoordinator
@@ -16,6 +17,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 _hold = inspect.unwrap(ws_gear_guard_hold)
+_prepare = inspect.unwrap(ws_gear_guard_prepare)
 _payload = inspect.unwrap(ws_gear_guard_switch_payload)
 
 
@@ -86,5 +88,39 @@ async def test_hold_ignores_non_live_camera(hass: HomeAssistant) -> None:
     hass.data[DATA_COMPONENT] = component
     conn = _conn()
     await _hold(hass, conn, {"id": 8, "entity_id": "camera.other", "hold": True})
+    conn.send_error.assert_called_once()
+    assert conn.send_error.call_args.args[1] == "not_found"
+
+
+async def test_prepare_not_found(hass: HomeAssistant) -> None:
+    """The card prepares before it plays; a stale entity_id must not 500."""
+    conn = _conn()
+    await _prepare(hass, conn, {"id": 2, "entity_id": "camera.missing"})
+    conn.send_error.assert_called_once()
+    assert conn.send_error.call_args.args[1] == "not_found"
+
+
+async def test_prepare_returns_the_ice_servers(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry, mock_vehicle_paired
+) -> None:
+    """The browser must know the relay before it builds its peer connection."""
+    entity = _entity(hass, mock_config_entry, mock_vehicle_paired)
+    servers = [{"urls": "turn:example", "username": "u", "credential": "c"}]
+    entity.async_prepare_live = AsyncMock(return_value=servers)
+    component = MagicMock()
+    component.get_entity = MagicMock(return_value=entity)
+    hass.data[DATA_COMPONENT] = component
+    conn = _conn()
+    await _prepare(hass, conn, {"id": 9, "entity_id": "camera.gear_guard_live"})
+    conn.send_result.assert_called_once_with(9, {"iceServers": servers})
+
+
+async def test_prepare_ignores_non_live_camera(hass: HomeAssistant) -> None:
+    """A stock HA camera has no vehicle session to start."""
+    component = MagicMock()
+    component.get_entity = MagicMock(return_value=object())
+    hass.data[DATA_COMPONENT] = component
+    conn = _conn()
+    await _prepare(hass, conn, {"id": 10, "entity_id": "camera.other"})
     conn.send_error.assert_called_once()
     assert conn.send_error.call_args.args[1] == "not_found"

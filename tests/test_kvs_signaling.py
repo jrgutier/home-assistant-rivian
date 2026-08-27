@@ -13,6 +13,7 @@ from custom_components.rivian.kvs_signaling import (
     encode_payload,
     ice_candidate_message,
     ice_servers_from_config,
+    ice_ttl_from_config,
     offer_message,
     parse_signaling_event,
     signaling_ws_url,
@@ -155,6 +156,28 @@ def test_ice_servers_from_config_maps_url_field() -> None:
         [{"url": "stun:example", "username": "u", "credential": "c", "ttl": 300}]
     )
     assert shaped == [{"urls": "stun:example", "username": "u", "credential": "c"}]
+
+
+def test_ice_ttl_is_the_shortest_one_kvs_gave() -> None:
+    """The TURN credential dies at its own expiry, so the cache lives that long."""
+    assert (
+        ice_ttl_from_config(
+            [
+                {"url": "stun:example", "ttl": 300},
+                {"url": "turn:example", "ttl": 120},
+            ]
+        )
+        == 120
+    )
+
+
+def test_ice_ttl_ignores_junk_and_falls_back() -> None:
+    """A config with no usable ttl must not cache forever or expire instantly."""
+    assert ice_ttl_from_config(None) == 300
+    assert ice_ttl_from_config([{"url": "stun:example"}]) == 300
+    assert ice_ttl_from_config([{"url": "stun:example", "ttl": 0}]) == 300
+    assert ice_ttl_from_config(["not-a-dict"]) == 300
+    assert ice_ttl_from_config([{"url": "stun:example", "ttl": "nope"}]) == 300
 
 
 def test_decode_payload_falls_back_to_standard_base64() -> None:

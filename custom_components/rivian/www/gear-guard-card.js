@@ -113,33 +113,65 @@ class RivianGearGuardCard extends HTMLElement {
     this._render();
   }
 
-  async _play() {
-    await this._stop();
-    this._busy = "starting…";
-    this._render();
+  async _iceServers() {
+    // The vehicle's KVS relay only exists once the master session has been
+    // started, which the offer does not do until the peer connection is
+    // already built. Ask the integration to start it first.
+    try {
+      const prep = await this._hass.connection.sendMessagePromise({
+        type: "rivian/gear_guard_prepare",
+        entity_id: this._config.camera,
+      });
+      if (prep?.iceServers?.length) return prep.iceServers;
+    } catch (_err) {
+      /* older integration build: fall through */
+    }
     const cfg = await this._hass.connection.sendMessagePromise({
       type: "camera/webrtc/get_client_config",
       entity_id: this._config.camera,
     });
-    const iceServers = cfg?.configuration?.iceServers || [];
+    return cfg?.configuration?.iceServers || [];
+  }
+
+  _sendCandidate(candidate) {
+    this._hass.connection
+      .sendMessagePromise({
+        type: "camera/webrtc/candidate",
+        entity_id: this._config.camera,
+        session_id: this._sessionId,
+        candidate: {
+          candidate: candidate.candidate,
+          sdpMid: candidate.sdpMid,
+          sdpMLineIndex: candidate.sdpMLineIndex,
+        },
+      })
+      .catch(() => {
+        /* session already gone */
+      });
+  }
+
+  async _play() {
+    await this._stop();
+    this._busy = "starting…";
+    this._render();
+    const iceServers = await this._iceServers();
     this._pc = new RTCPeerConnection({ iceServers });
     this._dc = this._pc.createDataChannel("data", { ordered: true });
     this._pc.addTransceiver("video", { direction: "recvonly" });
     this._pc.ontrack = (ev) => {
       if (this._video && ev.streams[0]) this._video.srcObject = ev.streams[0];
     };
+    this._pending = [];
     this._pc.onicecandidate = (ev) => {
-      if (!ev.candidate || !this._sessionId) return;
-      this._hass.connection.sendMessagePromise({
-        type: "camera/webrtc/candidate",
-        entity_id: this._config.camera,
-        session_id: this._sessionId,
-        candidate: {
-          candidate: ev.candidate.candidate,
-          sdpMid: ev.candidate.sdpMid,
-          sdpMLineIndex: ev.candidate.sdpMLineIndex,
-        },
-      });
+      if (!ev.candidate) return;
+      // Gathering finishes long before the offer subscription answers with a
+      // session id. Dropping these strands the vehicle with no address to
+      // send media to, so hold them and flush once the id arrives.
+      if (!this._sessionId) {
+        this._pending.push(ev.candidate);
+        return;
+      }
+      this._sendCandidate(ev.candidate);
     };
     const offer = await this._pc.createOffer();
     await this._pc.setLocalDescription(offer);
@@ -164,6 +196,9 @@ class RivianGearGuardCard extends HTMLElement {
     if (!event || !this._pc) return;
     if (event.type === "session") {
       this._sessionId = event.session_id;
+      const held = this._pending || [];
+      this._pending = [];
+      for (const candidate of held) this._sendCandidate(candidate);
       return;
     }
     if (event.type === "answer" && event.answer) {
@@ -220,6 +255,7 @@ class RivianGearGuardCard extends HTMLElement {
       this._pc = null;
     }
     this._sessionId = null;
+    this._pending = [];
     if (this._video) this._video.srcObject = null;
     this._busy = "";
   }

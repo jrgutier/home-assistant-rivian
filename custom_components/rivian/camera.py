@@ -40,6 +40,7 @@ from .kvs_signaling import (
     client_id_from_endpoint,
     ice_candidate_message,
     ice_servers_from_config,
+    ice_ttl_from_config,
     new_client_id,
     offer_message,
     parse_signaling_event,
@@ -55,6 +56,12 @@ CONFIG_TIMEOUT: Final = 30
 STREAMING_UNAVAILABLE: Final = 1101
 LIVE_START_ATTEMPTS: Final = 3
 LIVE_START_RETRY_DELAY: Final = 0.2
+# How long a config fetched by async_prepare_live may sit before the offer
+# claims it. Long enough for the browser to build a peer connection and
+# gather, short enough that the signed KVS endpoint is still good.
+PREPARE_REUSE_SECONDS: Final = 60
+# Stop handing out TURN credentials this long before KVS expires them.
+ICE_EXPIRY_MARGIN: Final = 30
 
 
 async def async_setup_entry(
@@ -86,6 +93,11 @@ async def _unsub_config(unsub: Any) -> None:
             await result
     except Exception:  # noqa: BLE001 -- teardown
         _LOGGER.debug("Unsubscribe gearGuardLiveConfig failed")
+
+
+@callback
+def _drop_message(message: Any) -> None:
+    """Sink for the throwaway session async_prepare_live runs on."""
 
 
 def _log_session_failure(err: BaseException, what: str) -> None:
@@ -130,8 +142,13 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
         Camera.__init__(self)
         self._sessions: dict[str, _LiveSession] = {}
         self._cached_ice: list[dict[str, Any]] = []
+        self._cached_ice_expires = 0.0
         self._session_camera: str | None = None
         self._live_switch_hold = False
+        self._prepared: dict[str, Any] | None = None
+        self._prepared_at = 0.0
+        self._prepared_camera: str | None = None
+        self._prepare_lock = asyncio.Lock()
 
     def set_live_switch_hold(self, hold: bool) -> None:
         """Custom card owns in-session SWITCH_CAMERA; skip VAS teardown."""
@@ -176,19 +193,96 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
 
     @callback
     def _async_get_webrtc_client_configuration(self) -> WebRTCClientConfiguration:
-        """Return cached KVS ICE servers from the last live config, if any."""
+        """Return the KVS ICE servers, if a live config has been fetched.
+
+        HA asks for this before it forwards the offer, so on a cold entity
+        there is nothing to give and the browser falls back to HA's default
+        STUN with no relay. `rivian/gear_guard_prepare` exists so the card can
+        fill this in first; see async_prepare_live.
+        """
         servers = [
             RTCIceServer(
                 urls=entry["urls"],
                 username=entry.get("username"),
                 credential=entry.get("credential"),
             )
-            for entry in self._cached_ice
+            for entry in self._valid_cached_ice()
         ]
         return WebRTCClientConfiguration(
             configuration=RTCConfiguration(ice_servers=servers),
             data_channel="data",
         )
+
+    def _valid_cached_ice(self) -> list[dict[str, Any]]:
+        """Cached ICE servers, dropped once KVS has expired the credentials."""
+        if not self._cached_ice:
+            return []
+        if self.hass.loop.time() >= self._cached_ice_expires:
+            self._cached_ice = []
+            self._cached_ice_expires = 0.0
+        return self._cached_ice
+
+    def _store_live_config(self, config: dict[str, Any]) -> None:
+        """Remember a live config so the next offer can reuse it."""
+        now = self.hass.loop.time()
+        ice = config.get("iceServers")
+        self._cached_ice = ice_servers_from_config(ice)
+        self._cached_ice_expires = now + ice_ttl_from_config(ice) - ICE_EXPIRY_MARGIN
+        self._prepared = config
+        self._prepared_at = now
+        self._prepared_camera = self._session_camera
+
+    def _take_prepared(self) -> dict[str, Any] | None:
+        """Claim a config async_prepare_live fetched, if it is still usable."""
+        config = self._prepared
+        self._prepared = None
+        if config is None or self._prepared_camera != self._vas_camera:
+            return None
+        if self.hass.loop.time() - self._prepared_at > PREPARE_REUSE_SECONDS:
+            return None
+        self._session_camera = self._prepared_camera
+        return config
+
+    async def async_prepare_live(self) -> list[dict[str, Any]]:
+        """Start the vehicle session early and return its KVS ICE servers.
+
+        The browser has to know the relay before it constructs its
+        RTCPeerConnection, but the ICE servers only exist once
+        START_GEAR_GUARD_MASTER_SESSION has answered -- which the old flow did
+        not do until after the offer was already built. The result was a
+        viewer with host candidates only: signaling completed, the vehicle
+        answered and kept re-answering every two minutes, and no media ever
+        flowed. The offer that follows reuses this same config rather than
+        starting a second session on the vehicle.
+        """
+        async with self._prepare_lock:
+            cached = self._valid_cached_ice()
+            if (
+                cached
+                and self._prepared is not None
+                and self._prepared_camera == self._vas_camera
+                and self.hass.loop.time() - self._prepared_at <= PREPARE_REUSE_SECONDS
+            ):
+                return cached
+            live = _LiveSession(session_id="prepare", send_message=_drop_message)
+            try:
+                config = await self._async_fetch_live_config(live)
+            except Exception as err:  # noqa: BLE001 -- never leak signed URLs
+                _log_session_failure(err, "Gear Guard live prepare failed")
+                config = None
+            finally:
+                live.closed = True
+                live.closed_event.set()
+                await _unsub_config(live.unsub_config)
+                live.unsub_config = None
+            if config is None:
+                _LOGGER.debug(
+                    "Gear Guard prepare got no live config (responseCode=%s)",
+                    live.last_response_code,
+                )
+                return self._valid_cached_ice()
+            self._store_live_config(config)
+            return self._valid_cached_ice()
 
     async def async_handle_async_webrtc_offer(
         self, offer_sdp: str, session_id: str, send_message: WebRTCSendMessage
@@ -220,9 +314,15 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
             )
             await self._async_close_session(session_id)
 
-    async def _async_run_offer(self, live: _LiveSession, offer_sdp: str) -> None:
-        """Send VAS, wait for live config, connect KVS, send SDP_OFFER."""
-        config: dict[str, Any] | None = None
+    async def _async_fetch_live_config(
+        self, live: _LiveSession
+    ) -> dict[str, Any] | None:
+        """START_GEAR_GUARD_MASTER_SESSION until gearGuardLiveConfig arrives.
+
+        Retries only on STREAMING_UNAVAILABLE, the way ji8.java:51-57 does.
+        Sets `live.no_command_id` when the command itself never got an id, so
+        the caller can tell that apart from a config that simply never came.
+        """
         for attempt in range(LIVE_START_ATTEMPTS):
             self._session_camera = self._vas_camera
             command_id = await self.coordinator.send_vehicle_command(
@@ -230,46 +330,58 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
                 {"camera": self._vas_camera},
             )
             if live.closed:
-                return
+                return None
             if not command_id:
-                live.send_message(
-                    WebRTCError(
-                        "webrtc_offer_failed",
-                        "START_GEAR_GUARD_MASTER_SESSION returned no command id",
-                    )
-                )
-                await self._async_close_session(live.session_id)
-                return
+                live.no_command_id = True
+                return None
             config = await self._wait_for_live_config(live, command_id)
             if live.closed:
-                return
+                return None
             if config is not None:
-                break
+                return config
             if (
                 live.last_response_code != STREAMING_UNAVAILABLE
                 or attempt == LIVE_START_ATTEMPTS - 1
             ):
                 break
             await asyncio.sleep(LIVE_START_RETRY_DELAY)
+        return None
+
+    async def _async_run_offer(self, live: _LiveSession, offer_sdp: str) -> None:
+        """Reuse or fetch a live config, connect KVS, send SDP_OFFER."""
+        config = self._take_prepared()
         if config is None:
-            _LOGGER.warning(
-                "START_GEAR_GUARD_MASTER_SESSION ended without live config "
-                "(responseCode=%s camera=%s)",
-                live.last_response_code,
-                self._session_camera,
-            )
-            live.send_message(
-                WebRTCError(
-                    "webrtc_offer_failed",
-                    "gearGuardLiveConfig did not arrive",
+            config = await self._async_fetch_live_config(live)
+            if live.closed:
+                return
+        if config is None:
+            if live.no_command_id:
+                live.send_message(
+                    WebRTCError(
+                        "webrtc_offer_failed",
+                        "START_GEAR_GUARD_MASTER_SESSION returned no command id",
+                    )
                 )
-            )
+            else:
+                _LOGGER.warning(
+                    "START_GEAR_GUARD_MASTER_SESSION ended without live config "
+                    "(responseCode=%s camera=%s)",
+                    live.last_response_code,
+                    self._session_camera,
+                )
+                live.send_message(
+                    WebRTCError(
+                        "webrtc_offer_failed",
+                        "gearGuardLiveConfig did not arrive",
+                    )
+                )
             await self._async_close_session(live.session_id)
             return
 
         if bound := client_id_from_endpoint(config["endpoint"]):
             live.client_id = bound
-        self._cached_ice = ice_servers_from_config(config.get("iceServers"))
+        self._store_live_config(config)
+        self._prepared = None
         url = signaling_ws_url(config["endpoint"], config["channelArn"], live.client_id)
         if live.closed:
             return
@@ -476,7 +588,8 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
             await live.ws.close()
             live.ws = None
         if not self._sessions:
-            self._cached_ice = []
+            # Keep _cached_ice: it is what the *next* viewer gets handed
+            # before its offer, and _valid_cached_ice drops it on expiry.
             self._attr_is_streaming = False
             self.async_write_ha_state()
 
@@ -502,6 +615,7 @@ class _LiveSession:
         self.pump_task: asyncio.Task | None = None
         self.pending_ice: list[RTCIceCandidateInit] = []
         self.last_response_code: int | None = None
+        self.no_command_id = False
 
     async def send_json(self, payload: dict[str, str]) -> None:
         """Send one KVS signaling JSON object."""

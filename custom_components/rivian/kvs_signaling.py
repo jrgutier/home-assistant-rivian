@@ -153,6 +153,22 @@ def client_id_from_endpoint(endpoint: str) -> str | None:
     return None
 
 
+def ice_ttl_from_config(ice_servers: list[Any] | None, default: int = 300) -> int:
+    """Shortest `ttl` KVS gave us, in seconds.
+
+    The TURN username carries its own expiry epoch and the credential stops
+    working at it, so a cached server list is only reusable for this long.
+    """
+    ttls = [
+        int(server["ttl"])
+        for server in ice_servers or []
+        if isinstance(server, dict)
+        and isinstance(server.get("ttl"), (int, float))
+        and int(server["ttl"]) > 0
+    ]
+    return min(ttls) if ttls else default
+
+
 def ice_servers_from_config(ice_servers: list[Any] | None) -> list[dict[str, Any]]:
     """Shape GraphQL iceServers for RTCIceServer without copying secrets out."""
     out: list[dict[str, Any]] = []
