@@ -319,28 +319,29 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
         # KVS drops an oversized signaling frame without a word, so the vehicle
         # simply never answers and the viewer waits forever on a session that
         # looks healthy from here. HA's own player cannot be told to offer less,
-        # so trim it down to what the vehicle would have picked anyway rather
-        # than refuse a view the user has no way to fix.
-        if offer_exceeds_kvs_limit(offer_sdp):
-            trimmed = trim_offer_for_kvs(offer_sdp)
-            _LOGGER.debug(
-                "Trimmed an oversized offer for KVS: %d -> %d bytes of SDP",
+        # so trim it to what the vehicle would have picked anyway rather than
+        # refuse a view the user has no way to fix. Returns its argument
+        # unchanged when nothing needed doing. Logged at info because when a
+        # rewritten offer does go wrong the symptom is a black player, and
+        # nobody debugging that has this integration at debug first.
+        if (trimmed := trim_offer_for_kvs(offer_sdp)) is not offer_sdp:
+            _LOGGER.info(
+                "Rewrote an oversized offer to fit KVS signaling: %d -> %d "
+                "bytes of SDP (kept H264, dropped codecs the vehicle declines)",
                 len(offer_sdp),
                 len(trimmed),
             )
             offer_sdp = trimmed
 
-        # Still over: nothing left to give back. Refusing opens no KVS socket
-        # and sends no second VAS -- but note it does NOT save the vehicle a
-        # wake, because on the card path `rivian/gear_guard_prepare` has
-        # already started a master session by now and there is no command to
-        # stop one.
+        # Nothing left to give back. Refusing opens no KVS socket and sends no
+        # second VAS -- but note it does NOT save the vehicle a wake, because
+        # on the card path `rivian/gear_guard_prepare` has already started a
+        # master session by now and there is no command to stop one.
         if offer_exceeds_kvs_limit(offer_sdp):
             _LOGGER.warning(
-                "Offer is too large for KVS signaling (%d bytes of SDP); the "
-                "vehicle would never answer it. A viewer that offers every "
-                "codec it supports overflows the channel -- the bundled card "
-                "pins H264 to stay under.",
+                "Offer is too large for KVS signaling (%d bytes of SDP) even "
+                "after trimming; the vehicle would never answer it. A viewer "
+                "that offers no H264 at all cannot be reduced -- see sdp.py.",
                 len(offer_sdp),
             )
             send_message(

@@ -22,6 +22,8 @@ from custom_components.rivian.kvs_signaling import (
     signaling_ws_url,
 )
 
+from tests.webrtc import sdp_of_length
+
 
 def test_payload_roundtrip_urlsafe_no_padding() -> None:
     """Android flags 11: URL_SAFE | NO_WRAP | NO_PADDING."""
@@ -183,13 +185,6 @@ def test_ice_ttl_ignores_junk_and_falls_back() -> None:
     assert ice_ttl_from_config([{"url": "stun:example", "ttl": "nope"}]) == 300
 
 
-def _sdp_of_length(length: int) -> str:
-    """A CRLF-heavy SDP of roughly `length` bytes, like a real browser offer."""
-    head = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
-    line = "a=fmtp:96 profile-level-id=42e01f;packetization-mode=1\r\n"
-    return head + line * max(0, (length - len(head)) // len(line))
-
-
 def test_offer_over_the_kvs_payload_limit_is_detected() -> None:
     """KVS drops an oversized frame in silence -- the socket stays open and the
     vehicle simply never answers -- so nothing downstream can detect this.
@@ -199,15 +194,15 @@ def test_offer_over_the_kvs_payload_limit_is_detected() -> None:
     the boundary actually falls.
     """
     # A full Chrome offer -- every codec, rtx for each -- runs past 7KB.
-    assert offer_exceeds_kvs_limit(_sdp_of_length(9000))
+    assert offer_exceeds_kvs_limit(sdp_of_length(9000))
     # Pinning H264 brings it to roughly 2KB, with ample room.
-    assert not offer_exceeds_kvs_limit(_sdp_of_length(2000))
+    assert not offer_exceeds_kvs_limit(sdp_of_length(2000))
 
 
 def test_the_limit_is_measured_on_the_encoded_payload_not_the_sdp() -> None:
     """CRLF escaping and base64 cost ~1.42x, so an SDP well under 10000 bytes
     can still overflow. Measuring the SDP length instead would miss it."""
-    sdp = _sdp_of_length(8000)
+    sdp = sdp_of_length(8000)
     assert len(sdp) < KVS_MAX_MESSAGE_PAYLOAD
     assert len(offer_message(sdp, "c-1")["messagePayload"]) > KVS_MAX_MESSAGE_PAYLOAD
     assert offer_exceeds_kvs_limit(sdp)
@@ -220,7 +215,7 @@ def test_the_cliff_is_the_payload_boundary_itself() -> None:
     """
     sizes = (2000, 4000, 6000, 8000, 10000, 12000)
     for size in sizes:
-        sdp = _sdp_of_length(size)
+        sdp = sdp_of_length(size)
         payload = offer_message(sdp, "c-1")["messagePayload"]
         assert offer_exceeds_kvs_limit(sdp) is (
             len(payload) > KVS_MAX_MESSAGE_PAYLOAD

@@ -38,6 +38,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 
+from tests.webrtc import chrome_offer, sdp_of_length
+
 
 def _vehicle(**overrides) -> dict:
     data = {
@@ -486,9 +488,7 @@ async def test_an_offer_ha_built_is_trimmed_instead_of_refused(
     codec, so on Chrome it lands over the KVS limit through no fault of the
     user. Trim it to what the vehicle would have picked and let the view work,
     rather than refusing a session nobody can make smaller."""
-    from tests.test_sdp import _chrome_offer
-
-    fat = _chrome_offer()
+    fat = chrome_offer()
     coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
     messages: list = []
@@ -526,7 +526,7 @@ async def test_oversized_offer_is_refused_without_opening_a_session(
     """
     coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
     entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
-    fat = "v=0\r\n" + "a=fmtp:96 profile-level-id=42e01f\r\n" * 400
+    fat = sdp_of_length(12000)
     messages: list = []
 
     await entity.async_handle_async_webrtc_offer("v=0" + fat, "sess-1", messages.append)
