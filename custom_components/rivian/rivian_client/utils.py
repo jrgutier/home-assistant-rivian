@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from base64 import b64decode, b64encode
 import hashlib
 import hmac
-from base64 import b64decode, b64encode
 from typing import cast
 
 from cryptography.hazmat.primitives import hashes, serialization

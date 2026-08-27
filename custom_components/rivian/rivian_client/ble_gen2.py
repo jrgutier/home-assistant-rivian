@@ -130,7 +130,9 @@ async def _wait_for_first_frame(
     to both and recording which one actually fires is the required mitigation
     (plan Pre-mortem 1) -- returns None on timeout.
     """
-    waiters = {name: asyncio.ensure_future(h.event.wait()) for name, h in handlers.items()}
+    waiters = {
+        name: asyncio.ensure_future(h.event.wait()) for name, h in handlers.items()
+    }
     try:
         done, _ = await asyncio.wait(
             waiters.values(), timeout=timeout, return_when=asyncio.FIRST_COMPLETED
@@ -188,7 +190,9 @@ def verify_vnonce(
     `ACTIVE_COMMAND`/`PASSIVE_ENTRY` CSN field, which this module does not build
     (see `pair_phone_gen2`).
     """
-    expected = hmac.new(secret_key, phone_nonce + vehicle_nonce, hashlib.sha256).digest()
+    expected = hmac.new(
+        secret_key, phone_nonce + vehicle_nonce, hashlib.sha256
+    ).digest()
     return hmac.compare_digest(mac, expected)
 
 
@@ -279,9 +283,7 @@ async def pair_phone_gen2(
         # silently. HA debug logs are pasted verbatim into public GitHub issues,
         # and this integration explicitly asks beta testers to do that.
         # Pinned by tests/client/test_ble_gen2.py::TestKeyMaterialNeverReachesLogs.
-        _LOGGER.error(
-            "Gen 2: failed to derive the shared key (%s)", type(ex).__name__
-        )
+        _LOGGER.error("Gen 2: failed to derive the shared key (%s)", type(ex).__name__)
         return False
 
     try:
@@ -289,7 +291,9 @@ async def pair_phone_gen2(
             _LOGGER.debug("Gen 2: connected to %s", device)
             _trace(
                 lambda: trace.record_identifiers(
-                    phone_id=phone_id, vas_vehicle_id=vas_vehicle_id, address=device.address
+                    phone_id=phone_id,
+                    vas_vehicle_id=vas_vehicle_id,
+                    address=device.address,
                 )
             )
 
@@ -369,7 +373,9 @@ async def pair_phone_gen2(
                 # The frame we DID consume is already recorded above; these are
                 # the ones after it. If they concatenate with it to 48 bytes,
                 # the answer is fragmentation, not a malformed vehicle.
-                _record_unconsumed("unconsumed (after malformed)", skip_first_of=channel)
+                _record_unconsumed(
+                    "unconsumed (after malformed)", skip_first_of=channel
+                )
                 _LOGGER.error("Gen 2: malformed AUTH_VNONCE response: %s", ex)
                 return False
 
@@ -379,9 +385,7 @@ async def pair_phone_gen2(
                 # The consumed frame is already recorded; these are the rest.
                 # A mirrored wrong-MAC reply on the other channel would say the
                 # failure is not specific to the channel we answered on.
-                _record_unconsumed(
-                    "unconsumed (after bad MAC)", skip_first_of=channel
-                )
+                _record_unconsumed("unconsumed (after bad MAC)", skip_first_of=channel)
                 _LOGGER.error("Gen 2: vNonce HMAC verification failed")
                 return False
 
@@ -396,13 +400,13 @@ async def pair_phone_gen2(
             # vehicle sends after this point is logged rather than discarded --
             # if this assumption is wrong, a WARNING here is what disproves it.
             # UNPROVEN (plan §3.5): zero APK evidence for Gen 2 bonding at all;
-            # this mirrors Gen 1's platform split (ble.py:281) as a default,
+            # this mirrors Gen 1's platform split (ble.py:284) as a default,
             # not a decoded requirement.
             _LOGGER.debug("Gen 2: attempting to trigger bonding")
             if platform.system() == "Darwin":
                 # Gen 1 has no explicit bonding API on macOS, so it subscribes to
                 # a protected characteristic to trigger bonding manually
-                # (ble.py:284). Gen 2 has no APK-confirmed equivalent
+                # (ble.py:287). Gen 2 has no APK-confirmed equivalent
                 # characteristic; the ENCRYPTED_DATA_OUT subscription established
                 # above is reused as that trigger rather than re-subscribing,
                 # which some bleak backends reject as a duplicate.

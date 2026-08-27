@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from collections.abc import Awaitable, Callable, Set as AbstractSet
 import logging
 import socket
 import sys
 import time
-import uuid
-from collections.abc import Awaitable, Callable, Set as AbstractSet
 from typing import Any
+import uuid
 from warnings import warn
 
 import aiohttp
@@ -58,6 +58,14 @@ GRAPHQL_BASEPATH = "https://rivian.com/api/gql"
 GRAPHQL_GATEWAY = GRAPHQL_BASEPATH + "/gateway/graphql"
 GRAPHQL_CHARGING = GRAPHQL_BASEPATH + "/chrg/user/graphql"
 GRAPHQL_WEBSOCKET = "wss://api.rivian.com/gql-consumer-subscriptions/graphql"
+
+# 3.15.0 dj8.java:19 — Gear Guard live-stream signaling config.
+GEAR_GUARD_LIVE_CONFIG_QUERY = (
+    "subscription gearGuardRemoteConfig($vehicleId: String!, "
+    "$commandId: String!) { gearGuardLiveConfig(vehicleId: "
+    "$vehicleId, commandId: $commandId) { endpoint channelArn "
+    "role iceServers { url username credential ttl } } }"
+)
 
 APOLLO_CLIENT_NAME = "com.rivian.ios.consumer-apollo-ios"
 
@@ -1252,6 +1260,32 @@ class Rivian:
         }
         return await self._start_subscription(
             payload, callback, "Command %s subscribed to state updates", command_id
+        )
+
+    async def subscribe_gear_guard_live_config(
+        self,
+        vehicle_id: str,
+        command_id: str,
+        callback: Callable[[dict[str, Any]], None],
+    ) -> Callable | None:
+        """Subscribe to the app's Gear Guard live-stream signaling config.
+
+        Exact document: 3.15.0 `dj8.java:19` (`gearGuardRemoteConfig` /
+        `gearGuardLiveConfig`). Frame carries KVS WebRTC signaling
+        (`endpoint`, `channelArn`, `role`, `iceServers`). Callers must not
+        log those fields; they are session credentials.
+        """
+        payload = {
+            "operationName": "gearGuardRemoteConfig",
+            "query": GEAR_GUARD_LIVE_CONFIG_QUERY,
+            "variables": {"vehicleId": vehicle_id, "commandId": command_id},
+        }
+        return await self._start_subscription(
+            payload,
+            callback,
+            "Vehicle %s command %s subscribed to gearGuardLiveConfig",
+            vehicle_id,
+            command_id,
         )
 
     async def send_location_to_vehicle(

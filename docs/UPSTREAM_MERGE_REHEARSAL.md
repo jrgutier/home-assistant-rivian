@@ -112,9 +112,10 @@ responses and both fail a naive forward `--check`.
 2. `.venv/bin/pytest -q && .venv/bin/python scripts/check_coverage.py`
 3. `bash scripts/load_test.sh` — upstream may import something Home Assistant core
    does not ship, which the suite cannot catch.
-4. Do **not** run `ruff --fix` across `rivian_client/`. It is excluded in
-   `pyproject.toml` on purpose: reformatting vendored code recreates the permanent
-   divergence vendoring exists to remove.
+4. Run `ruff check --fix custom_components/rivian/rivian_client` and
+   `ruff format custom_components/rivian/rivian_client`. The tree is first-party
+   now; an upstream patch that reintroduces style drift should be fixed here,
+   not excluded.
 
 ### Invariant worth keeping, until archival
 

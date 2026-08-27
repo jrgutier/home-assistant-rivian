@@ -84,9 +84,9 @@ gate, so one cannot slide in unchecked.
 | `KEY_FOB_2` | = | — | — |
 | `KEY_PAAK` | = | yes | — |
 | `LIFTGATE_CMD` | = | — | cover.liftgate |
-| `LIVE_CAM` | = | yes | — |
+| `LIVE_CAM` | = | yes | `camera.gear_guard_live` |
 | `MOBILE_WHEEL_SWAP` | = | yes | — |
-| `MOTION_CAM` | = | yes | — |
+| `MOTION_CAM` | = | yes | `camera.gear_guard_live` |
 | `ORPHANED_PHONE_KEY_RECOVERY_HANDLING` | = | — | — |
 | `PASSIVE_ENTRY_PROTO_V2` | = | yes | — |
 | `PET_COMFORT_CONTROL` | = | — | — |

@@ -79,7 +79,7 @@ fi
 # user would actually have on disk -- not the working tree.
 ( cd custom_components/rivian
   zip -q -r "$WORK/rivian.zip" ./ \
-    -i '*.py' '*.json' '*.graphql' '*.proto' '*.yaml' 'py.typed' )
+    -i '*.py' '*.json' '*.js' '*.graphql' '*.proto' '*.yaml' 'py.typed' )
 mkdir -p "$WORK/custom_components/rivian"
 unzip -q "$WORK/rivian.zip" -d "$WORK/custom_components/rivian"
 

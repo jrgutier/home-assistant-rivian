@@ -10,10 +10,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .camera import CAMERAS, gear_guard_camera_options
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSelectEntityDescription
-from .entity import RivianVehicleControlEntity
+from .entity import RivianVehicleControlEntity, RivianVehicleEntity
 from .helpers import vehicle_supports
 from .rivian_client import VehicleCommand
 
@@ -168,6 +169,13 @@ async def async_setup_entry(
         ]
     )
 
+    entities.extend(
+        RivianGearGuardCameraSelect(coordinators[vehicle_id], entry, vehicle)
+        for vehicle_id, vehicle in vehicles.items()
+        if vehicle.get("phone_identity_id")
+        and any(vehicle_supports(d, vehicle) for d in CAMERAS)
+    )
+
     async_add_entities(entities)
 
 
@@ -258,3 +266,41 @@ class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
             command=command,
             params={"level": level},
         )
+
+
+class RivianGearGuardCameraSelect(RivianVehicleEntity, SelectEntity):
+    """Pick which vehicle camera a live session starts on."""
+
+    def __init__(
+        self,
+        coordinator: VehicleCoordinator,
+        entry: ConfigEntry,
+        vehicle: dict[str, Any],
+    ) -> None:
+        """Construct the Gear Guard camera selector."""
+        description = SelectEntityDescription(
+            key="gear_guard_camera",
+            translation_key="gear_guard_camera",
+            icon="mdi:camera-switch",
+        )
+        super().__init__(coordinator, entry, description, vehicle)
+        self._attr_options = list(gear_guard_camera_options(vehicle))
+        current = getattr(self.coordinator, "gear_guard_camera", None)
+        if not isinstance(current, str) or current not in self._attr_options:
+            self.coordinator.gear_guard_camera = self._attr_options[0]
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the camera the next live session will request."""
+        current = getattr(self.coordinator, "gear_guard_camera", None)
+        if isinstance(current, str) and current in self.options:
+            return current
+        return self.options[0] if self.options else None
+
+    async def async_select_option(self, option: str) -> None:
+        """Remember the camera; live view picks it up on the next offer."""
+        if option not in self.options:
+            return
+        self.coordinator.gear_guard_camera = option
+        self.async_write_ha_state()
+        self.coordinator.async_update_listeners()

@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
+from homeassistant.exceptions import (
+    ConfigEntryNotReady,
+    HomeAssistantError,
+    ServiceValidationError,
+)
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.issue_registry import (
@@ -15,6 +22,7 @@ from homeassistant.helpers.issue_registry import (
     async_create_issue,
     async_delete_issue,
 )
+from homeassistant.setup import async_when_setup
 
 from .const import (
     ATTR_API,
@@ -41,6 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
+    Platform.CAMERA,
     Platform.CLIMATE,
     Platform.COVER,
     Platform.DEVICE_TRACKER,
@@ -64,6 +73,45 @@ GEN2_PAIRING_ISSUE_URL = (
     "https://github.com/jrgutier/home-assistant-rivian/issues/new"
     "?template=gen2_beta.yml"
 )
+
+
+async def _async_register_frontend(hass: HomeAssistant) -> None:
+    """Serve the Gear Guard Lovelace card and register it as a resource."""
+    key = f"{DOMAIN}_frontend"
+    if hass.data.get(key):
+        return
+    if hass.http is None:
+        return
+    www = Path(__file__).parent / "www"
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig("/rivian-static", str(www), cache_headers=False)]
+    )
+    url = f"/rivian-static/gear-guard-card.js?v={VERSION}"
+    add_extra_js_url(hass, url)
+
+    async def _when_lovelace(_hass: HomeAssistant, _component: str) -> None:
+        await _async_ensure_lovelace_resource(_hass, url)
+
+    async_when_setup(hass, "lovelace", _when_lovelace)
+    hass.data[key] = True
+
+
+async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None:
+    """Lovelace storage-mode dashboards load custom cards from resources."""
+    from homeassistant.components.lovelace.const import LOVELACE_DATA
+
+    ll = hass.data.get(LOVELACE_DATA)
+    resources = getattr(ll, "resources", None) if ll is not None else None
+    if resources is None or not hasattr(resources, "async_create_item"):
+        return
+    await resources.async_get_info()
+    stem = "/rivian-static/gear-guard-card.js"
+    if any(stem in str(item.get("url") or "") for item in resources.async_items()):
+        return
+    try:
+        await resources.async_create_item({"res_type": "module", "url": url})
+    except (HomeAssistantError, AttributeError, TypeError):
+        _LOGGER.debug("Lovelace resource not persisted")
 
 
 def _gen2_pairing_issue_id(vehicle_id: str) -> str:
@@ -112,6 +160,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     hass.data.setdefault(DOMAIN, {})
+    await _async_register_frontend(hass)
 
     client = get_rivian_api_from_entry(hass, entry)
     try:

@@ -104,7 +104,10 @@ async def detect_vehicle_generation(
                     char_uuids.add(char.uuid.upper())
                     if vehicle_id is not None:
                         discovered.append(
-                            {"uuid": char.uuid.upper(), "properties": sorted(char.properties)}
+                            {
+                                "uuid": char.uuid.upper(),
+                                "properties": sorted(char.properties),
+                            }
                         )
 
             if vehicle_id is not None:

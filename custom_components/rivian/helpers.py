@@ -25,8 +25,8 @@ GateEvidence = frozenset[str]
 def vehicle_supports(description: Any, vehicle: dict[str, Any]) -> GateEvidence:
     """Every source that grants `description` to `vehicle`. Non-empty -> create it.
 
-    Sensor, binary-sensor, and SELECTS setup call this as the creation
-    predicate. Covers and buttons stay dict-key gated and do not.
+    Sensor, binary-sensor, SELECTS, and camera setup call this as the
+    creation predicate. Covers and buttons stay dict-key gated and do not.
 
     UNION, never intersection. Two recorded failures of this codebase, in
     opposite directions, are why:
@@ -130,6 +130,12 @@ TO_REDACT = {
     "vin",
     "wallboxId",
     "wifiSsid",
+    # Gear Guard live-config keys. Not in coordinator data today; named so a
+    # later store cannot leak TURN or the KVS ARN. Do not add bare "username".
+    "channelArn",
+    "iceServers",
+    "credential",
+    "endpoint",
     # Gen 2 BLE pairing (ble_trace.py) surfaces a raw pairing trace through
     # diagnostics for beta testers to attach to a PUBLIC, PERMANENT GitHub
     # issue. NOTE the fingerprints are stored under "_fp"-suffixed keys

@@ -36,11 +36,11 @@ echo "scanning $ZIP"
 # already thought of.
 unexpected=$(
   find "$WORK" -type f \
-    ! -name '*.py' ! -name '*.json' ! -name '*.graphql' \
+    ! -name '*.py' ! -name '*.json' ! -name '*.js' ! -name '*.graphql' \
     ! -name '*.proto' ! -name '*.yaml' ! -name 'py.typed' \
     -printf '%P\n' 2>/dev/null || \
   find "$WORK" -type f \
-    ! -name '*.py' ! -name '*.json' ! -name '*.graphql' \
+    ! -name '*.py' ! -name '*.json' ! -name '*.js' ! -name '*.graphql' \
     ! -name '*.proto' ! -name '*.yaml' ! -name 'py.typed' \
     | sed "s|^$WORK/||"
 )
