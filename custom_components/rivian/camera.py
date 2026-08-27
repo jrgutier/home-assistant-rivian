@@ -48,6 +48,7 @@ from .kvs_signaling import (
     signaling_ws_url,
 )
 from .rivian_client import VehicleCommand
+from .sdp import trim_offer_for_kvs
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -317,12 +318,23 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
 
         # KVS drops an oversized signaling frame without a word, so the vehicle
         # simply never answers and the viewer waits forever on a session that
-        # looks healthy from here. Refusing here still opens no KVS socket and
-        # sends no second VAS -- but note it does NOT save the vehicle a wake:
-        # on the card path `rivian/gear_guard_prepare` has already started a
-        # master session by now, and there is no command to stop one. Only a
-        # viewer that keeps its offer small avoids that, which is why the card
-        # pins H264 rather than relying on this guard.
+        # looks healthy from here. HA's own player cannot be told to offer less,
+        # so trim it down to what the vehicle would have picked anyway rather
+        # than refuse a view the user has no way to fix.
+        if offer_exceeds_kvs_limit(offer_sdp):
+            trimmed = trim_offer_for_kvs(offer_sdp)
+            _LOGGER.debug(
+                "Trimmed an oversized offer for KVS: %d -> %d bytes of SDP",
+                len(offer_sdp),
+                len(trimmed),
+            )
+            offer_sdp = trimmed
+
+        # Still over: nothing left to give back. Refusing opens no KVS socket
+        # and sends no second VAS -- but note it does NOT save the vehicle a
+        # wake, because on the card path `rivian/gear_guard_prepare` has
+        # already started a master session by now and there is no command to
+        # stop one.
         if offer_exceeds_kvs_limit(offer_sdp):
             _LOGGER.warning(
                 "Offer is too large for KVS signaling (%d bytes of SDP); the "

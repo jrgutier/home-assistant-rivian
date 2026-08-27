@@ -24,7 +24,10 @@ from custom_components.rivian.connectivity import ConnectivityState
 from custom_components.rivian.const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from custom_components.rivian.coordinator import VehicleCoordinator
 from custom_components.rivian.gear_guard import gear_guard_camera_options
-from custom_components.rivian.kvs_signaling import encode_payload
+from custom_components.rivian.kvs_signaling import (
+    KVS_MAX_MESSAGE_PAYLOAD,
+    encode_payload,
+)
 from custom_components.rivian.rivian_client import VehicleCommand
 from custom_components.rivian.select import (
     RivianGearGuardCameraSelect,
@@ -474,6 +477,40 @@ async def test_cached_ice_outlives_the_session_that_fetched_it(
 
     assert entity._cached_ice == _SHAPED_ICE
     assert entity._attr_is_streaming is False
+
+
+async def test_an_offer_ha_built_is_trimmed_instead_of_refused(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    """HA's built-in player builds its own offer and cannot be told to prefer a
+    codec, so on Chrome it lands over the KVS limit through no fault of the
+    user. Trim it to what the vehicle would have picked and let the view work,
+    rather than refusing a session nobody can make smaller."""
+    from tests.test_sdp import _chrome_offer
+
+    fat = _chrome_offer()
+    coordinator = _config_coordinator(hass, mock_config_entry, _vehicle())
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    messages: list = []
+    ws = AsyncMock()
+    ws.closed = False
+    http = MagicMock()
+    http.ws_connect = AsyncMock(return_value=ws)
+
+    with (
+        patch(
+            "custom_components.rivian.camera.async_get_clientsession",
+            return_value=http,
+        ),
+        patch.object(entity, "_pump_signaling", new_callable=AsyncMock),
+    ):
+        await entity.async_handle_async_webrtc_offer(fat, "sess-1", messages.append)
+
+    assert not any(getattr(m, "code", None) == "webrtc_offer_failed" for m in messages)
+    coordinator.send_vehicle_command.assert_awaited_once()
+    sent = ws.send_json.await_args_list[0].args[0]
+    assert sent["action"] == "SDP_OFFER"
+    assert len(sent["messagePayload"]) <= KVS_MAX_MESSAGE_PAYLOAD
 
 
 async def test_oversized_offer_is_refused_without_opening_a_session(
