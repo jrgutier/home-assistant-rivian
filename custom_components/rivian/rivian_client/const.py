@@ -314,9 +314,9 @@ class VehicleCommand(StrEnum):
     ENABLE_GEAR_GUARD_VIDEO = "ENABLE_GEAR_GUARD_VIDEO"
     DISABLE_GEAR_GUARD = "DISABLE_GEAR_GUARD"
     DISABLE_GEAR_GUARD_VIDEO = "DISABLE_GEAR_GUARD_VIDEO"
-    # VASCommand.StartGearGuardMasterSession at :1350. Declared, not wired: it
-    # starts a live camera session, which is a streaming feature this integration
-    # has no surface for, not a control. Kept so the name is recorded.
+    # VASCommand.StartGearGuardMasterSession at :1350. Wired by s28 as
+    # camera.gear_guard_live in camera.py -- a live-view path, not a control.
+    # Tear-down is local; the app declares no stop command.
     START_GEAR_GUARD_MASTER_SESSION = "START_GEAR_GUARD_MASTER_SESSION"
 
     # Liftgate (R1S only)

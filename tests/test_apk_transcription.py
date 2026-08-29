@@ -847,3 +847,210 @@ class TestParallaxEnvelopeDerivation:
             PARALLAX_ATTRIBUTES_NAME_ACCESSOR_3150
             != PARALLAX_ATTRIBUTES_NAME_ACCESSOR_360_CONTEXT
         )
+
+
+_PLATFORM_MODULES: tuple[str, ...] = (
+    "button.py",
+    "camera.py",
+    "switch.py",
+    "cover.py",
+    "lock.py",
+    "climate.py",
+    "select.py",
+    "number.py",
+    "update.py",
+)
+
+_GAPS_HEADINGS: tuple[str, ...] = (
+    "Candidate-to-build",
+    "Listed-not-built (named non-goals)",
+    "Listed-not-built until a live accept",
+    "Already at parity via other transport",
+    "Out of catalog",
+)
+
+_GAP_HEADINGS: tuple[str, ...] = _GAPS_HEADINGS[:3]
+
+_UNPROVEN_GRAPHQL_NAMES: tuple[str, ...] = (
+    "rearWindowStatus",
+    "vehicleChargerDamaged",
+    "driverOccupancyStatus",
+    "driveAuthorizationUserInputRequestStatus",
+    "chargingDisabledAC",
+)
+
+
+def _strip_hash_comments(src: str) -> str:
+    """Drop `#` comments per line. Required: `\\b` matches CLIMATE_HOLD_ON in switch.py:72."""
+    return "\n".join(re.sub(r"#.*", "", line) for line in src.splitlines())
+
+
+def _platform_sources() -> str:
+    return "".join(
+        _strip_hash_comments((REPO / "custom_components/rivian" / name).read_text())
+        for name in _PLATFORM_MODULES
+    )
+
+
+def _is_wired(name: str, sources: str) -> bool:
+    return re.search(rf"VehicleCommand\.{re.escape(name)}\b", sources) is not None
+
+
+def _gaps_sections() -> dict[str, str]:
+    text = (REPO / "docs/development/REMAINING_APK_GAPS.md").read_text()
+    parts = re.split(r"^## ", text, flags=re.MULTILINE)
+    sections: dict[str, str] = {}
+    for part in parts[1:]:
+        title, _, body = part.partition("\n")
+        title = title.strip()
+        if title in _GAPS_HEADINGS:
+            sections[title] = body
+    return sections
+
+
+def _backticks(section: str) -> set[str]:
+    return set(re.findall(r"`([^`]+)`", section))
+
+
+class TestRemainingApkGaps:
+    """HA-shaped remaining-gap catalog. docs/development/REMAINING_APK_GAPS.md.
+
+    Wiring is word-boundary VehicleCommand.{NAME} over nine platform modules
+    with `#` comments stripped. Disposition tags are exact ATX `##` titles.
+    """
+
+    def test_the_five_headings_exist(self) -> None:
+        assert set(_gaps_sections()) == set(_GAPS_HEADINGS)
+
+    def test_platform_module_list_has_not_drifted(self) -> None:
+        """_PLATFORM_MODULES is hand-maintained; s28 added camera.py and missed it.
+
+        Every module that names a VehicleCommand must be in the list, or
+        _is_wired() silently answers False and the whole catalog reasons from a
+        stale premise. coordinator.py is the one deliberate exclusion: its only
+        refs are two WAKE_VEHICLE sends (coordinator.py:1956,1966), which back no
+        entity of their own.
+        """
+        naming = {
+            path.name
+            for path in (REPO / "custom_components/rivian").glob("*.py")
+            if "VehicleCommand." in path.read_text()
+        }
+        assert naming - {"coordinator.py"} == set(_PLATFORM_MODULES)
+
+    def test_there_is_no_second_test_module(self) -> None:
+        assert not (REPO / "tests/test_remaining_apk_gaps.py").exists()
+
+    def test_coverage_doc_points_at_the_catalog(self) -> None:
+        text = (REPO / "docs/development/COMMAND_COVERAGE.md").read_text()
+        assert "REMAINING_APK_GAPS.md" in text
+
+    def test_gear_guard_lock_is_not_wired_because_video_is(self) -> None:
+        """`ENABLE_GEAR_GUARD\\b` must not match ENABLE_GEAR_GUARD_VIDEO."""
+        switch = _strip_hash_comments(
+            (REPO / "custom_components/rivian/switch.py").read_text()
+        )
+        assert re.search(r"VehicleCommand\.ENABLE_GEAR_GUARD_VIDEO\b", switch)
+        assert re.search(r"VehicleCommand\.DISABLE_GEAR_GUARD_VIDEO\b", switch)
+        assert not re.search(r"VehicleCommand\.ENABLE_GEAR_GUARD\b", switch)
+        assert not re.search(r"VehicleCommand\.DISABLE_GEAR_GUARD\b", switch)
+        # The catalog claims the lock pair is unwired *anywhere*, not just here.
+        sources = _platform_sources()
+        assert not _is_wired("ENABLE_GEAR_GUARD", sources)
+        assert not _is_wired("DISABLE_GEAR_GUARD", sources)
+
+    def test_climate_hold_comment_is_not_wiring(self) -> None:
+        raw = (REPO / "custom_components/rivian/switch.py").read_text()
+        stripped = _strip_hash_comments(raw)
+        assert re.search(r"VehicleCommand\.CLIMATE_HOLD_ON\b", raw)
+        assert not re.search(r"VehicleCommand\.CLIMATE_HOLD_ON\b", stripped)
+        assert not _is_wired("CLIMATE_HOLD_ON", stripped)
+        assert not _is_wired("CLIMATE_HOLD_OFF", stripped)
+
+    def test_sendable_commands_are_wired_or_catalogued(self) -> None:
+        sources = _platform_sources()
+        sections = _gaps_sections()
+        tokens_by_heading = {
+            heading: _backticks(body) for heading, body in sections.items()
+        }
+        wired = {name for name in SENDABLE_COMMANDS if _is_wired(name, sources)}
+        candidate = tokens_by_heading["Candidate-to-build"]
+        assert not (candidate & SENDABLE_COMMANDS & wired)
+
+        for name in sorted(SENDABLE_COMMANDS):
+            homes = [
+                heading
+                for heading, tokens in tokens_by_heading.items()
+                if name in tokens
+            ]
+            assert _is_wired(name, sources) or homes, (
+                f"{name} is sendable, not wired, and not backtick-named in the catalog"
+            )
+            if not _is_wired(name, sources):
+                assert len(homes) == 1, f"{name} unwired with catalog homes {homes}"
+
+        gap_tokens: set[str] = set()
+        for heading in _GAP_HEADINGS:
+            gap_tokens |= tokens_by_heading[heading]
+        # A wired command is not a gap. s28 wired START_GEAR_GUARD_MASTER_SESSION
+        # while it sat in "named non-goals" and nothing failed: the ban above
+        # covers only Candidate-to-build, and the uniqueness check skips wired
+        # names entirely. Ban wired sendables from all three gap sections so the
+        # next s28 breaks a test instead of a claim.
+        for name in sorted(gap_tokens & SENDABLE_COMMANDS & wired):
+            homes = [h for h in _GAP_HEADINGS if name in tokens_by_heading[h]]
+            raise AssertionError(f"{name} is wired but still catalogued in {homes}")
+        assert "ENABLE_GEAR_GUARD_VIDEO" not in gap_tokens
+        assert "DISABLE_GEAR_GUARD_VIDEO" not in gap_tokens
+
+    def test_candidate_to_build_pins(self) -> None:
+        sources = _platform_sources()
+        candidate = _backticks(_gaps_sections()["Candidate-to-build"])
+        for name in (
+            "FLASH_EXTERNAL_LIGHTS",
+            "ACTIVATE_EXTERNAL_SOUND",
+        ):
+            assert name in candidate, name
+            assert not _is_wired(name, sources), name
+        assert "ENABLE_GEAR_GUARD" not in candidate
+        assert "DISABLE_GEAR_GUARD" not in candidate
+
+    def test_named_non_goal_pins(self) -> None:
+        tokens = _backticks(_gaps_sections()["Listed-not-built (named non-goals)"])
+        assert "HONK_AND_FLASH_LIGHTS" in tokens
+        # INTERIOR_CAMERA is the camera gap that survived s28: it is a picker
+        # option (gear_guard.py:37-38), never a gate source, so an interior-only
+        # vehicle gets no camera entity at all.
+        assert "INTERIOR_CAMERA" in tokens
+        # s28 wired this and shipped the camera platform. Neither belongs in a
+        # non-goals section again.
+        assert "START_GEAR_GUARD_MASTER_SESSION" not in tokens
+        assert "Platform.CAMERA" not in tokens
+
+    def test_invalid_wrapper_seven_and_unproven_fields(self) -> None:
+        tokens = _backticks(_gaps_sections()["Listed-not-built until a live accept"])
+        for name in sorted(INVALID_WRAPPER_COMMANDS):
+            assert name in tokens, name
+        for name in _UNPROVEN_GRAPHQL_NAMES:
+            assert name in tokens, name
+        assert "ENABLE_GEAR_GUARD" in tokens
+        assert "DISABLE_GEAR_GUARD" in tokens
+
+    def test_climate_hold_is_already_at_parity(self) -> None:
+        tokens = _backticks(_gaps_sections()["Already at parity via other transport"])
+        assert "CLIMATE_HOLD_ON" in tokens
+        assert "CLIMATE_HOLD_OFF" in tokens
+        sources = _platform_sources()
+        assert not _is_wired("CLIMATE_HOLD_ON", sources)
+        assert not _is_wired("CLIMATE_HOLD_OFF", sources)
+
+    def test_camera_platform_is_registered(self) -> None:
+        """s28 shipped it (`__init__.py:52`); the catalog says so, so pin it.
+
+        tests/test_camera.py calls async_setup_entry directly and never checks
+        PLATFORMS, so nothing else covers the registration.
+        """
+        from custom_components.rivian import PLATFORMS
+        from homeassistant.const import Platform
+
+        assert Platform.CAMERA in PLATFORMS

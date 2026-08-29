@@ -199,3 +199,8 @@ docs/development/apk/*.java
 
 # gh-sweep: salt for community fixture vehicle-fingerprint digests (never commit)
 tests/fixtures/community/.salt
+
+# APK MITM capture artifacts — may contain session tokens even with redaction.
+# Patched-APK output and frida-server binaries need no rule: `.apk/` above
+# already covers them.
+captures/apk_mitm/

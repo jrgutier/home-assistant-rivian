@@ -19,6 +19,8 @@ f2 added `CABIN_HVAC_3RD_ROW_REAR_{LEFT,RIGHT}_SEAT_HEAT`; f6 added
 
 ## In the enum but deliberately not wired to an entity
 
+HA-shaped remaining-gap dispositions live in [`REMAINING_APK_GAPS.md`](REMAINING_APK_GAPS.md). This table remains the probe record.
+
 | Command | Why |
 |---|---|
 | `OPEN_LIFTGATE` | Wired as `button.open_liftgate`, **disabled by default** — it moves a closure and has not been actuated (f7) |
@@ -119,6 +121,23 @@ three separate ways now:
 Stamping a dated "deprecated" note on these would write false provenance and
 defeat the next person's instinct to re-check. Removal requires a recorded live
 failure.
+
+**Unlock-family live probes, 2026-08-26 ~11:53 UTC** (power Ready, Park, closures
+locked, windows closed; `OPEN_TAILGATE` not sent). Same session style as the
+cheap-candidate run: HMAC working — other commands on this account accept.
+
+| Command | Result | Restore |
+|---|---|---|
+| `UNLOCK_DRIVER_DOOR` | **REJECTED** `CONFLICT/VEHICLE_COMMAND_ERROR` (no command id, 0.77 s) | not needed |
+| `UNLOCK_PASSENGER_DOOR` | **REJECTED** same (0.63 s) | not needed |
+| `UNLOCK_USER_PREFERENCES_AND_DISABLE_ALARM` | **REJECTED** same (0.79 s) | not needed |
+| `UNLOCK_ALL_AND_OPEN_WINDOWS` | **REJECTED** same (0.72 s) | not needed |
+
+Post-run: lock still locked, windows still closed, alarm switch still off.
+No lock restore ran because nothing unlocked. Same class as
+`HONK_AND_FLASH_LIGHTS` (also APK-absent, also CONFLICT). Kept in the enum.
+Tonneau's "absence from the app is not evidence of absence" still holds for
+those two; it does not make these four sendable on this VAS path.
 
 
 ## f7 results, 2026-08-19 (beta6)
@@ -254,6 +273,57 @@ as command-specific. **What is not verified**: that these two explain
 `HONK_AND_FLASH_LIGHTS`'s refusal, or that any succession or retirement
 occurred between it and this pair — consistent with that reading, not
 evidence for it.
+
+## Cheap-candidate probes, 2026-08-26 ~11:18 UTC
+
+Sent with `scripts/probe_vehicle_command.py` against this 2022 R1T (`…002984`).
+Pre-flight (HA entities via supervisor core socket): `powerState` Sleep,
+`gearGuardLocked` unlocked, climate-hold switch off / status Available, Park,
+closures locked. `WAKE_VEHICLE` first as a control (command id `04-4d83cdd16f8b8b23d10c`,
+state 5 / continue, no terminal in 11.18 s). HMAC/session were working: the
+climate-hold pair and `START_GEAR_GUARD_MASTER_SESSION` returned command ids
+on the same credentials seconds around the Gear Guard lock refusals.
+
+| Command | Result |
+|---|---|
+| `WAKE_VEHICLE` (control) | **ACCEPTED** — command id, state 5 (continue), no terminal in 11 s |
+| `CLIMATE_HOLD_ON` | **ACCEPTED** by gateway; terminal state **0** / `responseCode` **417** / `statusCode` 0 at t+8.97 s |
+| `CLIMATE_HOLD_OFF` | **ACCEPTED** by gateway; terminal state **0** / `responseCode` **417** / `statusCode` 0 at t+9.28 s |
+| `DISABLE_GEAR_GUARD` | **REJECTED** `CONFLICT/VEHICLE_COMMAND_ERROR` — no command id. Retried after `ENABLE` rejected the same way |
+| `ENABLE_GEAR_GUARD` | **REJECTED** `CONFLICT/VEHICLE_COMMAND_ERROR` — no command id |
+| `START_GEAR_GUARD_MASTER_SESSION` | **ACCEPTED** by gateway (id `04-9adefad40f5ff1e78f74`); terminal **state 4** / `responseCode` **1031** at t+4.37 s |
+
+Post-run HA: power Ready; climate-hold still off / Available; Gear Guard still
+unlocked. No closure moved. `417` and `1031` are recorded as integers; the
+decompile artifacts under `docs/development/apk/` do not name them.
+
+**Climate-hold VAS is the same class as `ACTIVATE_EXTERNAL_SOUND`:** gateway
+accept, then a vehicle-level decline. The working write remains Parallax
+(`switch.py:69-93`). Hold state did not change. Already-at-parity stays.
+
+**Gear Guard lock is the same class as `HONK_AND_FLASH_LIGHTS` / `PET_COMFORT_ON`:**
+gateway `CONFLICT` with no command id, on a session that accepted other commands
+seconds apart. Video (`ENABLE_GEAR_GUARD_VIDEO`) stays the wired path. Catalog:
+listed-not-built until a live accept — Principle -1, a VAS CONFLICT is not a
+capability failure.
+
+**`START_GEAR_GUARD_MASTER_SESSION` is a real cloud command**, and s28 went on to
+wire it as `camera.gear_guard_live` — see
+[`## START_GEAR_GUARD_MASTER_SESSION (wired s28)`](#start_gear_guard_master_session-wired-s28)
+above. State 4 is terminal (`{0,4,6,7}`).
+
+This run is the negative control for that section's claim that `params.camera` is
+required, and it is worth keeping for exactly that reason. It sent **no**
+`params.camera` and got state 4 / `1031` with no live-config frame; the s28 gate
+run sent `camera=left` and got a full `gearGuardLiveConfig`. Two runs, one
+variable, opposite outcomes — which makes "the camera param is required" a
+measurement rather than an inference.
+
+**`FLASH_EXTERNAL_LIGHTS` reproduced 2026-08-26 ~11:26 UTC** (power Ready, same
+credentials as the table above). Command id `04-678b1c2506540fd2bdee`, send ack
+0.69 s, state 2 then 3 (continue set). **No terminal state in 26.35 s**, same
+shape as 2026-08-22 (then in-flight at 9.66 s). Gateway accept is confirmed a
+second time. Vehicle decline (`412`) did **not** appear. Candidate-to-build.
 
 ## How the app reads a command's result — it SUBSCRIBES, it does not poll
 
