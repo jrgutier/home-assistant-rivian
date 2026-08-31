@@ -75,7 +75,7 @@ the seven-command table would lose its provenance.
 
 | | source | on disk today | findings resting on it |
 |---|---|---|---|
-| the **artifacts** — the nine `.java` beside this file | `jadx` of **3.15.0** build 4804, 32,941 files | the nine files, yes; the tree they came from, no | the seven invalid-wrapper commands; `isParallaxRequestOnly`; the two wrapper generators; `VehicleFeature`; the five `vehicleState` documents |
+| the **artifacts** — the nine `.java` beside this file | `jadx` of **3.15.0** build 4804, 32,941 files | the nine files, yes; **and the tree they came from, at `.apk/3.15.0/jadx/sources`** (corrected 2026-08-31, s32) | the seven invalid-wrapper commands; `isParallaxRequestOnly`; the two wrapper generators; `VehicleFeature`; the five `vehicleState` documents |
 | the **tree** `com.rivian.android.consumer/` | **3.6.0**, versionCode 3989 | yes | the command-state terminality vocabulary; the client-side cancellation of the command-state stream; the 18/6/0/8/91 subscription-vs-poll counts; `ParallaxAttributes` |
 
 The section above ("The app") describes how the **artifacts** were produced and
@@ -86,7 +86,7 @@ File counts, each with the command that produced it:
 
 | figure | source | reproduces? |
 |---|---|---|
-| 32,941 | `jadx` run on 3.15.0, per this file's "The command" section | not re-runnable — that tree is not on disk |
+| 32,941 | `jadx` run on 3.15.0, per this file's "The command" section | **yes, 2026-08-31** — `find .apk/3.15.0 -name '*.java' \| wc -l` returns exactly 32,941. An earlier revision said "not re-runnable — that tree is not on disk"; it is on disk and gitignored (`.apk/`) |
 | **31,097** | `find com.rivian.android.consumer/java_src -name "*.java" \| wc -l` | **yes, 2026-08-19** |
 | **71,735** | `find com.rivian.android.consumer -type f \| wc -l` | **yes, 2026-08-19** |
 | 31,105 | this file's opening paragraph, "the 31,105-file apktool tree" | **no — unreproduced, source unknown** |

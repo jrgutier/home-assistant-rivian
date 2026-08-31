@@ -30,7 +30,7 @@ not scheduled for implementation.
 | Gap | APK evidence | Why listed-not-built |
 |-----|--------------|----------------------|
 | Interior camera feed | `INTERIOR_CAMERA`. A *picker option* only (`gear_guard.py:37-38`), never a gate source — `camera.gear_guard_live` gates on `LIVE_CAM`/`MOTION_CAM` (`gear_guard.py:24`), so a vehicle whose only camera flag is `INTERIOR_CAMERA` gets no camera entity. | s28 scoped it out (`tests/test_camera.py::test_no_interior_entity_even_with_interior_flag`); an interior-only vehicle gets nothing (`::test_not_created_without_camera_flags`). This R1T does not advertise the flag (`CAPABILITY_MATRIX.md:83`), so it cannot be probed on the available hardware. |
-| Combined honk+flash | `HONK_AND_FLASH_LIGHTS` — **not** a VASCommand; live REJECTED twice | Button reverted; not a cloud path |
+| Combined honk+flash | `HONK_AND_FLASH_LIGHTS` — not a VASCommand **in 3.15.0**; live REJECTED twice. Corrected 2026-08-31 (s32): it *was* one in all 25 corpus versions 1.0.3–2.6.0, cloud+ble. A dropped command, not one that never existed. | Button reverted; not a cloud path in the shipping app |
 | Trip planner / active trip / add-stop / trailers / satmap | `ACTIVE_TRIP`, `V_TRIP`, `TRIP_ADD_STOP`, `TRIP_PLANNER_TRAILERS`, `V_SATMAP` | Round 4 non-goal. Navigation `notify` already exists. |
 | Phone-key management UI | `KEY_PAAK`, `KEY_FOB_2`, `PIN_PROFILE`, `ORPHANED_PHONE_KEY_RECOVERY_HANDLING` | Pair button + counts only; Round 4 non-goal |
 
@@ -83,7 +83,7 @@ story. Inclusive OR: a wired sendable may also appear here (`OPEN_LIFTGATE`,
 |------|---------|
 | Shop, account, Stripe, MapLibre, charging-network signup | Not HA-shaped (Round 5) |
 | Energy graphs / cold-weather bar charts | Not an entity/service; sensors for SoC already exist |
-| Per-door unlock / `UNLOCK_ALL_AND_OPEN_WINDOWS` | HA extras **absent from APK 3.15.0** — not an APK gap (lower bound) |
+| Per-door unlock / `UNLOCK_ALL_AND_OPEN_WINDOWS` | **Miscategorized — corrected 2026-08-31 (s32).** "Absent from APK 3.15.0" is TRUE and stays enforced (`test_apk_transcription.py`), but "HA extras" is wrong: these are app commands 3.15.0 **dropped**. The historical corpus carries `UNLOCK_DRIVER_DOOR`, `UNLOCK_PASSENGER_DOOR` and `UNLOCK_ALL_AND_OPEN_WINDOWS` as full dual-transport VASCommands in 19 versions (1.5.1–2.6.0), and `UNLOCK_USER_PREFERENCES_AND_DISABLE_ALARM` in 25 (1.0.3–2.6.0). Held out of the probe queue: all four were live-REJECTED `CONFLICT/VEHICLE_COMMAND_ERROR` on 2026-08-26 ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)). **Re-entry condition:** a firmware change, or a materially different vehicle state — per Principle -1 above, a CONFLICT is not a capability failure. They stay in the enum. |
 | `OPEN_LIFTGATE` / `OPEN_TAILGATE` | Already wired, disabled by default. Tailgate actuation owner-prohibited (garage). |
 | `START_GEAR_GUARD_MASTER_SESSION` | Already wired by s28 as `camera.gear_guard_live` (`camera.py:388`). No stop VASCommand exists; tear-down is local. Clip download (`START_VIDEO_DOWNLOADING_SESSION`) is a different path and stays unwired. |
 | Unpopulated `tirePressureStatusValid*` / `cabinHoldNotification` | Not missing; subscribed and empty. Stay. |
