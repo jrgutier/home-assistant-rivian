@@ -19,6 +19,9 @@ implement these in the catalog change; live writes need owner OK.
 | Gap | APK evidence | HA today | Proposed analogue |
 |-----|--------------|----------|-------------------|
 | Flash lights | `FLASH_EXTERNAL_LIGHTS` VASCommand; gateway accepted on this R1T (in-flight at 9.6s, no CONFLICT). [`COMMAND_COVERAGE.md:233-276`](COMMAND_COVERAGE.md) | none | `button` |
+| Passive-entry unlock fail reason | `passiveEntryUnlockFailReason` in 3.15.0's documents ([`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md)); **live-ACCEPTED 2026-08-31**, delivered `AT_HOME_DISABLE` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | none | `sensor` — but the value vocabulary is one sample; other reasons are unobserved |
+| VAS access CAN faulted | `vasAccessCanFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | none | `binary_sensor` — `no_failure` is the healthy arm of a fault enum whose other arms are unobserved |
+| VAS secure element faulted | `vasSecureElementFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | none | `binary_sensor`, same caveat |
 | Honk / external sound | `ACTIVATE_EXTERNAL_SOUND` VASCommand; gateway accepted, vehicle later `412`. Same section. | none | `button` |
 
 ## Listed-not-built (named non-goals)
@@ -61,6 +64,7 @@ Invalid-wrapper seven (`tests/test_apk_transcription.py:406-412`):
 | Charger damaged | `vehicleChargerDamaged` (`VehicleState2.java:62`) | Unproven GraphQL name. |
 | Driver occupancy | `driverOccupancyStatus` (`.apk/3.15.0/jadx/sources/com/rivian/android/consumer/data/model/VehicleState.java:39`) | Unproven GraphQL name. Occupancy *is* HA-shaped (`binary_sensor`). |
 | 2FA challenge surface | `driveAuthorizationUserInputRequestStatus` (`VehicleState2.java:38`) | Unproven GraphQL name. |
+| Winch control (7 commands) | `WINCH_IN`, `WINCH_OUT`, `WINCH_CANCEL`, `WINCH_FREE_SPOOL`, `WINCH_REENGAGE`, `WINCH_ACCEPT_CONTROLLER_ROLE`, `WINCH_REJECT_CONTROLLER_ROLE` — real VASCommands in 1.0.3–1.4.1 only, then dropped. Same source. | **BLE-only in every version; no cloud wrapper ever existed**, and this integration sends via cloud after pairing. Not sendable without new BLE plumbing. Re-entry: a cloud wrapper appearing in a future build. |
 | AC charging disabled | `chargingDisabledAC` (`rivian_client/schemas/gateway.graphql:677`) | Schema-declared sibling of subscribed `chargingDisabledACFaultState`. Not in `VEHICLE_STATE_API_FIELDS`. Name-probe required before adding to the live document. |
 
 ## Already at parity via other transport
@@ -89,5 +93,6 @@ story. Inclusive OR: a wired sendable may also appear here (`OPEN_LIFTGATE`,
 | Unpopulated `tirePressureStatusValid*` / `cabinHoldNotification` | Not missing; subscribed and empty. Stay. |
 | s26 optional-hardware gating | Separate story; not a missing feature |
 | Gen2 BLE pairing | Separate spec; no hardware |
-| Pause-frunk / pause-liftgate / pause-tonneau | `cloudData=null` — not cloud commands |
+| Pause-frunk / pause-liftgate / pause-tonneau | `cloudData=null` — not cloud commands. Corroborated across the corpus (s32): `PAUSE_FRUNK`, `PAUSE_LIFTGATE`, `PAUSE_TONNEAU_COVER` are BLE-only in all 25 versions 1.0.3–2.6.0, and in 3.15.0 the three classes lost the BLE path without gaining a cloud one. [`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md) |
+| `CABIN_HVAC_THIRD_ROW_{LEFT,RIGHT}_SEAT_HEAT` | Absent from **every** app version 1.0.3–3.15.0, measured across 26 dumps (s32). `rivian_client/const.py` speculated they might belong to an older firmware or app; no app version has ever named them. They **stay** in the enum — the app is a lower bound, never the schema, and the neighbouring `CABIN_HVAC_3RD_ROW_*` spelling is the one 3.15.0 actually sends. [`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md) |
 | Wallbox controls | Wallbox is 7 sensors; no APK VASCommand evidence gathered this interview — do not invent a row |

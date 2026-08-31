@@ -351,3 +351,36 @@ poll is a redundant fallback that happens to be marginally faster. Whether to ke
 trade-off — fidelity to the app and one fewer query per command, against ~1 s of perceived latency
 and a fallback if the subscription ever regresses to the behaviour `ae06ee9` believed it had. Not
 decided here; it is a live-command-path change and belongs behind its own gate.
+
+## Name-probes, 2026-08-31 — the three s32 corpus candidates, all ACCEPTED
+
+`docs/development/APK_HISTORICAL_SWEEP.md` found three `vehicleState` names in
+3.15.0's compiled documents that `VEHICLE_STATE_API_FIELDS` does not carry. A
+decompile does not promote a row, so they were probed.
+
+`scripts/probe_field_names.py`, read-only: subscriptions only, no command sent
+and nothing actuated. Each candidate rode **alone** with the two known-good
+control fields rather than being added to the live document — the server rejects
+the entire document on one unknown name, so a shared probe cannot say which name
+killed it, and an unproven name inside `VEHICLE_STATE_API_FIELDS` would take out
+every sensor at once instead of one probe. Control ran first and was accepted, so
+the instrument was valid before any candidate was judged by it.
+
+| Field | Result | Value observed |
+|---|---|---|
+| `passiveEntryUnlockFailReason` | **ACCEPTED**, delivered (0.2 s) | `AT_HOME_DISABLE` |
+| `vasAccessCanFaulted` | **ACCEPTED**, delivered (0.4 s) | `no_failure` |
+| `vasSecureElementFaulted` | **ACCEPTED**, delivered (0.3 s) | `no_failure` |
+
+Three for three, each carrying a real value rather than an accepted silence. The
+gateway knows all three names on this account today, which is what promotes them
+in [`REMAINING_APK_GAPS.md`](REMAINING_APK_GAPS.md) from "unproven GraphQL name"
+to candidate-to-build.
+
+Two cautions before anything ships. The value vocabularies here are one sample
+from one R1T at one moment: `no_failure` is plainly the healthy arm of a fault
+enum whose other arms are unobserved, and `AT_HOME_DISABLE` is one of an unknown
+number of passive-entry reasons. Building a sensor that maps only these values
+would mis-render every state that has not been seen yet. And an accept on this
+account is not an accept on every account — `supportedFeatures` gating still
+applies, as `TONNEAU_CMD` established.
