@@ -36,6 +36,14 @@ Not done here, deliberately: an undeclared field name in the subscription
 pressures (`const.py:1885-1893`). That is the beta13 failure class, and it does
 not belong in the same change as a release.
 
+**Membership here is a gateway verdict, not a promise the command works.** Both
+rows below have since been probed live and *neither* produced the effect its
+name claims: flash does nothing at all, honk was declined by the vehicle with a
+`412`. The section is kept as-is because it is defined by what the gateway
+accepts, and because a row that leaves it stops being linted for completeness —
+but treat "candidate" as "not yet disqualified", and read the row before
+building anything.
+
 | Gap | APK evidence | HA today | Proposed analogue |
 |-----|--------------|----------|-------------------|
 | Passive-entry unlock fail reason | `passiveEntryUnlockFailReason` in 3.15.0's documents ([`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md)); **live-ACCEPTED 2026-08-31**, delivered `AT_HOME_DISABLE` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | `sensor.passive_entry_unlock_fail_reason` exists but is **disabled by default**. The stated reason was unwitnessed arrival; **corrected 2026-09-02** — the frame arrives and is committed as a fixture, but `decode_passive_entry_debug` reads field 1 where the frame carries field 2, so it decodes to `{}` (`const.py:1024-1034`, [`RVM_FIXTURES.md`](RVM_FIXTURES.md)) | Move the name out of `PARALLAX_ONLY_FIELDS` into `VEHICLE_STATE_API_FIELDS`, so it populates from the query instead of from an RVM that may never fire — then enabling it is justified |

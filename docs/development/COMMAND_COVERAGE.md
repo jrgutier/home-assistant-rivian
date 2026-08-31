@@ -325,6 +325,69 @@ credentials as the table above). Command id `04-678b1c2506540fd2bdee`, send ack
 shape as 2026-08-22 (then in-flight at 9.66 s). Gateway accept is confirmed a
 second time. Vehicle decline (`412`) did **not** appear. Candidate-to-build.
 
+## `FLASH_EXTERNAL_LIGHTS` — accepted by the gateway, does NOTHING. 2026-08-30/31
+
+Three sends with `scripts/probe_vehicle_command.py` against this 2022 R1T
+(`…002984`), to close the gap the 2026-08-22 run above left open: that run
+polled for 9.66 s, never saw a terminal state, and so proved gateway acceptance
+and nothing about the vehicle.
+
+```
+WAKE_VEHICLE  (control)
+  command id 04-59cc1368182a329b305c   sent 2026-08-30T16:24:01Z
+  state 0 at t+2.06s -- TERMINAL, responseCode None
+
+FLASH_EXTERNAL_LIGHTS  (run 1, --poll 60)
+  command id 04-25b8ac71fe5527dfafeb   sent 2026-08-30T16:24:14Z
+  state 3 from t+22.76s through t+52.32s, unchanged
+  NO TERMINAL STATE after 52.32s   responseCode/statusCode None throughout
+
+FLASH_EXTERNAL_LIGHTS  (run 2, --poll 24)
+  command id 04-1854b1429bef4a5d5d18   sent 2026-08-30T16:26:52Z  (ack 0.82s)
+  state 2 at t+1.64s, state 3 from t+3.29s     NO TERMINAL STATE
+
+FLASH_EXTERNAL_LIGHTS  (run 3, --poll 30, AFTER DARK, owner watching)
+  command id 04-c18b4a8053448cc7aff9   sent 2026-08-31T04:18:39Z  (ack 1.03s)
+  state 2 at t+1.85s, state 3 from t+2.80s     NO TERMINAL STATE
+  OBSERVED VEHICLE BEHAVIOUR: none. The lights did not flash.
+```
+
+**The finding: the gateway accepts this command and the vehicle does nothing.**
+Run 3 was watched by the owner after dark, the condition under which a brief
+exterior flash is unmistakable. Nothing happened.
+
+Four things make that a measurement rather than a guess:
+
+1. **Not asleep.** The `WAKE_VEHICLE` control went terminal in 2.06 s, thirteen
+   seconds before the first send. Terminal states do come back on this session,
+   on this HMAC material.
+2. **Not a polling-window artefact.** Run 1 held `state 3` for 52.32 s — 5.4x
+   the 2026-08-22 window — and never moved.
+3. **Not dropped on arrival.** Runs 2 and 3 both caught `state 2` before
+   `state 3`. The command advances through the pipeline and parks. Both values
+   are in `COMMAND_STATE_CONTINUE` (`tests/apk/transcription.py:950`), so the
+   app itself would still be waiting.
+4. **Not a visibility failure.** Two earlier attempts were inconclusive because
+   the owner could not see the truck; run 3 was not.
+
+**This is a third failure mode, distinct from the two the 2026-08-22 section
+draws.** That section's whole point was separating a gateway `CONFLICT` (refused
+before reaching the vehicle) from a vehicle-level `412` (accepted, then
+declined). `FLASH_EXTERNAL_LIGHTS` is neither: accepted by the gateway, never
+refused by anything, never terminal, and physically inert. There is no
+responseCode to read because no terminal state ever arrives.
+
+**Consequence for `ACTIVATE_EXTERNAL_SOUND`.** It shares this section's
+2026-08-22 heading and remains catalogued beside flash as a candidate, on the
+strength of the same gateway acceptance. Its `412` was at least a *vehicle*
+answer. Flash's result removes the reason to read either row's gateway
+acceptance as evidence a button would work — do not build the horn button on
+that basis without probing it the same way, after dark, with someone watching.
+
+**Disposition: no `button` entity is wired.** This integration does not ship a
+control whose effect is unobserved, and this one's effect has now been observed
+to be nothing. See [`REMAINING_APK_GAPS.md`](REMAINING_APK_GAPS.md).
+
 ## How the app reads a command's result — it SUBSCRIBES, it does not poll
 
 Read off the decompilation, 2026-08-19, because `ae06ee9` added a poll on the belief that the
