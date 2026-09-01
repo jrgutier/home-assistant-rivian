@@ -100,9 +100,24 @@ class TestCorpusAllowlist:
         assert "rivian-dump" not in sweep.SRC_DUMPS.values()
 
     def test_every_on_disk_dump_version_is_listed(self) -> None:
-        """25 `~/src` dumps; 3.15.0 lives in the repo and is tracked separately."""
+        """25 `~/src` dumps plus the trees under `.apk/`, 54 versions in all.
+
+        The `.apk/` trees were all decompiled here with jadx 1.5.6 from APKMirror
+        bundles, so unlike cohorts A and B -- whose decompiler was never recorded
+        -- that cohort has documented provenance and its counts are comparable to
+        each other. 3.15.0 stays its ground truth; 3.16.0 is the frontier build,
+        and Google Play serves only current, so nothing can be backfilled from it.
+        """
         assert len(sweep.SRC_DUMPS) == 25
-        assert "3.15.0" in sweep.REPO_DUMPS
+        assert len(sweep.REPO_DUMPS) == 29
+        assert {"3.15.0", "3.16.0"} <= set(sweep.REPO_DUMPS)
+
+    def test_the_repo_trees_all_share_one_layout(self) -> None:
+        """Their root IS jadx/sources, so every one resolves to the `.` cohort."""
+        assert all(
+            path.name == "sources" and path.parent.name == "jadx"
+            for path in sweep.REPO_DUMPS.values()
+        )
 
 
 class TestVehicleStateDepthOneMetric:
@@ -352,7 +367,7 @@ class TestShippedLedgerIsGuarded:
     of which ship, so they run in a clean checkout with no corpus present.
     """
 
-    CORPUS_SIZE = 26
+    CORPUS_SIZE = 54  # 25 in ~/src, plus 29 decompiled trees in .apk/
     LEDGER = (
         pathlib.Path(__file__).resolve().parents[1]
         / "docs"

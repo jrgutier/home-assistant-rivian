@@ -81,7 +81,35 @@ SRC_DUMPS: dict[str, str] = {
 # The one dump that lives in the repo instead of ~/src.
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REPO_DUMPS: dict[str, Path] = {
+    "2.6.1": REPO_ROOT / ".apk" / "2.6.1" / "jadx" / "sources",
+    "2.7.0": REPO_ROOT / ".apk" / "2.7.0" / "jadx" / "sources",
+    "2.8.0": REPO_ROOT / ".apk" / "2.8.0" / "jadx" / "sources",
+    "2.10.0": REPO_ROOT / ".apk" / "2.10.0" / "jadx" / "sources",
+    "2.10.1": REPO_ROOT / ".apk" / "2.10.1" / "jadx" / "sources",
+    "2.19.1": REPO_ROOT / ".apk" / "2.19.1" / "jadx" / "sources",
+    "2.20.0": REPO_ROOT / ".apk" / "2.20.0" / "jadx" / "sources",
+    "2.21.0": REPO_ROOT / ".apk" / "2.21.0" / "jadx" / "sources",
+    "3.0.0": REPO_ROOT / ".apk" / "3.0.0" / "jadx" / "sources",
+    "3.1.0": REPO_ROOT / ".apk" / "3.1.0" / "jadx" / "sources",
+    "3.1.1": REPO_ROOT / ".apk" / "3.1.1" / "jadx" / "sources",
+    "3.3.0": REPO_ROOT / ".apk" / "3.3.0" / "jadx" / "sources",
+    "3.4.0": REPO_ROOT / ".apk" / "3.4.0" / "jadx" / "sources",
+    "3.5.0": REPO_ROOT / ".apk" / "3.5.0" / "jadx" / "sources",
+    "3.5.1": REPO_ROOT / ".apk" / "3.5.1" / "jadx" / "sources",
+    "3.6.0": REPO_ROOT / ".apk" / "3.6.0" / "jadx" / "sources",
+    "3.6.1": REPO_ROOT / ".apk" / "3.6.1" / "jadx" / "sources",
+    "3.7.0": REPO_ROOT / ".apk" / "3.7.0" / "jadx" / "sources",
+    "3.8.0": REPO_ROOT / ".apk" / "3.8.0" / "jadx" / "sources",
+    "3.9.0": REPO_ROOT / ".apk" / "3.9.0" / "jadx" / "sources",
+    "3.10.0": REPO_ROOT / ".apk" / "3.10.0" / "jadx" / "sources",
+    "3.11.0": REPO_ROOT / ".apk" / "3.11.0" / "jadx" / "sources",
+    "3.12.0": REPO_ROOT / ".apk" / "3.12.0" / "jadx" / "sources",
+    "3.12.1": REPO_ROOT / ".apk" / "3.12.1" / "jadx" / "sources",
+    "3.13.0": REPO_ROOT / ".apk" / "3.13.0" / "jadx" / "sources",
+    "3.13.1": REPO_ROOT / ".apk" / "3.13.1" / "jadx" / "sources",
+    "3.14.0": REPO_ROOT / ".apk" / "3.14.0" / "jadx" / "sources",
     "3.15.0": REPO_ROOT / ".apk" / "3.15.0" / "jadx" / "sources",
+    "3.16.0": REPO_ROOT / ".apk" / "3.16.0" / "jadx" / "sources",
 }
 
 # --- command extraction ------------------------------------------------------
@@ -849,7 +877,11 @@ def report(result: dict) -> None:
                 if on
             ]
         )
-        print(f"    {command['name']:48s} {wrappers or '-':20s} {command['class']}")
+        # `name` is None for a wrapper-less class -- the same None the ledger
+        # sort key already guards. A class with no wrapper carries no command
+        # name, and 3.16.0 has four of them.
+        label = command["name"] or "(no command name)"
+        print(f"    {label:48s} {wrappers or '-':20s} {command['class']}")
     print(f"  documents {len(result['documents'])}")
     for document in result["documents"]:
         for operation in document["operations"]:
@@ -877,7 +909,11 @@ def report(result: dict) -> None:
 COHORTS: dict[str, str] = {
     "sources": "A/sources (1.x + 2.0.0_beta; decompiler unrecorded)",
     "java_src": "B/java_src (2.2.0+; decompiler unrecorded)",
-    ".": "C/jadx (3.15.0 build 4804; jadx, documented)",
+    # 29 trees, 2.6.1 to 3.16.0, all decompiled here with jadx 1.5.6
+    # from APKMirror bundles. Unlike cohorts A and B, whose decompiler was
+    # never recorded, this one has documented provenance -- so counts inside
+    # it are comparable to each other, and 3.15.0 remains its ground truth.
+    ".": "C/jadx (29 trees 2.6.1-3.16.0; jadx 1.5.6, documented)",
 }
 
 
