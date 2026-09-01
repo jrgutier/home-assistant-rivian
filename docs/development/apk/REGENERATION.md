@@ -128,3 +128,58 @@ how `l6e.java` and `wcm.java` are already renamed-by-role. These four are
 | `CommandStateFields.java` | the fragment model; `state` is a non-null `int` | `java_src/p1050uh/C21098D1.java` |
 | `CommandStateSwitch.java` | the nine-arm switch | `java_src/p245Jl/C4171i.java` |
 | `CommandStateTerminality.java` | the continue-set test **and** `m20706p` | `java_src/p143Fi/C2225j.java` |
+
+## Re-acquiring the corpus (s33)
+
+The 54 trees under `.apk/` are gitignored, so a clean checkout has none of them.
+The `.apkm`/`.apk` bundles they came from are **not retained** — re-acquisition
+means re-downloading. What follows is what actually worked, including the parts
+that did not.
+
+**APKMirror's real listing is `/uploads/?appcategory=rivian`.** The app page's
+"All versions" widget shows only the 10 most recent, and `?page=N` on it is
+ignored — every page returns the same 10. Reading only that widget is how an
+earlier revision of this work concluded that APKMirror carried nothing before
+3.8.0, which was wrong by 20 versions. The uploads listing carries 30, back to
+2.5.1. Nothing older than 2.5.1 exists there; `3.2.x`, `2.9` and `2.11`-`2.18`
+exist on no source checked.
+
+**Three automated routes do not work, and the reasons differ:**
+
+| route | why not |
+|---|---|
+| `apkeep -d apk-mirror` | no such source exists; apkeep offers apk-pure, google-play, f-droid, huawei-app-gallery |
+| `apkeep -d apk-pure` | APKPure does not carry this app — empty listing, while a control app returns 130+ versions |
+| `apkeep -d google-play` | works, but Google Play serves **only the current version** by design, so it cannot backfill |
+
+Google Play is still the way to get a *new frontier* build (3.16.0 came from it),
+and needs an aas token obtained by exchanging an oauth token
+(`apkeep --oauth-token <t> -e <email>`). An oauth token is not an aas token; passing
+the former to `-t` fails with "Invalid payload".
+
+**`tanishqmanuja/apkmirror-downloader` (APKMD) works, with two traps.** It ships
+only Linux and Windows binaries, but `bun src/cli.ts` runs fine on macOS arm64
+from a source clone. Its dpi filter drops any variant whose dpi is not matched
+exactly, so `-d '*'` is required or every download fails "Could not find any
+suitable variant":
+
+```sh
+bun src/cli.ts download rivian rivian -v <VERSION> -a universal -t bundle -d '*' --outdir <dir>
+```
+
+It is Cloudflare-blocked after a handful of requests at any spacing, and fails
+permanently on some versions with "Could not find final download url". A browser
+succeeds where it does not.
+
+**The browser flow.** Navigate to
+`/apk/rivian-llc/rivian/rivian-<v-with-dashes>-release/rivian-<v-with-dashes>-android-apk-download/`
+and click the download control. **Wait after each click before navigating away** —
+navigating immediately aborts the pending download, silently, which cost four
+versions before it was noticed.
+
+3.x releases are `.apkm` bundles (base plus 34 splits); **2.x releases are single
+`.apk` files** of 433-467 MB. A pipeline globbing only `*.apkm` skips every 2.x
+download without saying so.
+
+Decompile with `jadx` (not apktool, per the distinction above); the 29 trees from
+2.6.1 onward were produced with jadx 1.5.6.

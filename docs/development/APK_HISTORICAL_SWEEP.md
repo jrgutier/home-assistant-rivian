@@ -188,8 +188,43 @@ only depth-1 names are comparable to `VEHICLE_STATE_API_FIELDS`. A test pins the
 two implementations together so they cannot drift.
 
 **Parallax draws on 24 versions, from 2.19.1 onward** — not 3.x only, as an
-earlier revision of this file said. **80 RVM types against 33 decoded** is the
-largest single gap this sweep found.
+earlier revision of this file said. **80 RVM types against 33 decoded.**
+
+### But "47 undecoded" is not 47 decodable things (s33)
+
+A decoder needs a **topic → message class** binding, and the app supplies those in
+eleven dispatch files (`scripts/gates/helpers/topic_map.py` reads them). Running
+it over 3.15.0:
+
+| | |
+|---|---|
+| RVM names in the table | 80 |
+| topics the dispatch actually binds | **21** |
+| of those, already decoded | 13 |
+| **bound but not decoded — the real queue** | **8** |
+| named with no binding at all | 59 |
+
+The eight are `OTA_DEPLOYMENT_STATE`, `SECURITY_VAS_FAULT`,
+`SECURITY_IMMOBILIZER_STATE`, `DYNAMICS_VEHICLE_KNOWN_LOCATION`,
+`BODY_TRAILER_STATES`, `COMFORT_CABIN_PRECONDITIONING_STATUS`,
+`SECURITY_PASSIVE_ENTRY_DEBUG` and `SECURITY_BTM_DIAGNOSIS`.
+
+A missing binding is not proof a topic is undecodable — 20 of our 33 decoders
+were built from live capture rather than the dispatch. It does mean those 59 cost
+a vehicle capture each rather than a read of the decompilation.
+
+**And capture is not free.** `RVM_FIXTURES.md` records that the gateway permits
+one active subscription per user session: a second `connection_init` is accepted,
+never acknowledged, and closed at TTL. Capturing therefore requires disabling the
+Home Assistant config entry for the capture window. Three fixtures exist today
+(`climate_hold_setting`, `climate_hold_status`, `vehicle_wheels`) and none covers
+the eight above.
+
+So the honest shape of this gap: 8 topics readable from the decompilation but
+still needing a frame to confirm their value vocabulary, and 59 that need a frame
+before anything can be read at all. Picking targets by reading topic names is
+guessing — the dispatch is the evidence, and it disagreed with four of five names
+chosen that way.
 
 Each surface carries its own floor; a union below it is an error and exits 1.
 
@@ -260,7 +295,7 @@ seen values would mis-render every unseen state.
 | # | target | kind | promotes on |
 |---|---|---|---|
 | 1 | `chargingDisabledAC` | name-probe | now corpus-confirmed as a real app name; a live accept |
-| 2 | 47 undecoded Parallax RVMs | decode | a decoded value from frames already arriving |
+| 2 | 8 dispatch-bound Parallax RVMs | decode | a captured frame confirming the value vocabulary; needs HA offline to capture |
 | 3 | `activated`, `updatedAt` (wallbox) | name-probe | a live accept |
 | 4 | 34 `VehicleFeature` members we do not gate on | inspect | evidence the server emits the `featureName` |
 

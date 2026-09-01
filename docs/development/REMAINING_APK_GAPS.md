@@ -65,7 +65,7 @@ Invalid-wrapper seven (`tests/test_apk_transcription.py:406-412`):
 | Driver occupancy | `driverOccupancyStatus` (`.apk/3.15.0/jadx/sources/com/rivian/android/consumer/data/model/VehicleState.java:39`) | Unproven GraphQL name. Occupancy *is* HA-shaped (`binary_sensor`). |
 | 2FA challenge surface | `driveAuthorizationUserInputRequestStatus` (`VehicleState2.java:38`) | Unproven GraphQL name. |
 | Winch control (7 commands) | `WINCH_IN`, `WINCH_OUT`, `WINCH_CANCEL`, `WINCH_FREE_SPOOL`, `WINCH_REENGAGE`, `WINCH_ACCEPT_CONTROLLER_ROLE`, `WINCH_REJECT_CONTROLLER_ROLE` — real VASCommands in 1.0.3–1.4.1 only, then dropped. Same source. | **BLE-only in every version; no cloud wrapper ever existed**, and this integration sends via cloud after pairing. Not sendable without new BLE plumbing. Re-entry: a cloud wrapper appearing in a future build. |
-| AC charging disabled | `chargingDisabledAC` (`rivian_client/schemas/gateway.graphql:677`) | Schema-declared sibling of subscribed `chargingDisabledACFaultState`. Not in `VEHICLE_STATE_API_FIELDS`. Name-probe required before adding to the live document. |
+| AC charging disabled | `chargingDisabledAC`, declared in `rivian_client/schemas/gateway.graphql` and carried by the app itself (s33 corpus sweep). **Live-ACCEPTED 2026-09-01**, delivered `0` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | Name proven; **semantics are not**. One numeric sample, and the neighbouring `chargingDisabledACFaultState` uses a string vocabulary -- `0` could be a flag, a count, or an enum's zero arm. Needs a second sample under a different charging state before it is a sensor. |
 
 ## Already at parity via other transport
 
