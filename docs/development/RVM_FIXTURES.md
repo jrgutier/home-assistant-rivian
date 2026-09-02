@@ -138,6 +138,36 @@ floor and not a proof.
 plugged in and drawing AC. It delivered a bare `0` parked, which could be a
 flag, a count or an enum's zero arm ([`REMAINING_APK_GAPS.md`](REMAINING_APK_GAPS.md)).
 
+### Three decoders are silent on their own frames (2026-09-02)
+
+The first active re-run added two frames and immediately exposed something the
+fixture set had been hiding. Decoding all 32 committed frames through their own
+registered decoders, **three return `{}`**:
+
+| topic | why |
+|---|---|
+| `charging.session.time_estimation` | decoder reads field 1; frame carries field 2 = 64 |
+| `security.access.passive_entry_debug` | decoder reads field 1; frame carries field 2 = 2 |
+| `comfort.cabin.seat_conditioning_status` | structural — decoder expects the seat position as the OUTER field number (`SEAT_STATUS_FIELDS`, 7–12); the frame is `repeated {1: id, 2: value}` under field 1 |
+
+Every decoder swallows exceptions so one bad frame cannot drop the subscription.
+The price is that a decoder on the wrong field number looks exactly like a topic
+the vehicle never publishes — both are silence. `TestDecodersProduceSomething`
+`FromTheirOwnFrame` now makes it loud: a fourth silent decoder fails the suite.
+
+**This corrects a claim in `const.py`.** `sensor.passive_entry_unlock_fail_reason`
+is disabled by default with the reason "arrival UNWITNESSED … an absent value
+cannot be told apart from the decoder never firing". The frame *does* arrive —
+it is committed here. The decoder reads the wrong field. The entity is disabled
+for a reason that turns out not to be the real one.
+
+None of the three is fixed. `charging.session.time_estimation` has no named
+schema and 64 is not obviously seconds; `seat_conditioning_status` shows ids 5
+and 7 twice with different values, so field 2 is not one level per seat and the
+message is not what the decoder models. A decoder built on a guess renders wrong
+values as confidently as right ones. Resolving them needs a capture taken
+mid-charge and with seat heaters actually running.
+
 ### Two classes of personal data, not one
 
 A capture on 2026-09-01 wrote a child's school name, a home wifi SSID, MAC

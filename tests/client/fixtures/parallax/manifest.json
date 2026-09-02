@@ -39,6 +39,16 @@
   "file": "charging_session_status.bin",
   "sha256_12": "8fe546efcd4214f2"
  },
+ "charging.session.time_estimation": {
+  "bytes": 2,
+  "file": "charging_session_time_estimation.bin",
+  "sha256_12": "f102a87d0826f844"
+ },
+ "comfort.cabin.cabin_preconditioning_status": {
+  "bytes": 2,
+  "file": "comfort_cabin_cabin_preconditioning_status.bin",
+  "sha256_12": "0b57459772db2f3f"
+ },
  "comfort.cabin.cabin_temperatures": {
   "bytes": 10,
   "file": "comfort_cabin_cabin_temperatures.bin",
