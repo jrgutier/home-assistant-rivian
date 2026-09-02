@@ -28,12 +28,21 @@ Identifiers are not interchangeable: `parallaxMessages` wants
 `vehicles[0].id` (shape `01-XXXXXXXXX`). `RIVIAN_VEHICLE_ID` in `.env` matched
 none of the three known identifiers and produced "Invalid vehicle ID".
 
+`--write` is ADDITIVE. It skips any topic already in `manifest.json`, refuses to
+overwrite an existing `.bin`, and appends new entries to the manifest. Until
+2026-09-01 it did none of that: it wrote `topic.replace(".", "_") + ".bin"`
+unconditionally, so the documented "re-run while driving" would have replaced
+every frame the decoder tests assert against. The three legacy-named fixtures
+still carry an `alias` from a duplicate an earlier run wrote, and one of those
+pairs holds different bytes.
+
 Secrets: reads tokens from `.env` and prints none of them.
 
 Usage:
     .venv/bin/python scripts/capture_rvm_frames.py --list
     .venv/bin/python scripts/capture_rvm_frames.py --seconds 90
-    .venv/bin/python scripts/capture_rvm_frames.py --all --seconds 120 --write
+    .venv/bin/python scripts/capture_rvm_frames.py \\
+        --all scripts/rvm_topics_active_rerun.txt --seconds 180 --write
 """
 
 from __future__ import annotations
@@ -41,6 +50,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import base64
+import hashlib
+import json
 from pathlib import Path
 import re
 import sys
@@ -57,6 +68,7 @@ from custom_components.rivian.rivian_client import Rivian
 FIXTURES = (
     Path(__file__).resolve().parents[1] / "tests" / "client" / "fixtures" / "parallax"
 )
+MANIFEST = FIXTURES / "manifest.json"
 
 TARGETS = (
     # Every dispatch-bound topic is already decoded -- `PARALLAX_DECODERS.md`
@@ -84,6 +96,62 @@ PRINTABLE_RUN = re.compile(rb"[ -~]{5,}")
 # Firmware versions and protobuf type names are the same on every vehicle, so
 # they identify nobody.
 SAFE_STRINGS = re.compile(rb"^(?:\d[\d.]+|[A-Z][A-Za-z]+State|[0-9a-f]{8})$")
+
+
+def load_manifest() -> dict[str, dict]:
+    """`manifest.json`, or an empty mapping before the first fixture exists."""
+    return json.loads(MANIFEST.read_text()) if MANIFEST.is_file() else {}
+
+
+def fixture_name(topic: str) -> str:
+    """The filename a NEW topic gets.
+
+    `topic.replace(".", "_")` is the transform that produced four wrong counts,
+    and it is fine HERE and nowhere else: this is the forward direction, applied
+    once, and the result is recorded in the manifest so nothing ever has to
+    invert it. The rule that matters is that a topic is never *derived back* out
+    of a filename -- three fixtures predate this convention and would mis-map.
+    Existing topics are looked up in the manifest, never passed through here.
+    """
+    return topic.replace(".", "_") + ".bin"
+
+
+def manifest_entry(raw: bytes, filename: str) -> dict:
+    """Match `manifest.json`'s existing shape exactly.
+
+    `sha256_12` holds sixteen hex characters, not twelve. The name is a
+    misnomer in the committed data; matching it is more useful than correcting
+    it, because `tests/test_parallax_fixture_manifest.py` and three gates read
+    these entries.
+    """
+    return {
+        "bytes": len(raw),
+        "file": filename,
+        "sha256_12": hashlib.sha256(raw).hexdigest()[:16],
+    }
+
+
+def write_decision(
+    topic: str, raw: bytes, manifest: dict[str, dict], fixtures: Path
+) -> tuple[str, str]:
+    """What `--write` should do with one frame, as a decision separated from IO.
+
+    Split out so it can be tested without a vehicle. The alternative -- asserting
+    the loop's behaviour by running a live capture -- is the reason this was
+    broken for as long as it was: nobody re-ran it, so nobody saw that a second
+    run overwrites.
+
+    Returns `(action, detail)` where action is one of `already-fixtured`,
+    `withheld`, `refused`, `write`.
+    """
+    if topic in manifest:
+        return "already-fixtured", manifest[topic]["file"]
+    if found := carries_identifiers(raw):
+        return "withheld", ", ".join(found[:2])
+    name = fixture_name(topic)
+    if (fixtures / name).exists():
+        return "refused", name
+    return "write", name
 
 
 def carries_identifiers(raw: bytes) -> list[str]:
@@ -153,6 +221,11 @@ async def capture(topics: tuple[str, ...], seconds: int, write: bool) -> int:
         await unsubscribe()
 
     withheld: list[str] = []
+    added: list[str] = []
+    # Loaded ONCE, before the loop, so a topic added during this run cannot be
+    # mistaken for one that was already committed.
+    manifest = load_manifest()
+
     print("\n=== result ===")
     for topic in topics:
         raw = seen.get(topic)
@@ -163,14 +236,33 @@ async def capture(topics: tuple[str, ...], seconds: int, write: bool) -> int:
         else:
             print(f"  {topic:44s} {len(raw)}B")
             if write:
-                if found := carries_identifiers(raw):
+                # A re-run must be additive. Overwriting would silently replace
+                # the frame every committed test asserts against, and for the
+                # three legacy-named fixtures it would not even overwrite -- it
+                # would write a SECOND file under the derived name and leave an
+                # orphan that `test_every_fixture_file_is_accounted_for` fails
+                # on. Both were live until 2026-09-01.
+                action, detail = write_decision(topic, raw, manifest, FIXTURES)
+                if action == "already-fixtured":
+                    print(f"  {'':44s} already fixtured ({detail}) -- kept")
+                elif action == "withheld":
                     withheld.append(topic)
-                    print(f"  {'':44s} WITHHELD -- carries {found[:2]}")
-                    continue
-                FIXTURES.mkdir(parents=True, exist_ok=True)
-                out = FIXTURES / f"{topic.replace('.', '_')}.bin"
-                out.write_bytes(raw)
-                print(f"  {'':44s} -> {out.relative_to(Path.cwd())}")
+                    print(f"  {'':44s} WITHHELD -- carries {detail}")
+                elif action == "refused":
+                    print(f"  {'':44s} REFUSED -- {detail} exists, not in manifest")
+                else:
+                    FIXTURES.mkdir(parents=True, exist_ok=True)
+                    out = FIXTURES / detail
+                    out.write_bytes(raw)
+                    manifest[topic] = manifest_entry(raw, detail)
+                    added.append(topic)
+                    print(f"  {'':44s} -> {out}")
+
+    if added:
+        # `indent=1` and a trailing newline are what the committed file already
+        # uses -- measured, not assumed. Anything else reformats all 40 entries
+        # and buries the one real addition in a 400-line diff.
+        MANIFEST.write_text(json.dumps(dict(sorted(manifest.items())), indent=1) + "\n")
 
     captured = sum(1 for t in topics if seen.get(t))
     print(f"\n{captured}/{len(topics)} produced a non-empty frame")
@@ -179,6 +271,13 @@ async def capture(topics: tuple[str, ...], seconds: int, write: bool) -> int:
         for topic in withheld:
             print(f"  {topic}")
         print("Inspect them by hand if needed; do not commit them.")
+    if added:
+        print(f"\n{len(added)} NEW fixture(s) written, and manifest.json updated:")
+        for topic in added:
+            print(f"  {topic}")
+        print("Review each frame by hand before committing -- the text guard is")
+        print("a floor, not a proof. A GPS pair as f64 doubles has no printable")
+        print("run and passed every string check once already.")
     print("SILENT and EMPTY are recorded outcomes, not failures.")
     return 0
 

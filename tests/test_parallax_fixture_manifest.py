@@ -204,3 +204,135 @@ class TestFixturesCarryNoPersonalData:
 
         assert not mac, f"{path.name} carries a MAC address"
         assert not uuid, f"{path.name} carries a UUID"
+
+
+class TestCaptureRerunIsAdditive:
+    """`RVM_FIXTURES.md` told the operator the capture skips existing topics.
+
+    It did not. `capture_rvm_frames.py` wrote `topic.replace(".", "_") + ".bin"`
+    unconditionally, so a second run -- the one the doc asks for, while driving
+    -- would have overwritten every frame the decoder tests assert against, and
+    for the three legacy-named fixtures would have written a SECOND file under
+    the derived name, orphaning it.
+
+    These run against the REAL committed manifest, not a synthetic one, because
+    the legacy trio is exactly the case a synthetic fixture would omit.
+    """
+
+    @staticmethod
+    def _capture():
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "capture_rvm_frames",
+            pathlib.Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "capture_rvm_frames.py",
+        )
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_every_committed_topic_is_skipped_not_rewritten(
+        self, manifest: dict
+    ) -> None:
+        """The whole guarantee, over all 40, with plausible frame bytes."""
+        capture = self._capture()
+
+        for topic in manifest:
+            action, detail = capture.write_decision(
+                topic, b"\x08\x01", manifest, FIXTURES
+            )
+
+            assert action == "already-fixtured", f"{topic} -> {action}"
+            assert detail == manifest[topic]["file"]
+
+    def test_the_legacy_trio_already_shows_the_damage(self, manifest: dict) -> None:
+        """The duplicate is not hypothetical -- it is committed, and divergent.
+
+        This test was first written claiming the old code *would* orphan a
+        derived-name file. It already had: all three legacy topics carry an
+        `alias` recording a second .bin under the derived name, written by an
+        earlier run. `comfort.cabin.climate_hold_setting` is the one that
+        matters -- `alias_identical: False`, so the two files hold DIFFERENT
+        frames for the same topic, and which one a reader gets depends on
+        whether it went through the manifest or through the filename.
+
+        The skip is what stops a third copy diverging further.
+        """
+        capture = self._capture()
+        legacy = "comfort.cabin.climate_hold_setting"
+        entry = manifest[legacy]
+
+        assert capture.fixture_name(legacy) == entry["alias"] != entry["file"]
+        assert entry["alias_identical"] is False
+        assert (FIXTURES / entry["file"]).read_bytes() != (
+            FIXTURES / entry["alias"]
+        ).read_bytes()
+
+        for topic in (
+            legacy,
+            "comfort.cabin.climate_hold_status",
+            "vehicle.wheels.vehicle_wheels",
+        ):
+            action, detail = capture.write_decision(
+                topic, b"\x08\x01", manifest, FIXTURES
+            )
+            assert action == "already-fixtured", topic
+            assert detail == manifest[topic]["file"], topic
+
+    def test_a_new_topic_is_written(self, manifest: dict) -> None:
+        """The skip must not be a blanket refusal -- the run has to add frames."""
+        capture = self._capture()
+
+        action, detail = capture.write_decision(
+            "navigation.navigation_service.trip_info", b"\x08\x01", manifest, FIXTURES
+        )
+
+        assert action == "write"
+        assert detail == "navigation_navigation_service_trip_info.bin"
+
+    def test_an_untracked_bin_is_refused_rather_than_clobbered(
+        self, manifest: dict, tmp_path: pathlib.Path
+    ) -> None:
+        """Manifest and disk disagreeing is evidence; overwriting destroys it."""
+        capture = self._capture()
+        # A topic genuinely absent from the manifest -- `ota.deployment.state`
+        # is IN it, and short-circuits on the skip before reaching this branch.
+        topic = "navigation.navigation_service.trip_progress"
+        assert topic not in manifest
+        (tmp_path / capture.fixture_name(topic)).write_bytes(b"\x08\x02")
+
+        action, detail = capture.write_decision(topic, b"\x08\x01", manifest, tmp_path)
+
+        assert action == "refused"
+        assert detail == capture.fixture_name(topic)
+
+    def test_identifier_bearing_frames_are_still_withheld(
+        self, manifest: dict, tmp_path: pathlib.Path
+    ) -> None:
+        """The skip logic must not have displaced the privacy guard."""
+        capture = self._capture()
+
+        action, detail = capture.write_decision(
+            "vehicle.setting.network", b"\x12\x08seatsinc", manifest, tmp_path
+        )
+
+        assert action == "withheld"
+        assert "seatsinc" in detail
+
+    def test_a_written_entry_matches_the_committed_entry_shape(
+        self, manifest: dict
+    ) -> None:
+        """Recompute a real fixture's entry; it must equal what is on disk.
+
+        Catches the two ways a writer drifts from 40 hand-made entries: a
+        different hash length (`sha256_12` holds sixteen hex chars, not twelve)
+        or a different key set.
+        """
+        capture = self._capture()
+        topic = "body.closures.states"
+        raw = (FIXTURES / manifest[topic]["file"]).read_bytes()
+
+        assert capture.manifest_entry(raw, manifest[topic]["file"]) == manifest[topic]

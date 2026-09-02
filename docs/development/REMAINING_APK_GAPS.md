@@ -13,16 +13,34 @@ The APK is a lower bound: HA extras the app does not name are not APK gaps.
 ## Candidate-to-build
 
 HA-shaped, APK has a cloud path, not in the named non-goals, no recorded VAS
-`CONFLICT` / Parallax ISE. Gateway-accepted unwired VASCommands. Do **not**
-implement these in the catalog change; live writes need owner OK.
+`CONFLICT` / Parallax ISE.
+
+**No unwired VASCommand remains here.** The last two — flash lights and
+external sound, named in *Listed-not-built (named non-goals)* below, and
+deliberately not backticked here because a command name appearing in two
+sections is what `test_sendable_commands_are_wired_or_catalogued` fails on —
+lost the live-write gate on 2026-09-01 when the owner declined it. The
+54-version corpus sweep found no cloud-sendable command name absent from the
+enum, so the command side of this catalog is closed — what is left is read-only.
+
+**Corrected 2026-09-01.** All three rows below previously read `HA today: none`.
+That was wrong when written: the entities were added on 2026-08-19 by
+`744fe77`, fed from Parallax. The real gap the 2026-08-31 probe opened is a
+**transport** one — the gateway accepted all three names in `vehicleState`,
+which `const.py:1901` says the remaining seven `PARALLAX_ONLY_FIELDS` have "no
+document to point to" for. A live accept outranks an app document, so that
+comment is stale for at least these three.
+
+Not done here, deliberately: an undeclared field name in the subscription
+**kills the whole subscription** — no battery level, no odometer, no tyre
+pressures (`const.py:1878-1886`). That is the beta13 failure class, and it does
+not belong in the same change as a release.
 
 | Gap | APK evidence | HA today | Proposed analogue |
 |-----|--------------|----------|-------------------|
-| Flash lights | `FLASH_EXTERNAL_LIGHTS` VASCommand; gateway accepted on this R1T (in-flight at 9.6s, no CONFLICT). [`COMMAND_COVERAGE.md:233-276`](COMMAND_COVERAGE.md) | none | `button` |
-| Passive-entry unlock fail reason | `passiveEntryUnlockFailReason` in 3.15.0's documents ([`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md)); **live-ACCEPTED 2026-08-31**, delivered `AT_HOME_DISABLE` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | none | `sensor` — but the value vocabulary is one sample; other reasons are unobserved |
-| VAS access CAN faulted | `vasAccessCanFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | none | `binary_sensor` — `no_failure` is the healthy arm of a fault enum whose other arms are unobserved |
-| VAS secure element faulted | `vasSecureElementFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | none | `binary_sensor`, same caveat |
-| Honk / external sound | `ACTIVATE_EXTERNAL_SOUND` VASCommand; gateway accepted, vehicle later `412`. Same section. | none | `button` |
+| Passive-entry unlock fail reason | `passiveEntryUnlockFailReason` in 3.15.0's documents ([`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md)); **live-ACCEPTED 2026-08-31**, delivered `AT_HOME_DISABLE` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | `sensor.passive_entry_unlock_fail_reason` exists but is **disabled by default**, fed only by Parallax, because its arrival is unwitnessed (`const.py:1027`) | Move the name out of `PARALLAX_ONLY_FIELDS` into `VEHICLE_STATE_API_FIELDS`, so it populates from the query instead of from an RVM that may never fire — then enabling it is justified |
+| VAS access CAN faulted | `vasAccessCanFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | `sensor.vas_access_can_faulted` exists and is enabled; Parallax delivery is proven for this one | Same transport move. Lower value than the other two — it already populates |
+| VAS secure element faulted | `vasSecureElementFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | `sensor.vas_secure_element_faulted` exists, enabled, but reads `unknown` — armed rather than healthy (`const.py:1003-1007`) | Same transport move |
 
 ## Listed-not-built (named non-goals)
 
@@ -33,6 +51,8 @@ not scheduled for implementation.
 | Gap | APK evidence | Why listed-not-built |
 |-----|--------------|----------------------|
 | Interior camera feed | `INTERIOR_CAMERA`. A *picker option* only (`gear_guard.py:37-38`), never a gate source — `camera.gear_guard_live` gates on `LIVE_CAM`/`MOTION_CAM` (`gear_guard.py:24`), so a vehicle whose only camera flag is `INTERIOR_CAMERA` gets no camera entity. | s28 scoped it out (`tests/test_camera.py::test_no_interior_entity_even_with_interior_flag`); an interior-only vehicle gets nothing (`::test_not_created_without_camera_flags`). This R1T does not advertise the flag (`CAPABILITY_MATRIX.md:83`), so it cannot be probed on the available hardware. |
+| Flash lights | `FLASH_EXTERNAL_LIGHTS` VASCommand; gateway accepted on this R1T (in-flight at 9.6s, no CONFLICT). [`COMMAND_COVERAGE.md:233-276`](COMMAND_COVERAGE.md) | **Owner declined 2026-09-01.** The live-write gate above is the owner's, and it was answered: not built. The APK evidence and the gateway accept are unchanged and stay recorded — this is a product decision, not a capability finding. **Re-entry condition:** the owner asks for it. |
+| Honk / external sound | `ACTIVATE_EXTERNAL_SOUND` VASCommand; gateway accepted, vehicle later `412`. Same section. | **Owner declined 2026-09-01**, alongside flash. Two independent reasons: the `412` means the button might exist and never actuate, and audible actuation carries the same objection that already prohibits the tailgate (garage). |
 | Combined honk+flash | `HONK_AND_FLASH_LIGHTS` — not a VASCommand **in 3.15.0**; live REJECTED twice. Corrected 2026-08-31 (s32): it *was* one in all 25 corpus versions 1.0.3–2.6.0, cloud+ble. A dropped command, not one that never existed. | Button reverted; not a cloud path in the shipping app |
 | Trip planner / active trip / add-stop / trailers / satmap | `ACTIVE_TRIP`, `V_TRIP`, `TRIP_ADD_STOP`, `TRIP_PLANNER_TRAILERS`, `V_SATMAP` | Round 4 non-goal. Navigation `notify` already exists. |
 | Phone-key management UI | `KEY_PAAK`, `KEY_FOB_2`, `PIN_PROFILE`, `ORPHANED_PHONE_KEY_RECOVERY_HANDLING` | Pair button + counts only; Round 4 non-goal |
@@ -69,7 +89,7 @@ Invalid-wrapper seven (`tests/test_apk_transcription.py:406-412`):
 | Driver occupancy | `driverOccupancyStatus` (`.apk/3.15.0/jadx/sources/com/rivian/android/consumer/data/model/VehicleState.java:39`) | Unproven GraphQL name. Occupancy *is* HA-shaped (`binary_sensor`). |
 | 2FA challenge surface | `driveAuthorizationUserInputRequestStatus` (`VehicleState2.java:38`) | Unproven GraphQL name. |
 | Winch control (7 commands) | `WINCH_IN`, `WINCH_OUT`, `WINCH_CANCEL`, `WINCH_FREE_SPOOL`, `WINCH_REENGAGE`, `WINCH_ACCEPT_CONTROLLER_ROLE`, `WINCH_REJECT_CONTROLLER_ROLE` — real VASCommands in 1.0.3–1.4.1 only, then dropped. Same source. | **BLE-only in every version; no cloud wrapper ever existed**, and this integration sends via cloud after pairing. Not sendable without new BLE plumbing. Re-entry: a cloud wrapper appearing in a future build. |
-| AC charging disabled | `chargingDisabledAC`, declared in `rivian_client/schemas/gateway.graphql` and carried by the app itself (s33 corpus sweep). **Live-ACCEPTED 2026-09-01**, delivered `0` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | Name proven; **semantics are not**. One numeric sample, and the neighbouring `chargingDisabledACFaultState` uses a string vocabulary -- `0` could be a flag, a count, or an enum's zero arm. Needs a second sample under a different charging state before it is a sensor. |
+| AC charging disabled | `chargingDisabledAC`, declared in `rivian_client/schemas/gateway.graphql` and carried by the app itself (s33 corpus sweep). **Live-ACCEPTED 2026-09-01**, delivered `0` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | Name proven; **semantics are not**. One numeric sample, and the neighbouring `chargingDisabledACFaultState` uses a string vocabulary -- `0` could be a flag, a count, or an enum's zero arm. Needs a second sample under a different charging state before it is a sensor. **How to get it:** `.venv/bin/python scripts/probe_field_names.py chargingDisabledAC` while the vehicle is plugged in and drawing AC — it is a `vehicleState` field, not an RVM, so the Parallax capture run does not cover it ([`RVM_FIXTURES.md`](RVM_FIXTURES.md)). |
 
 ## Already at parity via other transport
 

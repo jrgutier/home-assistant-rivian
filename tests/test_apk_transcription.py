@@ -1006,21 +1006,56 @@ class TestRemainingApkGaps:
         assert "ENABLE_GEAR_GUARD_VIDEO" not in gap_tokens
         assert "DISABLE_GEAR_GUARD_VIDEO" not in gap_tokens
 
-    def test_candidate_to_build_pins(self) -> None:
+    def test_candidate_to_build_holds_no_command(self) -> None:
+        """The command side of the catalog is closed; what remains is read-only.
+
+        `FLASH_EXTERNAL_LIGHTS` and `ACTIVATE_EXTERNAL_SOUND` were pinned HERE
+        until 2026-09-01, when the owner declined the live-write gate the
+        section's own preamble names. They moved to named non-goals rather than
+        being deleted, because the gateway accepts on this R1T are evidence and
+        stay recorded.
+
+        This asserts the *class*, not the two names: any future sendable that
+        lands in this section is a live write nobody has approved.
+        """
         sources = _platform_sources()
         candidate = _backticks(_gaps_sections()["Candidate-to-build"])
-        for name in (
-            "FLASH_EXTERNAL_LIGHTS",
-            "ACTIVATE_EXTERNAL_SOUND",
-        ):
-            assert name in candidate, name
-            assert not _is_wired(name, sources), name
+
+        assert not (candidate & SENDABLE_COMMANDS), sorted(
+            candidate & SENDABLE_COMMANDS
+        )
+        for name in ("FLASH_EXTERNAL_LIGHTS", "ACTIVATE_EXTERNAL_SOUND"):
+            assert name not in candidate, name
+            assert not _is_wired(name, sources), f"{name} declined but wired"
         assert "ENABLE_GEAR_GUARD" not in candidate
         assert "DISABLE_GEAR_GUARD" not in candidate
+
+    def test_candidate_rows_do_not_claim_a_missing_entity(self) -> None:
+        """`HA today: none` was wrong for all three rows for thirteen days.
+
+        The entities were added on 2026-08-19 (`744fe77`) from Parallax, and
+        the catalog written on 2026-08-31 still said none existed. Nothing
+        caught it, because the wiring checks read VehicleCommand names and
+        these are sensor fields. This is that check.
+        """
+        from custom_components.rivian.const import SENSORS
+
+        body = _gaps_sections()["Candidate-to-build"]
+        fields = {description.field for description in SENSORS}
+
+        for name in ("passiveEntryUnlockFailReason", "vasAccessCanFaulted"):
+            assert name in _backticks(body), name
+            assert name in fields, f"{name} has no sensor; the row's premise moved"
+        assert "| none |" not in body, "a row claims no entity where one exists"
 
     def test_named_non_goal_pins(self) -> None:
         tokens = _backticks(_gaps_sections()["Listed-not-built (named non-goals)"])
         assert "HONK_AND_FLASH_LIGHTS" in tokens
+        # Owner-declined 2026-09-01. Both were gateway-accepted on this R1T, so
+        # they are not capability gaps -- they are a product decision, and this
+        # is where the decision lives.
+        assert "FLASH_EXTERNAL_LIGHTS" in tokens
+        assert "ACTIVATE_EXTERNAL_SOUND" in tokens
         # INTERIOR_CAMERA is the camera gap that survived s28: it is a picker
         # option (gear_guard.py:37-38), never a gate source, so an interior-only
         # vehicle gets no camera entity at all.
