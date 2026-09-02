@@ -1,0 +1,208 @@
+{
+ "body.closures.states": {
+  "bytes": 123,
+  "file": "body_closures_states.bin",
+  "sha256_12": "cb599ac75526d757"
+ },
+ "body.locks.states": {
+  "bytes": 58,
+  "file": "body_locks_states.bin",
+  "sha256_12": "00fd60faa39eac08"
+ },
+ "body.trailer.state": {
+  "bytes": 4,
+  "file": "body_trailer_state.bin",
+  "sha256_12": "8fe546efcd4214f2"
+ },
+ "charging.energy.state": {
+  "bytes": 10,
+  "file": "charging_energy_state.bin",
+  "sha256_12": "cb6aaafe4c6ce9f8"
+ },
+ "charging.session.notification": {
+  "bytes": 2,
+  "file": "charging_session_notification.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
+ },
+ "charging.session.remote_command": {
+  "bytes": 2,
+  "file": "charging_session_remote_command.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
+ },
+ "charging.session.soc_slider": {
+  "bytes": 2,
+  "file": "charging_session_soc_slider.bin",
+  "sha256_12": "edda55df02be69b6"
+ },
+ "charging.session.status": {
+  "bytes": 4,
+  "file": "charging_session_status.bin",
+  "sha256_12": "8fe546efcd4214f2"
+ },
+ "comfort.cabin.cabin_temperatures": {
+  "bytes": 10,
+  "file": "comfort_cabin_cabin_temperatures.bin",
+  "sha256_12": "2b295fa8563ebef1"
+ },
+ "comfort.cabin.cabin_ventilation_setting": {
+  "bytes": 2,
+  "file": "comfort_cabin_cabin_ventilation_setting.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
+ },
+ "comfort.cabin.climate_hold_setting": {
+  "alias": "comfort_cabin_climate_hold_setting.bin",
+  "alias_identical": false,
+  "bytes": 3,
+  "file": "climate_hold_setting.bin",
+  "sha256_12": "e02a34809980805f"
+ },
+ "comfort.cabin.climate_hold_status": {
+  "alias": "comfort_cabin_climate_hold_status.bin",
+  "alias_identical": true,
+  "bytes": 8,
+  "file": "climate_hold_status.bin",
+  "sha256_12": "63a2f7ea949ffab1"
+ },
+ "comfort.cabin.defrost_defog_status": {
+  "bytes": 2,
+  "file": "comfort_cabin_defrost_defog_status.bin",
+  "sha256_12": "0c5490ca2f6d61c2"
+ },
+ "comfort.cabin.hvac_settings_status": {
+  "bytes": 5,
+  "file": "comfort_cabin_hvac_settings_status.bin",
+  "sha256_12": "2397b8634758e4f6"
+ },
+ "comfort.cabin.pet_mode_status": {
+  "bytes": 2,
+  "file": "comfort_cabin_pet_mode_status.bin",
+  "sha256_12": "7a53cc5deb60512f"
+ },
+ "comfort.cabin.seat_conditioning_status": {
+  "bytes": 54,
+  "file": "comfort_cabin_seat_conditioning_status.bin",
+  "sha256_12": "3fb101ffa0333369"
+ },
+ "comfort.user_modes.state": {
+  "bytes": 4,
+  "file": "comfort_user_modes_state.bin",
+  "sha256_12": "8f296db717c5a66d"
+ },
+ "dynamics.tires.state": {
+  "bytes": 90,
+  "file": "dynamics_tires_state.bin",
+  "sha256_12": "d62019248fdbd3aa"
+ },
+ "dynamics.vehicle.drive_mode": {
+  "bytes": 2,
+  "file": "dynamics_vehicle_drive_mode.bin",
+  "sha256_12": "7a53cc5deb60512f"
+ },
+ "dynamics.vehicle.gear": {
+  "bytes": 2,
+  "file": "dynamics_vehicle_gear.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
+ },
+ "dynamics.vehicle.odometer": {
+  "bytes": 4,
+  "file": "dynamics_vehicle_odometer.bin",
+  "sha256_12": "1cbaf19748069eb8"
+ },
+ "dynamics.vehicle.range": {
+  "bytes": 7,
+  "file": "dynamics_vehicle_range.bin",
+  "sha256_12": "6ee0875d8f14f738"
+ },
+ "energy.high_voltage.battery_characteristics": {
+  "bytes": 18,
+  "file": "energy_high_voltage_battery_characteristics.bin",
+  "sha256_12": "34569393885693d4"
+ },
+ "energy.high_voltage.battery_state": {
+  "bytes": 43,
+  "file": "energy_high_voltage_battery_state.bin",
+  "sha256_12": "e249e7231925af19"
+ },
+ "energy.low_voltage.battery_state": {
+  "bytes": 2,
+  "file": "energy_low_voltage_battery_state.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
+ },
+ "energy_edge_compute.graphs.charge_session_breakdown": {
+  "bytes": 27,
+  "file": "energy_edge_compute_graphs_charge_session_breakdown.bin",
+  "sha256_12": "281247015dbe7d9f"
+ },
+ "energy_edge_compute.graphs.charging_graph_global": {
+  "bytes": 397,
+  "file": "energy_edge_compute_graphs_charging_graph_global.bin",
+  "sha256_12": "c6ba6f1cf407362c"
+ },
+ "energy_edge_compute.graphs.cold_weather_soc": {
+  "bytes": 2,
+  "file": "energy_edge_compute_graphs_cold_weather_soc.bin",
+  "sha256_12": "dbfa323ea3c91f65"
+ },
+ "energy_edge_compute.graphs.parked_energy_distributions": {
+  "bytes": 124,
+  "file": "energy_edge_compute_graphs_parked_energy_distributions.bin",
+  "sha256_12": "0600964423ee064f"
+ },
+ "gearguard_streaming.privacy.gearguard_streaming_daily_limit": {
+  "bytes": 8,
+  "file": "gearguard_streaming_privacy_gearguard_streaming_daily_limit.bin",
+  "sha256_12": "51f2b60ed07b8e2e"
+ },
+ "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent": {
+  "bytes": 2,
+  "file": "gearguard_streaming_privacy_gearguard_streaming_in_vehicle_consent.bin",
+  "sha256_12": "7a53cc5deb60512f"
+ },
+ "holiday_celebration.mobile_vehicle_settings.halloween_celebration_settings": {
+  "bytes": 26,
+  "file": "holiday_celebration_mobile_vehicle_settings_halloween_celebration_settings.bin",
+  "sha256_12": "8f7aa0ef1ee347ae"
+ },
+ "ota.deployment.state": {
+  "bytes": 54,
+  "file": "ota_deployment_state.bin",
+  "sha256_12": "d1c68d638f823b1b"
+ },
+ "ota.ota_state.vehicle_ota_state": {
+  "bytes": 17,
+  "file": "ota_ota_state_vehicle_ota_state.bin",
+  "sha256_12": "ef849cb8ae0ba3ef"
+ },
+ "security.access.passive_entry_debug": {
+  "bytes": 2,
+  "file": "security_access_passive_entry_debug.bin",
+  "sha256_12": "5c6037e17112ad25"
+ },
+ "security.access.vas_fault": {
+  "bytes": 2,
+  "file": "security_access_vas_fault.bin",
+  "sha256_12": "27c24fcb8474773e"
+ },
+ "security.alarm.state": {
+  "bytes": 2,
+  "file": "security_alarm_state.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
+ },
+ "security.video_monitoring.state": {
+  "bytes": 6,
+  "file": "security_video_monitoring_state.bin",
+  "sha256_12": "d07f78b1905aada3"
+ },
+ "vehicle.power.state": {
+  "bytes": 2,
+  "file": "vehicle_power_state.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
+ },
+ "vehicle.wheels.vehicle_wheels": {
+  "alias": "vehicle_wheels_vehicle_wheels.bin",
+  "alias_identical": true,
+  "bytes": 74,
+  "file": "vehicle_wheels.bin",
+  "sha256_12": "d4a8b6bd05ceda40"
+ }
+}

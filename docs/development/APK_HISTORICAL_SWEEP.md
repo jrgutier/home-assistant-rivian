@@ -199,10 +199,19 @@ it over 3.15.0:
 | | |
 |---|---|
 | RVM names in the table | 80 |
-| topics the dispatch actually binds | **21** |
-| of those, already decoded | 13 |
-| **bound but not decoded — the real queue** | **8** |
+| topics the dispatch binds | 21 |
+| of those, already decoded | **21 — all of them** |
+| **bound but not decoded** | **0** |
 | named with no binding at all | 59 |
+
+An earlier revision of this row said the queue was **8**. That was wrong, and so
+was a later correction to **1**: both compared dotted topic names against
+CONST-form names through a transform that silently mismatched
+(`comfort.cabin.cabin_preconditioning_status` normalises to
+`COMFORT_CABIN_CABIN_PRECONDITIONING_STATUS`, the dispatch says
+`COMFORT_CABIN_PRECONDITIONING_STATUS`). `PARALLAX_DECODERS.md:139-166` settles
+it from the other direction: the search over every base64-parse site in all
+32,941 files is **closed**, and every bound topic is already decoded.
 
 The eight are `OTA_DEPLOYMENT_STATE`, `SECURITY_VAS_FAULT`,
 `SECURITY_IMMOBILIZER_STATE`, `DYNAMICS_VEHICLE_KNOWN_LOCATION`,
@@ -213,12 +222,19 @@ A missing binding is not proof a topic is undecodable — 20 of our 33 decoders
 were built from live capture rather than the dispatch. It does mean those 59 cost
 a vehicle capture each rather than a read of the decompilation.
 
-**And capture is not free.** `RVM_FIXTURES.md` records that the gateway permits
-one active subscription per user session: a second `connection_init` is accepted,
-never acknowledged, and closed at TTL. Capturing therefore requires disabling the
-Home Assistant config entry for the capture window. Three fixtures exist today
-(`climate_hold_setting`, `climate_hold_status`, `vehicle_wheels`) and none covers
-the eight above.
+**Capture does not require an outage.** An earlier revision of this file said the
+gateway permits one active subscription per user session and that capture
+therefore needs the Home Assistant config entry disabled. That claim was
+**RETRACTED on 2026-08-20** after measurement (`RVM_FIXTURES.md:21-29`,
+`WS_CONTENTION.md` claim C8): a second connection received `connection_ack` in
+0.0 s with production up, and the full topic set arrived with production
+subscribed. Repeating it here told a maintainer to take a production outage
+nobody needs, which is worse than a wrong count.
+
+Capture instead runs against the live instance —
+`scripts/capture_rvm_frames.py`. A survey on 2026-09-01 subscribed to all 80
+topics for 180 s parked: **51 published a non-empty frame, 5 published an empty
+payload, 24 were silent.** Silence is a recorded outcome, not a failure.
 
 So the honest shape of this gap: 8 topics readable from the decompilation but
 still needing a frame to confirm their value vocabulary, and 59 that need a frame
@@ -295,7 +311,7 @@ seen values would mis-render every unseen state.
 | # | target | kind | promotes on |
 |---|---|---|---|
 | 1 | `chargingDisabledAC` | name-probe | now corpus-confirmed as a real app name; a live accept |
-| 2 | 8 dispatch-bound Parallax RVMs | decode | a captured frame confirming the value vocabulary; needs HA offline to capture |
+| 2 | 6 Parallax RVMs with a named `.proto` schema | decode | the schema is already in `rivian_client/proto/*.proto`, bound by `// RVM:` comment, and a captured frame confirms the vocabulary. No outage needed. |
 | 3 | `activated`, `updatedAt` (wallbox) | name-probe | a live accept |
 | 4 | 34 `VehicleFeature` members we do not gate on | inspect | evidence the server emits the `featureName` |
 
