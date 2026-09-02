@@ -384,3 +384,30 @@ number of passive-entry reasons. Building a sensor that maps only these values
 would mis-render every state that has not been seen yet. And an accept on this
 account is not an accept on every account — `supportedFeatures` gating still
 applies, as `TONNEAU_CMD` established.
+
+## Name-probe, 2026-09-01 — `chargingDisabledAC` ACCEPTED
+
+The s33 corpus sweep confirmed `chargingDisabledAC` is a name the app itself
+carries, not only a type declared in `rivian_client/schemas/gateway.graphql`.
+`REMAINING_APK_GAPS.md` had it as "Name-probe required"; this settles that.
+
+`scripts/probe_field_names.py chargingDisabledAC`, read-only, riding alone with
+the two control fields. Control accepted first.
+
+| Field | Result | Value observed |
+|---|---|---|
+| `chargingDisabledAC` | **ACCEPTED**, delivered (0.2 s) | `0` |
+
+The gateway knows the name and has a value for it on this account.
+
+**What the value means is not established.** One sample, and it is numeric rather
+than the string vocabulary the neighbouring `chargingDisabledACFaultState` uses —
+`0` could be a boolean-shaped flag, a count of disable reasons, or an enum whose
+zero arm is "not disabled". A sensor built on the guess that `0` means "enabled"
+would invert on any other reading. That needs either a second sample under a
+different charging state or a schema type before anything ships.
+
+Four of four name-probes from this sweep have now been accepted
+(`passiveEntryUnlockFailReason`, `vasAccessCanFaulted`, `vasSecureElementFaulted`,
+`chargingDisabledAC`). That is a point about the *corpus* being a good source of
+candidate names, not evidence that any of them is ready to become an entity.

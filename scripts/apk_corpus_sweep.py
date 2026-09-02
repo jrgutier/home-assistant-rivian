@@ -33,7 +33,7 @@ because "the parse broke" and "the app had no commands" look identical in a
 summary line and only one of them is ever true.
 
 Usage:
-    python scripts/apk_corpus_sweep.py [--src-root ~/src] [--only VERSION ...] [--json]
+    python scripts/apk_corpus_sweep.py [--only VERSION ...] [--json]
     python scripts/apk_corpus_sweep.py --ledger    # one row per command
     python scripts/apk_corpus_sweep.py --sensors   # four sensor-surface deltas
 """
@@ -48,68 +48,72 @@ from pathlib import Path
 import re
 import sys
 
-# Version -> literal directory name under --src-root. Spelled out, never globbed.
-# `2.5.0_beta` really does live in a directory with a space in it.
-SRC_DUMPS: dict[str, str] = {
-    "1.0.3": "rivian_1.0.3",
-    "1.2.1": "rivian_1.2.1",
-    "1.3.0": "rivian_1.3.0",
-    "1.3.1": "rivian_1.3.1",
-    "1.4.0": "rivian_1.4.0",
-    "1.4.1": "rivian_1.4.1",
-    "1.5.1": "rivian_1.5.1",
-    "1.6.0": "rivian_1.6.0",
-    "1.7.0": "rivian_1.7.0",
-    "1.7.1": "rivian_1.7.1",
-    "1.8.0": "rivian_1.8.0",
-    "1.9.0": "rivian_1.9.0",
-    "1.10.0": "rivian_1.10.0",
-    "1.11.0": "rivian_1.11.0",
-    "1.12.0": "rivian_1.12.0",
-    "1.13.0": "rivian_1.13.0",
-    "1.14.0": "rivian_1.14.0",
-    "1.15.0": "rivian_1.15.0",
-    "2.0.0_beta": "rivian_2.0.0_beta",
-    "2.2.0": "rivian_2.2.0",
-    "2.3.0": "rivian_2.3.0",
-    "2.4.0": "rivian_2.4.0",
-    "2.5.0_beta": "rivian_2.5.0 beta",
-    "2.5.1": "com_rivian_android_consumer_v2.5.1",
-    "2.6.0": "com_rivian_android_consumer_v2.6.0",
-}
-
-# The one dump that lives in the repo instead of ~/src.
 REPO_ROOT = Path(__file__).resolve().parents[1]
-REPO_DUMPS: dict[str, Path] = {
-    "2.6.1": REPO_ROOT / ".apk" / "2.6.1" / "jadx" / "sources",
-    "2.7.0": REPO_ROOT / ".apk" / "2.7.0" / "jadx" / "sources",
-    "2.8.0": REPO_ROOT / ".apk" / "2.8.0" / "jadx" / "sources",
-    "2.10.0": REPO_ROOT / ".apk" / "2.10.0" / "jadx" / "sources",
-    "2.10.1": REPO_ROOT / ".apk" / "2.10.1" / "jadx" / "sources",
-    "2.19.1": REPO_ROOT / ".apk" / "2.19.1" / "jadx" / "sources",
-    "2.20.0": REPO_ROOT / ".apk" / "2.20.0" / "jadx" / "sources",
-    "2.21.0": REPO_ROOT / ".apk" / "2.21.0" / "jadx" / "sources",
-    "3.0.0": REPO_ROOT / ".apk" / "3.0.0" / "jadx" / "sources",
-    "3.1.0": REPO_ROOT / ".apk" / "3.1.0" / "jadx" / "sources",
-    "3.1.1": REPO_ROOT / ".apk" / "3.1.1" / "jadx" / "sources",
-    "3.3.0": REPO_ROOT / ".apk" / "3.3.0" / "jadx" / "sources",
-    "3.4.0": REPO_ROOT / ".apk" / "3.4.0" / "jadx" / "sources",
-    "3.5.0": REPO_ROOT / ".apk" / "3.5.0" / "jadx" / "sources",
-    "3.5.1": REPO_ROOT / ".apk" / "3.5.1" / "jadx" / "sources",
-    "3.6.0": REPO_ROOT / ".apk" / "3.6.0" / "jadx" / "sources",
-    "3.6.1": REPO_ROOT / ".apk" / "3.6.1" / "jadx" / "sources",
-    "3.7.0": REPO_ROOT / ".apk" / "3.7.0" / "jadx" / "sources",
-    "3.8.0": REPO_ROOT / ".apk" / "3.8.0" / "jadx" / "sources",
-    "3.9.0": REPO_ROOT / ".apk" / "3.9.0" / "jadx" / "sources",
-    "3.10.0": REPO_ROOT / ".apk" / "3.10.0" / "jadx" / "sources",
-    "3.11.0": REPO_ROOT / ".apk" / "3.11.0" / "jadx" / "sources",
-    "3.12.0": REPO_ROOT / ".apk" / "3.12.0" / "jadx" / "sources",
-    "3.12.1": REPO_ROOT / ".apk" / "3.12.1" / "jadx" / "sources",
-    "3.13.0": REPO_ROOT / ".apk" / "3.13.0" / "jadx" / "sources",
-    "3.13.1": REPO_ROOT / ".apk" / "3.13.1" / "jadx" / "sources",
-    "3.14.0": REPO_ROOT / ".apk" / "3.14.0" / "jadx" / "sources",
-    "3.15.0": REPO_ROOT / ".apk" / "3.15.0" / "jadx" / "sources",
-    "3.16.0": REPO_ROOT / ".apk" / "3.16.0" / "jadx" / "sources",
+
+# The corpus is an ALLOWLIST, never a glob, and since s33 it is one root. It used
+# to live in two places -- ~/src for the original dumps, .apk/ for what the sweep
+# downloaded -- which forced two dicts and two path shapes. Consolidated, a single
+# mapping of version -> tree root does it, and `relative_prefix()` discovers each
+# tree's layout instead of the path encoding it.
+#
+# The layout IS the cohort evidence, so trees keep their original internal shape:
+# 1.x and 2.0.0_beta carry `sources/`, 2.2.0-2.6.0 carry `java_src/`, and 2.6.1
+# onward carry `jadx/sources/`.
+DUMPS: dict[str, Path] = {
+    "1.0.3": REPO_ROOT / ".apk" / "1.0.3",
+    "1.2.1": REPO_ROOT / ".apk" / "1.2.1",
+    "1.3.0": REPO_ROOT / ".apk" / "1.3.0",
+    "1.3.1": REPO_ROOT / ".apk" / "1.3.1",
+    "1.4.0": REPO_ROOT / ".apk" / "1.4.0",
+    "1.4.1": REPO_ROOT / ".apk" / "1.4.1",
+    "1.5.1": REPO_ROOT / ".apk" / "1.5.1",
+    "1.6.0": REPO_ROOT / ".apk" / "1.6.0",
+    "1.7.0": REPO_ROOT / ".apk" / "1.7.0",
+    "1.7.1": REPO_ROOT / ".apk" / "1.7.1",
+    "1.8.0": REPO_ROOT / ".apk" / "1.8.0",
+    "1.9.0": REPO_ROOT / ".apk" / "1.9.0",
+    "1.10.0": REPO_ROOT / ".apk" / "1.10.0",
+    "1.11.0": REPO_ROOT / ".apk" / "1.11.0",
+    "1.12.0": REPO_ROOT / ".apk" / "1.12.0",
+    "1.13.0": REPO_ROOT / ".apk" / "1.13.0",
+    "1.14.0": REPO_ROOT / ".apk" / "1.14.0",
+    "1.15.0": REPO_ROOT / ".apk" / "1.15.0",
+    "2.0.0_beta": REPO_ROOT / ".apk" / "2.0.0_beta",
+    "2.2.0": REPO_ROOT / ".apk" / "2.2.0",
+    "2.3.0": REPO_ROOT / ".apk" / "2.3.0",
+    "2.4.0": REPO_ROOT / ".apk" / "2.4.0",
+    "2.5.0_beta": REPO_ROOT / ".apk" / "2.5.0_beta",
+    "2.5.1": REPO_ROOT / ".apk" / "2.5.1",
+    "2.6.0": REPO_ROOT / ".apk" / "2.6.0",
+    "2.6.1": REPO_ROOT / ".apk" / "2.6.1",
+    "2.7.0": REPO_ROOT / ".apk" / "2.7.0",
+    "2.8.0": REPO_ROOT / ".apk" / "2.8.0",
+    "2.10.0": REPO_ROOT / ".apk" / "2.10.0",
+    "2.10.1": REPO_ROOT / ".apk" / "2.10.1",
+    "2.19.1": REPO_ROOT / ".apk" / "2.19.1",
+    "2.20.0": REPO_ROOT / ".apk" / "2.20.0",
+    "2.21.0": REPO_ROOT / ".apk" / "2.21.0",
+    "3.0.0": REPO_ROOT / ".apk" / "3.0.0",
+    "3.1.0": REPO_ROOT / ".apk" / "3.1.0",
+    "3.1.1": REPO_ROOT / ".apk" / "3.1.1",
+    "3.3.0": REPO_ROOT / ".apk" / "3.3.0",
+    "3.4.0": REPO_ROOT / ".apk" / "3.4.0",
+    "3.5.0": REPO_ROOT / ".apk" / "3.5.0",
+    "3.5.1": REPO_ROOT / ".apk" / "3.5.1",
+    "3.6.0": REPO_ROOT / ".apk" / "3.6.0",
+    "3.6.1": REPO_ROOT / ".apk" / "3.6.1",
+    "3.7.0": REPO_ROOT / ".apk" / "3.7.0",
+    "3.8.0": REPO_ROOT / ".apk" / "3.8.0",
+    "3.9.0": REPO_ROOT / ".apk" / "3.9.0",
+    "3.10.0": REPO_ROOT / ".apk" / "3.10.0",
+    "3.11.0": REPO_ROOT / ".apk" / "3.11.0",
+    "3.12.0": REPO_ROOT / ".apk" / "3.12.0",
+    "3.12.1": REPO_ROOT / ".apk" / "3.12.1",
+    "3.13.0": REPO_ROOT / ".apk" / "3.13.0",
+    "3.13.1": REPO_ROOT / ".apk" / "3.13.1",
+    "3.14.0": REPO_ROOT / ".apk" / "3.14.0",
+    "3.15.0": REPO_ROOT / ".apk" / "3.15.0",
+    "3.16.0": REPO_ROOT / ".apk" / "3.16.0",
 }
 
 # --- command extraction ------------------------------------------------------
@@ -907,13 +911,17 @@ def report(result: dict) -> None:
 # producing tool is known. Only the 3.15.0 cohort has documented provenance
 # (jadx, per docs/development/apk/REGENERATION.md).
 COHORTS: dict[str, str] = {
-    "sources": "A/sources (1.x + 2.0.0_beta; decompiler unrecorded)",
-    "java_src": "B/java_src (2.2.0+; decompiler unrecorded)",
-    # 29 trees, 2.6.1 to 3.16.0, all decompiled here with jadx 1.5.6
-    # from APKMirror bundles. Unlike cohorts A and B, whose decompiler was
-    # never recorded, this one has documented provenance -- so counts inside
-    # it are comparable to each other, and 3.15.0 remains its ground truth.
-    ".": "C/jadx (29 trees 2.6.1-3.16.0; jadx 1.5.6, documented)",
+    # Layout is a PROXY for the producing pipeline, and it is the only evidence
+    # there is for cohorts A and B: which decompiler wrote those trees was never
+    # recorded. That gap is why a count is comparable only within a cohort -- a
+    # drop between versions cannot be attributed to a real app change rather
+    # than a lossier extraction unless the producing tool is known.
+    "sources": "A/sources (1.0.3-1.15.0 + 2.0.0_beta; decompiler unrecorded)",
+    "java_src": "B/java_src (2.2.0-2.6.0; decompiler unrecorded)",
+    # The only cohort with documented provenance: 29 trees decompiled here from
+    # APKMirror bundles with one tool version, so counts inside it ARE
+    # comparable, and 3.15.0 is its known ground truth (5 Apollo documents).
+    "jadx/sources": "C/jadx (2.6.1-3.16.0; jadx 1.5.6, documented)",
 }
 
 
@@ -1154,12 +1162,6 @@ def report_sensors(report: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument(
-        "--src-root",
-        type=Path,
-        default=Path.home() / "src",
-        help="directory holding the extracted app dumps (default: ~/src)",
-    )
-    parser.add_argument(
         "--only",
         action="append",
         metavar="VERSION",
@@ -1178,8 +1180,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    roots: dict[str, Path] = {v: args.src_root / d for v, d in SRC_DUMPS.items()}
-    roots.update(REPO_DUMPS)
+    roots: dict[str, Path] = dict(DUMPS)
 
     if args.only:
         unknown = [v for v in args.only if v not in roots]

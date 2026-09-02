@@ -88,36 +88,42 @@ class TestVersionOrdering:
 
 
 class TestCorpusAllowlist:
-    """The corpus is enumerated, never globbed."""
+    """The corpus is enumerated, never globbed, and lives under one root."""
 
-    def test_the_irregular_directory_names_are_carried_verbatim(self) -> None:
-        """One has an underscore, one a SPACE. Normalising either loses the dump."""
-        assert sweep.SRC_DUMPS["2.0.0_beta"] == "rivian_2.0.0_beta"
-        assert sweep.SRC_DUMPS["2.5.0_beta"] == "rivian_2.5.0 beta"
+    def test_every_version_is_named_explicitly(self) -> None:
+        """54 versions, spelled out. s33 consolidated two dicts into one.
 
-    def test_the_allowlist_excludes_the_abrp_telemetry_directory(self) -> None:
-        """`~/src/rivian-dump/` matches a `rivian*` glob and is not an app dump."""
-        assert "rivian-dump" not in sweep.SRC_DUMPS.values()
-
-    def test_every_on_disk_dump_version_is_listed(self) -> None:
-        """25 `~/src` dumps plus the trees under `.apk/`, 54 versions in all.
-
-        The `.apk/` trees were all decompiled here with jadx 1.5.6 from APKMirror
-        bundles, so unlike cohorts A and B -- whose decompiler was never recorded
-        -- that cohort has documented provenance and its counts are comparable to
-        each other. 3.15.0 stays its ground truth; 3.16.0 is the frontier build,
-        and Google Play serves only current, so nothing can be backfilled from it.
+        Before s33 the trees lived in ~/src and in `.apk/`, which forced a
+        version->dirname map for one and a version->path map for the other. One
+        root removes the split. The allowlist property is unchanged: the source
+        names every version, so nothing can be swept in by a glob.
         """
-        assert len(sweep.SRC_DUMPS) == 25
-        assert len(sweep.REPO_DUMPS) == 29
-        assert {"3.15.0", "3.16.0"} <= set(sweep.REPO_DUMPS)
+        assert len(sweep.DUMPS) == 54
+        assert {"1.0.3", "2.6.0", "3.15.0", "3.16.0"} <= set(sweep.DUMPS)
 
-    def test_the_repo_trees_all_share_one_layout(self) -> None:
-        """Their root IS jadx/sources, so every one resolves to the `.` cohort."""
+    def test_the_beta_versions_survived_the_move(self) -> None:
+        """They were the irregular ones: an underscore and a literal space.
+
+        `rivian_2.0.0_beta` and `rivian_2.5.0 beta` were the directories most
+        likely to be lost or mangled in a rename, so they are asserted by name.
+        """
+        assert {"2.0.0_beta", "2.5.0_beta"} <= set(sweep.DUMPS)
+
+    def test_all_trees_share_one_root(self) -> None:
+        """`.apk/<version>`, uniformly -- no second location to keep in sync."""
         assert all(
-            path.name == "sources" and path.parent.name == "jadx"
-            for path in sweep.REPO_DUMPS.values()
+            path.parent.name == ".apk" and path.name == version
+            for version, path in sweep.DUMPS.items()
         )
+
+    def test_the_three_layouts_each_have_a_cohort(self) -> None:
+        """Layout is the only provenance evidence cohorts A and B have.
+
+        Trees keep their original internal shape rather than being normalised,
+        because normalising would erase the one signal distinguishing an
+        unrecorded decompiler from the documented one.
+        """
+        assert set(sweep.COHORTS) == {"sources", "java_src", "jadx/sources"}
 
 
 class TestVehicleStateDepthOneMetric:
@@ -262,7 +268,7 @@ class TestIntegrationSetsAreParsedNotImported:
         root = sweep.REPO_ROOT
 
         assert len(sweep.integration_vehicle_state_fields(root)) == 149
-        assert len(sweep.integration_rvm_names(root)) == 33
+        assert len(sweep.integration_rvm_names(root)) == 37  # 33 before s34
         assert len(sweep.integration_feature_pairs(root)) == 64
         assert sweep.integration_charging_fields(root)
 

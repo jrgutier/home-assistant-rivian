@@ -365,8 +365,11 @@ class TestRvmTopicTranscription:
         rather than a read binding (see TestNetworkState), so 23 remain. Pinned
         rather than left as "fewer", so adding or losing a decoder is a deliberate
         diff."""
-        assert len(RVM_NAMES - set(RVM_DECODERS)) == 23
-        assert len(RVM_DECODERS) == 33
+        # 23 and 33 before s34, which shipped four decoders written from the
+        # named .proto schemas in rivian_client/proto/, each verified against a
+        # captured frame rather than against the parse succeeding.
+        assert len(RVM_NAMES - set(RVM_DECODERS)) == 19
+        assert len(RVM_DECODERS) == 37
 
     def test_the_two_already_decoded_topics_are_not_mistaken_for_candidates(
         self,

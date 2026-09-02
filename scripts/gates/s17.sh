@@ -35,7 +35,7 @@ source "$(dirname "$0")/_lib.sh"
 
 echo "s17 — corpus extractor across all three tree layouts"
 
-SRC_ROOT="${APK_SRC_ROOT:-$HOME/src}"
+CORPUS="${APK_CORPUS_ROOT:-$HA/.apk}"
 SWEEP="$HA/scripts/apk_corpus_sweep.py"
 
 have_path "the extractor exists" "$SWEEP"
@@ -44,7 +44,7 @@ have_path "the extractor exists" "$SWEEP"
 #
 # `~/src/rivian*` also matches rivian-dump/, which is ABRP telemetry JSON and not
 # an app dump at all. An allowlist is the only enumeration that excludes it.
-contains "the corpus is an explicit allowlist" "SRC_DUMPS" "$SWEEP"
+contains "the corpus is an explicit allowlist" "DUMPS" "$SWEEP"
 
 if grep -qE 'glob\(["'"'"']rivian' "$SWEEP"; then
   bad "the extractor globs for dump directories"
@@ -55,30 +55,36 @@ fi
 # --- 2. one dump per layout, each with a spot check -------------------------
 #
 # layout|dir|command that must be present
+# layout|version|command that must be present
+#
+# One dump per layout. s33 consolidated the corpus under .apk/<version>, so the
+# three layouts now differ only by what is INSIDE each tree -- which is the
+# point: layout is the only provenance evidence cohorts A and B have, so the
+# trees keep their original shape instead of being normalised.
 LAYOUTS="
-sources|rivian_1.0.3|WAKE_VEHICLE
-java_src|com_rivian_android_consumer_v2.6.0|UNLOCK_ALL_AND_OPEN_WINDOWS
+sources|1.0.3|WAKE_VEHICLE
+java_src|2.6.0|UNLOCK_ALL_AND_OPEN_WINDOWS
 "
 
-while IFS='|' read -r layout dir command; do
+while IFS='|' read -r layout version command; do
   [ -z "$layout" ] && continue
-  root="$SRC_ROOT/$dir"
+  root="$CORPUS/$version"
 
   # A missing dump FAILS. Skipping it silently is how a gate reports green on a
   # machine where pre-flight never ran.
   if [ ! -d "$root" ]; then
-    bad "$layout: dump present ($dir)"
+    bad "$layout: dump present ($version)"
     note "expected at: $root"
-    note "run pre-flight, or set APK_SRC_ROOT to where the dumps live"
+    note "see docs/development/apk/REGENERATION.md for re-acquisition"
     continue
   fi
-  ok "$layout: dump present ($dir)"
+  ok "$layout: dump present ($version)"
 
   # The layout is what this gate is about, so assert it rather than assuming it.
   if [ -d "$root/$layout" ]; then
     ok "$layout: layout confirmed on disk"
   else
-    bad "$layout: expected a $layout/ subtree in $dir"
+    bad "$layout: expected a $layout/ subtree in $version"
   fi
 
   # Independent re-derivation: a flat grep for the string literal, restricted to
@@ -89,7 +95,7 @@ while IFS='|' read -r layout dir command; do
   if [ "$hits" -gt 0 ]; then
     ok "$layout: $command found independently ($hits files)"
   else
-    bad "$layout: $command NOT found in $dir"
+    bad "$layout: $command NOT found in $version"
   fi
 done <<EOF
 $LAYOUTS
@@ -100,7 +106,7 @@ EOF
 # Separate from the loop because its root is repo-relative and its spot check is
 # a capability member rather than a command: 3.15.0's VASCommand.java carries no
 # BLE wrappers at all, so command coverage there is not comparable to the others.
-JADX="$HA/.apk/3.15.0/jadx/sources"
+JADX="$CORPUS/3.15.0/jadx/sources"
 
 if [ ! -d "$JADX" ]; then
   bad "jadx/sources: the 3.15.0 tree is present"

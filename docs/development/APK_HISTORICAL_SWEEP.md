@@ -188,8 +188,59 @@ only depth-1 names are comparable to `VEHICLE_STATE_API_FIELDS`. A test pins the
 two implementations together so they cannot drift.
 
 **Parallax draws on 24 versions, from 2.19.1 onward** — not 3.x only, as an
-earlier revision of this file said. **80 RVM types against 33 decoded** is the
-largest single gap this sweep found.
+earlier revision of this file said. **80 RVM types against 33 decoded.**
+
+### But "47 undecoded" is not 47 decodable things (s33)
+
+A decoder needs a **topic → message class** binding, and the app supplies those in
+eleven dispatch files (`scripts/gates/helpers/topic_map.py` reads them). Running
+it over 3.15.0:
+
+| | |
+|---|---|
+| RVM names in the table | 80 |
+| topics the dispatch binds | 21 |
+| of those, already decoded | **21 — all of them** |
+| **bound but not decoded** | **0** |
+| named with no binding at all | 59 |
+
+An earlier revision of this row said the queue was **8**. That was wrong, and so
+was a later correction to **1**: both compared dotted topic names against
+CONST-form names through a transform that silently mismatched
+(`comfort.cabin.cabin_preconditioning_status` normalises to
+`COMFORT_CABIN_CABIN_PRECONDITIONING_STATUS`, the dispatch says
+`COMFORT_CABIN_PRECONDITIONING_STATUS`). `PARALLAX_DECODERS.md:139-166` settles
+it from the other direction: the search over every base64-parse site in all
+32,941 files is **closed**, and every bound topic is already decoded.
+
+The eight are `OTA_DEPLOYMENT_STATE`, `SECURITY_VAS_FAULT`,
+`SECURITY_IMMOBILIZER_STATE`, `DYNAMICS_VEHICLE_KNOWN_LOCATION`,
+`BODY_TRAILER_STATES`, `COMFORT_CABIN_PRECONDITIONING_STATUS`,
+`SECURITY_PASSIVE_ENTRY_DEBUG` and `SECURITY_BTM_DIAGNOSIS`.
+
+A missing binding is not proof a topic is undecodable — 20 of our 33 decoders
+were built from live capture rather than the dispatch. It does mean those 59 cost
+a vehicle capture each rather than a read of the decompilation.
+
+**Capture does not require an outage.** An earlier revision of this file said the
+gateway permits one active subscription per user session and that capture
+therefore needs the Home Assistant config entry disabled. That claim was
+**RETRACTED on 2026-08-20** after measurement (`RVM_FIXTURES.md:21-29`,
+`WS_CONTENTION.md` claim C8): a second connection received `connection_ack` in
+0.0 s with production up, and the full topic set arrived with production
+subscribed. Repeating it here told a maintainer to take a production outage
+nobody needs, which is worse than a wrong count.
+
+Capture instead runs against the live instance —
+`scripts/capture_rvm_frames.py`. A survey on 2026-09-01 subscribed to all 80
+topics for 180 s parked: **51 published a non-empty frame, 5 published an empty
+payload, 24 were silent.** Silence is a recorded outcome, not a failure.
+
+So the honest shape of this gap: 8 topics readable from the decompilation but
+still needing a frame to confirm their value vocabulary, and 59 that need a frame
+before anything can be read at all. Picking targets by reading topic names is
+guessing — the dispatch is the evidence, and it disagreed with four of five names
+chosen that way.
 
 Each surface carries its own floor; a union below it is an error and exits 1.
 
@@ -260,7 +311,7 @@ seen values would mis-render every unseen state.
 | # | target | kind | promotes on |
 |---|---|---|---|
 | 1 | `chargingDisabledAC` | name-probe | now corpus-confirmed as a real app name; a live accept |
-| 2 | 47 undecoded Parallax RVMs | decode | a decoded value from frames already arriving |
+| 2 | 6 Parallax RVMs with a named `.proto` schema | decode | the schema is already in `rivian_client/proto/*.proto`, bound by `// RVM:` comment, and a captured frame confirms the vocabulary. No outage needed. |
 | 3 | `activated`, `updatedAt` (wallbox) | name-probe | a live accept |
 | 4 | 34 `VehicleFeature` members we do not gate on | inspect | evidence the server emits the `featureName` |
 
