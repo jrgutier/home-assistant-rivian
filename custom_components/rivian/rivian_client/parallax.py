@@ -1404,6 +1404,185 @@ def decode_network_state(payload: str) -> dict[str, Any]:
         return {}
 
 
+# --- s34 decoders -----------------------------------------------------------
+#
+# Written from the NAMED schemas in `rivian_client/proto/*.proto`, which carry
+# field names, types and enum vocabularies and are bound to topics by `// RVM:`
+# comment. No signature-matching against obfuscated classes was needed:
+# `PARALLAX_DECODERS.md` closed that search over all 32,941 files, and every
+# dispatch-bound topic was already decoded.
+#
+# Value vocabularies follow the existing convention -- the enum name with its
+# common prefix stripped and lowercased -- so these feed the same strings the
+# GraphQL path already emits.
+
+_GEAR_GUARD_CONSENT: Final[dict[int, str]] = {
+    0: "unrecognized",
+    1: "consented",
+    2: "not_consented",
+    3: "not_applicable",
+    4: "unknown",
+}
+
+_GEAR_GUARD_DAILY_LIMIT: Final[dict[int, str]] = {
+    0: "unrecognized",
+    1: "undefined",
+    2: "not_hit",
+    3: "hit",
+}
+
+# EnergyDistribution field number -> key suffix (rivian_energy.proto:7-17).
+_ENERGY_DISTRIBUTION: Final[dict[int, str]] = {
+    1: "totalKwh",
+    2: "thermalKwh",
+    3: "outletsKwh",
+    4: "systemKwh",
+    5: "gearGuardKwh",
+    6: "totalRange",
+    7: "thermalRange",
+    8: "outletsRange",
+    9: "systemRange",
+    10: "gearGuardRange",
+}
+
+
+def decode_cabin_ventilation_setting(payload: str) -> dict[str, Any]:
+    """Decode comfort.cabin.cabin_ventilation_setting.
+
+    Schema: `rivian_climate.proto:49`. `REMAINING_APK_GAPS.md` lists this RVM as
+    undecoded and wanted; the WRITE path is separately recorded as ISE, so this
+    reads state that cannot currently be set from here.
+
+    Returns dict with keys:
+        - cabinVentilationEnabled: bool
+        - cabinVentilationMode: str ("AUTO" | "MANUAL" | "OFF"), when sent
+        - cabinVentilationWindowsOpenPercent: int, when sent
+        - cabinVentilationSunroofOpenPercent: int, when sent
+        - cabinVentilationDurationMinutes: int, when sent
+    """
+    if not payload:
+        return {}
+    try:
+        result: dict[str, Any] = {}
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num == 1 and wire_type == 0:
+                result["cabinVentilationEnabled"] = bool(value)
+            elif field_num == 2 and wire_type == 2:
+                result["cabinVentilationMode"] = value.decode("utf-8", "replace")
+            elif field_num == 3 and wire_type == 0:
+                result["cabinVentilationWindowsOpenPercent"] = value
+            elif field_num == 4 and wire_type == 0:
+                result["cabinVentilationSunroofOpenPercent"] = value
+            elif field_num == 5 and wire_type == 0:
+                result["cabinVentilationDurationMinutes"] = value
+        return result
+    except Exception:  # noqa: BLE001 -- a bad frame must not take the subscription down
+        return {}
+
+
+def decode_gear_guard_streaming_consent(payload: str) -> dict[str, Any]:
+    """Decode gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent.
+
+    Schema: `rivian_security.proto:37`.
+
+    Returns dict with keys:
+        - gearGuardStreamingConsent: str
+          (consented | not_consented | not_applicable | unknown | unrecognized)
+    """
+    if not payload:
+        return {}
+    try:
+        result: dict[str, Any] = {}
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num == 1 and wire_type == 0:
+                result["gearGuardStreamingConsent"] = _GEAR_GUARD_CONSENT.get(
+                    value, "unrecognized"
+                )
+        return result
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def decode_gear_guard_streaming_daily_limit(payload: str) -> dict[str, Any]:
+    """Decode gearguard_streaming.privacy.gearguard_streaming_daily_limit.
+
+    Schema: `rivian_security.proto:52`.
+
+    The reset timestamp is emitted verbatim. The observed fixture carries a value
+    in the past relative to its capture date, which is recorded rather than
+    corrected -- interpreting it as anything but "what the vehicle said" would be
+    a guess about semantics this frame does not establish.
+
+    Returns dict with keys:
+        - gearGuardStreamingDailyLimit: str
+          (not_hit | hit | undefined | unrecognized)
+        - gearGuardStreamingLimitResetTime: int (epoch seconds), when sent
+    """
+    if not payload:
+        return {}
+    try:
+        result: dict[str, Any] = {}
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num == 1 and wire_type == 0:
+                result["gearGuardStreamingDailyLimit"] = _GEAR_GUARD_DAILY_LIMIT.get(
+                    value, "unrecognized"
+                )
+            elif field_num == 2 and wire_type == 0:
+                result["gearGuardStreamingLimitResetTime"] = value
+        return result
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def decode_parked_energy_distributions(payload: str) -> dict[str, Any]:
+    """Decode energy_edge_compute.graphs.parked_energy_distributions.
+
+    Schema: `rivian_energy.proto:23`, three `EnergyDistribution` submessages.
+    Emitted as nested dicts rather than 30 flattened keys, because the three
+    windows are the same ten measurements over different periods and flattening
+    would invent thirty names for ten concepts.
+
+    Returns dict with keys:
+        - parkedEnergyLast24Hours: dict[str, float]
+        - parkedEnergyLast8Hours: dict[str, float]
+        - parkedEnergyLastParkSession: dict[str, float]
+    """
+    if not payload:
+        return {}
+    windows = {
+        1: "parkedEnergyLast24Hours",
+        2: "parkedEnergyLast8Hours",
+        3: "parkedEnergyLastParkSession",
+    }
+    try:
+        result: dict[str, Any] = {}
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num not in windows or wire_type != 2:
+                continue
+            window: dict[str, float] = {}
+            for sub_num, sub_wt, sub_val in _decode_protobuf_fields(value):
+                # `_decode_protobuf_fields` already unpacks wire type 5 as a
+                # float, so no reinterpretation is needed. Re-packing it as an
+                # int here raised, and the broad except below swallowed it into
+                # an empty result -- silent, and only caught by decoding a real
+                # fixture rather than trusting the code path.
+                if sub_wt == 5 and sub_num in _ENERGY_DISTRIBUTION:
+                    window[_ENERGY_DISTRIBUTION[sub_num]] = round(sub_val, 4)
+            if window:
+                result[windows[field_num]] = window
+        return result
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "body.closures.states": decode_closures,
     "body.locks.states": decode_locks,
@@ -1420,6 +1599,20 @@ RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "energy_edge_compute.graphs.charge_session_breakdown": decode_charge_session_breakdown,
     "energy_edge_compute.graphs.charging_graph_global": decode_charging_graph_global,
     "vehicle.power.state": decode_power_state,
+    # s34: written from the named .proto schemas, each verified against a
+    # captured frame. charging.schedule.time_window is deliberately absent --
+    # its frame carries a GPS coordinate and the fixture was withheld, so the
+    # decoder has nothing to verify against.
+    "comfort.cabin.cabin_ventilation_setting": decode_cabin_ventilation_setting,
+    "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent": (
+        decode_gear_guard_streaming_consent
+    ),
+    "gearguard_streaming.privacy.gearguard_streaming_daily_limit": (
+        decode_gear_guard_streaming_daily_limit
+    ),
+    "energy_edge_compute.graphs.parked_energy_distributions": (
+        decode_parked_energy_distributions
+    ),
     # This fork's RVMs, captured and verified against a real vehicle.
     "comfort.cabin.climate_hold_setting": decode_climate_hold_setting,
     "comfort.cabin.climate_hold_status": decode_climate_hold_status,

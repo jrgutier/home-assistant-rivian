@@ -268,7 +268,7 @@ class TestIntegrationSetsAreParsedNotImported:
         root = sweep.REPO_ROOT
 
         assert len(sweep.integration_vehicle_state_fields(root)) == 149
-        assert len(sweep.integration_rvm_names(root)) == 33
+        assert len(sweep.integration_rvm_names(root)) == 37  # 33 before s34
         assert len(sweep.integration_feature_pairs(root)) == 64
         assert sweep.integration_charging_fields(root)
 

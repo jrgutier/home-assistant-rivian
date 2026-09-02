@@ -89,19 +89,21 @@ class TestPublishedCountsAreRecomputed:
     """Numbers that appear in docs are asserted here or they are unchecked."""
 
     def test_fixture_and_decoder_totals(self, manifest: dict) -> None:
-        """40 captured topics (41 minus one withheld); 33 decoders."""
+        """40 captured topics (41 minus one withheld); 37 decoders after s34."""
         assert len(manifest) == 40
-        assert len(RVM_DECODERS) == 33
+        assert len(RVM_DECODERS) == 37
 
-    def test_the_frame_without_decoder_count_is_fifteen(self, manifest: dict) -> None:
+    def test_the_frame_without_decoder_count(self, manifest: dict) -> None:
         """The number published wrong five times.
 
         Derived from the manifest's topics, so a rename cannot move it and a
-        filename transform cannot inflate it.
+        filename transform cannot inflate it. It legitimately MOVES when a
+        decoder ships -- 14 before s34's four, 10 after -- which is the point:
+        the count tracks reality instead of a doc someone forgot to edit.
         """
         undecoded = {topic for topic in manifest if topic not in RVM_DECODERS}
 
-        assert len(undecoded) == 14
+        assert len(undecoded) == 10
 
     def test_seven_decoders_have_no_fixture(self, manifest: dict) -> None:
         """The asymmetry the earlier arithmetic hid.
