@@ -87,3 +87,55 @@ configures a schedule, re-run the capture and restore the entity.
 format, and that `climate_hold_setting` re-encodes byte-identically. The previous
 version of that gate checked existence only — **four `touch`ed empty files passed
 it**, which is why the non-empty and parse assertions exist.
+
+## Capturing more (s34)
+
+`scripts/capture_rvm_frames.py` subscribes to `parallaxMessages` and writes what
+arrives. **It needs no outage.** The sole-subscriber claim above is retracted;
+both surveys on 2026-09-01 ran against live production with Home Assistant up.
+
+```sh
+.venv/bin/python scripts/capture_rvm_frames.py --all <topic-file> --seconds 180 --write
+```
+
+A parked 180 s survey of all 80 topics returned **51 non-empty, 5 empty, 24
+silent**. Silence is a recorded outcome, not a failure — `ota.user_schedule.
+ota_config` returned 0 bytes across three sessions because no schedule existed.
+
+### The 24 that were silent parked
+
+Worth a second run **while driving or charging**, since several are plausibly
+state-change driven: `navigation.navigation_service.{trip_info,trip_progress}`,
+`charging.session.*`, `dynamics.vehicle.known_location`,
+`security.*`, `user_passcodes.*`, `vehicle.setting.network`,
+`device_table.vas_keyper.devices`, `secure_file_transfer.pet_snapshot.*`,
+`gearguard_streaming.*`, `ota.user_schedule.ota_config`,
+`comfort.cabin.cabin_ventilation_setting` variants and the remaining
+`holiday_celebration.*`. Run the same command; the script skips topics already
+fixtured.
+
+### Two classes of personal data, not one
+
+A capture on 2026-09-01 wrote a child's school name, a home wifi SSID, MAC
+addresses and account UUIDs to disk. Ten files were deleted. `--write` now
+refuses any frame carrying identifier-shaped **text**.
+
+**That guard is not sufficient on its own.** `charging.schedule.time_window`
+carried a GPS coordinate as two f64 doubles inside a nested `WindowData.location`
+submessage. IEEE-754 has no printable run, so every text-shaped check passed it,
+and the fixture reached a pushed commit on a public repository before anyone
+noticed. It was removed by history rewrite.
+
+So a capture run has to expect both:
+
+| class | looks like | caught by |
+|---|---|---|
+| text | place names, SSIDs, MACs, UUIDs | `carries_identifiers()`, and the ship-time string tests |
+| binary | coordinates as f64 pairs | the negative-f64-beyond-90° test in `test_parallax_fixture_manifest.py` |
+
+The numeric guard keys on a **negative** double beyond 90°, not on magnitude:
+magnitude alone flagged `energy_high_voltage_battery_state`, whose 45.6 and
+124.695 are state of charge and range. It does not catch eastern-hemisphere
+longitudes, which are positive. Treat both guards as a floor. **Before committing
+any new fixture, decode it and look at what the fields actually mean** — the
+schema in `rivian_client/proto/` will name a `location` field if one is there.
