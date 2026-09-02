@@ -65,10 +65,29 @@ if unsubscribed:
         f"registered but not subscribed: {sorted(unsubscribed)} -- SUBSCRIBED_RVMS "
         "is the intersection, so this means a topic is not in PARALLAX_RVMS"
     )
-if len(RVM_DECODERS) != 33:
+# s34 added four, each backed by a captured frame and a value assertion in
+# tests/test_parallax_s34_decoders.py. They are pinned by NAME rather than
+# folded into the total, because a count alone cannot tell "four shipped" from
+# "four different ones shipped and four regressed".
+S34 = {
+    "comfort.cabin.cabin_ventilation_setting",
+    "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent",
+    "gearguard_streaming.privacy.gearguard_streaming_daily_limit",
+    "energy_edge_compute.graphs.parked_energy_distributions",
+}
+if missing_s34 := S34 - set(RVM_DECODERS):
+    problems.append(f"s34 decoder not registered: {sorted(missing_s34)}")
+if unsub_s34 := S34 - set(SUBSCRIBED_RVMS):
+    problems.append(f"s34 registered but not subscribed: {sorted(unsub_s34)}")
+
+# 33 + the four above. This gate read `!= 33` from s34's merge until 2026-09-01
+# and was RED on master the whole time -- s34 shipped the decoders and left the
+# count. Adding a decoder is a live-behaviour change (SUBSCRIBED_RVMS derives
+# from RVM_DECODERS), so the number stays explicit and stays enforced.
+if len(RVM_DECODERS) != 37:
     problems.append(
-        f"{len(RVM_DECODERS)} decoders, expected 33 (18 + 14 transcribed + "
-        "vehicle.network.state, which is the one taken on an inference)"
+        f"{len(RVM_DECODERS)} decoders, expected 37 (18 + 14 transcribed + "
+        "vehicle.network.state, taken on an inference, + the four s34 above)"
     )
 
 # Working decoders must not have been replaced.

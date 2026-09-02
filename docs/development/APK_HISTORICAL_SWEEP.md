@@ -178,7 +178,7 @@ versions, none has ever named them. They stay — the app is a lower bound.
 | surface | app | ours | app-only | ours-only | floor |
 |---|---|---|---|---|---|
 | `vehicleState` (depth-1) | 159 | 149 | 11 | 1 | 157 |
-| Parallax RVM | 80 | 33 | 47 | 0 | 58 |
+| Parallax RVM | 80 | 37 | 43 | 0 | 58 |
 | `VehicleFeature` | 98 | 64 | 34 | 0 | 89 |
 | charging / wallbox | 52 | 72 | 2 | 22 | 52 |
 
@@ -188,9 +188,15 @@ only depth-1 names are comparable to `VEHICLE_STATE_API_FIELDS`. A test pins the
 two implementations together so they cannot drift.
 
 **Parallax draws on 24 versions, from 2.19.1 onward** — not 3.x only, as an
-earlier revision of this file said. **80 RVM types against 33 decoded.**
+earlier revision of this file said. **80 RVM types against 37 decoded** — 33 when this table was first measured, plus the four s34 shipped. The `ours` column is `len(RVM_DECODERS)`, so it moves whenever a decoder lands; re-measure rather than trusting the number written here.
 
 ### But "47 undecoded" is not 47 decodable things (s33)
+
+The heading keeps **47** on purpose: it is what the sweep measured on
+2026-08-31, and the argument below is about that measurement. The table above
+now reads 43 because s34 shipped four decoders. Both numbers are right for
+their date, and the conclusion — that the bound-but-undecoded queue is **0** —
+does not depend on either.
 
 A decoder needs a **topic → message class** binding, and the app supplies those in
 eleven dispatch files (`scripts/gates/helpers/topic_map.py` reads them). Running

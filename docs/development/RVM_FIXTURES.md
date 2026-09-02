@@ -102,17 +102,41 @@ A parked 180 s survey of all 80 topics returned **51 non-empty, 5 empty, 24
 silent**. Silence is a recorded outcome, not a failure — `ota.user_schedule.
 ota_config` returned 0 bytes across three sessions because no schedule existed.
 
-### The 24 that were silent parked
+### The re-run, while driving or charging
 
-Worth a second run **while driving or charging**, since several are plausibly
-state-change driven: `navigation.navigation_service.{trip_info,trip_progress}`,
-`charging.session.*`, `dynamics.vehicle.known_location`,
-`security.*`, `user_passcodes.*`, `vehicle.setting.network`,
-`device_table.vas_keyper.devices`, `secure_file_transfer.pet_snapshot.*`,
-`gearguard_streaming.*`, `ota.user_schedule.ota_config`,
-`comfort.cabin.cabin_ventilation_setting` variants and the remaining
-`holiday_celebration.*`. Run the same command; the script skips topics already
-fixtured.
+The 24 silent and 5 empty topics are in
+[`scripts/rvm_topics_active_rerun.txt`](../../scripts/rvm_topics_active_rerun.txt),
+derived from the 2026-09-01 survey log rather than transcribed, so it needs no
+editing:
+
+```sh
+.venv/bin/python scripts/capture_rvm_frames.py \
+    --all scripts/rvm_topics_active_rerun.txt --seconds 180 --write
+```
+
+The 5 empty are included deliberately: `charging.session.time_estimation`
+publishing 0 bytes parked says nothing about what it publishes mid-charge.
+
+**The script is additive.** It skips any topic already in `manifest.json`,
+refuses to overwrite an existing `.bin`, and appends new entries to the manifest
+itself. That was not true until 2026-09-01 — this section previously said "the
+script skips topics already fixtured" while the code wrote
+`topic.replace(".", "_") + ".bin"` unconditionally. Running it as documented
+would have overwritten every frame the decoder tests assert against. The three
+legacy-named fixtures still carry the scars: each has an `alias` recording a
+duplicate written under the derived name by an earlier run, and
+`comfort.cabin.climate_hold_setting`'s two copies **differ**
+(`alias_identical: false`). `TestCaptureRerunIsAdditive` now pins the behaviour.
+
+Afterwards, `git status` shows the new `.bin` files and the manifest change.
+Read each frame by hand before committing — see below for why the guard is a
+floor and not a proof.
+
+`chargingDisabledAC` wants the same trip but a different tool: it is a
+`vehicleState` field, not an RVM, so run
+`.venv/bin/python scripts/probe_field_names.py chargingDisabledAC` while
+plugged in and drawing AC. It delivered a bare `0` parked, which could be a
+flag, a count or an enum's zero arm ([`REMAINING_APK_GAPS.md`](REMAINING_APK_GAPS.md)).
 
 ### Two classes of personal data, not one
 
