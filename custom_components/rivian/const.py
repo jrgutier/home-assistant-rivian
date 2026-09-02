@@ -1021,12 +1021,19 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:key-alert",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # DISABLED: arrival UNWITNESSED. Its message has no unsubscribed sibling,
-    # so an absent value cannot be told apart from the decoder never firing.
-    # The arming argument that enabled vas_secure_element_faulted applies only
-    # where delivery is proven; here it is not, and an entity that may never
-    # populate on any vehicle loses to the clutter it adds to every install.
-    # The RVM arrival counters in diagnostics settle this.
+    # DISABLED. The stated reason was "arrival UNWITNESSED -- an absent value
+    # cannot be told apart from the decoder never firing". CORRECTED 2026-09-02:
+    # the frame arrives. security.access.passive_entry_debug is committed as a
+    # fixture, and decode_passive_entry_debug returns {} on it because the
+    # decoder reads field 1 while the frame carries field 2 (see
+    # docs/development/RVM_FIXTURES.md and TestDecodersProduceSomethingFrom
+    # TheirOwnFrame). So delivery is proven and the DECODER is wrong.
+    #
+    # Still disabled, now for an honest reason: until the decoder is fixed
+    # against a real vocabulary, this entity cannot populate from Parallax at
+    # all. The gateway accepted the name in vehicleState on 2026-08-31, which is
+    # the other way to make it work; REMAINING_APK_GAPS.md carries that as the
+    # transport gap.
     RivianSensorEntityDescription(
         key="passive_entry_unlock_fail_reason",
         translation_key="passive_entry_unlock_fail_reason",

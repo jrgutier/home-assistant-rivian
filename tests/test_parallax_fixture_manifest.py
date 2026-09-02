@@ -89,8 +89,13 @@ class TestPublishedCountsAreRecomputed:
     """Numbers that appear in docs are asserted here or they are unchecked."""
 
     def test_fixture_and_decoder_totals(self, manifest: dict) -> None:
-        """40 captured topics (41 minus one withheld); 37 decoders after s34."""
-        assert len(manifest) == 40
+        """42 captured topics; 37 decoders after s34.
+
+        40 until the 2026-09-02 active re-run, which was the first capture to
+        run under the additive `--write`. It added two frames and rewrote none,
+        which is the whole point of `TestCaptureRerunIsAdditive`.
+        """
+        assert len(manifest) == 42
         assert len(RVM_DECODERS) == 37
 
     def test_the_frame_without_decoder_count(self, manifest: dict) -> None:
@@ -105,13 +110,14 @@ class TestPublishedCountsAreRecomputed:
 
         assert len(undecoded) == 10
 
-    def test_seven_decoders_have_no_fixture(self, manifest: dict) -> None:
+    def test_five_decoders_have_no_fixture(self, manifest: dict) -> None:
         """The asymmetry the earlier arithmetic hid.
 
         `51 publishing - 33 decoded` assumed every decoded topic published. Seven
-        did not, which is why subtraction gave 18 where counting gives 15.
+        did not, which is why subtraction gave 18 where counting gives 15. The
+        2026-09-02 re-run captured two of those seven, leaving five.
         """
-        assert len(set(RVM_DECODERS) - set(manifest)) == 7
+        assert len(set(RVM_DECODERS) - set(manifest)) == 5
 
 
 class TestFixturesCarryNoPersonalData:
@@ -336,3 +342,78 @@ class TestCaptureRerunIsAdditive:
         raw = (FIXTURES / manifest[topic]["file"]).read_bytes()
 
         assert capture.manifest_entry(raw, manifest[topic]["file"]) == manifest[topic]
+
+
+class TestDecodersProduceSomethingFromTheirOwnFrame:
+    """Three shipped decoders return `{}` on the real frame they claim to read.
+
+    Every decoder swallows exceptions so a bad frame cannot take the whole
+    subscription down. The cost is that a decoder wired to the wrong field
+    number is indistinguishable from a topic the vehicle never publishes: both
+    are silence. `decode_parked_energy_distributions` was caught this way during
+    s34 only because someone decoded a fixture by hand.
+
+    This makes the failure loud. A decoder that yields nothing from a committed
+    frame must be listed below with its diagnosis, or the test fails.
+
+    None of the three is fixed here. Each needs a value vocabulary this capture
+    does not supply, and `PARALLAX_DECODERS.md`'s rule stands: a decoder built on
+    a guess renders wrong values as confidently as right ones, which is worse
+    than the recorded gap it replaces.
+    """
+
+    # topic -> why it yields nothing, measured from the committed frame
+    KNOWN_EMPTY = {
+        "charging.session.time_estimation": (
+            "decoder reads field 1; the frame carries field 2 = 64. No named "
+            "schema binds either, and 64 is not obviously seconds. Needs a "
+            "capture taken mid-charge."
+        ),
+        "security.access.passive_entry_debug": (
+            "decoder reads field 1; the frame carries field 2 = 2. This is why "
+            "sensor.passive_entry_unlock_fail_reason never populates -- const.py "
+            "attributes that to arrival being UNWITNESSED, but the frame does "
+            "arrive and is read on the wrong field number."
+        ),
+        "comfort.cabin.seat_conditioning_status": (
+            "structural, not off-by-one: the decoder expects the seat position "
+            "to be the OUTER field number (SEAT_STATUS_FIELDS, 7-12). The frame "
+            "is `repeated {1: id, 2: value}` under field 1, nine entries, and "
+            "id 5 and id 7 each appear twice with different values -- so field "
+            "2 is not one level per seat, and the message is not what the "
+            "decoder models."
+        ),
+    }
+
+    @pytest.fixture(scope="class")
+    def decoded(self, manifest: dict) -> dict[str, dict]:
+        import base64
+
+        return {
+            topic: RVM_DECODERS[topic](
+                base64.b64encode((FIXTURES / entry["file"]).read_bytes()).decode()
+            )
+            for topic, entry in manifest.items()
+            if topic in RVM_DECODERS
+        }
+
+    def test_no_undocumented_decoder_is_silent(self, decoded: dict) -> None:
+        """The guard. A fourth silent decoder fails here instead of vanishing."""
+        silent = {topic for topic, out in decoded.items() if not out}
+
+        assert silent == set(self.KNOWN_EMPTY), (
+            f"unexpected: {sorted(silent - set(self.KNOWN_EMPTY))}; "
+            f"fixed, remove from KNOWN_EMPTY: {sorted(set(self.KNOWN_EMPTY) - silent)}"
+        )
+
+    @pytest.mark.parametrize("topic", sorted(KNOWN_EMPTY))
+    def test_each_known_empty_still_has_its_frame(
+        self, topic: str, manifest: dict
+    ) -> None:
+        """The diagnosis is only checkable while the evidence is committed."""
+        assert topic in manifest
+        assert (FIXTURES / manifest[topic]["file"]).stat().st_size > 0
+
+    def test_the_majority_do_decode(self, decoded: dict) -> None:
+        """Guards the guard: if the harness broke, everything would look silent."""
+        assert len(decoded) - len(self.KNOWN_EMPTY) >= 25

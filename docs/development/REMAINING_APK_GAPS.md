@@ -27,18 +27,18 @@ enum, so the command side of this catalog is closed — what is left is read-onl
 That was wrong when written: the entities were added on 2026-08-19 by
 `744fe77`, fed from Parallax. The real gap the 2026-08-31 probe opened is a
 **transport** one — the gateway accepted all three names in `vehicleState`,
-which `const.py:1901` says the remaining seven `PARALLAX_ONLY_FIELDS` have "no
+which `const.py:1908` says the remaining seven `PARALLAX_ONLY_FIELDS` have "no
 document to point to" for. A live accept outranks an app document, so that
 comment is stale for at least these three.
 
 Not done here, deliberately: an undeclared field name in the subscription
 **kills the whole subscription** — no battery level, no odometer, no tyre
-pressures (`const.py:1878-1886`). That is the beta13 failure class, and it does
+pressures (`const.py:1885-1893`). That is the beta13 failure class, and it does
 not belong in the same change as a release.
 
 | Gap | APK evidence | HA today | Proposed analogue |
 |-----|--------------|----------|-------------------|
-| Passive-entry unlock fail reason | `passiveEntryUnlockFailReason` in 3.15.0's documents ([`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md)); **live-ACCEPTED 2026-08-31**, delivered `AT_HOME_DISABLE` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | `sensor.passive_entry_unlock_fail_reason` exists but is **disabled by default**, fed only by Parallax, because its arrival is unwitnessed (`const.py:1027`) | Move the name out of `PARALLAX_ONLY_FIELDS` into `VEHICLE_STATE_API_FIELDS`, so it populates from the query instead of from an RVM that may never fire — then enabling it is justified |
+| Passive-entry unlock fail reason | `passiveEntryUnlockFailReason` in 3.15.0's documents ([`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md)); **live-ACCEPTED 2026-08-31**, delivered `AT_HOME_DISABLE` ([`COMMAND_COVERAGE.md`](COMMAND_COVERAGE.md)) | `sensor.passive_entry_unlock_fail_reason` exists but is **disabled by default**. The stated reason was unwitnessed arrival; **corrected 2026-09-02** — the frame arrives and is committed as a fixture, but `decode_passive_entry_debug` reads field 1 where the frame carries field 2, so it decodes to `{}` (`const.py:1024-1034`, [`RVM_FIXTURES.md`](RVM_FIXTURES.md)) | Move the name out of `PARALLAX_ONLY_FIELDS` into `VEHICLE_STATE_API_FIELDS`, so it populates from the query instead of from an RVM that may never fire — then enabling it is justified |
 | VAS access CAN faulted | `vasAccessCanFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | `sensor.vas_access_can_faulted` exists and is enabled; Parallax delivery is proven for this one | Same transport move. Lower value than the other two — it already populates |
 | VAS secure element faulted | `vasSecureElementFaulted`; **live-ACCEPTED 2026-08-31**, delivered `no_failure`. Same sections. | `sensor.vas_secure_element_faulted` exists, enabled, but reads `unknown` — armed rather than healthy (`const.py:1003-1007`) | Same transport move |
 
