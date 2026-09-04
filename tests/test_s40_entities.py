@@ -401,14 +401,11 @@ class TestGatingMeasuredOnOtherVehicles:
             for flag in self._features(name) & self.S40_GATES
         }
         assert advertised == {"ENRG_MONTR_PARK", "V_GGVS"}
-        assert "AUTO_VENT" not in advertised
 
         # Our own truck DOES advertise it, so it is not advertised by nobody --
         # which is the difference between this and TONNEAU_CMD.
         observed = json.loads(
-            (pathlib.Path(__file__).parent / "fixtures")
-            .joinpath("supported_features_observed.json")
-            .read_text()
+            (self.COMMUNITY.parent / "supported_features_observed.json").read_text()
         )
         ours = set(observed["vehicles"][0]["features"])
         assert "AUTO_VENT" in ours
