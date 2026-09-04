@@ -1,5 +1,5 @@
 {
-  "_note": "Observed live from the server, via the same get_user_information query coordinator.py:777-783 reads. NOT a schema and NOT a whitelist: seven of these names appear in no VehicleFeature member of app 3.15.0, and TONNEAU_CMD appears here for nobody while both tonneau commands physically move the cover. Evidence of what the server volunteers, never evidence of absence. No VIN is recorded.",
+  "_note": "Observed live from the server, via the same get_user_information query coordinator.py:866 issues (supportedFeatures extracted at :889-893). NOT a schema and NOT a whitelist: seven of these names appear in no VehicleFeature member of app 3.15.0, and TONNEAU_CMD appears here for nobody while both tonneau commands physically move the cover. Evidence of what the server volunteers, never evidence of absence. No VIN is recorded.",
   "_source": "scripts/dump_supported_features.py",
   "vehicles": [
     {

@@ -230,7 +230,13 @@ tests — now with a second, independent rejection on file.
 exist as sensors, so pet comfort *state* is surfaced regardless of this result.
 What remains unavailable is the *write* side, not visibility into the feature.
 
-## `ACTIVATE_EXTERNAL_SOUND` and `FLASH_EXTERNAL_LIGHTS` — accepted, live-probed, 2026-08-22
+## `ACTIVATE_EXTERNAL_SOUND` and `FLASH_EXTERNAL_LIGHTS` — gateway accept, 2026-08-22
+
+> **Superseded for flash.** This section proved gateway acceptance and nothing
+> about the vehicle. The 2026-08-30/31 probe below shows `FLASH_EXTERNAL_LIGHTS`
+> is physically inert, and the cause is a feature gate the app evaluates before
+> it ever offers the button. Read that section before treating a gateway accept
+> in this one as evidence a command works.
 
 Both are real `VAS_COMMANDS` entries for the same physical function
 (`HonkHorn`/`FlashLights` in `VASCommand.java`), unlike `HONK_AND_FLASH_LIGHTS`
@@ -387,6 +393,65 @@ that basis without probing it the same way, after dark, with someone watching.
 **Disposition: no `button` entity is wired.** This integration does not ship a
 control whose effect is unobserved, and this one's effect has now been observed
 to be nothing. See [`REMAINING_APK_GAPS.md`](REMAINING_APK_GAPS.md).
+
+### Why it is inert: the app gates the button on a conjunction, and nothing we can see passes it
+
+The measurement above says the command does nothing. The decompilation says why,
+and it is not a per-vehicle fault.
+
+**The gate is an AND, proven in the app's own evaluator.**
+`.apk/3.16.0/jadx/sources/defpackage/rn8.java:8` binds the rollout flag
+`wr7.HONK_AND_FLASH` to `VehicleFeature.HONK_AND_FLASH_COMMAND`. `as7.java:16-37`
+evaluates that pair: `a()` returns false unless **every** `wr7` rollout flag on
+the descriptor is enabled, and `b()` returns false unless `a()` passes **and**
+the `VehicleFeature` check (`uhc.a.J(...)`) passes. Both must hold.
+`mdm.java:88` consumes the result and picks between `is7.LOCATION_MICRO_APP` and
+a constant named `is7.LOCATION_MICRO_APP_HONK_FLASH_NOT_AVAILABLE` — the app
+ships a dedicated not-available arm for exactly this gate.
+
+**The two flags have very different histories** (swept across all 54 corpus
+versions, 2026-09-03):
+
+| flag | kind | first appears | span |
+|---|---|---|---|
+| `honkAndFlash` (`wr7.java:31`) | app-side rollout | `1.5.1` | continuous to `3.16.0` |
+| `HONK_AND_FLASH_COMMAND` (`VehicleFeature.java:51`) | vehicle capability | `2.19.1` | all 24 versions to `3.16.0` |
+
+The vehicle flag arrives with the command itself —
+[`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md) records
+`FLASH_EXTERNAL_LIGHTS` spanning `2.19.1–3.16.0` across the same 24 versions, and
+the sweep reproduces that span from a different query. Note the corpus jumps
+`2.10.1 → 2.19.1`, so `2.19.1` is where the flag **first appears in the corpus**,
+not necessarily where it was introduced.
+
+**No vehicle we can see carries the vehicle flag.** Not this 2022 R1T
+(55 features, `tests/fixtures/supported_features_observed.json`), and none of the
+three community captures: `issue-171.json` (R1T, 2024-08-08), `issue-222.json`
+(2024 R1S, 2025-08-26), `issue-245.json` (2023 R1S, 2026-03-09) —
+[`PROVENANCE.md`](../../tests/fixtures/community/PROVENANCE.md), zero hits each.
+
+**Two of those four absences are load-bearing; two are not.** The corpus cannot
+date its own versions — every `base.apk` zip entry normalises to `1981-01-01` —
+so `issue-171` and `issue-222` cannot be placed against `2.19.1` and are **not**
+counted as evidence here. What remains is `issue-245` (2026-03-09, comfortably in
+the 3.x era) and this truck's own current list. **Two confirmed post-flag
+absences, not four.**
+
+**So this is a third failure mode.** A gateway `CONFLICT` is a refusal before the
+vehicle. A vehicle-level `412` is an acceptance then a decline. This is neither:
+the gateway accepts because it validates session and HMAC, not capability; the
+vehicle never actuates; no terminal state ever arrives. The app would not have
+offered the button either.
+
+**What this does NOT establish.** These flags gate the app's UI. Nothing in the
+tree shows the VAS command path itself consulting them, so a firmware-side
+explanation for the inertness is not excluded. And an absent flag is not proof of
+an absent capability — `coordinator.py:916` records `TONNEAU_CMD` appearing in no
+vehicle's `supportedFeatures` while both tonneau commands physically move the
+cover, and `helpers.py:30-42` records this same R1T advertising none of
+`LIFTGATE_CMD`, `FRUNK_NXT_ACT` or `HEATED_SEATS` while all three work. Per-VIN
+exclusion is **unproven**; "not rolled out to anything we can observe" is what the
+evidence supports.
 
 ## How the app reads a command's result — it SUBSCRIBES, it does not poll
 
