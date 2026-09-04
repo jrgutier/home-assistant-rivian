@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Final
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
@@ -156,6 +157,58 @@ def _charger_status_transform(value: str) -> str:
     if value.startswith("chrgr_sts_"):
         value = value.replace("chrgr_sts_", "")
     return _to_title_case(value)
+
+
+def _epoch_seconds_to_utc(value: Any) -> datetime | None:
+    """Epoch seconds -> an aware UTC datetime, or None if it is not one.
+
+    `SensorDeviceClass.TIMESTAMP` requires a timezone-AWARE datetime; handed a
+    bare int Home Assistant rejects the state, so the conversion has to happen
+    here rather than in the decoder.
+
+    Converts, never corrects. `decode_gear_guard_streaming_daily_limit`
+    (rivian_client/parallax.py) emits the vehicle's number verbatim, including
+    the captured frame's value that sits in the PAST relative to its capture
+    date, and `tests/test_parallax_s34_decoders.py` pins that verbatim
+    behaviour deliberately. Rebasing it to "next midnight" here would assert
+    semantics the frame does not establish.
+
+    `bool` is excluded explicitly because `isinstance(True, int)` is True and
+    would silently render 1970-01-01.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return None
+
+
+def _energy_window_total(window: Any) -> float | None:
+    """A parked-energy window's own `totalKwh`, never a sum of its parts.
+
+    `decode_parked_energy_distributions` emits ten measurements per window and
+    the vehicle sends `totalKwh` among them, so summing thermal + outlets +
+    system would be recomputing a number we were given -- and would silently
+    disagree with it whenever a component is absent. The park-session window in
+    the committed fixture omits `outletsKwh` entirely, which is exactly that
+    case.
+    """
+    if not isinstance(window, dict):
+        return None
+    return window.get("totalKwh")
+
+
+def _energy_window_attributes(window: Any) -> dict[str, Any] | None:
+    """The other nine measurements of a parked-energy window.
+
+    Attributes rather than entities: three windows x ten measurements is thirty
+    entities for ten concepts, and the decoder already refused that shape by
+    emitting nested dicts instead of flattened keys.
+    """
+    if not isinstance(window, dict):
+        return None
+    return {k: v for k, v in window.items() if k != "totalKwh"} or None
 
 
 SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
@@ -952,15 +1005,25 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:snowflake-thermometer",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # The nine fields Parallax is the ONLY source for.
+    # The f5 block of the fields Parallax is the ONLY source for.
+    #
+    # NO COUNT IN THIS HEADING, deliberately. It read "the nine fields" while
+    # PARALLAX_ONLY_FIELDS held seven, which is the fifth wrong count this
+    # repository has recorded, and s40 would have made it wrong again: that set
+    # now holds 18 names across 17 sensors and one binary sensor, of which this
+    # block is the f5 subset. Derive it -- `len(PARALLAX_ONLY_FIELDS)` -- rather
+    # than trusting a number written in prose beside it.
     #
     # The f5 decoders read these out of the app's protobuf messages, and the
     # vehicleState subscription never names them -- so without a description
     # here they would be decoded into the coordinator and read by nothing.
     # That is exactly what happened when the gap-fill rule landed: fourteen
-    # new decoders, and not one new entity.
+    # new decoders, and not one new entity. s40 closed the same gap for the
+    # four s34 decoders; see the block at the end of SENSORS.
     #
-    # Five ship ENABLED and four disabled, and the line between them is
+    # In this block five ship ENABLED and THREE disabled -- "four disabled" was
+    # another stale count, left behind when btmOcHardwareFailureStatus moved out
+    # to the subscription -- and the line between them is
     # whether the message is PROVEN TO ARRIVE -- not whether a field happened
     # to hold a value in one diagnostics snapshot. A snapshot criterion flips
     # with the weather: knownLocation reads `home` because the truck is parked
@@ -1507,6 +1570,157 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         ],
         value_lambda=_to_title_case,
     ),
+    # -- s40: entities for the four s34 Parallax decoders. ------------------
+    #
+    # decode_cabin_ventilation_setting, decode_gear_guard_streaming_consent,
+    # decode_gear_guard_streaming_daily_limit and
+    # decode_parked_energy_distributions (rivian_client/parallax.py) have been
+    # decoding on the live vehicle since s34 and were read by NOTHING. That is
+    # the same state the gap-fill rule left the f5 decoders in -- fourteen new
+    # decoders and not one new entity -- and it is why the Parallax-only block
+    # above exists at all.
+    #
+    # ALL ENABLED by default, under the rule that block states: the line is
+    # whether the MESSAGE is PROVEN TO ARRIVE, not whether a field happened to
+    # hold a value in one snapshot. Each of the four RVMs has a frame captured
+    # off this project's own truck, committed under
+    # tests/client/fixtures/parallax/ and asserted value-by-value in
+    # tests/test_parallax_s34_decoders.py. That is stronger evidence than the
+    # argument that enabled vas_secure_element_faulted, which rested on a
+    # sibling field of the same message.
+    #
+    # Gated on the app's own supportedFeatures flags, read from
+    # docs/development/apk/VehicleFeature.java, not guessed:
+    # AUTO_VENT("AUTO_VENT") at :54, GEAR_GUARD_STREAMING("V_GGVS") at :38,
+    # PARKED_ENERGY_MONITOR("ENRG_MONTR_PARK") at :43. Gating costs no new
+    # code: `feature` is a RivianGateMixin field and sensor.py already filters
+    # every description through vehicle_supports().
+    #
+    # NONE of these names may reach the subscription. They are Parallax-decoded
+    # names the gateway does not know, and ONE unknown name kills the WHOLE
+    # vehicleState document -- the wheelsInstalled failure. PARALLAX_ONLY_FIELDS
+    # below carries all eleven for that reason.
+    #
+    # WHAT THE FIXTURE ACTUALLY CARRIED, so the next reader does not mistake
+    # "unavailable" for a defect: comfort.cabin.cabin_ventilation_setting is a
+    # TWO-BYTE frame holding field 1 only. Its four optional fields (mode, both
+    # open percentages, duration) were absent, and proto3 omission means unset,
+    # not zero -- so those four entities read unavailable until the vehicle
+    # sends a configured vent session. The message arriving is what these ship
+    # on; the fields are optional within it.
+    RivianSensorEntityDescription(
+        key="cabin_ventilation_mode",
+        translation_key="cabin_ventilation_mode",
+        field="cabinVentilationMode",
+        feature="AUTO_VENT",
+        icon="mdi:fan",
+    ),
+    RivianSensorEntityDescription(
+        key="cabin_ventilation_windows_open",
+        translation_key="cabin_ventilation_windows_open",
+        field="cabinVentilationWindowsOpenPercent",
+        feature="AUTO_VENT",
+        icon="mdi:window-open",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    RivianSensorEntityDescription(
+        key="cabin_ventilation_sunroof_open",
+        translation_key="cabin_ventilation_sunroof_open",
+        field="cabinVentilationSunroofOpenPercent",
+        feature="AUTO_VENT",
+        icon="mdi:car-convertible",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    RivianSensorEntityDescription(
+        key="cabin_ventilation_duration",
+        translation_key="cabin_ventilation_duration",
+        field="cabinVentilationDurationMinutes",
+        feature="AUTO_VENT",
+        icon="mdi:timer-outline",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    # No `options`/ENUM on the two gear-guard vocabularies, matching the
+    # Parallax-only block above rather than the ENUM sensors: the decoder emits
+    # the app's own snake_case constants and there is no APK display-string
+    # source for a Title Case respelling. `undefined`, one of the daily-limit
+    # arms, is in INVALID_SENSOR_STATES, so sensor.py resolves it to unknown
+    # before any options check would run -- which is the honest rendering for it
+    # anyway.
+    RivianSensorEntityDescription(
+        key="gear_guard_streaming_consent",
+        translation_key="gear_guard_streaming_consent",
+        field="gearGuardStreamingConsent",
+        feature="V_GGVS",
+        icon="mdi:shield-account",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    RivianSensorEntityDescription(
+        key="gear_guard_streaming_daily_limit",
+        translation_key="gear_guard_streaming_daily_limit",
+        field="gearGuardStreamingDailyLimit",
+        feature="V_GGVS",
+        icon="mdi:timer-sand",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    RivianSensorEntityDescription(
+        key="gear_guard_streaming_limit_reset_time",
+        translation_key="gear_guard_streaming_limit_reset_time",
+        field="gearGuardStreamingLimitResetTime",
+        feature="V_GGVS",
+        icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_lambda=_epoch_seconds_to_utc,
+    ),
+    # THREE parked-energy sensors, one per window, each reading its own
+    # `totalKwh`. The other nine measurements ride along as attributes; see
+    # _energy_window_attributes.
+    #
+    # Deliberately NOT device_class=ENERGY. Home Assistant restricts that class
+    # to state_class TOTAL / TOTAL_INCREASING (sensor's own
+    # DEVICE_CLASS_STATE_CLASSES), i.e. to meters, and a rolling 24-hour window
+    # is not a meter -- it falls as well as rises and would double-count against
+    # the energy dashboard. A plain kWh MEASUREMENT says what it is.
+    RivianSensorEntityDescription(
+        key="parked_energy_last_24_hours",
+        translation_key="parked_energy_last_24_hours",
+        field="parkedEnergyLast24Hours",
+        feature="ENRG_MONTR_PARK",
+        icon="mdi:battery-clock",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_lambda=_energy_window_total,
+        attributes_lambda=_energy_window_attributes,
+    ),
+    RivianSensorEntityDescription(
+        key="parked_energy_last_8_hours",
+        translation_key="parked_energy_last_8_hours",
+        field="parkedEnergyLast8Hours",
+        feature="ENRG_MONTR_PARK",
+        icon="mdi:battery-clock",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_lambda=_energy_window_total,
+        attributes_lambda=_energy_window_attributes,
+    ),
+    RivianSensorEntityDescription(
+        key="parked_energy_last_park_session",
+        translation_key="parked_energy_last_park_session",
+        field="parkedEnergyLastParkSession",
+        feature="ENRG_MONTR_PARK",
+        icon="mdi:battery-clock",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_lambda=_energy_window_total,
+        attributes_lambda=_energy_window_attributes,
+    ),
 )
 BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
     RivianBinarySensorEntityDescription(
@@ -1873,6 +2087,27 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         device_class=BinarySensorDeviceClass.LOCK,
         on_value="unlocked",
     ),
+    # s40. The ONE field the captured comfort.cabin.cabin_ventilation_setting
+    # frame actually carried -- two bytes, field 1, `True` -- so this is the
+    # cabin-vent entity with a live value behind it rather than an optional
+    # field waiting for a vent session.
+    #
+    # A binary_sensor and not a sensor because the decoder emits a real `bool`:
+    # as a sensor its state would render "True"/"False", which is neither
+    # translatable nor a state vocabulary. Same AUTO_VENT gate as the four
+    # cabin-vent sensors, and binary_sensor.py filters through the same
+    # vehicle_supports() call, so this costs no code either.
+    #
+    # `on_value` is left at its default `True`: `RivianBinarySensorEntityDescription
+    # .on_values` normalises it to `[True]` and the decoded value is the bool
+    # itself, not one of the string vocabularies the other descriptions match.
+    RivianBinarySensorEntityDescription(
+        key="cabin_ventilation_enabled",
+        translation_key="cabin_ventilation_enabled",
+        field="cabinVentilationEnabled",
+        feature="AUTO_VENT",
+        icon="mdi:air-filter",
+    ),
 )
 
 # Fields a sensor reads but the GraphQL VehicleState type does not have, or that
@@ -1905,10 +2140,33 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
 # it" -- rests on a misreading: `_subscription_keys` is populated from frames the
 # gateway actually DELIVERS, never from the set of fields requested, and
 # `test_parallax_gap_fill.py::test_falsy_entries_are_not_recorded_as_supplied`
-# already pins that. The remaining seven have no such document to point to.
+# already pins that. The remainder have no such document to point to.
+#
+# "post-shrink seven" is what this line used to say. It was true for exactly one
+# story: s40 added eleven, so the set is 18 and any count written here goes
+# stale the next time a decoder gets an entity. Read `len(PARALLAX_ONLY_FIELDS)`.
+#
+# s40 added eleven more: the keys behind the four s34 decoders' entities (see
+# the s40 block at the end of SENSORS, plus cabin_ventilation_enabled in
+# BINARY_SENSORS). Nothing else the s34 decoders emit is listed -- membership
+# here means "a description reads this", not "a decoder emits this", and
+# `tests/test_parallax_gap_fill.py::TestTheParallaxOnlyKeysHaveEntities`
+# parametrizes off the same tuple that pins this set, so a key with no entity
+# fails there.
 PARALLAX_ONLY_FIELDS: Final[set[str]] = {
+    "cabinVentilationDurationMinutes",
+    "cabinVentilationEnabled",
+    "cabinVentilationMode",
+    "cabinVentilationSunroofOpenPercent",
+    "cabinVentilationWindowsOpenPercent",
     "consecutiveAlarmDisabledNotification",
+    "gearGuardStreamingConsent",
+    "gearGuardStreamingDailyLimit",
+    "gearGuardStreamingLimitResetTime",
     "knownLocation",
+    "parkedEnergyLast24Hours",
+    "parkedEnergyLast8Hours",
+    "parkedEnergyLastParkSession",
     "passiveEntryUnlockFailReason",
     "secureImmobilizerStatus",
     "vasAccessCanFaulted",

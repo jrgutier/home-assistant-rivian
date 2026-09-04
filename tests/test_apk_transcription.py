@@ -213,7 +213,16 @@ class TestGateStringLint:
         assert None in BUTTONS
 
     def test_the_current_gates_are_what_we_expect(self) -> None:
-        """A whitelist, so a new gate has to come past this test."""
+        """A whitelist, so a new gate has to come past this test.
+
+        The last three are s40's, and they are the first gates here that are
+        software entitlements rather than optional hardware: AUTO_VENT
+        (VehicleFeature.java:54), V_GGVS (GEAR_GUARD_STREAMING, :38) and
+        ENRG_MONTR_PARK (PARKED_ENERGY_MONITOR, :43). Each is the featureName
+        column, not the member name -- which is exactly what
+        test_no_gate_uses_a_member_name_where_the_feature_name_differs above
+        checks, and why two of the three do not look like their member names.
+        """
         assert self._gates() == {
             "TAILGATE_CMD",
             "LIFTGATE_CMD",
@@ -222,6 +231,9 @@ class TestGateStringLint:
             "WINDOWS_CMD",
             "TAILGATE_NXT_ACT",
             "HEATED_SEATS_THIRD",
+            "AUTO_VENT",
+            "V_GGVS",
+            "ENRG_MONTR_PARK",
         }
 
     def test_no_cover_or_button_has_both_a_dict_key_and_option_code(self) -> None:

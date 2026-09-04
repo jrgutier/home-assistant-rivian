@@ -303,14 +303,19 @@ class TestSubscribingDoesNotBlockParallax:
         assert result == {} or result[field]["value"] == "gateway"
 
 
-# The seven names PARALLAX_ONLY_FIELDS carries post-shrink. ONE hardcoded copy:
-# both the pinning test below and TestTheSevenHaveEntities parametrize off this
-# same tuple, rather than each keeping its own hand-typed list that could drift
-# from the other -- team-lead's correction to an earlier draft of this file,
-# which had exactly that duplication.
+# The names PARALLAX_ONLY_FIELDS carries. ONE hardcoded copy: both the pinning
+# test below and TestTheParallaxOnlyKeysHaveEntities parametrize off this same
+# tuple, rather than each keeping its own hand-typed list that could drift from
+# the other -- team-lead's correction to an earlier draft of this file, which
+# had exactly that duplication.
 #
-# They split 4/3 for two DIFFERENT reasons, checked directly against
-# rivian_client/schemas/gateway.graphql:
+# RENAMED from PARALLAX_ONLY_SEVEN. A count in the name is a promise the code
+# keeps breaking: this repo has recorded five wrong counts, the symbol was
+# already "SEVEN" for a set that had been nine, and s40 makes it 18. The name no
+# longer carries a number; `len()` does.
+#
+# The original seven split 4/3 for two DIFFERENT reasons, checked directly
+# against rivian_client/schemas/gateway.graphql:
 #   - not declared in the schema at all -- subscribing to one of these is fatal,
 #     the wheelsInstalled failure, killing the WHOLE document:
 #     wheelsInstalled, consecutiveAlarmDisabledNotification, knownLocation,
@@ -318,13 +323,30 @@ class TestSubscribingDoesNotBlockParallax:
 #   - declared, but requested by no app document -- subscribing would not be
 #     fatal, it merely has no live precedent for actually arriving:
 #     passiveEntryUnlockFailReason, vasAccessCanFaulted, vasSecureElementFaulted
-# `vasAccessCanFaulted` arriving populated via Parallax
-# (TestTheSevenHaveEntities.ENABLED) is the only witness that
+# `vasAccessCanFaulted` arriving populated via
+# TestTheParallaxOnlyKeysHaveEntities.ENABLED is the only witness that
 # `security.access.vas_fault` lands at all -- the second group's reasoning has
 # that live evidence behind it and the first group's does not.
-PARALLAX_ONLY_SEVEN = (
+#
+# The eleven s40 added are a THIRD group, and the strongest of the three: names
+# that appear in no GraphQL schema because they are not GraphQL at all -- they
+# are protobuf field names invented by this repo's own decoders for the four s34
+# RVMs, every one of which has a frame captured off the live truck and committed
+# under tests/client/fixtures/parallax/ (see tests/test_parallax_s34_decoders.py).
+PARALLAX_ONLY_KEYS = (
+    "cabinVentilationDurationMinutes",
+    "cabinVentilationEnabled",
+    "cabinVentilationMode",
+    "cabinVentilationSunroofOpenPercent",
+    "cabinVentilationWindowsOpenPercent",
     "consecutiveAlarmDisabledNotification",
+    "gearGuardStreamingConsent",
+    "gearGuardStreamingDailyLimit",
+    "gearGuardStreamingLimitResetTime",
     "knownLocation",
+    "parkedEnergyLast24Hours",
+    "parkedEnergyLast8Hours",
+    "parkedEnergyLastParkSession",
     "passiveEntryUnlockFailReason",
     "secureImmobilizerStatus",
     "vasAccessCanFaulted",
@@ -333,76 +355,85 @@ PARALLAX_ONLY_SEVEN = (
 )
 
 
-def test_the_seven_parallax_only_keys_are_what_we_think_they_are() -> None:
-    """Pinned, so the split changes only in a diff someone reads.
+def test_the_parallax_only_keys_are_what_we_think_they_are() -> None:
+    """Pinned, so the set changes only in a diff someone reads.
 
-    Was nine; the §D shrink moves batteryCellType, coldRangeNotification and
-    btmOcHardwareFailureStatus out (all three are in the app's document and now
-    subscribed) and PARALLAX_ONLY_FIELDS itself carries a tenth name,
-    wheelsInstalled, that this pinning historically left out -- so the set below
-    is now exactly PARALLAX_ONLY_FIELDS, not the historical minus-three. See
-    PARALLAX_ONLY_SEVEN's comment for why they split 4/3.
+    Was nine, then seven, now 18. The 2026-09-02 shrink moved batteryCellType,
+    coldRangeNotification and btmOcHardwareFailureStatus out (all three are in
+    the app's document and now subscribed); s40 added the eleven keys behind the
+    four s34 decoders' entities. See PARALLAX_ONLY_KEYS's comment for why the
+    original seven split 4/3 and why the eleven are a third group.
 
     This does NOT say "if a future story subscribes to one of these, Parallax
-    stops writing it automatically" -- that was never true and this shrink is
-    the proof: `_subscription_keys` (coordinator.py:1292) is populated only from
+    stops writing it automatically" -- that was never true and the shrink is the
+    proof: `_subscription_keys` (coordinator.py:1292) is populated only from
     frames the gateway actually DELIVERS with a truthy value, never from the
     requested property set, so being named in the subscription document is not
     what claims a key. TestSubscribingDoesNotBlockParallax above is the direct
     demonstration. What this test actually pins is narrower and still real: none
-    of these seven should be REQUESTED in the subscription document, because a
-    name the server does not know takes the WHOLE document down (the
-    wheelsInstalled failure) and, for the six real sensor fields, a genuinely
-    delivered value WOULD claim the key and freeze Parallax as their only
-    source.
+    of these should be REQUESTED in the subscription document, because a name
+    the server does not know takes the WHOLE document down (the wheelsInstalled
+    failure) and, for the names the schema does declare, a genuinely delivered
+    value WOULD claim the key and freeze Parallax as their only source.
     """
     from custom_components.rivian.const import (
         PARALLAX_ONLY_FIELDS,
         VEHICLE_STATE_API_FIELDS,
     )
 
-    assert set(PARALLAX_ONLY_SEVEN) == PARALLAX_ONLY_FIELDS
-    assert not (set(PARALLAX_ONLY_SEVEN) & VEHICLE_STATE_API_FIELDS)
+    assert set(PARALLAX_ONLY_KEYS) == PARALLAX_ONLY_FIELDS
+    assert not (set(PARALLAX_ONLY_KEYS) & VEHICLE_STATE_API_FIELDS)
 
 
-class TestTheSevenHaveEntities:
+class TestTheParallaxOnlyKeysHaveEntities:
     """Decoding a field and exposing it are different things.
 
     When the gap-fill rule landed, the fourteen f5 decoders surfaced NOTHING: the
     19 overlapping keys were blocked by the subscription, and the
     Parallax-only keys had no sensor description, so they were decoded into the
-    coordinator and read by nobody. These tests are the guard against that state
-    returning.
+    coordinator and read by nobody. s34 repeated it in miniature -- four
+    decoders, verified against captured frames, read by nothing until s40. These
+    tests are the guard against that state returning.
 
-    `wheelsInstalled` is one of the seven, but it is NOT one of the original
+    `wheelsInstalled` is one of these, but it is NOT one of the original
     "nine" this class used to enumerate -- it is the f4 flagship case: a name
     the gateway does not know at all, which took the ENTIRE subscription down
     the one time it was requested. It backs a real sensor (`wheels_installed`)
-    same as the other six, so it belongs in this class's checks; its inclusion
+    same as the others, so it belongs in this class's checks; its inclusion
     is not lost history, just recorded here so the next count change does not
     have to rediscover why it is different.
     """
 
-    SEVEN = PARALLAX_ONLY_SEVEN
+    KEYS = PARALLAX_ONLY_KEYS
 
-    @pytest.mark.parametrize("field", SEVEN)
-    def test_each_backs_a_sensor(self, field: str) -> None:
-        from custom_components.rivian.const import SENSORS
+    @pytest.mark.parametrize("field", KEYS)
+    def test_each_backs_an_entity(self, field: str) -> None:
+        """SENSORS *or* BINARY_SENSORS.
+
+        Was SENSORS only, which was accurate while every Parallax-only key held
+        a string. `cabinVentilationEnabled` is a real `bool` off the wire
+        (decode_cabin_ventilation_setting), and a bool belongs in a
+        binary_sensor -- as a sensor its state renders "True"/"False", which is
+        neither translatable nor a vocabulary. Widening the lookup is the honest
+        fix; narrowing the entity to fit the test would not be.
+        """
+        from custom_components.rivian.const import BINARY_SENSORS, SENSORS
 
         fields = {d.field for d in SENSORS}
+        fields |= {d.field for d in BINARY_SENSORS if isinstance(d.field, str)}
         assert field in fields, f"{field} is decoded but exposed by nothing"
 
-    @pytest.mark.parametrize("field", SEVEN)
+    @pytest.mark.parametrize("field", KEYS)
     def test_none_of_them_reaches_the_subscription(self, field: str) -> None:
-        """VEHICLE_STATE_API_FIELDS is DERIVED from the sensor descriptions, so
-        adding a sensor puts its field in the subscription automatically.
+        """A name the server does not know takes down the WHOLE subscription --
+        the wheelsInstalled failure -- and a subscribed field is recorded in
+        _subscription_keys, which makes the gap-fill rule skip it and pins the
+        sensor at unknown forever.
 
-        For these seven that is doubly wrong. A name the server does not know takes
-        down the WHOLE subscription -- the wheelsInstalled failure -- and a
-        subscribed field is recorded in _subscription_keys, which makes the
-        gap-fill rule skip it and pins the sensor at unknown forever.
-
-        PARALLAX_ONLY_FIELDS is what keeps them out.
+        PARALLAX_ONLY_FIELDS is what keeps them out. (The wire lists are literal
+        now rather than derived from the descriptions, so adding a sensor no
+        longer auto-adds its field to the subscription -- but membership here is
+        still what the two collision guards in test_init.py check against.)
         """
         from custom_components.rivian.const import (
             PARALLAX_ONLY_FIELDS,
@@ -412,12 +443,13 @@ class TestTheSevenHaveEntities:
         assert field in PARALLAX_ONLY_FIELDS
         assert field not in VEHICLE_STATE_API_FIELDS
 
-    # Which of the seven ship enabled, and WHY. The reason rides along as the
+    # Which of them ship enabled, and WHY. The reason rides along as the
     # parametrize id, so a failure names the ground the entity was standing on.
     #
-    # The line is whether the message is PROVEN TO ARRIVE -- not whether a field
+    # The line is whether the MESSAGE is PROVEN TO ARRIVE -- not whether a field
     # held a value in one snapshot. A snapshot criterion flips with the weather:
     # knownLocation reads `home` because the truck is parked at home.
+    _S34_FIXTURE = "s34 decoder, frame captured off the live truck and committed"
     ENABLED = [
         ("vasAccessCanFaulted", "witness: arrived populated, proving its RVM lands"),
         ("vasSecureElementFaulted", "same message, and armed before the fault"),
@@ -429,6 +461,33 @@ class TestTheSevenHaveEntities:
                 "direct proof decode_vehicle_wheels fires"
             ),
         ),
+        # The eleven s40 keys. Every one of the four RVMs behind them has a
+        # committed fixture, which is arrival proof of the same kind the four
+        # above rest on -- and stronger, since it is the frame itself rather
+        # than an inference from a sibling field.
+        ("cabinVentilationEnabled", f"{_S34_FIXTURE}; the one field it carried"),
+        ("cabinVentilationMode", f"{_S34_FIXTURE}; optional field, absent so far"),
+        (
+            "cabinVentilationWindowsOpenPercent",
+            f"{_S34_FIXTURE}; optional field, absent so far",
+        ),
+        (
+            "cabinVentilationSunroofOpenPercent",
+            f"{_S34_FIXTURE}; optional field, absent so far",
+        ),
+        (
+            "cabinVentilationDurationMinutes",
+            f"{_S34_FIXTURE}; optional field, absent so far",
+        ),
+        ("gearGuardStreamingConsent", f"{_S34_FIXTURE}; decoded not_consented"),
+        ("gearGuardStreamingDailyLimit", f"{_S34_FIXTURE}; decoded not_hit"),
+        ("gearGuardStreamingLimitResetTime", f"{_S34_FIXTURE}; decoded verbatim"),
+        ("parkedEnergyLast24Hours", f"{_S34_FIXTURE}; all ten measurements decoded"),
+        ("parkedEnergyLast8Hours", f"{_S34_FIXTURE}; all ten measurements decoded"),
+        (
+            "parkedEnergyLastParkSession",
+            f"{_S34_FIXTURE}; nine measurements, outletsKwh not sent",
+        ),
     ]
     STILL_DISABLED = [
         ("passiveEntryUnlockFailReason", "arrival unwitnessed"),
@@ -438,33 +497,33 @@ class TestTheSevenHaveEntities:
 
     @staticmethod
     def _enabled_default(field: str) -> bool:
-        from custom_components.rivian.const import SENSORS
+        from custom_components.rivian.const import BINARY_SENSORS, SENSORS
 
-        for description in SENSORS:
+        for description in (*SENSORS, *BINARY_SENSORS):
             if description.field == field:
                 return description.entity_registry_enabled_default
-        raise AssertionError(f"{field} backs no sensor")
+        raise AssertionError(f"{field} backs no entity")
 
     @pytest.mark.parametrize(
         "field", [f for f, _ in ENABLED], ids=[r for _, r in ENABLED]
     )
-    def test_the_four_proven_ones_ship_enabled(self, field: str) -> None:
+    def test_the_proven_ones_ship_enabled(self, field: str) -> None:
         assert self._enabled_default(field) is not False
 
     @pytest.mark.parametrize(
         "field", [f for f, _ in STILL_DISABLED], ids=[r for _, r in STILL_DISABLED]
     )
     def test_the_three_unproven_ones_stay_disabled(self, field: str) -> None:
-        """Not "it would read unknown" -- that argument would condemn the four
+        """Not "it would read unknown" -- that argument would condemn the
         enabled ones too. All three have no unsubscribed sibling, so absence
         cannot be told apart from the decoder never firing."""
         assert self._enabled_default(field) is False
 
-    def test_the_split_covers_all_seven_exactly_once(self) -> None:
-        assert len(self.ENABLED) + len(self.STILL_DISABLED) == len(self.SEVEN)
+    def test_the_split_covers_every_key_exactly_once(self) -> None:
+        assert len(self.ENABLED) + len(self.STILL_DISABLED) == len(self.KEYS)
         assert {f for f, _ in self.ENABLED} | {
             f for f, _ in self.STILL_DISABLED
-        } == set(self.SEVEN)
+        } == set(self.KEYS)
 
     def test_absence_is_not_read_as_health(self) -> None:
         """The correction that produced this split.

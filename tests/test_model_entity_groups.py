@@ -68,9 +68,12 @@ FIXTURE_COUNTS = {
     "R2": (110, 39),
     "__absent__": (110, 39),
     "unpaired": (110, 39),
-    "R1T_full_hardware": (113, 45),
-    "R1S_full_hardware": (113, 41),
-    "R2_full_hardware": (111, 41),
+    # s40 added ten sensors and one binary sensor gated on AUTO_VENT / V_GGVS /
+    # ENRG_MONTR_PARK, which dump_entity_sets.SOFTWARE_FEATURES now gives to all
+    # three full-hardware scenarios: +10/+1 on each row below.
+    "R1T_full_hardware": (123, 46),
+    "R1S_full_hardware": (123, 42),
+    "R2_full_hardware": (121, 42),
 }
 
 STAY_UNGATED_KEYS = frozenset(

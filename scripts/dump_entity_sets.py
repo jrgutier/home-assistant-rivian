@@ -176,6 +176,20 @@ class Scenario:
     option_codes: tuple[str, ...] | None = ()
 
 
+# Flags that are software entitlements, not hardware: every body style can
+# report them, so each `_full_hardware` scenario below carries all three rather
+# than picking per model. s40 added them because its eleven entities are the
+# first gated on flags no scenario named -- without these the new entities would
+# appear in NO scenario and `tests/fixtures/entity_sets.json` would not change
+# at all, which is a silent hole in the guard rather than a passing one.
+SOFTWARE_FEATURES: frozenset[str] = frozenset(
+    {
+        "AUTO_VENT",  # VehicleFeature.java:54
+        "V_GGVS",  # GEAR_GUARD_STREAMING, VehicleFeature.java:38
+        "ENRG_MONTR_PARK",  # PARKED_ENERGY_MONITOR, VehicleFeature.java:43
+    }
+)
+
 SCENARIOS: tuple[Scenario, ...] = (
     # The floor: no feature flags, no option codes. Unchanged in shape and
     # values from before this extension for the sensor/binary_sensor half --
@@ -203,6 +217,7 @@ SCENARIOS: tuple[Scenario, ...] = (
                 "WINDOWS_CMD",
                 "LIVE_CAM",
                 "MOTION_CAM",
+                *SOFTWARE_FEATURES,
             }
         ),
         option_codes=("TON-P01",),
@@ -217,6 +232,7 @@ SCENARIOS: tuple[Scenario, ...] = (
                 "HEATED_SEATS_THIRD",
                 "LIVE_CAM",
                 "MOTION_CAM",
+                *SOFTWARE_FEATURES,
             }
         ),
         option_codes=(),
@@ -224,7 +240,9 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         "R2_full_hardware",
         model="R2",
-        features=frozenset({"LIFTGATE_CMD", "CHARG_PORT_DOOR_COMMAND"}),
+        features=frozenset(
+            {"LIFTGATE_CMD", "CHARG_PORT_DOOR_COMMAND", *SOFTWARE_FEATURES}
+        ),
         option_codes=(),
     ),
     # Vehicle-control never set up (no BLE pairing / phone_identity_id): every

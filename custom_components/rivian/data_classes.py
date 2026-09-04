@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -188,6 +188,21 @@ class RivianSensorEntityDescription(SensorEntityDescription, RivianGateMixin):
     field: str
     value_fn: Callable[[VehicleCoordinator], Any] | None = None
     value_lambda: Callable[[Any], Any] | None = None
+    # Attributes derived from the RAW field value, same input as `value_lambda`.
+    #
+    # Added for the three parked-energy windows (const.py), whose Parallax
+    # decoder emits a NESTED dict of ten measurements per window
+    # (parallax.py's `_ENERGY_DISTRIBUTION`). The state is one of those ten
+    # (`totalKwh`); the other nine describe the same window and belong beside
+    # it, not as nine more entities per window -- thirty entities for ten
+    # concepts is what the decoder itself refused to do when it chose nested
+    # dicts over flattened keys.
+    #
+    # `sensor.py`'s default `extra_state_attributes` cannot serve them: it
+    # reads `entity["timeStamp"]`, which only the GraphQL path writes, so it
+    # already returns None for every Parallax-fed field. This replaces that
+    # branch rather than extending it, because there is no timestamp to merge.
+    attributes_lambda: Callable[[Any], Mapping[str, Any] | None] | None = None
 
 
 @dataclass(kw_only=True)
