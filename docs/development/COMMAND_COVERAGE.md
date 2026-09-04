@@ -414,10 +414,24 @@ versions, 2026-09-03):
 
 | flag | kind | first appears | span |
 |---|---|---|---|
-| `honkAndFlash` (`wr7.java:31`) | app-side rollout | `1.5.1` | continuous to `3.16.0` |
+| `honkAndFlash` (`wr7.java:31`) | app-side rollout | `2.19.1` | all 24 versions to `3.16.0` |
 | `HONK_AND_FLASH_COMMAND` (`VehicleFeature.java:51`) | vehicle capability | `2.19.1` | all 24 versions to `3.16.0` |
 
-The vehicle flag arrives with the command itself —
+**Both halves of the gate entered together.** Nothing about honk-and-flash — the
+command, the rollout flag, or the vehicle capability — exists in the corpus
+before `2.19.1`.
+
+> **Corrected 2026-09-03.** An earlier revision of this table said the rollout
+> flag dated to `1.5.1`. It did not. That sweep used a substring grep, and
+> `honkAndFlash` matched `honkAndFlashLights` — a local variable naming
+> `VASCommand.HonkAndFlashLights`, a *different* and genuinely older command
+> (`.apk/1.5.1/jadx/sources/com/rivian/android/core/modules/VASCommand.java`).
+> A word-boundary sweep (`grep -rlw`) puts the real flag's first appearance at
+> `2.19.1`, in the `wr7` ancestor enum at `.apk/2.19.1/jadx/sources/Bh/a.java`.
+> **When testing whether a NAME is present, match the whole word.** This is the
+> second wrong fact this work produced from substring matching.
+
+Both arrive with the command itself —
 [`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md) records
 `FLASH_EXTERNAL_LIGHTS` spanning `2.19.1–3.16.0` across the same 24 versions, and
 the sweep reproduces that span from a different query. Note the corpus jumps

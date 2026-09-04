@@ -1039,7 +1039,16 @@ HONK_FLASH_GATE_UNAVAILABLE_ARM: Final[str] = (
 # Swept across all 54 corpus versions, 2026-09-03. The corpus jumps 2.10.1 ->
 # 2.19.1, so the vehicle flag's first appearance is bounded by that gap: it is
 # where the flag is FIRST SEEN, not necessarily where it was introduced.
+# CORRECTED 2026-09-03. An earlier sweep put the rollout flag at 1.5.1 using a
+# substring grep, which matched `honkAndFlashLights` -- a local variable naming
+# VASCommand.HonkAndFlashLights, a different and genuinely older command. A
+# word-boundary sweep puts the real flag at 2.19.1, the same version as the
+# vehicle flag. Match whole words when testing whether a NAME is present.
 HONK_FLASH_GATE_FIRST_SEEN: Final[dict[str, str]] = {
-    "honkAndFlash": "1.5.1",
+    "honkAndFlash": "2.19.1",
     "HONK_AND_FLASH_COMMAND": "2.19.1",
 }
+
+# The older command the substring grep was actually finding. Recorded so the
+# next sweep does not repeat the trap.
+HONK_FLASH_SUBSTRING_DECOY: Final[str] = "honkAndFlashLights"

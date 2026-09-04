@@ -49,6 +49,7 @@ from tests.apk.transcription import (
     HONK_FLASH_GATE_ROLLOUT_FLAG,
     HONK_FLASH_GATE_UNAVAILABLE_ARM,
     HONK_FLASH_GATE_VEHICLE_FEATURE,
+    HONK_FLASH_SUBSTRING_DECOY,
     INVALID_CLOUD_WRAPPER_APP_NAME,
     INVALID_WRAPPER_COMMANDS,
     PARALLAX_REQUEST_ONLY_COMMANDS,
@@ -604,15 +605,33 @@ class TestHonkAndFlashGate:
             seen += 1
         assert seen == 3
 
-    def test_the_rollout_flag_is_old_and_the_vehicle_flag_is_not(self) -> None:
-        """The two halves of the gate have different histories.
+    def test_both_halves_of_the_gate_entered_together(self) -> None:
+        """Nothing about honk-and-flash predates 2.19.1.
 
-        The rollout flag is not the new thing -- it predates the command by a
-        long way, so "behind a rollout" cannot rest on the flag being recent.
+        CORRECTED 2026-09-03. This test previously asserted the rollout flag
+        dated to 1.5.1 and built an argument on the two halves having different
+        histories. That came from a substring grep matching
+        `honkAndFlashLights`, a different and genuinely older VAS command. A
+        word-boundary sweep puts both halves at 2.19.1.
+
+        The correction STRENGTHENS the not-rolled-out reading: the whole
+        feature, gate included, is one cohort rather than an old flag finally
+        being switched on.
         """
         first = HONK_FLASH_GATE_FIRST_SEEN
-        assert first[HONK_FLASH_GATE_ROLLOUT_FLAG] == "1.5.1"
+        assert first[HONK_FLASH_GATE_ROLLOUT_FLAG] == "2.19.1"
         assert first[HONK_FLASH_GATE_VEHICLE_FEATURE] == "2.19.1"
+        assert len(set(first.values())) == 1
+
+    def test_the_decoy_is_not_the_flag(self) -> None:
+        """The trap that produced the wrong date, pinned so it is not re-set.
+
+        `honkAndFlashLights` CONTAINS `honkAndFlash`. Any membership test that
+        uses substring matching rather than whole-word matching will date the
+        flag to the decoy's first appearance instead of its own.
+        """
+        assert HONK_FLASH_SUBSTRING_DECOY.startswith(HONK_FLASH_GATE_ROLLOUT_FLAG)
+        assert HONK_FLASH_SUBSTRING_DECOY != HONK_FLASH_GATE_ROLLOUT_FLAG
 
     def test_the_vehicle_flag_first_appears_with_the_command(self) -> None:
         """Cross-check against a span this repo recorded independently."""
