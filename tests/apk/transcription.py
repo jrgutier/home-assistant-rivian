@@ -1000,3 +1000,46 @@ PARALLAX_ATTRIBUTES_NAME_ACCESSOR_360_CONTEXT: Final[str] = "getName"
 INVALID_WRAPPER_COMMAND_RVMS: Final[dict[str, None]] = dict.fromkeys(
     sorted(INVALID_WRAPPER_COMMANDS)
 )
+
+
+# --- rn8 / as7 / wr7 / mdm: the honk-and-flash feature gate ------------------
+#
+# Why this is transcribed rather than only cited: the decompiled classes are
+# gitignored (docs/development/apk/REGENERATION.md), so a claim that lives only
+# in a doc citation cannot be checked from a clean checkout. Members, never line
+# numbers -- those drift with every extraction, and f1 lints for them.
+#
+# The gate is a CONJUNCTION, read from as7's own evaluator in the 3.16.0 tree:
+#
+#     as7.a(v9)      false unless EVERY wr7 rollout flag on the descriptor is
+#                    enabled via uhc.r().a(flagName)
+#     as7.b(v9, str) false unless a(v9) passes AND, when the descriptor carries
+#                    a VehicleFeature, uhc.a.J(vehicleFeature, str) passes
+#
+# rn8.d is the descriptor pairing the two for honk-and-flash. mdm consumes
+# as7.b(rn8.d, null) and selects a dedicated not-available arm when it is false,
+# which is why the app can withhold the button silently.
+#
+# Recorded because it explains a live measurement: FLASH_EXTERNAL_LIGHTS is
+# accepted by the gateway and does nothing on this vehicle
+# (docs/development/COMMAND_COVERAGE.md).
+
+HONK_FLASH_GATE_ROLLOUT_FLAG: Final[str] = "honkAndFlash"
+HONK_FLASH_GATE_VEHICLE_FEATURE: Final[str] = "HONK_AND_FLASH_COMMAND"
+
+# The evaluator's two arms, by member. Both must pass.
+HONK_FLASH_GATE_EVALUATOR: Final[tuple[str, ...]] = ("as7.a", "as7.b")
+
+# The arm mdm selects when the gate is false. Its existence is the evidence that
+# a withheld button is a designed state, not a fault.
+HONK_FLASH_GATE_UNAVAILABLE_ARM: Final[str] = (
+    "LOCATION_MICRO_APP_HONK_FLASH_NOT_AVAILABLE"
+)
+
+# Swept across all 54 corpus versions, 2026-09-03. The corpus jumps 2.10.1 ->
+# 2.19.1, so the vehicle flag's first appearance is bounded by that gap: it is
+# where the flag is FIRST SEEN, not necessarily where it was introduced.
+HONK_FLASH_GATE_FIRST_SEEN: Final[dict[str, str]] = {
+    "honkAndFlash": "1.5.1",
+    "HONK_AND_FLASH_COMMAND": "2.19.1",
+}

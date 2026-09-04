@@ -44,6 +44,11 @@ from custom_components.rivian.rivian_client.parallax import RVM_DECODERS
 from tests.apk.transcription import (
     COMMAND_STATE_CONTINUE,
     COMMAND_STATE_TERMINAL,
+    HONK_FLASH_GATE_EVALUATOR,
+    HONK_FLASH_GATE_FIRST_SEEN,
+    HONK_FLASH_GATE_ROLLOUT_FLAG,
+    HONK_FLASH_GATE_UNAVAILABLE_ARM,
+    HONK_FLASH_GATE_VEHICLE_FEATURE,
     INVALID_CLOUD_WRAPPER_APP_NAME,
     INVALID_WRAPPER_COMMANDS,
     PARALLAX_REQUEST_ONLY_COMMANDS,
@@ -554,6 +559,74 @@ class TestObservedCapabilities:
         text = matrix.read_text()
         assert "TONNEAU_CMD" in text
         assert "CHARG_PORT_DOOR_COMMAND" in text
+
+
+class TestHonkAndFlashGate:
+    """Why FLASH_EXTERNAL_LIGHTS is accepted by the gateway and does nothing.
+
+    The measurement is in COMMAND_COVERAGE.md; the cause is a conjunction the app
+    evaluates before it offers the button. The decompiled classes are gitignored,
+    so the claim is asserted here rather than living only in a doc citation.
+    """
+
+    def test_the_app_knows_the_vehicle_flag(self) -> None:
+        """If the app did not name it, the gate reading would be wrong."""
+        assert HONK_FLASH_GATE_VEHICLE_FEATURE in VEHICLE_FEATURE_NAMES
+
+    def test_no_vehicle_in_evidence_carries_the_vehicle_flag(self) -> None:
+        """Four vehicles, four absences -- but only two of them are datable.
+
+        issue-171 (2024-08-08) and issue-222 (2025-08-26) cannot be placed
+        against the flag's 2.19.1 first sighting, because the corpus carries no
+        release dates. They are asserted here for completeness; the CLAIM rests
+        on issue-245 and this truck, both comfortably post-flag.
+        """
+        assert HONK_FLASH_GATE_VEHICLE_FEATURE not in OBSERVED_FEATURE_NAMES
+
+        community = REPO / "tests/fixtures/community"
+        seen = 0
+        for name in ("issue-171.json", "issue-222.json", "issue-245.json"):
+            path = community / name
+            assert path.is_file(), name
+            assert HONK_FLASH_GATE_VEHICLE_FEATURE not in path.read_text(), name
+            seen += 1
+        assert seen == 3
+
+    def test_the_rollout_flag_is_old_and_the_vehicle_flag_is_not(self) -> None:
+        """The two halves of the gate have different histories.
+
+        The rollout flag is not the new thing -- it predates the command by a
+        long way, so "behind a rollout" cannot rest on the flag being recent.
+        """
+        first = HONK_FLASH_GATE_FIRST_SEEN
+        assert first[HONK_FLASH_GATE_ROLLOUT_FLAG] == "1.5.1"
+        assert first[HONK_FLASH_GATE_VEHICLE_FEATURE] == "2.19.1"
+
+    def test_the_vehicle_flag_first_appears_with_the_command(self) -> None:
+        """Cross-check against a span this repo recorded independently."""
+        sweep = (REPO / "docs/development/APK_HISTORICAL_SWEEP.md").read_text()
+        row = next(
+            line
+            for line in sweep.splitlines()
+            if line.startswith("| `FLASH_EXTERNAL_LIGHTS`")
+        )
+        assert HONK_FLASH_GATE_FIRST_SEEN[HONK_FLASH_GATE_VEHICLE_FEATURE] in row
+
+    def test_the_unavailable_arm_is_recorded(self) -> None:
+        """A named not-available arm makes a withheld button a designed state."""
+        assert HONK_FLASH_GATE_UNAVAILABLE_ARM.endswith("NOT_AVAILABLE")
+        assert HONK_FLASH_GATE_EVALUATOR == ("as7.a", "as7.b")
+
+    def test_the_finding_is_recorded_where_a_reader_will_look(self) -> None:
+        coverage = (REPO / "docs/development/COMMAND_COVERAGE.md").read_text()
+        assert HONK_FLASH_GATE_UNAVAILABLE_ARM in coverage
+        # Normalised: the doc is hard-wrapped, so the phrase spans a newline.
+        flat = " ".join(coverage.lower().replace("**", "").split())
+        assert "per-vin exclusion is unproven" in flat
+
+        gaps = (REPO / "docs/development/REMAINING_APK_GAPS.md").read_text()
+        assert HONK_FLASH_GATE_VEHICLE_FEATURE in gaps
+        assert "supportedFeatures" in gaps
 
 
 class TestUnpopulatedFields:
