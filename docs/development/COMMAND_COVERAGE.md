@@ -425,7 +425,8 @@ before `2.19.1`.
 > flag dated to `1.5.1`. It did not. That sweep used a substring grep, and
 > `honkAndFlash` matched `honkAndFlashLights` — a local variable naming
 > `VASCommand.HonkAndFlashLights`, a *different* and genuinely older command
-> (`.apk/1.5.1/jadx/sources/com/rivian/android/core/modules/VASCommand.java`).
+> (`.apk/1.5.1/sources/com/rivian/android/core/modules/VASCommand.java`; note
+> the older extractions put sources at the root, not under `jadx/`).
 > A word-boundary sweep (`grep -rlw`) puts the real flag's first appearance at
 > `2.19.1`, in the `wr7` ancestor enum at `.apk/2.19.1/jadx/sources/Bh/a.java`.
 > **When testing whether a NAME is present, match the whole word.** This is the
@@ -435,8 +436,8 @@ Both arrive with the command itself —
 [`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md) records
 `FLASH_EXTERNAL_LIGHTS` spanning `2.19.1–3.16.0` across the same 24 versions, and
 the sweep reproduces that span from a different query. Note the corpus jumps
-`2.10.1 → 2.19.1`, so `2.19.1` is where the flag **first appears in the corpus**,
-not necessarily where it was introduced.
+`2.10.1 → 2.19.1`, so `2.19.1` is where **both flags first appear in the
+corpus**, not necessarily where either was introduced.
 
 **No vehicle we can see carries the vehicle flag.** Not this 2022 R1T
 (55 features, `tests/fixtures/supported_features_observed.json`), and none of the
