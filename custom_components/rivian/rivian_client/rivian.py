@@ -744,7 +744,7 @@ class Rivian:
         `allow_core_fallback=False` to disable it (for a test or probe that
         wants strict, no-retry behaviour). One renamed/unknown field then
         costs a degraded-but-working integration rather than every
-        vehicleState entity going unknown at once (const.py:1886: one
+        vehicleState entity going unknown at once (const.py:2121: one
         unknown name rejects the whole document). This reduces that
         failure's blast radius; it does not eliminate it -- if the renamed
         field is itself one of the 15 core names, the core document is

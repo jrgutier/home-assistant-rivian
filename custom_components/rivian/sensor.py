@@ -222,6 +222,15 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return the state attributes of the device."""
+        # A description that derives its own attributes owns them outright.
+        # Only the parked-energy windows do today: their value is a nested
+        # dict, and the branches below would read "timeStamp"/"history" off a
+        # Parallax-fed field that has neither. See data_classes.py's
+        # `attributes_lambda`.
+        if _fn := self.entity_description.attributes_lambda:
+            value = self._get_value(self.entity_description.field)
+            return _fn(value) if value is not None else None
+
         try:
             # `field` may be dotted (e.g. "gnssError.positionVertical") for a
             # sensor reading one leaf of a structured field. coordinator.data

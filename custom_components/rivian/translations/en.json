@@ -95,6 +95,18 @@
       "cabin_preconditioning_type": {
         "name": "Cabin Climate Preconditioning Type"
       },
+      "cabin_ventilation_duration": {
+        "name": "Cabin Ventilation Duration"
+      },
+      "cabin_ventilation_mode": {
+        "name": "Cabin Ventilation Mode"
+      },
+      "cabin_ventilation_sunroof_open": {
+        "name": "Cabin Ventilation Sunroof Open"
+      },
+      "cabin_ventilation_windows_open": {
+        "name": "Cabin Ventilation Windows Open"
+      },
       "cellular_antenna_bars": {
         "name": "Cellular Signal Bars"
       },
@@ -214,6 +226,15 @@
       "drivers": {
         "name": "Drivers"
       },
+      "gear_guard_streaming_consent": {
+        "name": "Gear Guard Streaming Consent"
+      },
+      "gear_guard_streaming_daily_limit": {
+        "name": "Gear Guard Streaming Daily Limit"
+      },
+      "gear_guard_streaming_limit_reset_time": {
+        "name": "Gear Guard Streaming Limit Reset"
+      },
       "gear_guard_video_mode": {
         "name": "Gear Guard Video Mode"
       },
@@ -318,6 +339,15 @@
       },
       "ota_status": {
         "name": "OTA Status"
+      },
+      "parked_energy_last_24_hours": {
+        "name": "Parked Energy Last 24 Hours"
+      },
+      "parked_energy_last_8_hours": {
+        "name": "Parked Energy Last 8 Hours"
+      },
+      "parked_energy_last_park_session": {
+        "name": "Parked Energy Last Park Session"
       },
       "passive_entry_unlock_fail_reason": {
         "name": "Passive Entry Unlock Fail Reason"
@@ -494,6 +524,9 @@
       },
       "btm_rfd_hardware_failure_status": {
         "name": "Bluetooth Module Failure Status Door Front Right"
+      },
+      "cabin_ventilation_enabled": {
+        "name": "Cabin Ventilation"
       },
       "car_wash_mode": {
         "name": "Car Wash Mode"
