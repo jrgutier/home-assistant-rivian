@@ -28,6 +28,7 @@ from custom_components.rivian.const import (
     _epoch_seconds_to_utc,
 )
 from custom_components.rivian.coordinator import SUBSCRIBED_RVMS, VehicleCoordinator
+from custom_components.rivian.helpers import vehicle_supports
 from custom_components.rivian.rivian_client.parallax import RVM_DECODERS
 from custom_components.rivian.sensor import RivianSensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -323,3 +324,111 @@ def test_s40_added_no_decoder_and_so_no_subscription() -> None:
     assert set(SUBSCRIBED_RVMS) <= set(RVM_DECODERS)
     for topic in (CABIN_VENT, CONSENT, DAILY_LIMIT, PARKED_ENERGY):
         assert topic in SUBSCRIBED_RVMS
+
+
+S40_FIELDS = frozenset(
+    {
+        "cabinVentilationEnabled",
+        "cabinVentilationMode",
+        "cabinVentilationWindowsOpenPercent",
+        "cabinVentilationSunroofOpenPercent",
+        "cabinVentilationDurationMinutes",
+        "gearGuardStreamingConsent",
+        "gearGuardStreamingDailyLimit",
+        "gearGuardStreamingLimitResetTime",
+        "parkedEnergyLast24Hours",
+        "parkedEnergyLast8Hours",
+        "parkedEnergyLastParkSession",
+    }
+)
+
+
+class TestGatingMeasuredOnOtherVehicles:
+    """The gating decision, checked against real vehicles that are not ours.
+
+    s40 gates eleven entities on `supportedFeatures`. That is the convention
+    every entity-creating platform except `switch.py` already follows, but the
+    repo records two ways it can go wrong (`helpers.py`): a flag nobody
+    advertises hides a working feature (`TONNEAU_CMD`), and this project's own
+    R1T advertises none of `LIFTGATE_CMD`, `FRUNK_NXT_ACT` or `HEATED_SEATS`
+    while all three work.
+
+    So the question "what do OTHER vehicles get" is not answerable by reasoning
+    about our own truck. These three community captures answer it with data.
+
+    MEASURED 2026-09-03, and it corrects a claim made while planning this work:
+    issue-245 was said to carry all three flags. It does not. It carries the
+    same two as issue-222. NO community vehicle advertises AUTO_VENT.
+    """
+
+    COMMUNITY = pathlib.Path(__file__).parent / "fixtures" / "community"
+
+    # vehicle -> the s40 gate flags it actually advertises.
+    EXPECTED_FLAGS = {
+        "issue-171": set(),
+        "issue-222": {"ENRG_MONTR_PARK", "V_GGVS"},
+        "issue-245": {"ENRG_MONTR_PARK", "V_GGVS"},
+    }
+
+    S40_GATES = frozenset({"AUTO_VENT", "V_GGVS", "ENRG_MONTR_PARK"})
+
+    def _features(self, name: str) -> set[str]:
+        raw = json.loads((self.COMMUNITY / f"{name}.json").read_text())
+        vehicles = raw["data"]["user"]["vehicles"]
+        entries = vehicles[0]["vehicle"]["vehicleState"]["supportedFeatures"]
+        return {e["name"] for e in entries if e.get("status") == "AVAILABLE"}
+
+    @pytest.mark.parametrize("name", sorted(EXPECTED_FLAGS))
+    def test_the_flags_each_vehicle_advertises(self, name: str) -> None:
+        got = self._features(name) & self.S40_GATES
+        assert got == self.EXPECTED_FLAGS[name], (
+            f"{name} advertises {sorted(got)}, expected "
+            f"{sorted(self.EXPECTED_FLAGS[name])}"
+        )
+
+    def test_the_gates_discriminate_rather_than_hiding_from_everyone(self) -> None:
+        """The TONNEAU_CMD test: a flag nobody has hides a feature from all.
+
+        V_GGVS and ENRG_MONTR_PARK vary across the fleet, so they are
+        provisioning signals. AUTO_VENT is advertised by no community vehicle --
+        recorded here rather than assumed away, because if it is also absent on
+        vehicles where cabin ventilation works, that is the TONNEAU_CMD failure
+        and the cabin-vent gate is the wrong call.
+        """
+        advertised = {
+            flag
+            for name in self.EXPECTED_FLAGS
+            for flag in self._features(name) & self.S40_GATES
+        }
+        assert advertised == {"ENRG_MONTR_PARK", "V_GGVS"}
+        assert "AUTO_VENT" not in advertised
+
+        # Our own truck DOES advertise it, so it is not advertised by nobody --
+        # which is the difference between this and TONNEAU_CMD.
+        observed = json.loads(
+            (pathlib.Path(__file__).parent / "fixtures")
+            .joinpath("supported_features_observed.json")
+            .read_text()
+        )
+        ours = set(observed["vehicles"][0]["features"])
+        assert "AUTO_VENT" in ours
+
+    def test_entities_appear_only_where_the_flag_does(self) -> None:
+        """End to end: the gate actually withholds and grants."""
+        for name, flags in self.EXPECTED_FLAGS.items():
+            vehicle = {"supported_features": sorted(self._features(name))}
+            granted = {
+                d.key
+                for d in (*SENSORS, *BINARY_SENSORS)
+                if getattr(d, "field", None) in S40_FIELDS
+                and vehicle_supports(d, vehicle)
+            }
+            if not flags:
+                assert granted == set(), f"{name} has no s40 flags but got {granted}"
+            else:
+                assert granted, f"{name} advertises {sorted(flags)} but got nothing"
+                assert not any(
+                    d.key in granted
+                    for d in (*SENSORS, *BINARY_SENSORS)
+                    if "AUTO_VENT" in (getattr(d, "feature", None) or ())
+                ), f"{name} lacks AUTO_VENT yet was granted a cabin-vent entity"

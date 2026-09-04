@@ -193,3 +193,51 @@ magnitude alone flagged `energy_high_voltage_battery_state`, whose 45.6 and
 longitudes, which are positive. Treat both guards as a floor. **Before committing
 any new fixture, decode it and look at what the fields actually mean** — the
 schema in `rivian_client/proto/` will name a `location` field if one is there.
+
+## Decoding is not wiring — the s34 follow-up, closed 2026-09-03
+
+s34 shipped four decoders and deliberately no entities, leaving "whether any
+decoded RVM becomes an entity" as an open question. **Answered: all four are
+wired**, as eleven entities (s40).
+
+| decoder | entities | gate |
+|---|---|---|
+| `comfort.cabin.cabin_ventilation_setting` | 1 binary_sensor + 4 sensors | `AUTO_VENT` |
+| `gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent` | 1 sensor | `V_GGVS` |
+| `gearguard_streaming.privacy.gearguard_streaming_daily_limit` | 2 sensors | `V_GGVS` |
+| `energy_edge_compute.graphs.parked_energy_distributions` | 3 sensors | `ENRG_MONTR_PARK` |
+
+All eleven ship **enabled by default**, because the convention here is arrival,
+not churn: five of the older Parallax-only fields ship enabled and the line
+between them is whether the message is proven to arrive. All four of these have
+committed fixtures captured from the live truck.
+
+`parked_energy_distributions` emits three nested window dicts of ten keys each.
+Thirty entities would invent thirty names for ten concepts, so it ships as three
+sensors — one per window — each reading `totalKwh` directly (it is field 1 of
+`_ENERGY_DISTRIBUTION`, never a sum of the components) with the other nine keys
+as attributes.
+
+**This changed no subscription.** `SUBSCRIBED_RVMS` derives from `RVM_DECODERS`,
+and s40 added no decoder: 37 before, 37 after, byte-identical. That is what
+separates this from s34, which was a live-behaviour change.
+
+### The residual risk, recorded rather than assumed away
+
+Gating is the convention — every entity-creating platform except `switch.py`
+already filters through `vehicle_supports` — but `helpers.py` records two ways it
+misfires, and one of them is live here.
+
+**No community vehicle advertises `AUTO_VENT`.** `issue-222` and `issue-245` both
+carry `V_GGVS` and `ENRG_MONTR_PARK`; `issue-171` carries none of the three; none
+carries `AUTO_VENT`. Our own truck does, which is the only reason this is not
+already the `TONNEAU_CMD` pattern — a flag nobody advertises, hiding a feature
+that works for everybody.
+
+So: **if cabin ventilation turns out to work on a vehicle that does not advertise
+`AUTO_VENT`, the cabin-vent gate is wrong and should be removed.** That is a
+falsifiable claim and `TestGatingMeasuredOnOtherVehicles` pins the flag
+distribution so the day it changes, a test says so.
+
+A planning note said `issue-245` carried all three flags. It does not; it carries
+two. Measured, not assumed — which is why the number is in a test.
