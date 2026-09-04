@@ -409,20 +409,35 @@ the `VehicleFeature` check (`uhc.a.J(...)`) passes. Both must hold.
 a constant named `is7.LOCATION_MICRO_APP_HONK_FLASH_NOT_AVAILABLE` — the app
 ships a dedicated not-available arm for exactly this gate.
 
-**The two flags have very different histories** (swept across all 54 corpus
-versions, 2026-09-03):
+**Both flags appear at the same version** (swept across all 54 corpus versions
+with word-boundary matching, 2026-09-03):
 
 | flag | kind | first appears | span |
 |---|---|---|---|
-| `honkAndFlash` (`wr7.java:31`) | app-side rollout | `1.5.1` | continuous to `3.16.0` |
+| `honkAndFlash` (`wr7.java:31`) | app-side rollout | `2.19.1` | all 24 versions to `3.16.0` |
 | `HONK_AND_FLASH_COMMAND` (`VehicleFeature.java:51`) | vehicle capability | `2.19.1` | all 24 versions to `3.16.0` |
 
-The vehicle flag arrives with the command itself —
+**Both halves of the gate entered together.** Nothing about honk-and-flash — the
+command, the rollout flag, or the vehicle capability — exists in the corpus
+before `2.19.1`.
+
+> **Corrected 2026-09-03.** An earlier revision of this table said the rollout
+> flag dated to `1.5.1`. It did not. That sweep used a substring grep, and
+> `honkAndFlash` matched `honkAndFlashLights` — a local variable naming
+> `VASCommand.HonkAndFlashLights`, a *different* and genuinely older command
+> (`.apk/1.5.1/sources/com/rivian/android/core/modules/VASCommand.java`; note
+> the older extractions put sources at the root, not under `jadx/`).
+> A word-boundary sweep (`grep -rlw`) puts the real flag's first appearance at
+> `2.19.1`, in the `wr7` ancestor enum at `.apk/2.19.1/jadx/sources/Bh/a.java`.
+> **When testing whether a NAME is present, match the whole word.** This is the
+> second wrong fact this work produced from substring matching.
+
+Both arrive with the command itself —
 [`APK_HISTORICAL_SWEEP.md`](APK_HISTORICAL_SWEEP.md) records
 `FLASH_EXTERNAL_LIGHTS` spanning `2.19.1–3.16.0` across the same 24 versions, and
 the sweep reproduces that span from a different query. Note the corpus jumps
-`2.10.1 → 2.19.1`, so `2.19.1` is where the flag **first appears in the corpus**,
-not necessarily where it was introduced.
+`2.10.1 → 2.19.1`, so `2.19.1` is where **both flags first appear in the
+corpus**, not necessarily where either was introduced.
 
 **No vehicle we can see carries the vehicle flag.** Not this 2022 R1T
 (55 features, `tests/fixtures/supported_features_observed.json`), and none of the
