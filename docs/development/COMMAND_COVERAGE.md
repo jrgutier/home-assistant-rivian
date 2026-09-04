@@ -409,8 +409,8 @@ the `VehicleFeature` check (`uhc.a.J(...)`) passes. Both must hold.
 a constant named `is7.LOCATION_MICRO_APP_HONK_FLASH_NOT_AVAILABLE` — the app
 ships a dedicated not-available arm for exactly this gate.
 
-**The two flags have very different histories** (swept across all 54 corpus
-versions, 2026-09-03):
+**Both flags appear at the same version** (swept across all 54 corpus versions
+with word-boundary matching, 2026-09-03):
 
 | flag | kind | first appears | span |
 |---|---|---|---|
