@@ -289,3 +289,66 @@ class TestDecoders:
             "navLegRemainingDistance": 12345.7,
             "navLegRemainingDuration": 600.0,
         }
+
+
+class TestTheS46CaptureShapes:
+    """s46 witnessed three topics whose frames could not be committed (they carry
+    place names or GPS). ha-local reported their SHAPES only; these payloads are
+    built to those shapes with invented values, so the decoders are checked
+    against what the vehicle actually sends without committing it."""
+
+    def test_favorite_geofences_entries_without_a_type(self) -> None:
+        """Four entries: two {#1, #2}, two {#2} only -- the latter are CUSTOM (0,
+        which proto3 omits)."""
+        payload = (
+            _msg(1, b"\x08\x01\x12\x04Home")
+            + _msg(1, b"\x08\x02\x12\x04Work")
+            + _msg(1, b"\x12\x05Place")
+            + _msg(1, b"\x12\x06Place2")
+        )
+        out = decode_favorite_geofences(_b64(payload))["favoriteGeofences"]
+        assert [e["type"] for e in out] == ["home", "work", "custom", "custom"]
+
+    def test_trip_progress_ignores_the_location_fix(self) -> None:
+        """#1/#2 Timestamps, #4/#5 doubles, #6 a location message with a nested
+        coordinate pair -- which must not leak into the output."""
+        import struct
+
+        fix = _msg(
+            1, b"\x09" + struct.pack("<d", 1.0) + b"\x11" + struct.pack("<d", 2.0)
+        )
+        fix += b"\x15" + struct.pack("<f", 3.0) + b"\x1d" + struct.pack("<f", 4.0)
+        fix += b"\x28\x01"
+        payload = (
+            _msg(1, _ts(100))
+            + _msg(2, _ts(200))
+            + b"\x21"
+            + struct.pack("<d", 10.0)
+            + b"\x29"
+            + struct.pack("<d", 20.0)
+            + _msg(6, fix)
+        )
+        assert decode_trip_progress(_b64(payload)) == {
+            "navLegEta": 100,
+            "navTripEta": 200,
+            "navLegRemainingDistance": 10.0,
+            "navLegRemainingDuration": 20.0,
+        }
+
+    def test_ota_config_empty_payload_is_no_schedule(self) -> None:
+        """s46: the vehicle sent an empty ota_config -- nothing scheduled."""
+        assert decode_ota_config("") == {"otaInstallSchedules": []}
+
+
+class TestTripTargetCapture:
+    def test_the_sentinel_is_not_rendered_as_minutes(self) -> None:
+        """`10ffff03`: #2 = 0xFFFF, no #1. Not 65535 minutes."""
+        assert _capture("charging.session.trip_target") == {}
+
+    def test_a_real_estimate_still_decodes(self) -> None:
+        from custom_components.rivian.rivian_client.parallax import decode_trip_target
+
+        assert decode_trip_target(_b64(b"\x08\x50\x10\x2d")) == {
+            "tripTargetSoc": 80,
+            "tripTargetMinutesRemaining": 45,
+        }

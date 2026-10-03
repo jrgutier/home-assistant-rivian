@@ -1795,6 +1795,13 @@ def decode_charging_notification(payload: str) -> dict[str, Any]:
         return {}
 
 
+# 0xFFFF in trip_target #2 is the no-estimate sentinel: the only live frame
+# (`10ffff03`, s46) carries it with no #1 SOC, i.e. no trip target is set. The
+# app passes #2 through unmodified, so where it filters this is not traced;
+# suppressing it is an inference, but 65535 minutes rendered as 45 days is not.
+_TRIP_TARGET_NO_ESTIMATE: Final = 0xFFFF
+
+
 def decode_trip_target(payload: str) -> dict[str, Any]:
     """Decode charging.session.trip_target -- `d5l`.
 
@@ -1815,7 +1822,9 @@ def decode_trip_target(payload: str) -> dict[str, Any]:
         ):
             if field_num == 1 and wire_type == 0:
                 result["tripTargetSoc"] = value
-            elif field_num == 2 and wire_type == 0:
+            elif (
+                field_num == 2 and wire_type == 0 and value != _TRIP_TARGET_NO_ESTIMATE
+            ):
                 result["tripTargetMinutesRemaining"] = value
         return result
     except Exception:

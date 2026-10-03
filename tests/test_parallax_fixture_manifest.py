@@ -89,13 +89,13 @@ class TestPublishedCountsAreRecomputed:
     """Numbers that appear in docs are asserted here or they are unchecked."""
 
     def test_fixture_and_decoder_totals(self, manifest: dict) -> None:
-        """42 captured topics; 37 decoders after s34, 42 after s44, 51 after s45.
+        """43 captured topics (42 before s46); 37 decoders after s34, 42 after s44, 51 after s45.
 
         40 until the 2026-09-02 active re-run, which was the first capture to
         run under the additive `--write`. It added two frames and rewrote none,
         which is the whole point of `TestCaptureRerunIsAdditive`.
         """
-        assert len(manifest) == 42
+        assert len(manifest) == 43  # +1 s46: charging.session.trip_target
         assert len(RVM_DECODERS) == 53
 
     def test_the_frame_without_decoder_count(self, manifest: dict) -> None:
@@ -121,7 +121,8 @@ class TestPublishedCountsAreRecomputed:
         charging.session.trip_target, decoded from the APK with no capture: six.
         """
         # s45's name-matched decoders added seven more with no capture: 13.
-        assert len(set(RVM_DECODERS) - set(manifest)) == 13
+        # s46 captured charging.session.trip_target: 12.
+        assert len(set(RVM_DECODERS) - set(manifest)) == 12
 
 
 class TestFixturesCarryNoPersonalData:
@@ -367,6 +368,11 @@ class TestDecodersProduceSomethingFromTheirOwnFrame:
 
     # topic -> why it yields nothing, measured from the committed frame
     KNOWN_EMPTY = {
+        "charging.session.trip_target": (
+            "correctly empty. s46's frame `10ffff03` is #2 = 0xFFFF with no #1 "
+            "SOC -- no trip target set. 0xFFFF is suppressed as the no-estimate "
+            "sentinel rather than rendered as 65535 minutes."
+        ),
         "ota.ota_state.vehicle_ota_state": (
             "correctly empty. The app's `ugm` (name-match) is #1 id, #2 "
             "install_time_epoch; the frame carries only #1 = 'VehicleOTAState'. "

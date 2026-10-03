@@ -1789,6 +1789,9 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         # Same topic and owner decision as trip_target_soc above.
     ),
     # -- s45: name-matched topics (rivian_client/parallax.py, "s45" block).
+    # s46's capture witnessed favoriteGeofences, trip_progress and ota_config
+    # arriving (the first two withheld as carrying places, the third empty), so
+    # their entities are enabled; the topics that stayed silent are not.
     # Ungated: no VehicleFeature name is known for any of them. Enabled only
     # where a frame of the topic is committed under tests/client/fixtures/
     # parallax/; the rest are disabled until one is witnessed (owner decision).
@@ -1844,7 +1847,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_lambda=_ota_schedule_state,
         attributes_lambda=_list_attributes,
-        entity_registry_enabled_default=False,
     ),
     RivianSensorEntityDescription(
         key="ccc_passive_permission_status",
@@ -1862,7 +1864,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:map-marker-star",
         value_lambda=_list_length,
         attributes_lambda=_list_attributes,
-        entity_registry_enabled_default=False,
     ),
     RivianSensorEntityDescription(
         key="pet_snapshot_created",
@@ -1881,7 +1882,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:map-clock",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_lambda=_epoch_seconds_to_utc,
-        entity_registry_enabled_default=False,
     ),
     RivianSensorEntityDescription(
         key="nav_leg_eta",
@@ -1890,7 +1890,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:map-clock-outline",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_lambda=_epoch_seconds_to_utc,
-        entity_registry_enabled_default=False,
     ),
     RivianSensorEntityDescription(
         key="nav_leg_remaining_distance",
@@ -1901,7 +1900,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfLength.METERS,
         suggested_unit_of_measurement=UnitOfLength.MILES,
         suggested_display_precision=1,
-        entity_registry_enabled_default=False,
     ),
     RivianSensorEntityDescription(
         key="nav_leg_remaining_duration",
@@ -1911,7 +1909,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         suggested_unit_of_measurement=UnitOfTime.MINUTES,
-        entity_registry_enabled_default=False,
     ),
 )
 BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (

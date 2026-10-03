@@ -522,18 +522,24 @@ class TestTheParallaxOnlyKeysHaveEntities:
         ("coldWeatherSocBlue", "s45 name-match; same committed frame, 0"),
         ("coldRangeImpact", "s45 name-match; same committed frame, 0"),
         (
+            "favoriteGeofences",
+            "s46: arrived (withheld, carries place names); shape matches wq7",
+        ),
+        (
+            "navLegEta",
+            "s46: trip_progress arrived (withheld, carries GPS); shape matches u3l",
+        ),
+        ("navLegRemainingDistance", "s46: trip_progress arrived; shape matches u3l"),
+        ("navLegRemainingDuration", "s46: trip_progress arrived; shape matches u3l"),
+        ("navTripEta", "s46: trip_progress arrived; shape matches u3l"),
+        ("otaInstallSchedules", "s46: ota_config arrived, empty payload (no schedule)"),
+        (
             "otaOneTimeInstallTime",
             "s45 name-match; frame committed (id only, so absent so far)",
         ),
     ]
     STILL_DISABLED = [
         ("cccPassivePermissionStatus", "s45 name-match; arrival unwitnessed"),
-        ("favoriteGeofences", "s45 name-match; arrival unwitnessed"),
-        ("navLegEta", "s45 name-match; arrival unwitnessed"),
-        ("navLegRemainingDistance", "s45 name-match; arrival unwitnessed"),
-        ("navLegRemainingDuration", "s45 name-match; arrival unwitnessed"),
-        ("navTripEta", "s45 name-match; arrival unwitnessed"),
-        ("otaInstallSchedules", "s45 name-match; arrival unwitnessed"),
         ("passiveEntryBluetoothInCcc", "s45 name-match; arrival unwitnessed"),
         ("petSnapshot", "s45 name-match; arrival unwitnessed"),
         ("passiveEntryUnlockFailReason", "arrival unwitnessed"),

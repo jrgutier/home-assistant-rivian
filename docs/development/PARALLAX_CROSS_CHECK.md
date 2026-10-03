@@ -86,6 +86,22 @@ questions.
 
 Pinned in `tests/test_parallax_s45_name_match.py`.
 
+## Status (s46 capture)
+
+A 300 s additive capture of the ten unwitnessed topics (`wt/rvm-captures`):
+
+| topic | result | action |
+|---|---|---|
+| `charging.session.trip_target` | committed, `10ffff03`: #2 = 0xFFFF, no SOC | 0xFFFF suppressed as the no-estimate sentinel (inference: the app passes #2 through unmodified) |
+| `geofence…favoriteGeofences` | arrived, withheld (place names); shape matches `wq7` | entity enabled |
+| `navigation…trip_progress` | arrived, withheld (GPS); shape matches `u3l` | four entities enabled |
+| `charging.schedule.time_window` | arrived, withheld (location); shape matches `pak` | still not decoded: no units |
+| `ota.user_schedule.ota_config` | empty payload | entity enabled (reads `none`) |
+| `navigation…trip_info` | empty payload | not decoded |
+| both passive-entry topics, pet snapshot, `body.windows.states` | silent | entities stay disabled |
+
+Withheld frames are checked by shape only, with invented values (`TestTheS46CaptureShapes`).
+
 ## Bugs in ours
 
 ### Confirmed (APK bound **and** the live capture agree)
