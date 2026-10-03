@@ -126,16 +126,36 @@ def test_decode_battery_state_empty_and_corrupt() -> None:
 
 
 def test_decode_charge_session_breakdown() -> None:
-    """Test energy_edge_compute.graphs.charge_session_breakdown decoder."""
-    # field 1 = totalKwh (float: 0.6), field 9 = power (float: 5.7)
-    raw = bytes([13]) + struct.pack("<f", 0.6) + bytes([77]) + struct.pack("<f", 5.7)
+    """Test energy_edge_compute.graphs.charge_session_breakdown decoder.
+
+    Layout is the app's `nl2`: 1 total_kwh, 8 range_added_kms, 9 current_power,
+    10 current_range_per_hour. Range and rate are read, not estimated.
+    """
+    raw = (
+        bytes([13])
+        + struct.pack("<f", 0.6)  # 1: total_kwh
+        + b"\x40\x02"  # 8: range_added_kms = 2
+        + bytes([77])
+        + struct.pack("<f", 5.7)  # 9: current_power
+        + b"\x50\x1d"  # 10: current_range_per_hour = 29
+    )
     payload_b64 = base64.b64encode(raw).decode()
 
     result = decode_charge_session_breakdown(payload_b64)
-    assert result.get("totalChargedEnergy") == 0.6
-    assert result.get("power") == 5.7
-    assert result.get("rangeAddedThisSession") == round(0.6 * 3.5, 1)
-    assert result.get("kilometersChargedPerHour") == round(5.7 * 3.5, 1)
+    assert result == {
+        "totalChargedEnergy": 0.6,
+        "power": 5.7,
+        "rangeAddedThisSession": 2,
+        "kilometersChargedPerHour": 29,
+    }
+
+
+def test_decode_charge_session_breakdown_field_10_is_not_power() -> None:
+    """Field 10 alone is a range rate. It used to become `power`."""
+    raw = bytes([13]) + struct.pack("<f", 6.2) + b"\x50\x02"
+    result = decode_charge_session_breakdown(base64.b64encode(raw).decode())
+    assert result["power"] == 0.0
+    assert result["kilometersChargedPerHour"] == 2
 
 
 def test_decode_charging_graph_global() -> None:
@@ -242,13 +262,29 @@ def test_decode_charging_session_status() -> None:
 
 
 def test_decode_time_estimation() -> None:
-    """Test charging.session.time_estimation decoder."""
-    # field 1 = timeToEndOfCharge (3600 seconds) -> tag 8, varint 3600 (0x90 0x1c)
-    raw = b"\x08\x90\x1c"
-    payload_b64 = base64.b64encode(raw).decode()
+    """Test charging.session.time_estimation decoder.
 
-    result = decode_time_estimation(payload_b64)
-    assert result.get("timeToEndOfCharge") == 3600
+    The app's `o9k`: #1 validity_flag, #2 remaining_minutes.
+    """
+    # field 1 = VALID (1), field 2 = 90 minutes
+    raw = b"\x08\x01\x10\x5a"
+    result = decode_time_estimation(base64.b64encode(raw).decode())
+    assert result == {"timeToEndOfCharge": 90}
+
+
+@pytest.mark.parametrize("validity", [2, 3], ids=["invalid", "pack_discharging"])
+def test_decode_time_estimation_drops_an_invalid_estimate(validity: int) -> None:
+    """INVALID and PACK_DISCHARGING say the minutes mean nothing."""
+    raw = bytes([0x08, validity, 0x10, 0x5A])
+    assert decode_time_estimation(base64.b64encode(raw).decode()) == {}
+
+
+def test_decode_time_estimation_field_1_is_not_the_time() -> None:
+    """Field 1 is the validity flag; it used to be read as the time."""
+    raw = b"\x08\x01"  # VALID, 0 minutes (proto3 omits the zero)
+    assert decode_time_estimation(base64.b64encode(raw).decode()) == {
+        "timeToEndOfCharge": 0
+    }
 
 
 def test_decode_odometer() -> None:
@@ -337,6 +373,19 @@ def test_decode_power_state() -> None:
     assert result_sleep.get("powerState") == "sleep"
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(5, "vehicle_reset"), (6, "ota_update"), (7, "shutdown")],
+)
+def test_decode_power_state_app_modes_past_go(value: int, expected: str) -> None:
+    """The app's VEHICLE_POWER_MODE (`qqf`) has three modes past GO. They used
+    to take the "standby" fallback, so an OTA install read as standby."""
+    raw = bytes([0x08, value])
+    assert decode_power_state(base64.b64encode(raw).decode()) == {
+        "powerState": expected
+    }
+
+
 def test_decode_gnss() -> None:
     """Test dynamics.vehicle.gnss decoder."""
     # field 1 = lat (33.0834), field 2 = lon (-80.1465)
@@ -348,40 +397,60 @@ def test_decode_gnss() -> None:
     assert result["gnssLocation"]["longitude"] == -80.1465
 
 
-def test_decode_preconditioning() -> None:
-    """Test comfort.cabin.cabin_preconditioning_status decoder."""
-    # field 1 = 4 (active)
-    raw_active = b"\x08\x04"
-    res_active = decode_preconditioning(base64.b64encode(raw_active).decode())
-    assert res_active.get("cabinPreconditioningStatus") == "active"
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (1, "initiate"),
+        (2, "active"),
+        (3, "active_warning"),
+        (4, "complete_maintain"),
+        (5, "timeout_temperature_not_achieved"),
+        (6, "error_soc_low"),
+        (7, "error_system_fault"),
+        (8, "unavailable"),
+        (9, "timeout_complete"),
+    ],
+)
+def test_decode_preconditioning(value: int, expected: str) -> None:
+    """comfort.cabin.cabin_preconditioning_status, the app's `p22` enum."""
+    raw = bytes([0x08, value])
+    assert decode_preconditioning(base64.b64encode(raw).decode()) == {
+        "cabinPreconditioningStatus": expected
+    }
 
-    # field 1 = 1 (initiate)
-    raw_init = b"\x08\x01"
-    res_init = decode_preconditioning(base64.b64encode(raw_init).decode())
-    assert res_init.get("cabinPreconditioningStatus") == "initiate"
 
-    # empty payload (off)
-    res_off = decode_preconditioning("")
-    assert res_off.get("cabinPreconditioningStatus") == "off"
+def test_decode_preconditioning_empty_is_unspecified() -> None:
+    """An empty payload is proto3's encoding of 0, UNSPECIFIED -- not "off"."""
+    assert decode_preconditioning("") == {"cabinPreconditioningStatus": "undefined"}
 
 
-def test_decode_defrost() -> None:
-    """Test comfort.cabin.defrost_defog_status decoder."""
-    # field 1 = 2 (Defrost)
-    raw_defrost = b"\x08\x02"
-    res_defrost = decode_defrost(base64.b64encode(raw_defrost).decode())
-    assert res_defrost.get("defrostDefogStatus") == "Defrost"
+def test_decode_preconditioning_unknown_value_is_dropped() -> None:
+    raw = b"\x08\x63"  # 99
+    assert decode_preconditioning(base64.b64encode(raw).decode()) == {}
 
-    # field 1 = 4 (Off)
-    raw_off = b"\x08\x04"
-    res_off = decode_defrost(base64.b64encode(raw_off).decode())
-    assert res_off.get("defrostDefogStatus") == "Off"
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(1, "Defog"), (2, "Defrost"), (3, "Defog_Defrost"), (4, "Off")],
+)
+def test_decode_defrost(value: int, expected: str) -> None:
+    """comfort.cabin.defrost_defog_status, the app's `lv5` enum."""
+    raw = bytes([0x08, value])
+    assert decode_defrost(base64.b64encode(raw).decode()) == {
+        "defrostDefogStatus": expected
+    }
+
+
+def test_decode_defrost_unknown_value_is_dropped() -> None:
+    """An unmapped level is new firmware; it is not reported as "Off"."""
+    raw = b"\x08\x09"
+    assert decode_defrost(base64.b64encode(raw).decode()) == {}
 
 
 def test_decode_parallax_message_dispatch() -> None:
     """Test decode_parallax_message dispatching."""
-    # Known topic
-    raw = b"\x08\x90\x1c"
+    # Known topic: VALID, 3600 minutes
+    raw = b"\x08\x01\x10\x90\x1c"
     payload_b64 = base64.b64encode(raw).decode()
     res = decode_parallax_message("charging.session.time_estimation", payload_b64)
     assert res is not None

@@ -20,6 +20,11 @@ from custom_components.rivian.const import (
     ATTR_WALLBOX,
     DOMAIN,
 )
+from custom_components.rivian.rivian_client.parallax import (
+    DEFROST_DEFOG_MAP,
+    POWER_STATE_MAP,
+    PRECONDITIONING_STATE_MAP,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -971,8 +976,12 @@ class TestVocabularyMatchesTheVehicle:
     # and NOTHING failed, even though decode_defrost emits exactly Defrost | Off.
     # Same exposure, no guard.
     PARALLAX_ENUM_VOCABULARIES = (
-        ("cabinPreconditioningStatus", ("active", "initiate", "off")),
-        ("defrostDefogStatus", ("defrost", "off")),
+        (
+            "cabinPreconditioningStatus",
+            tuple(PRECONDITIONING_STATE_MAP.values()),
+        ),
+        ("defrostDefogStatus", tuple(DEFROST_DEFOG_MAP.values())),
+        ("powerState", tuple(POWER_STATE_MAP.values())),
     )
 
     @pytest.mark.parametrize(

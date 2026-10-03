@@ -2,12 +2,12 @@ syntax = "proto3";
 
 package rivian;
 
-// Geofence type enum
+// s43: numbers from the app's `wq7` (3.16.0). The previous values came from
+// the 3.6.0 transcription and were offset from the wire.
 enum GeofenceType {
-  GEOFENCE_TYPE_UNRECOGNIZED = 0;
+  GEOFENCE_TYPE_CUSTOM = 0;
   GEOFENCE_TYPE_HOME = 1;
   GEOFENCE_TYPE_WORK = 2;
-  GEOFENCE_TYPE_CUSTOM = 3;
 }
 
 // Single geofence definition
@@ -23,13 +23,13 @@ message FavoriteGeofences {
   repeated Geofence favorites = 1;  // List of favorite geofences
 }
 
-// GearGuard user consent status enum
+// s43: numbers from the app's `vpl` (3.16.0). The previous values came from
+// the 3.6.0 transcription and were offset from the wire.
 enum GearGuardConsentStatus {
-  GEAR_GUARD_CONSENT_UNRECOGNIZED = 0;
-  GEAR_GUARD_CONSENTED = 1;
-  GEAR_GUARD_NOT_CONSENTED = 2;
-  GEAR_GUARD_NOT_APPLICABLE = 3;
-  GEAR_GUARD_UNKNOWN = 4;
+  GEAR_GUARD_CONSENT_UNKNOWN = 0;
+  GEAR_GUARD_CONSENT_NOT_APPLICABLE = 1;
+  GEAR_GUARD_CONSENT_CONSENTED = 2;
+  GEAR_GUARD_CONSENT_NOT_CONSENTED = 3;
 }
 
 // GearGuard streaming consent
@@ -39,12 +39,12 @@ message GearGuardStreamingInVehicleConsent {
   GearGuardConsentStatus user_consent = 1;  // User consent status
 }
 
-// GearGuard daily limit status enum
+// s43: numbers from the app's `uc5` (3.16.0). The previous values came from
+// the 3.6.0 transcription and were offset from the wire.
 enum GearGuardDailyLimitStatus {
-  GEAR_GUARD_DAILY_LIMIT_UNRECOGNIZED = 0;
-  GEAR_GUARD_DAILY_LIMIT_UNDEFINED = 1;
+  GEAR_GUARD_DAILY_LIMIT_UNDEFINED = 0;
+  GEAR_GUARD_DAILY_LIMIT_HIT = 1;
   GEAR_GUARD_DAILY_LIMIT_NOT_HIT = 2;
-  GEAR_GUARD_DAILY_LIMIT_HIT = 3;
 }
 
 // GearGuard daily streaming limit
@@ -62,12 +62,12 @@ message PassiveEntrySetting {
   int32 hold_time_duration_seconds = 1;  // Duration for passive entry hold (seconds)
 }
 
-// CCC (Car Connectivity Consortium) passive permission status enum
+// s43: numbers from the app's `fre` (3.16.0). The previous values came from
+// the 3.6.0 transcription and were offset from the wire.
 enum CccPassivePermissionStatus {
-  CCC_PASSIVE_PERMISSION_STATUS_UNRECOGNIZED = 0;
-  CCC_PASSIVE_PERMISSION_STATUS_SNA = 1;         // Status Not Available
+  CCC_PASSIVE_PERMISSION_STATUS_SNA = 0;
+  CCC_PASSIVE_PERMISSION_STATUS_DISABLED = 1;
   CCC_PASSIVE_PERMISSION_STATUS_ENABLED = 2;
-  CCC_PASSIVE_PERMISSION_STATUS_DISABLED = 3;
 }
 
 // Passive entry status

@@ -31,6 +31,26 @@ bretterer's schema is mostly reverse-engineered from live payloads (`field_4 // 
 its field *numbers* are almost always right and its *meanings* are where it drifts. Ours was transcribed from
 the APK for the f5 set and is right there; the decoders that predate f5 are where ours drifts.
 
+## Status (s43)
+
+**The APK is the authority** (owner's decision, 2026-10-03). Where a decoder and the app disagree, the app wins,
+including where the APK evidence is a name-match rather than a binding (O5, O8).
+
+| | fixed in s43 |
+|---|---|
+| O1 `time_estimation` | reads #2 minutes; INVALID / PACK_DISCHARGING suppress it |
+| O2 `seat_conditioning_status` | decodes `c1i`'s repeated `levels`; a listed surface with no level is `Off` (the enum has no OFF member) |
+| O3 preconditioning | full `p22` vocabulary; empty payload is `undefined`, not `off` |
+| O4 `charge_session_breakdown` | `nl2`: #8 range added, #9 power, #10 range rate; no estimates |
+| O5, O8 Gear Guard consent, daily limit | `vpl`, `uc5` numbering; live consent now reads `consented` |
+| O6 defrost | `lv5`: Defog, Defrost, Defog_Defrost, Off |
+| O7 power state | `qqf` 5–7 added; unknown values keep the deliberate `standby` fallback (`test_connectivity.py`) |
+| O9 battery state | phantom `rangeKm` removed |
+| proto | `rivian_security.proto` and `rivian_energy.proto`: seven 3.6.0-offset enums re-based on 3.16.0 |
+| passive-entry debug | not a bug: the capture carries only #2 (`send_lock_fail_notification` = FALSE); the old "decoder reads the wrong field" diagnosis is withdrawn |
+
+Pinned in `tests/test_parallax_s43_apk_authority.py`, against both the APK JSON and the captures.
+
 ## Bugs in ours
 
 ### Confirmed (APK bound **and** the live capture agree)

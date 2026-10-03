@@ -83,7 +83,7 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         # both halves. Splitting them is what produced the two-writer conflict in
         # ChargingCoordinator. cabinHoldStatus still backs its own sensor.
         # Unknown, not off: the decoder also emits unspecified / unavailable /
-        # fault (parallax.py:648-654). Same policy as binary_sensor.py:114.
+        # fault (parallax.py:703). Same policy as binary_sensor.py:114.
         is_on=lambda coor: {"on": True, "off": False}.get(
             coor.get("climateHoldStatus")
         ),

@@ -479,7 +479,7 @@ class TestTheParallaxOnlyKeysHaveEntities:
             "cabinVentilationDurationMinutes",
             f"{_S34_FIXTURE}; optional field, absent so far",
         ),
-        ("gearGuardStreamingConsent", f"{_S34_FIXTURE}; decoded not_consented"),
+        ("gearGuardStreamingConsent", f"{_S34_FIXTURE}; decoded consented (s43)"),
         ("gearGuardStreamingDailyLimit", f"{_S34_FIXTURE}; decoded not_hit"),
         ("gearGuardStreamingLimitResetTime", f"{_S34_FIXTURE}; decoded verbatim"),
         ("parkedEnergyLast24Hours", f"{_S34_FIXTURE}; all ten measurements decoded"),
@@ -747,7 +747,7 @@ def test_some_decoders_emit_invalid_sensor_states() -> None:
     non-empty so that claim cannot be re-derived by hand.
 
     Limit: this sees dict-valued vocabularies and not ternary-emitted strings.
-    decode_locks (parallax.py:489) and decode_closures (:395) emit from a
+    decode_locks (parallax.py:527) and decode_closures (:429) emit from a
     conditional expression and are invisible to it.
     """
     from custom_components.rivian.rivian_client import parallax

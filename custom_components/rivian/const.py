@@ -286,6 +286,8 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Fault",
             "Defog",
             "Defrost",
+            # CABIN_DEFROST_DEFOG_LEVEL_DEFOG_DEFROST (3), both at once; s43
+            "Defog Defrost",
             "Off",
         ],
         value_lambda=lambda v: _to_title_case(v) if v else "Unknown",
@@ -331,11 +333,10 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Error System Fault",
             "Timeout Temperature Not Achieved",
             "Unavailable",
-            # decode_preconditioning (rivian_client/parallax.py) emits exactly
-            # "active" | "initiate" | "off". The rest of this list is the
-            # GraphQL vocabulary; "Off" was missing, so a live boot logged
-            # "provides state value 'Off', which is not in the list of known
-            # options" on every start and appended it at runtime.
+            # decode_preconditioning (rivian_client/parallax.py) now emits the
+            # app's whole CABIN_PRECONDITIONING_STATE, which is the list above
+            # (s43). "Off" is no longer emitted -- the app has no such state --
+            # but stays so existing history does not read as an unknown option.
             "Off",
         ],
         value_lambda=lambda v: _to_title_case(v) if v else "Undefined",
@@ -756,6 +757,10 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Standby",
             "Ready",
             "Go",
+            # VEHICLE_POWER_MODE 5-7 in the app (`qqf`); decoded since s43
+            "Vehicle Reset",
+            "Ota Update",
+            "Shutdown",
             "Unknown",
         ],
         # See charge_port_status above: the raw check in sensor.py makes an
@@ -1086,17 +1091,15 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     ),
     # DISABLED. The stated reason was "arrival UNWITNESSED -- an absent value
     # cannot be told apart from the decoder never firing". CORRECTED 2026-09-02:
-    # the frame arrives. security.access.passive_entry_debug is committed as a
-    # fixture, and decode_passive_entry_debug returns {} on it because the
-    # decoder reads field 1 while the frame carries field 2 (see
-    # docs/development/RVM_FIXTURES.md and TestDecodersProduceSomethingFrom
-    # TheirOwnFrame). So delivery is proven and the DECODER is wrong.
+    # the frame arrives; security.access.passive_entry_debug is a committed
+    # fixture and decode_passive_entry_debug returns {} on it.
     #
-    # Still disabled, now for an honest reason: until the decoder is fixed
-    # against a real vocabulary, this entity cannot populate from Parallax at
-    # all. The gateway accepted the name in vehicleState on 2026-08-31, which is
-    # the other way to make it work; REMAINING_APK_GAPS.md carries that as the
-    # transport gap.
+    # CORRECTED AGAIN (s43): that {} is right, not a decoder bug. The app's
+    # message (`jre`, bound, 3.16.0) has the fail reason on field 1 and
+    # send_lock_fail_notification (SNA/TRUE/FALSE) on field 2. The capture
+    # carries only field 2 = FALSE, i.e. no failure to report -- proto3 omits a
+    # fail reason of 0. So this populates only when an unlock actually fails,
+    # and stays disabled because on most installs that is never.
     RivianSensorEntityDescription(
         key="passive_entry_unlock_fail_reason",
         translation_key="passive_entry_unlock_fail_reason",

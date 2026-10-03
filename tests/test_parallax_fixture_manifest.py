@@ -345,7 +345,7 @@ class TestCaptureRerunIsAdditive:
 
 
 class TestDecodersProduceSomethingFromTheirOwnFrame:
-    """Three shipped decoders return `{}` on the real frame they claim to read.
+    """A shipped decoder must not return `{}` on its own real frame unexplained.
 
     Every decoder swallows exceptions so a bad frame cannot take the whole
     subscription down. The cost is that a decoder wired to the wrong field
@@ -356,32 +356,19 @@ class TestDecodersProduceSomethingFromTheirOwnFrame:
     This makes the failure loud. A decoder that yields nothing from a committed
     frame must be listed below with its diagnosis, or the test fails.
 
-    None of the three is fixed here. Each needs a value vocabulary this capture
-    does not supply, and `PARALLAX_DECODERS.md`'s rule stands: a decoder built on
-    a guess renders wrong values as confidently as right ones, which is worse
-    than the recorded gap it replaces.
+    s43 fixed two of the original three against the app's schema
+    (`time_estimation`: field 2 is the minutes; `seat_conditioning_status`: the
+    decoder modelled a different message). The third was never a bug.
     """
 
     # topic -> why it yields nothing, measured from the committed frame
     KNOWN_EMPTY = {
-        "charging.session.time_estimation": (
-            "decoder reads field 1; the frame carries field 2 = 64. No named "
-            "schema binds either, and 64 is not obviously seconds. Needs a "
-            "capture taken mid-charge."
-        ),
         "security.access.passive_entry_debug": (
-            "decoder reads field 1; the frame carries field 2 = 2. This is why "
-            "sensor.passive_entry_unlock_fail_reason never populates -- const.py "
-            "attributes that to arrival being UNWITNESSED, but the frame does "
-            "arrive and is read on the wrong field number."
-        ),
-        "comfort.cabin.seat_conditioning_status": (
-            "structural, not off-by-one: the decoder expects the seat position "
-            "to be the OUTER field number (SEAT_STATUS_FIELDS, 7-12). The frame "
-            "is `repeated {1: id, 2: value}` under field 1, nine entries, and "
-            "id 5 and id 7 each appear twice with different values -- so field "
-            "2 is not one level per seat, and the message is not what the "
-            "decoder models."
+            "correctly empty. The app's `jre` puts the unlock fail reason on "
+            "field 1 and send_lock_fail_notification on field 2; the frame "
+            "carries only field 2 = 2 (FALSE). No failure, so nothing for "
+            "passiveEntryUnlockFailReason. An earlier diagnosis here called the "
+            "decoder wrong; the APK says otherwise (PARALLAX_CROSS_CHECK.md)."
         ),
     }
 
