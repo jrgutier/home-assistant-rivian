@@ -1743,10 +1743,10 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         field="tripTargetSoc",
         icon="mdi:battery-arrow-up",
         native_unit_of_measurement=PERCENTAGE,
-        # DISABLED: arrival UNWITNESSED. charging.session.trip_target is bound
-        # in the app but no frame has been captured off the truck, the same
-        # line that keeps secure_immobilizer_status off.
-        entity_registry_enabled_default=False,
+        # ENABLED although arrival is UNWITNESSED -- no trip_target frame has
+        # been captured off the truck. The owner's decision (s45): the topic is
+        # bound in the app, which outranks the witnessed-arrival rule here. It
+        # reads unavailable until the vehicle sends one.
     ),
 )
 BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (

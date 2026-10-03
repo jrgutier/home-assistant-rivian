@@ -211,9 +211,10 @@ class TestEntities:
         assert any(d.field == field for d in SENSORS)
         assert field in PARALLAX_ONLY_FIELDS
 
-    def test_trip_target_is_disabled_until_a_frame_is_witnessed(self) -> None:
+    def test_trip_target_is_enabled_on_the_apk_binding(self) -> None:
+        """Owner decision (s45): APK-bound outranks witnessed arrival."""
         desc = next(d for d in SENSORS if d.field == "tripTargetSoc")
-        assert desc.entity_registry_enabled_default is False
+        assert desc.entity_registry_enabled_default is True
 
     def test_fault_chime_is_enabled(self) -> None:
         desc = next(d for d in SENSORS if d.field == "chargingFaultChime")

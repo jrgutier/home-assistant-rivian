@@ -494,9 +494,12 @@ class TestTheParallaxOnlyKeysHaveEntities:
             "chargingFaultChime",
             "s44 decoder; charging.session.notification frame committed, decoded none",
         ),
+        (
+            "tripTargetSoc",
+            "s44 decoder, APK-bound; enabled unwitnessed on owner decision (s45)",
+        ),
     ]
     STILL_DISABLED = [
-        ("tripTargetSoc", "arrival unwitnessed: s44 decoder, no frame captured"),
         ("passiveEntryUnlockFailReason", "arrival unwitnessed"),
         ("secureImmobilizerStatus", "arrival unwitnessed"),
         ("consecutiveAlarmDisabledNotification", "arrival unwitnessed"),
