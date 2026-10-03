@@ -1724,6 +1724,30 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         value_lambda=_energy_window_total,
         attributes_lambda=_energy_window_attributes,
     ),
+    # -- s44: the two new keys from the five APK-bound charging/OTA decoders.
+    # The rest of what those decoders emit (batteryLimit, chargerDerateStatus,
+    # remoteChargingAvailable, ota*) feeds entities that already exist. Both
+    # topics are Parallax-only, so these names are in PARALLAX_ONLY_FIELDS and
+    # never reach the subscription. Ungated: no VehicleFeature names either.
+    RivianSensorEntityDescription(
+        key="charging_fault_chime",
+        translation_key="charging_fault_chime",
+        field="chargingFaultChime",
+        icon="mdi:ev-plug-type2",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_lambda=_to_title_case,
+    ),
+    RivianSensorEntityDescription(
+        key="trip_target_soc",
+        translation_key="trip_target_soc",
+        field="tripTargetSoc",
+        icon="mdi:battery-arrow-up",
+        native_unit_of_measurement=PERCENTAGE,
+        # DISABLED: arrival UNWITNESSED. charging.session.trip_target is bound
+        # in the app but no frame has been captured off the truck, the same
+        # line that keeps secure_immobilizer_status off.
+        entity_registry_enabled_default=False,
+    ),
 )
 BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
     RivianBinarySensorEntityDescription(
@@ -2162,6 +2186,7 @@ PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "cabinVentilationMode",
     "cabinVentilationSunroofOpenPercent",
     "cabinVentilationWindowsOpenPercent",
+    "chargingFaultChime",
     "consecutiveAlarmDisabledNotification",
     "gearGuardStreamingConsent",
     "gearGuardStreamingDailyLimit",
@@ -2172,6 +2197,7 @@ PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "parkedEnergyLastParkSession",
     "passiveEntryUnlockFailReason",
     "secureImmobilizerStatus",
+    "tripTargetSoc",
     "vasAccessCanFaulted",
     "vasSecureElementFaulted",
     "wheelsInstalled",

@@ -50,7 +50,7 @@ FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "entity_sets.json"
 # reviewable here rather than recomputed from the same source they are checking
 # (derived via `scripts/dump_entity_sets.py`, not guessed -- run it with
 # --check to confirm these against tests/fixtures/entity_sets.json).
-NO_FLAG_COUNTS = (110, 39)
+NO_FLAG_COUNTS = (112, 39)
 
 R1T_FULL_FEATURES = (
     "WINDOWS_CMD",
@@ -63,17 +63,19 @@ R1T_FULL_FEATURES = (
 # Dump scenario labels after --write. Sensors/binaries only -- pairing does
 # not change those two platforms.
 FIXTURE_COUNTS = {
-    "R1T": (110, 39),
-    "R1S": (110, 39),
-    "R2": (110, 39),
-    "__absent__": (110, 39),
-    "unpaired": (110, 39),
+    "R1T": (112, 39),
+    "R1S": (112, 39),
+    "R2": (112, 39),
+    "__absent__": (112, 39),
+    "unpaired": (112, 39),
     # s40 added ten sensors and one binary sensor gated on AUTO_VENT / V_GGVS /
     # ENRG_MONTR_PARK, which dump_entity_sets.SOFTWARE_FEATURES now gives to all
     # three full-hardware scenarios: +10/+1 on each row below.
-    "R1T_full_hardware": (123, 46),
-    "R1S_full_hardware": (123, 42),
-    "R2_full_hardware": (121, 42),
+    # s44 added two ungated sensors (charging_fault_chime, trip_target_soc):
+    # +2 sensors on every row.
+    "R1T_full_hardware": (125, 46),
+    "R1S_full_hardware": (125, 42),
+    "R2_full_hardware": (123, 42),
 }
 
 STAY_UNGATED_KEYS = frozenset(
@@ -301,7 +303,7 @@ async def test_r1t_full_hardware_counts(
         features=R1T_FULL_FEATURES,
         option_codes=("TON-P01",),
     )
-    assert len(_vehicle_only(sensors)) == 113
+    assert len(_vehicle_only(sensors)) == 115
     assert len(_vehicle_only(binaries)) == 45
 
 
@@ -311,7 +313,7 @@ async def test_liftgate_cmd_only_counts(
     sensors, binaries = await _setup(
         hass, mock_config_entry, "R2", features=("LIFTGATE_CMD",)
     )
-    assert len(_vehicle_only(sensors)) == 111
+    assert len(_vehicle_only(sensors)) == 113
     assert len(_vehicle_only(binaries)) == 41
 
 
@@ -321,7 +323,7 @@ async def test_heated_seats_third_only_counts(
     sensors, binaries = await _setup(
         hass, mock_config_entry, "R1S", features=("HEATED_SEATS_THIRD",)
     )
-    assert len(_vehicle_only(sensors)) == 112
+    assert len(_vehicle_only(sensors)) == 114
     assert len(_vehicle_only(binaries)) == 39
 
 

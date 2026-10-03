@@ -143,6 +143,9 @@
       "charging_energy_delivered": {
         "name": "Charging Energy Delivered"
       },
+      "charging_fault_chime": {
+        "name": "Charging Fault Chime"
+      },
       "charging_is_free": {
         "name": "Charging Is Free"
       },
@@ -435,6 +438,9 @@
       },
       "trailer_status": {
         "name": "Trailer Status"
+      },
+      "trip_target_soc": {
+        "name": "Trip Target State of Charge"
       },
       "vas_access_can_faulted": {
         "name": "VAS Access CAN Faulted"

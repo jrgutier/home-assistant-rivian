@@ -1669,10 +1669,273 @@ def decode_parked_energy_distributions(payload: str) -> dict[str, Any]:
         return {}
 
 
+# --- s44: the five APK-bound topics that had no decoder ----------------------
+#
+# Each is bound in the app (`apk_parallax_schema_<ver>.json`, s42) and four have
+# a live capture. Where the gateway already names the value -- batteryLimit,
+# remoteChargingAvailable, chargerDerateStatus, the ota* family -- these emit that
+# name in the GraphQL casing, so they feed the existing entities and the gap-fill
+# rule keeps the subscription in charge wherever it delivers. Only the fault
+# chime and the trip-target SOC are new keys (PARALLAX_ONLY_FIELDS).
+
+
+def _gql_case(name: str) -> str:
+    """READY_TO_INSTALL -> Ready_To_Install, the GraphQL path's casing."""
+    return "_".join(word.capitalize() for word in name.lower().split("_"))
+
+
+def decode_soc_slider(payload: str) -> dict[str, Any]:
+    """Decode charging.session.soc_slider -- `hgh` #1 user_soc_limit (%).
+
+    Returns dict with keys:
+        - batteryLimit: int (percent)
+    """
+    if not payload:
+        return {}
+    try:
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num == 1 and wire_type == 0:
+                return {"batteryLimit": value}
+        return {}
+    except Exception:
+        _LOGGER.debug("Failed to decode soc_slider payload", exc_info=True)
+        return {}
+
+
+# `dsg` #1 start_available: 0 SNA, 1 FALSE, 2 TRUE. The gateway's
+# remoteChargingAvailable is an int, 1 = available (switch.py reads `== 1`).
+_START_AVAILABLE: Final[dict[int, int]] = {1: 0, 2: 1}
+
+
+def decode_remote_command(payload: str) -> dict[str, Any]:
+    """Decode charging.session.remote_command.
+
+    Despite the topic name this is not a command: it says whether a remote
+    charge start is available. SNA (0, or an empty payload) emits nothing.
+
+    Returns dict with keys:
+        - remoteChargingAvailable: int (0 / 1)
+    """
+    if not payload:
+        return {}
+    try:
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num == 1 and wire_type == 0 and value in _START_AVAILABLE:
+                return {"remoteChargingAvailable": _START_AVAILABLE[value]}
+        return {}
+    except Exception:
+        _LOGGER.debug("Failed to decode remote_command payload", exc_info=True)
+        return {}
+
+
+# `wwd` #2 DERATE_STATUS and #3 FAULT_CHIME (3.16.0), prefix-stripped. Derate is
+# emitted upper-case because that is the gateway's chargerDerateStatus vocabulary
+# ("NONE" in every community capture). #1 unexpected_stop_reason has no
+# attributable enum in either build, so it is not decoded.
+_DERATE_STATUS: Final[dict[int, str]] = {
+    0: "NONE",
+    1: "WARM_ADAPTER",
+    2: "DC_WARM_PLUG",
+    3: "AC_WARM_PLUG",
+    4: "EVSE_DERATING",
+    5: "NEARING_TOC",
+    6: "NEAR_TOC_LFP_BATT_CALIBRATING",
+    7: "HVAC_PRIORITIZED",
+    8: "BATTERY_HEATING",
+    9: "BATTERY_COOLING",
+    10: "CELL_THERMAL_LIM_COLD_NO_CURRENT",
+    11: "CELL_THERMAL_LIM_HOT_NO_CURRENT",
+    12: "CELL_THERMAL_LIM_COLD",
+    13: "CELL_THERMAL_LIM_HOT",
+    14: "PACK_HARDWARE_THERMAL_LIM",
+    15: "HIGH_SOC_SIGMA",
+    16: "HV_BATTERY_FAULT",
+}
+_FAULT_CHIME: Final[dict[int, str]] = {
+    0: "none",
+    1: "charging_disabled_all",
+    2: "charging_disabled_dc",
+    3: "charging_disabled_pin_temp_dc",
+    4: "charging_disabled_pin_temp_gradient_dc",
+    5: "charging_degraded_dc",
+    6: "charging_disabled_ac",
+    7: "charging_disabled_pin_temp_ac",
+    8: "charging_degraded_ac",
+    9: "charging_disabled_partial_connection",
+    10: "charging_disabled_not_parked",
+}
+
+
+def decode_charging_notification(payload: str) -> dict[str, Any]:
+    """Decode charging.session.notification.
+
+    proto3 omits a zero, so a frame without #2 or #3 is saying NONE for it --
+    the live capture (`0801`) carries only #1. An empty payload says NONE for
+    both.
+
+    Returns dict with keys:
+        - chargerDerateStatus: str ("NONE", "BATTERY_HEATING", ...)
+        - chargingFaultChime: str ("none", "charging_disabled_dc", ...)
+    """
+    try:
+        derate = chime = 0
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload or "")
+        ):
+            if field_num == 2 and wire_type == 0:
+                derate = value
+            elif field_num == 3 and wire_type == 0:
+                chime = value
+        result: dict[str, Any] = {}
+        if derate in _DERATE_STATUS:
+            result["chargerDerateStatus"] = _DERATE_STATUS[derate]
+        if chime in _FAULT_CHIME:
+            result["chargingFaultChime"] = _FAULT_CHIME[chime]
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode charging notification payload", exc_info=True)
+        return {}
+
+
+def decode_trip_target(payload: str) -> dict[str, Any]:
+    """Decode charging.session.trip_target -- `d5l`.
+
+    #1 soc is the only field with a known meaning and unit. #2 time_estimate has
+    no unit in the app and #3 status no attributable enum, so neither is emitted.
+
+    Returns dict with keys:
+        - tripTargetSoc: int (percent)
+    """
+    if not payload:
+        return {}
+    try:
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num == 1 and wire_type == 0:
+                return {"tripTargetSoc": value}
+        return {}
+    except Exception:
+        _LOGGER.debug("Failed to decode trip_target payload", exc_info=True)
+        return {}
+
+
+_OTA_SOFTWARE_CATEGORY_FIRMWARE: Final = 1
+_OTA_STATUS: Final[dict[int, str]] = {
+    1: "IDLE",
+    2: "READY_TO_DOWNLOAD",
+    3: "FAULT",
+    4: "CONNECTION_LOST",
+    5: "INSTALL_COUNTDOWN",
+    6: "PREPARING",
+    7: "DOWNLOADING",
+    8: "READY_TO_INSTALL",
+    9: "SCHEDULED_TO_INSTALL",
+    10: "AWAITING_INSTALL",
+    11: "INSTALLING",
+    12: "INSTALL_SUCCESS",
+    13: "DOWNLOAD_FAILED",
+    14: "INSTALL_FAILED",
+}
+_OTA_CURRENT_STATUS: Final[dict[int, str]] = {
+    1: "INSTALL_SUCCESS",
+    2: "INSTALL_FAILED",
+    3: "INSTALL_UNABLE_TO_START",
+}
+
+
+def _ota_version(data: bytes, prefix: str) -> dict[str, Any]:
+    """The app's software version message: 1 version, 3 year, 4 week,
+    5 number, 6 git_hash (2 software_version_id has no gateway field)."""
+    names = {1: "", 3: "Year", 4: "Week", 5: "Number", 6: "GitHash"}
+    out: dict[str, Any] = {}
+    for num, wt, val in _decode_protobuf_fields(data):
+        if num not in names:
+            continue
+        if num in (1, 6) and wt == 2:
+            out[prefix + names[num]] = val.decode("utf-8", "replace")
+        elif num in (3, 4, 5) and wt == 0:
+            out[prefix + names[num]] = val
+    return out
+
+
+def _ota_progress(data: bytes) -> dict[str, Any]:
+    """`ota_progress`: 1 ota_status, 2 ota_current_status, 3 download and
+    4 install progress, each with progress_percent on #2 (a oneof member, so
+    serialised even at 0)."""
+    out: dict[str, Any] = {}
+    for num, wt, val in _decode_protobuf_fields(data):
+        if num == 1 and wt == 0 and val in _OTA_STATUS:
+            out["otaStatus"] = _gql_case(_OTA_STATUS[val])
+        elif num == 2 and wt == 0 and val in _OTA_CURRENT_STATUS:
+            out["otaCurrentStatus"] = _gql_case(_OTA_CURRENT_STATUS[val])
+        elif num in (3, 4) and wt == 2:
+            key = "otaDownloadProgress" if num == 3 else "otaInstallProgress"
+            for p_num, p_wt, p_val in _decode_protobuf_fields(val):
+                if p_num == 2 and p_wt == 0:
+                    out[key] = p_val
+    return out
+
+
+def decode_ota_deployment_state(payload: str) -> dict[str, Any]:
+    """Decode ota.deployment.state -- `r1e` (bound, 3.16.0).
+
+    Repeated #1 `softwares`, one per category; only FIRMWARE feeds the ota*
+    fields (HD maps and vehicle config have none). Within it: #2 the installed
+    version, #4 `available_ota` with its own #2 version and #5 progress.
+
+    Values use the gateway's casing (`Ready_To_Install`), which update.py
+    compares against. Fields the app has no unit or vocabulary for -- install
+    time, duration, OTA type, install-ready -- are not emitted.
+
+    Returns dict with keys, each only when sent:
+        - otaCurrentVersion, otaCurrentVersionYear/Week/Number/GitHash
+        - otaAvailableVersion, otaAvailableVersionYear/Week/Number/GitHash
+        - otaStatus, otaCurrentStatus, otaDownloadProgress, otaInstallProgress
+    """
+    if not payload:
+        return {}
+    try:
+        for field_num, wire_type, value in _decode_protobuf_fields(
+            base64.b64decode(payload)
+        ):
+            if field_num != 1 or wire_type != 2:
+                continue
+            sub = _decode_protobuf_fields(value)
+            category = next((v for n, w, v in sub if n == 1 and w == 0), 0)
+            if category != _OTA_SOFTWARE_CATEGORY_FIRMWARE:
+                continue
+            result: dict[str, Any] = {}
+            for num, wt, val in sub:
+                if num == 2 and wt == 2:
+                    result |= _ota_version(val, "otaCurrentVersion")
+                elif num == 4 and wt == 2:
+                    for a_num, a_wt, a_val in _decode_protobuf_fields(val):
+                        if a_num == 2 and a_wt == 2:
+                            result |= _ota_version(a_val, "otaAvailableVersion")
+                        elif a_num == 5 and a_wt == 2:
+                            result |= _ota_progress(a_val)
+            return result
+        return {}
+    except Exception:
+        _LOGGER.debug("Failed to decode ota.deployment.state payload", exc_info=True)
+        return {}
+
+
 RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "body.closures.states": decode_closures,
     "body.locks.states": decode_locks,
     "charging.session.status": decode_charging_session_status,
+    # s44: APK-bound, previously undecoded
+    "charging.session.notification": decode_charging_notification,
+    "charging.session.remote_command": decode_remote_command,
+    "charging.session.soc_slider": decode_soc_slider,
+    "charging.session.trip_target": decode_trip_target,
+    "ota.deployment.state": decode_ota_deployment_state,
     "charging.session.time_estimation": decode_time_estimation,
     "comfort.cabin.cabin_preconditioning_status": decode_preconditioning,
     "comfort.cabin.cabin_temperatures": decode_cabin_temperatures,

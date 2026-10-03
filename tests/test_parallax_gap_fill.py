@@ -339,6 +339,7 @@ PARALLAX_ONLY_KEYS = (
     "cabinVentilationMode",
     "cabinVentilationSunroofOpenPercent",
     "cabinVentilationWindowsOpenPercent",
+    "chargingFaultChime",
     "consecutiveAlarmDisabledNotification",
     "gearGuardStreamingConsent",
     "gearGuardStreamingDailyLimit",
@@ -349,6 +350,7 @@ PARALLAX_ONLY_KEYS = (
     "parkedEnergyLastParkSession",
     "passiveEntryUnlockFailReason",
     "secureImmobilizerStatus",
+    "tripTargetSoc",
     "vasAccessCanFaulted",
     "vasSecureElementFaulted",
     "wheelsInstalled",
@@ -488,8 +490,13 @@ class TestTheParallaxOnlyKeysHaveEntities:
             "parkedEnergyLastParkSession",
             f"{_S34_FIXTURE}; nine measurements, outletsKwh not sent",
         ),
+        (
+            "chargingFaultChime",
+            "s44 decoder; charging.session.notification frame committed, decoded none",
+        ),
     ]
     STILL_DISABLED = [
+        ("tripTargetSoc", "arrival unwitnessed: s44 decoder, no frame captured"),
         ("passiveEntryUnlockFailReason", "arrival unwitnessed"),
         ("secureImmobilizerStatus", "arrival unwitnessed"),
         ("consecutiveAlarmDisabledNotification", "arrival unwitnessed"),

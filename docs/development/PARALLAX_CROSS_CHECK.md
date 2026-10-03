@@ -51,6 +51,23 @@ including where the APK evidence is a name-match rather than a binding (O5, O8).
 
 Pinned in `tests/test_parallax_s43_apk_authority.py`, against both the APK JSON and the captures.
 
+## Status (s44)
+
+The five APK-bound topics in the first table of "What bretterer has that we lack" are decoded, from the APK schema
+rather than bretterer's (`tests/test_parallax_s44_decoders.py`):
+
+| topic | emits | entity |
+|---|---|---|
+| `charging.session.soc_slider` | `batteryLimit` | existing `battery_limit` |
+| `charging.session.remote_command` | `remoteChargingAvailable` (0/1 from START_AVAILABILITY) | existing; gates the charging switch |
+| `charging.session.notification` | `chargerDerateStatus` (gateway casing), `chargingFaultChime` | existing `charger_derate_status`; **new** `charging_fault_chime` |
+| `charging.session.trip_target` | `tripTargetSoc` | **new** `trip_target_soc`, disabled by default (no capture) |
+| `ota.deployment.state` | `otaCurrentVersion*`, `otaAvailableVersion*`, `otaStatus`, `otaCurrentStatus`, `otaDownloadProgress`, `otaInstallProgress` (firmware category only, gateway casing) | existing OTA sensors and update entity |
+
+Where the gateway names the value, the subscription still wins (gap-fill rule); Parallax only fills gaps. Not
+decoded, because the app gives no unit or vocabulary: notification #1 stop reason, trip-target #2 time and #3
+status, OTA install time / duration / type / install-ready.
+
 ## Bugs in ours
 
 ### Confirmed (APK bound **and** the live capture agree)

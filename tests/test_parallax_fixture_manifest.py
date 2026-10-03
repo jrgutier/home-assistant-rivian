@@ -89,35 +89,37 @@ class TestPublishedCountsAreRecomputed:
     """Numbers that appear in docs are asserted here or they are unchecked."""
 
     def test_fixture_and_decoder_totals(self, manifest: dict) -> None:
-        """42 captured topics; 37 decoders after s34.
+        """42 captured topics; 37 decoders after s34, 42 after s44.
 
         40 until the 2026-09-02 active re-run, which was the first capture to
         run under the additive `--write`. It added two frames and rewrote none,
         which is the whole point of `TestCaptureRerunIsAdditive`.
         """
         assert len(manifest) == 42
-        assert len(RVM_DECODERS) == 37
+        assert len(RVM_DECODERS) == 42
 
     def test_the_frame_without_decoder_count(self, manifest: dict) -> None:
         """The number published wrong five times.
 
         Derived from the manifest's topics, so a rename cannot move it and a
         filename transform cannot inflate it. It legitimately MOVES when a
-        decoder ships -- 14 before s34's four, 10 after -- which is the point:
-        the count tracks reality instead of a doc someone forgot to edit.
+        decoder ships -- 14 before s34's four, 10 after, 6 after s44 decoded four
+        captured topics -- which is the point: the count tracks reality instead
+        of a doc someone forgot to edit.
         """
         undecoded = {topic for topic in manifest if topic not in RVM_DECODERS}
 
-        assert len(undecoded) == 10
+        assert len(undecoded) == 6
 
-    def test_five_decoders_have_no_fixture(self, manifest: dict) -> None:
+    def test_decoders_without_a_fixture(self, manifest: dict) -> None:
         """The asymmetry the earlier arithmetic hid.
 
         `51 publishing - 33 decoded` assumed every decoded topic published. Seven
         did not, which is why subtraction gave 18 where counting gives 15. The
-        2026-09-02 re-run captured two of those seven, leaving five.
+        2026-09-02 re-run captured two of those seven, leaving five. s44 added
+        charging.session.trip_target, decoded from the APK with no capture: six.
         """
-        assert len(set(RVM_DECODERS) - set(manifest)) == 5
+        assert len(set(RVM_DECODERS) - set(manifest)) == 6
 
 
 class TestFixturesCarryNoPersonalData:
