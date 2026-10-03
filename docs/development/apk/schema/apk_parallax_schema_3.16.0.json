@@ -1,0 +1,1638 @@
+{
+ "body.closures.states": {
+  "class": "gu3",
+  "dispatch_site": "defpackage/koa.java:462",
+  "binding": "direct",
+  "fields": {
+   "states": {
+    "number": 1,
+    "java_type": "yma",
+    "wire_kind": "message",
+    "repeated": true,
+    "message_class": "ws3",
+    "message": {
+     "instance": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "ts3",
+      "enum": {
+       "CLOSURE_INSTANCE_UNSPECIFIED": 0,
+       "CLOSURE_INSTANCE_DOOR_ROW_1_LEFT": 1,
+       "CLOSURE_INSTANCE_DOOR_ROW_1_RIGHT": 2,
+       "CLOSURE_INSTANCE_DOOR_ROW_2_LEFT": 3,
+       "CLOSURE_INSTANCE_DOOR_ROW_2_RIGHT": 4,
+       "CLOSURE_INSTANCE_FRUNK": 5,
+       "CLOSURE_INSTANCE_TAILGATE": 6,
+       "CLOSURE_INSTANCE_LIFTGATE": 7,
+       "CLOSURE_INSTANCE_SIDE_BIN_LEFT": 8,
+       "CLOSURE_INSTANCE_SIDE_BIN_RIGHT": 9,
+       "CLOSURE_INSTANCE_CHARGE_PORT": 10,
+       "CLOSURE_INSTANCE_TONNEAU": 11,
+       "CLOSURE_INSTANCE_WINDOW_FRONT_LEFT": 12,
+       "CLOSURE_INSTANCE_WINDOW_FRONT_RIGHT": 13,
+       "CLOSURE_INSTANCE_WINDOW_BACK_LEFT": 14,
+       "CLOSURE_INSTANCE_WINDOW_BACK_RIGHT": 15,
+       "CLOSURE_INSTANCE_WINDOW_REAR": 16,
+       "CLOSURE_INSTANCE_GROUP_WINDOWS": 10000
+      }
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "iu3",
+      "enum": {
+       "CLOSURE_STATUS_UNSPECIFIED": 0,
+       "CLOSURE_STATUS_OPEN": 1,
+       "CLOSURE_STATUS_CLOSE": 2,
+       "CLOSURE_STATUS_AJAR": 3,
+       "CLOSURE_STATUS_OPENING": 4,
+       "CLOSURE_STATUS_CLOSING": 5
+      }
+     },
+     "open_position_percent": {
+      "number": 3,
+      "java_type": "int",
+      "wire_kind": "int32"
+     },
+     "fault": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "es3",
+      "enum": {
+       "CLOSURE_FAULT_UNSPECIFIED": 0,
+       "CLOSURE_FAULT_NO_FAULT": 1,
+       "CLOSURE_FAULT_GENERAL": 2,
+       "CLOSURE_FAULT_NO_POWERED_OPERATION": 3,
+       "CLOSURE_FAULT_OBSTRUCTED": 4
+      }
+     },
+     "windows_next_action": {
+      "number": 5,
+      "java_type": null,
+      "wire_kind": "enum",
+      "oneof": "nextAction",
+      "enum_class": null,
+      "enum": null
+     },
+     "frunk_next_action": {
+      "number": 6,
+      "java_type": null,
+      "wire_kind": "enum",
+      "oneof": "nextAction",
+      "enum_class": null,
+      "enum": null
+     },
+     "liftgate_next_action": {
+      "number": 7,
+      "java_type": null,
+      "wire_kind": "enum",
+      "oneof": "nextAction",
+      "enum_class": null,
+      "enum": null
+     },
+     "side_bin_next_action": {
+      "number": 8,
+      "java_type": null,
+      "wire_kind": "enum",
+      "oneof": "nextAction",
+      "enum_class": null,
+      "enum": null
+     },
+     "tailgate_next_action": {
+      "number": 9,
+      "java_type": null,
+      "wire_kind": "enum",
+      "oneof": "nextAction",
+      "enum_class": null,
+      "enum": null
+     },
+     "charge_port_door_next_action": {
+      "number": 10,
+      "java_type": null,
+      "wire_kind": "enum",
+      "oneof": "nextAction",
+      "enum_class": null,
+      "enum": null
+     },
+     "tonneau_next_action": {
+      "number": 11,
+      "java_type": null,
+      "wire_kind": "enum",
+      "oneof": "nextAction",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   }
+  }
+ },
+ "body.trailer.state": {
+  "class": "bqk",
+  "dispatch_site": "defpackage/f6i.java:1432",
+  "binding": "direct",
+  "fields": {
+   "trailer_presence_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "zpk",
+    "enum": {
+     "TRAILER_PRESENCE_STATUS_UNSPECIFIED": 0,
+     "TRAILER_PRESENCE_STATUS_NOT_PRESENT": 1,
+     "TRAILER_PRESENCE_STATUS_PRESENT": 2,
+     "TRAILER_PRESENCE_STATUS_PRESENT_WITH_BRAKES": 3,
+     "TRAILER_PRESENCE_STATUS_INVALID": 4
+    }
+   },
+   "trailer_status": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "aqk",
+    "enum": {
+     "TRAILER_STATUS_UNSPECIFIED": 0,
+     "TRAILER_STATUS_NOT_PRESENT": 1,
+     "TRAILER_STATUS_ACCESSORY": 2,
+     "TRAILER_STATUS_TRAILER1": 3,
+     "TRAILER_STATUS_TRAILER2": 4,
+     "TRAILER_STATUS_TRAILER3": 5
+    }
+   }
+  }
+ },
+ "charging.session.notification": {
+  "class": "wwd",
+  "dispatch_site": "defpackage/c97.java:284",
+  "binding": "direct",
+  "fields": {
+   "unexpected_stop_reason": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   },
+   "derate_status": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "uwd",
+    "enum": {
+     "DERATE_STATUS_NONE": 0,
+     "DERATE_STATUS_WARM_ADAPTER": 1,
+     "DERATE_STATUS_DC_WARM_PLUG": 2,
+     "DERATE_STATUS_AC_WARM_PLUG": 3,
+     "DERATE_STATUS_EVSE_DERATING": 4,
+     "DERATE_STATUS_NEARING_TOC": 5,
+     "DERATE_STATUS_NEAR_TOC_LFP_BATT_CALIBRATING": 6,
+     "DERATE_STATUS_HVAC_PRIORITIZED": 7,
+     "DERATE_STATUS_BATTERY_HEATING": 8,
+     "DERATE_STATUS_BATTERY_COOLING": 9,
+     "DERATE_STATUS_CELL_THERMAL_LIM_COLD_NO_CURRENT": 10,
+     "DERATE_STATUS_CELL_THERMAL_LIM_HOT_NO_CURRENT": 11,
+     "DERATE_STATUS_CELL_THERMAL_LIM_COLD": 12,
+     "DERATE_STATUS_CELL_THERMAL_LIM_HOT": 13,
+     "DERATE_STATUS_PACK_HARDWARE_THERMAL_LIM": 14,
+     "DERATE_STATUS_HIGH_SOC_SIGMA": 15,
+     "DERATE_STATUS_HV_BATTERY_FAULT": 16
+    }
+   },
+   "fault_chime": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "vwd",
+    "enum": {
+     "FAULT_CHIME_NONE": 0,
+     "FAULT_CHIME_CHARGING_DISABLED_ALL": 1,
+     "FAULT_CHIME_CHARGING_DISABLED_DC": 2,
+     "FAULT_CHIME_CHARGING_DISABLED_PIN_TEMP_DC": 3,
+     "FAULT_CHIME_CHARGING_DISABLED_PIN_TEMP_GRADIENT_DC": 4,
+     "FAULT_CHIME_CHARGING_DEGRADED_DC": 5,
+     "FAULT_CHIME_CHARGING_DISABLED_AC": 6,
+     "FAULT_CHIME_CHARGING_DISABLED_PIN_TEMP_AC": 7,
+     "FAULT_CHIME_CHARGING_DEGRADED_AC": 8,
+     "FAULT_CHIME_CHARGING_DISABLED_PARTIAL_CONNECTION": 9,
+     "FAULT_CHIME_CHARGING_DISABLED_NOT_PARKED": 10
+    }
+   }
+  }
+ },
+ "charging.session.remote_command": {
+  "class": "dsg",
+  "dispatch_site": "defpackage/c97.java:353",
+  "binding": "direct",
+  "fields": {
+   "start_available": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "csg",
+    "enum": {
+     "START_AVAILABILITY_SNA": 0,
+     "START_AVAILABILITY_FALSE": 1,
+     "START_AVAILABILITY_TRUE": 2
+    }
+   }
+  }
+ },
+ "charging.session.soc_slider": {
+  "class": "hgh",
+  "dispatch_site": "defpackage/c97.java:395",
+  "binding": "direct",
+  "fields": {
+   "user_soc_limit": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ "charging.session.status": {
+  "class": "vej",
+  "dispatch_site": "defpackage/c97.java:422",
+  "binding": "direct",
+  "fields": {
+   "plug_connection_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "tej",
+    "enum": {
+     "PLUG_CONNECTION_STATUS_INIT": 0,
+     "PLUG_CONNECTION_STATUS_NOT_CONNECTED": 1,
+     "PLUG_CONNECTION_STATUS_CONNECTED": 2,
+     "PLUG_CONNECTION_STATUS_ERROR": 3,
+     "PLUG_CONNECTION_STATUS_V2L_CONNECTED": 4
+    }
+   },
+   "display_status": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "sej",
+    "enum": {
+     "DISPLAY_STATUS_SNA": 0,
+     "DISPLAY_STATUS_CHARGING_READY": 1,
+     "DISPLAY_STATUS_CHARGING_CONNECTING": 2,
+     "DISPLAY_STATUS_CHARGING_ACTIVE": 3,
+     "DISPLAY_STATUS_CHARGING_COMPLETE": 4,
+     "DISPLAY_STATUS_CHARGING_SCHEDULED": 5,
+     "DISPLAY_STATUS_CHARGING_VEHICLE_ERROR": 6,
+     "DISPLAY_STATUS_CHARGING_STATION_ERROR": 7,
+     "DISPLAY_STATUS_CHARGING_USER_STOPPED": 8,
+     "DISPLAY_STATUS_CHARGING_STATION_STOPPED": 9,
+     "DISPLAY_STATUS_CHARGING_PAYMENT_ERROR": 10,
+     "DISPLAY_STATUS_CHARGING_CERT_ERROR": 11,
+     "DISPLAY_STATUS_CHARGING_TLS_ERROR": 12,
+     "DISPLAY_STATUS_CHARGING_ERROR_AC_ADAPTER_USED_ON_DC": 13,
+     "DISPLAY_STATUS_CHARGING_ERROR_DC_ADAPTER_USED_ON_AC": 14,
+     "DISPLAY_STATUS_CHARGING_ERROR_INCOMPATIBLE_CHARGER": 15,
+     "DISPLAY_STATUS_CHARGING_SD_COMPENSATION": 16,
+     "DISPLAY_STATUS_WAITING_ON_CHARGER": 17,
+     "DISPLAY_STATUS_CHARGER_NOT_READY_OR_INCOMPATIBLE": 18,
+     "DISPLAY_STATUS_CHARGING_VEHICLE_STOPPED": 19,
+     "DISPLAY_STATUS_CHARGING_PAYMENT_ERROR_START_RIVIAN_APP": 20,
+     "DISPLAY_STATUS_CHARGING_TLS_ERROR_UNKNOWN_CHARGER": 21,
+     "DISPLAY_STATUS_CHARGING_TLS_ERROR_UNEXPECTED_FAIL": 22,
+     "DISPLAY_STATUS_CHARGING_TLS_ERROR_START_RIVIAN_APP": 23,
+     "DISPLAY_STATUS_SMART_CHARGING_PAUSED": 24,
+     "DISPLAY_STATUS_SMART_CHARGING_CHARGING": 25
+    }
+   },
+   "evse_type": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   }
+  }
+ },
+ "charging.session.time_estimation": {
+  "class": "o9k",
+  "dispatch_site": "defpackage/c97.java:540",
+  "binding": "direct",
+  "fields": {
+   "validity_flag": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "n9k",
+    "enum": {
+     "VALIDITY_FLAG_NONE": 0,
+     "VALIDITY_FLAG_VALID": 1,
+     "VALIDITY_FLAG_INVALID": 2,
+     "VALIDITY_FLAG_PACK_DISCHARGING": 3
+    }
+   },
+   "remaining_minutes": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ "charging.session.trip_target": {
+  "class": "d5l",
+  "dispatch_site": "defpackage/c97.java:581",
+  "binding": "direct",
+  "fields": {
+   "soc": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "time_estimate": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "status": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   }
+  }
+ },
+ "comfort.cabin.cabin_preconditioning_status": {
+  "class": "p22",
+  "dispatch_site": "defpackage/e07.java:412",
+  "binding": "direct",
+  "fields": {
+   "state": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "n22",
+    "enum": {
+     "CABIN_PRECONDITIONING_STATE_UNSPECIFIED": 0,
+     "CABIN_PRECONDITIONING_STATE_INITIATE": 1,
+     "CABIN_PRECONDITIONING_STATE_ACTIVE": 2,
+     "CABIN_PRECONDITIONING_STATE_ACTIVE_WARNING": 3,
+     "CABIN_PRECONDITIONING_STATE_COMPLETE_MAINTAIN": 4,
+     "CABIN_PRECONDITIONING_STATE_TIMEOUT_TEMP_NOT_ACHIEVED": 5,
+     "CABIN_PRECONDITIONING_STATE_ERROR_SOC_LOW": 6,
+     "CABIN_PRECONDITIONING_STATE_ERROR_SYSTEM_FAULT": 7,
+     "CABIN_PRECONDITIONING_STATE_UNAVAILABLE": 8,
+     "CABIN_PRECONDITIONING_STATE_TIMEOUT_COMPLETE": 9
+    }
+   },
+   "type": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "o22",
+    "enum": {
+     "CABIN_PRECONDITIONING_TYPE_UNSPECIFIED": 0,
+     "CABIN_PRECONDITIONING_TYPE_USER_SELECTED": 1,
+     "CABIN_PRECONDITIONING_TYPE_SCREEN_PROTECTION": 2,
+     "CABIN_PRECONDITIONING_TYPE_SCHEDULED": 3,
+     "CABIN_PRECONDITIONING_TYPE_AUTO_CABIN_VENTILATION": 4
+    }
+   }
+  }
+ },
+ "comfort.cabin.climate_hold_status": {
+  "class": "xn3",
+  "dispatch_site": "defpackage/v9g.java:82",
+  "binding": "via_caller",
+  "caller_site": "defpackage/ms0.java:854",
+  "fields": {
+   "status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "vn3",
+    "enum": {
+     "STATUS_UNSPECIFIED": 0,
+     "STATUS_UNAVAILABLE": 1,
+     "STATUS_OFF": 2,
+     "STATUS_ON": 3,
+     "STATUS_FAULT": 4
+    }
+   },
+   "availability": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "un3",
+    "enum": {
+     "AVAILABILITY_UNSPECIFIED": 0,
+     "AVAILABILITY_AVAILABLE": 1,
+     "AVAILABILITY_CONTROLLABLE": 2,
+     "AVAILABILITY_UNAVAILABLE": 3
+    }
+   },
+   "unavailability_reason": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "wn3",
+    "enum": {
+     "UNAVAILABILITY_REASON_UNSPECIFIED": 0,
+     "UNAVAILABILITY_REASON_UNKNOWN": 1,
+     "UNAVAILABILITY_REASON_LOW_SOC": 2,
+     "UNAVAILABILITY_REASON_FAULT": 3
+    }
+   },
+   "hold_end_time": {
+    "number": 4,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   }
+  }
+ },
+ "comfort.cabin.pet_mode_status": {
+  "class": "qaf",
+  "dispatch_site": "defpackage/l17.java:611",
+  "binding": "direct",
+  "fields": {
+   "status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "oaf",
+    "enum": {
+     "PET_MODE_STATE_OFF": 0,
+     "PET_MODE_STATE_ON": 1,
+     "PET_MODE_STATE_DISABLED": 2,
+     "PET_MODE_STATE_FAULTY": 3
+    }
+   },
+   "temperature": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "paf",
+    "enum": {
+     "PET_MODE_TEMPERATURE_DEFAULT": 0,
+     "PET_MODE_TEMPERATURE_COLD": 1,
+     "PET_MODE_TEMPERATURE_HOT": 2,
+     "PET_MODE_TEMPERATURE_FAULTY": 3
+    }
+   },
+   "cabin_climate": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "naf",
+    "enum": {
+     "PET_MODE_CABIN_CLIMATE_COMFORTABLE": 0,
+     "PET_MODE_CABIN_CLIMATE_COLD": 1,
+     "PET_MODE_CABIN_CLIMATE_HOT": 2
+    }
+   }
+  }
+ },
+ "comfort.cabin.seat_conditioning_status": {
+  "class": "c1i",
+  "dispatch_site": "defpackage/cg7.java:253",
+  "binding": "direct",
+  "fields": {
+   "levels": {
+    "number": 1,
+    "java_type": "yma",
+    "wire_kind": "message",
+    "repeated": true,
+    "message_class": "b1i",
+    "message": {
+     "instance": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "w22",
+      "enum": {
+       "CABIN_SURFACE_INSTANCE_UNSPECIFIED": 0,
+       "CABIN_SURFACE_INSTANCE_STEERING_WHEEL": 1,
+       "CABIN_SURFACE_INSTANCE_REAR_GLASS": 2,
+       "CABIN_SURFACE_INSTANCE_FRONT_GLASS": 3,
+       "CABIN_SURFACE_INSTANCE_SIDEVIEW_MIRRORS": 4,
+       "CABIN_SURFACE_INSTANCE_ROW_1_LEFT_SEAT": 5,
+       "CABIN_SURFACE_INSTANCE_ROW_1_MIDDLE_SEAT": 6,
+       "CABIN_SURFACE_INSTANCE_ROW_1_RIGHT_SEAT": 7,
+       "CABIN_SURFACE_INSTANCE_ROW_2_LEFT_SEAT": 8,
+       "CABIN_SURFACE_INSTANCE_ROW_2_MIDDLE_SEAT": 9,
+       "CABIN_SURFACE_INSTANCE_ROW_2_RIGHT_SEAT": 10,
+       "CABIN_SURFACE_INSTANCE_ROW_3_LEFT_SEAT": 11,
+       "CABIN_SURFACE_INSTANCE_ROW_3_MIDDLE_SEAT": 12,
+       "CABIN_SURFACE_INSTANCE_ROW_3_RIGHT_SEAT": 13,
+       "CABIN_SURFACE_INSTANCE_WIPER_AREA": 14
+      }
+     },
+     "device": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "v22",
+      "enum": {
+       "CABIN_SURFACE_DEVICE_UNSPECIFIED": 0,
+       "CABIN_SURFACE_DEVICE_HEAT": 1,
+       "CABIN_SURFACE_DEVICE_VENT": 2
+      }
+     },
+     "level": {
+      "number": 3,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "a32",
+      "enum": {
+       "CABIN_SURFACE_LEVEL_UNSPECIFIED": 0,
+       "CABIN_SURFACE_LEVEL_LEVEL1": 1,
+       "CABIN_SURFACE_LEVEL_LEVEL2": 2,
+       "CABIN_SURFACE_LEVEL_LEVEL3": 3
+      }
+     }
+    }
+   }
+  }
+ },
+ "dynamics.vehicle.drive_mode": {
+  "class": "zr6",
+  "dispatch_site": "defpackage/l5i.java:44",
+  "binding": "direct",
+  "fields": {
+   "drive_mode": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "yr6",
+    "enum": {
+     "DRIVE_MODE_UNSPECIFIED": 0,
+     "DRIVE_MODE_INIT_MODE": 1,
+     "DRIVE_MODE_EVERYDAY": 2,
+     "DRIVE_MODE_OFF_ROAD_SNOW_ICE": 3,
+     "DRIVE_MODE_OFF_ROAD_SPORT_AUTO": 4,
+     "DRIVE_MODE_OFF_ROAD_SPORT_DRIFT": 5,
+     "DRIVE_MODE_SPORT_LAUNCH": 6,
+     "DRIVE_MODE_FAULT": 7,
+     "DRIVE_MODE_SPORT": 8,
+     "DRIVE_MODE_DISTANCE": 9,
+     "DRIVE_MODE_TOWING": 10,
+     "DRIVE_MODE_OFF_ROAD_AUTO": 11,
+     "DRIVE_MODE_OFF_ROAD_SAND": 12,
+     "DRIVE_MODE_OFF_ROAD_ROCKS": 13,
+     "DRIVE_MODE_OFF_ROAD_MUD": 14,
+     "DRIVE_MODE_WINTER": 15
+    }
+   },
+   "limited_accel_cold": {
+    "number": 8,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "limited_regen_cold": {
+    "number": 9,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   }
+  }
+ },
+ "dynamics.vehicle.gear": {
+  "class": "dt8",
+  "dispatch_site": "defpackage/l5i.java:139",
+  "binding": "direct",
+  "fields": {
+   "gear": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ct8",
+    "enum": {
+     "GEAR_UNSPECIFIED": 0,
+     "GEAR_PARK": 1,
+     "GEAR_REVERSE": 2,
+     "GEAR_NEUTRAL": 3,
+     "GEAR_DRIVE": 4
+    }
+   }
+  }
+ },
+ "dynamics.vehicle.gnss": {
+  "class": "nr9",
+  "dispatch_site": "defpackage/l5i.java:211",
+  "binding": "direct",
+  "fields": {
+   "latitude_degrees": {
+    "number": 1,
+    "java_type": "double",
+    "wire_kind": "double"
+   },
+   "longitude_degrees": {
+    "number": 2,
+    "java_type": "double",
+    "wire_kind": "double"
+   },
+   "altitude_meters": {
+    "number": 3,
+    "java_type": "double",
+    "wire_kind": "double"
+   },
+   "speed_meters_per_sec": {
+    "number": 4,
+    "java_type": "float",
+    "wire_kind": "float"
+   },
+   "bearing_degrees": {
+    "number": 5,
+    "java_type": "float",
+    "wire_kind": "float"
+   },
+   "horizontal_accuracy_meters": {
+    "number": 6,
+    "java_type": "float",
+    "wire_kind": "float"
+   },
+   "vertical_accuracy_meters": {
+    "number": 7,
+    "java_type": "float",
+    "wire_kind": "float"
+   },
+   "speed_accuracy_meters_per_second": {
+    "number": 8,
+    "java_type": "float",
+    "wire_kind": "float"
+   },
+   "bearing_accuracy_degrees": {
+    "number": 9,
+    "java_type": "float",
+    "wire_kind": "float"
+   },
+   "timestamp": {
+    "number": 10,
+    "java_type": "long",
+    "wire_kind": "int64"
+   }
+  }
+ },
+ "dynamics.vehicle.location": {
+  "class": "n3c",
+  "dispatch_site": "defpackage/l5i.java:259",
+  "binding": "direct",
+  "fields": {
+   "known_location": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "k3c",
+    "enum": {
+     "KNOWN_LOCATION_UNSPECIFIED": 0,
+     "KNOWN_LOCATION_UNKNOWN": 1,
+     "KNOWN_LOCATION_HOME": 2,
+     "KNOWN_LOCATION_WORK": 3
+    }
+   }
+  }
+ },
+ "dynamics.vehicle.odometer": {
+  "class": "d3e",
+  "dispatch_site": "defpackage/l5i.java:321",
+  "binding": "direct",
+  "fields": {
+   "odometer_km": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ "dynamics.vehicle.range": {
+  "class": "xhg",
+  "dispatch_site": "defpackage/l5i.java:353",
+  "binding": "direct",
+  "fields": {
+   "range_km": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "range_threshold": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "vhg",
+    "enum": {
+     "RANGE_THRESHOLD_UNSPECIFIED": 0,
+     "RANGE_THRESHOLD_NORMAL": 1,
+     "RANGE_THRESHOLD_LOW": 2,
+     "RANGE_THRESHOLD_RED": 3,
+     "RANGE_THRESHOLD_CRITICALLY_LOW": 4
+    }
+   },
+   "temperature_impact": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "whg",
+    "enum": {
+     "TEMPERATURE_RANGE_IMPACT_UNSPECIFIED": 0,
+     "TEMPERATURE_RANGE_IMPACT_NORMAL_RANGE": 1,
+     "TEMPERATURE_RANGE_IMPACT_COLD_MAY_IMPACT": 2,
+     "TEMPERATURE_RANGE_IMPACT_COLD_IMPACT": 3
+    }
+   }
+  }
+ },
+ "energy.high_voltage.battery_characteristics": {
+  "class": "qa1",
+  "dispatch_site": "defpackage/c97.java:32",
+  "binding": "direct",
+  "fields": {
+   "chemistry": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ma1",
+    "enum": {
+     "BATTERY_CELL_CHEMISTRY_UNSPECIFIED": 0,
+     "BATTERY_CELL_CHEMISTRY_NCA": 1,
+     "BATTERY_CELL_CHEMISTRY_LFP": 2,
+     "BATTERY_CELL_CHEMISTRY_NMC": 3
+    }
+   },
+   "cell_type": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "na1",
+    "enum": {
+     "BATTERY_CELL_TYPE_UNSPECIFIED": 0,
+     "BATTERY_CELL_TYPE_50G": 1,
+     "BATTERY_CELL_TYPE_53G": 2,
+     "BATTERY_CELL_TYPE_G124": 3,
+     "BATTERY_CELL_TYPE_LG_4695": 4
+    }
+   },
+   "module_type": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "oa1",
+    "enum": {
+     "BATTERY_MODULE_TYPE_UNSPECIFIED": 0,
+     "BATTERY_MODULE_TYPE_9M": 1,
+     "BATTERY_MODULE_TYPE_1M": 2,
+     "BATTERY_MODULE_TYPE_8M": 3,
+     "BATTERY_MODULE_TYPE_6M": 4,
+     "BATTERY_MODULE_TYPE_11M": 5,
+     "BATTERY_MODULE_TYPE_7M": 6,
+     "BATTERY_MODULE_TYPE_3M": 7,
+     "BATTERY_MODULE_TYPE_10M": 8
+    }
+   },
+   "pack_capacity": {
+    "number": 4,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "pa1",
+    "enum": {
+     "BATTERY_PACK_CAPACITY_UNSPECIFIED": 0,
+     "BATTERY_PACK_CAPACITY_135KWH": 1,
+     "BATTERY_PACK_CAPACITY_150KWH": 2,
+     "BATTERY_PACK_CAPACITY_100KWH": 3,
+     "BATTERY_PACK_CAPACITY_116KWH": 4,
+     "BATTERY_PACK_CAPACITY_108KWH": 5,
+     "BATTERY_PACK_CAPACITY_88KWH": 6
+    }
+   },
+   "user_total_kwh": {
+    "number": 5,
+    "java_type": "float",
+    "wire_kind": "float"
+   },
+   "user_max_kwh": {
+    "number": 6,
+    "java_type": "float",
+    "wire_kind": "float"
+   }
+  }
+ },
+ "energy.high_voltage.battery_state": {
+  "class": "bc1",
+  "dispatch_site": "defpackage/c97.java:199",
+  "binding": "direct",
+  "fields": {
+   "charge_state": {
+    "number": 1,
+    "java_type": "xb1",
+    "wire_kind": "message",
+    "message_class": "xb1",
+    "message": {
+     "charge_percentage": {
+      "number": 1,
+      "java_type": "double",
+      "wire_kind": "double"
+     },
+     "charge_kwh": {
+      "number": 2,
+      "java_type": "double",
+      "wire_kind": "double"
+     }
+    }
+   },
+   "temperature_state": {
+    "number": 2,
+    "java_type": "yb1",
+    "wire_kind": "message",
+    "message_class": "yb1",
+    "message": {
+     "cell_avg_temperature_celsius": {
+      "number": 1,
+      "java_type": "float",
+      "wire_kind": "float"
+     },
+     "cell_max_temperature_celsius": {
+      "number": 2,
+      "java_type": "float",
+      "wire_kind": "float"
+     },
+     "cell_min_temperature_celsius": {
+      "number": 3,
+      "java_type": "float",
+      "wire_kind": "float"
+     }
+    }
+   },
+   "thermal_event": {
+    "number": 3,
+    "java_type": "zb1",
+    "wire_kind": "message",
+    "message_class": "zb1",
+    "message": {
+     "high_voltage_battery_thermal_event": {
+      "number": 1,
+      "java_type": "boolean",
+      "wire_kind": "bool"
+     },
+     "high_voltage_battery_thermal_event_propagation": {
+      "number": 2,
+      "java_type": "boolean",
+      "wire_kind": "bool"
+     }
+    }
+   },
+   "power_output": {
+    "number": 4,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ac1",
+    "enum": {
+     "POWER_OUTPUT_STATUS_UNSPECIFIED": 0,
+     "POWER_OUTPUT_STATUS_NOMINAL": 1,
+     "POWER_OUTPUT_STATUS_COLD": 2
+    }
+   },
+   "requires_calibration": {
+    "number": 5,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   }
+  }
+ },
+ "energy.low_voltage.battery_state": {
+  "class": "qgc",
+  "dispatch_site": "defpackage/c97.java:609",
+  "binding": "direct",
+  "fields": {
+   "low_voltage_battery_health_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "pgc",
+    "enum": {
+     "LOW_VOLTAGE_BATTERY_HEALTH_STATUS_UNSPECIFIED": 0,
+     "LOW_VOLTAGE_BATTERY_HEALTH_STATUS_NORMAL": 1,
+     "LOW_VOLTAGE_BATTERY_HEALTH_STATUS_LOW": 2
+    }
+   }
+  }
+ },
+ "ota.deployment.state": {
+  "class": "r1e",
+  "dispatch_site": "defpackage/uf7.java:1661",
+  "binding": "direct",
+  "fields": {
+   "softwares": {
+    "number": 1,
+    "java_type": "yma",
+    "wire_kind": "message",
+    "repeated": true,
+    "message_class": "n4j",
+    "message": {
+     "category": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "o4j",
+      "enum": {
+       "SOFTWARE_CATEGORY_UNSPECIFIED": 0,
+       "SOFTWARE_CATEGORY_FIRMWARE": 1,
+       "SOFTWARE_CATEGORY_HDMAPS": 2,
+       "SOFTWARE_CATEGORY_VEHICLE_CONFIG": 3
+      }
+     },
+     "version": {
+      "number": 2,
+      "java_type": "t9n",
+      "wire_kind": "message",
+      "message_class": "t9n",
+      "message": {
+       "version": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "software_version_id": {
+        "number": 2,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "year": {
+        "number": 3,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       },
+       "week": {
+        "number": 4,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       },
+       "number": {
+        "number": 5,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       },
+       "git_hash": {
+        "number": 6,
+        "java_type": "String",
+        "wire_kind": "string"
+       }
+      }
+     },
+     "deployment_id": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "available_ota": {
+      "number": 4,
+      "java_type": "t01",
+      "wire_kind": "message",
+      "message_class": "t01",
+      "message": {
+       "deployment_id": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "version": {
+        "number": 2,
+        "java_type": "t9n",
+        "wire_kind": "message",
+        "message_class": "t9n",
+        "message": {
+         "version": {
+          "number": 1,
+          "java_type": "String",
+          "wire_kind": "string"
+         },
+         "software_version_id": {
+          "number": 2,
+          "java_type": "String",
+          "wire_kind": "string"
+         },
+         "year": {
+          "number": 3,
+          "java_type": "int",
+          "wire_kind": "uint32"
+         },
+         "week": {
+          "number": 4,
+          "java_type": "int",
+          "wire_kind": "uint32"
+         },
+         "number": {
+          "number": 5,
+          "java_type": "int",
+          "wire_kind": "uint32"
+         },
+         "git_hash": {
+          "number": 6,
+          "java_type": "String",
+          "wire_kind": "string"
+         }
+        }
+       },
+       "ota_type": {
+        "number": 3,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": null,
+        "enum": null
+       },
+       "ota_deployment_context": {
+        "number": 4,
+        "java_type": "i1e",
+        "wire_kind": "message",
+        "message_class": "i1e",
+        "message": {
+         "download_policy": {
+          "number": 1,
+          "java_type": "int",
+          "wire_kind": "enum",
+          "enum_class": null,
+          "enum": null
+         }
+        }
+       },
+       "ota_progress": {
+        "number": 5,
+        "java_type": "o1e",
+        "wire_kind": "message",
+        "message_class": "o1e",
+        "message": {
+         "ota_status": {
+          "number": 1,
+          "java_type": "int",
+          "wire_kind": "enum",
+          "enum_class": "s1e",
+          "enum": {
+           "OTA_STATUS_UNSPECIFIED": 0,
+           "OTA_STATUS_IDLE": 1,
+           "OTA_STATUS_READY_TO_DOWNLOAD": 2,
+           "OTA_STATUS_FAULT": 3,
+           "OTA_STATUS_CONNECTION_LOST": 4,
+           "OTA_STATUS_INSTALL_COUNTDOWN": 5,
+           "OTA_STATUS_PREPARING": 6,
+           "OTA_STATUS_DOWNLOADING": 7,
+           "OTA_STATUS_READY_TO_INSTALL": 8,
+           "OTA_STATUS_SCHEDULED_TO_INSTALL": 9,
+           "OTA_STATUS_AWAITING_INSTALL": 10,
+           "OTA_STATUS_INSTALLING": 11,
+           "OTA_STATUS_INSTALL_SUCCESS": 12,
+           "OTA_STATUS_DOWNLOAD_FAILED": 13,
+           "OTA_STATUS_INSTALL_FAILED": 14
+          }
+         },
+         "ota_current_status": {
+          "number": 2,
+          "java_type": "int",
+          "wire_kind": "enum",
+          "enum_class": "g1e",
+          "enum": {
+           "OTA_CURRENT_STATUS_UNSPECIFIED": 0,
+           "OTA_CURRENT_STATUS_INSTALL_SUCCESS": 1,
+           "OTA_CURRENT_STATUS_INSTALL_FAILED": 2,
+           "OTA_CURRENT_STATUS_INSTALL_UNABLE_TO_START": 3
+          }
+         },
+         "download_progress": {
+          "number": 3,
+          "java_type": "k1e",
+          "wire_kind": "message",
+          "message_class": "k1e",
+          "message": {
+           "started_at": {
+            "number": 1,
+            "java_type": "j",
+            "wire_kind": "message",
+            "message_class": "j",
+            "message": {
+             "seconds": {
+              "number": 1,
+              "java_type": "long",
+              "wire_kind": "int64"
+             },
+             "nanos": {
+              "number": 2,
+              "java_type": "int",
+              "wire_kind": "int32"
+             }
+            }
+           },
+           "progress_percent": {
+            "number": 2,
+            "java_type": null,
+            "wire_kind": "uint32",
+            "oneof": "progress"
+           },
+           "completion_at": {
+            "number": 4,
+            "java_type": null,
+            "wire_kind": "message",
+            "oneof": "progress",
+            "message_class": "j",
+            "message": {
+             "seconds": {
+              "number": 1,
+              "java_type": "long",
+              "wire_kind": "int64"
+             },
+             "nanos": {
+              "number": 2,
+              "java_type": "int",
+              "wire_kind": "int32"
+             }
+            }
+           },
+           "pause_reason": {
+            "number": 5,
+            "java_type": null,
+            "wire_kind": "enum",
+            "oneof": "progress",
+            "enum_class": null,
+            "enum": null
+           },
+           "failure_reason": {
+            "number": 6,
+            "java_type": null,
+            "wire_kind": "string",
+            "oneof": "progress"
+           }
+          }
+         },
+         "install_progress": {
+          "number": 4,
+          "java_type": "m1e",
+          "wire_kind": "message",
+          "message_class": "m1e",
+          "message": {
+           "started_at": {
+            "number": 1,
+            "java_type": "j",
+            "wire_kind": "message",
+            "message_class": "j",
+            "message": {
+             "seconds": {
+              "number": 1,
+              "java_type": "long",
+              "wire_kind": "int64"
+             },
+             "nanos": {
+              "number": 2,
+              "java_type": "int",
+              "wire_kind": "int32"
+             }
+            }
+           },
+           "progress_percent": {
+            "number": 2,
+            "java_type": null,
+            "wire_kind": "uint32",
+            "oneof": "progress"
+           },
+           "completion_at": {
+            "number": 3,
+            "java_type": null,
+            "wire_kind": "message",
+            "oneof": "progress",
+            "message_class": "j",
+            "message": {
+             "seconds": {
+              "number": 1,
+              "java_type": "long",
+              "wire_kind": "int64"
+             },
+             "nanos": {
+              "number": 2,
+              "java_type": "int",
+              "wire_kind": "int32"
+             }
+            }
+           }
+          }
+         },
+         "pending_reasons": {
+          "number": 5,
+          "java_type": "s6f",
+          "wire_kind": "message",
+          "message_class": "s6f",
+          "message": {
+           "active_mode": {
+            "number": 1,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "fast_charging": {
+            "number": 2,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "hv_batt_low": {
+            "number": 3,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "lv_batt": {
+            "number": 4,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "lv_temp_low": {
+            "number": 5,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "not_parked": {
+            "number": 6,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "other": {
+            "number": 7,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "transport": {
+            "number": 8,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "unplugged": {
+            "number": 9,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "camp_mode": {
+            "number": 10,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           }
+          }
+         },
+         "countdown_timer": {
+          "number": 6,
+          "java_type": "int",
+          "wire_kind": "uint32"
+         },
+         "install_ready": {
+          "number": 7,
+          "java_type": "boolean",
+          "wire_kind": "bool"
+         },
+         "status_acknowledge": {
+          "number": 8,
+          "java_type": "int",
+          "wire_kind": "enum",
+          "enum_class": null,
+          "enum": null
+         },
+         "install_duration": {
+          "number": 9,
+          "java_type": "int",
+          "wire_kind": "int32"
+         }
+        }
+       },
+       "install_time_secs": {
+        "number": 6,
+        "java_type": "long",
+        "wire_kind": "uint64"
+       },
+       "install_tod": {
+        "number": 7,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       },
+       "skip_count": {
+        "number": 8,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "skip_allowed": {
+        "number": 9,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "deployment_intent": {
+        "number": 10,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "fb6",
+        "enum": {
+         "DEPLOYMENT_INTENT_UNSPECIFIED": 0,
+         "DEPLOYMENT_INTENT_PERFORMANCE_UPGRADE": 1,
+         "DEPLOYMENT_INTENT_BUG_FIX": 2,
+         "DEPLOYMENT_INTENT_SECURITY_UPDATE": 3,
+         "DEPLOYMENT_INTENT_FEATURE_ADDITION": 4
+        }
+       },
+       "is_active": {
+        "number": 11,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "security.access.btm": {
+  "class": "em1",
+  "dispatch_site": "defpackage/dxc.java:1905",
+  "binding": "direct",
+  "fields": {
+   "ff_hardware_failure_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ez9",
+    "enum": {
+     "HARDWARE_FAILURE_DTC_STATUS_UNSPECIFIED": 0,
+     "HARDWARE_FAILURE_DTC_STATUS_SET": 1
+    }
+   },
+   "ic_hardware_failure_status": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ez9",
+    "enum": {
+     "HARDWARE_FAILURE_DTC_STATUS_UNSPECIFIED": 0,
+     "HARDWARE_FAILURE_DTC_STATUS_SET": 1
+    }
+   },
+   "lfd_hardware_failure_status": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ez9",
+    "enum": {
+     "HARDWARE_FAILURE_DTC_STATUS_UNSPECIFIED": 0,
+     "HARDWARE_FAILURE_DTC_STATUS_SET": 1
+    }
+   },
+   "rf_hardware_failure_status": {
+    "number": 4,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ez9",
+    "enum": {
+     "HARDWARE_FAILURE_DTC_STATUS_UNSPECIFIED": 0,
+     "HARDWARE_FAILURE_DTC_STATUS_SET": 1
+    }
+   },
+   "rfd_hardware_failure_status": {
+    "number": 5,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ez9",
+    "enum": {
+     "HARDWARE_FAILURE_DTC_STATUS_UNSPECIFIED": 0,
+     "HARDWARE_FAILURE_DTC_STATUS_SET": 1
+    }
+   },
+   "oc_hardware_failure_error": {
+    "number": 6,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ez9",
+    "enum": {
+     "HARDWARE_FAILURE_DTC_STATUS_UNSPECIFIED": 0,
+     "HARDWARE_FAILURE_DTC_STATUS_SET": 1
+    }
+   },
+   "ffr_hardware_failure_error": {
+    "number": 7,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   },
+   "rfr_hardware_failure_error": {
+    "number": 8,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   },
+   "ffl_hardware_failure_error": {
+    "number": 9,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   },
+   "rfl_hardware_failure_error": {
+    "number": 10,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   }
+  }
+ },
+ "security.access.immobilizer_state": {
+  "class": "fda",
+  "dispatch_site": "defpackage/e07.java:349",
+  "binding": "direct",
+  "fields": {
+   "secure_immo_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "eda",
+    "enum": {
+     "SECURE_IMMO_STATUS_NOT_ASSIGNED": 0,
+     "SECURE_IMMO_STATUS_NOT_AUTHORIZED": 1,
+     "SECURE_IMMO_STATUS_AUTHORIZED_TO_DRIVE": 2
+    }
+   }
+  }
+ },
+ "security.access.passive_entry": {
+  "class": "gre",
+  "dispatch_site": "defpackage/r8.java:96",
+  "binding": "lambda_registry",
+  "registry_site": "defpackage/ouh.java:57",
+  "fields": {
+   "cccpassivepermissionstatus": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ere",
+    "enum": {
+     "CCC_PASSIVE_PERMISSION_STATUS_UNAVAILABLE": 0,
+     "CCC_PASSIVE_PERMISSION_STATUS_DISABLED": 1,
+     "CCC_PASSIVE_PERMISSION_STATUS_ENABLED": 2
+    }
+   }
+  }
+ },
+ "security.access.passive_entry_debug": {
+  "class": "jre",
+  "dispatch_site": "defpackage/c07.java:245",
+  "binding": "direct",
+  "fields": {
+   "passive_entry_unlock_fail_reason": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "tse",
+    "enum": {
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_UNSPECIFIED": 0,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_NOT_IN_PARK": 1,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_AT_HOME_DISABLE": 2,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_PASSENGER_IN_SEAT": 3,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_DEVICE_NOT_ENABLED": 4,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_TRANSPORT_MODE": 5,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_CAR_WASH_MODE": 6,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_CAMP_MODE": 7,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_ACTIVE_OTA": 8,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_SHOW_AND_TELL_MODE": 9,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_RCVD_RSSI_PENDING": 10,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_LOCK_ONLY_AT_HOME": 11,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_CAR_COSTUME_MODE": 12,
+     "PASSIVE_ENTRY_UNLOCK_FAIL_REASON_SLEPT_IMMEDIATE": 13
+    }
+   },
+   "send_lock_fail_notification": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "g9i",
+    "enum": {
+     "SEND_LOCK_FAIL_NOTIFICATION_SNA": 0,
+     "SEND_LOCK_FAIL_NOTIFICATION_TRUE": 1,
+     "SEND_LOCK_FAIL_NOTIFICATION_FALSE": 2
+    }
+   }
+  }
+ },
+ "security.access.vas_fault": {
+  "class": "sul",
+  "dispatch_site": "defpackage/e8i.java:194",
+  "binding": "direct",
+  "fields": {
+   "secure_element_faulted": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "a2i",
+    "enum": {
+     "SECURE_ELEMENT_FAULTED_UNSPECIFIED": 0,
+     "SECURE_ELEMENT_FAULTED_NO_FAILURE": 1,
+     "SECURE_ELEMENT_FAULTED_LOST_COMMUNICATION": 2,
+     "SECURE_ELEMENT_FAULTED_APPLET_NOT_PROGRAMMED": 3,
+     "SECURE_ELEMENT_FAULTED_NOT_CONFIGURED": 4,
+     "SECURE_ELEMENT_FAULTED_ATTACK_COUNTER": 5,
+     "SECURE_ELEMENT_FAULTED_URSK_DECRYPT_FAILURE": 6
+    }
+   },
+   "access_can_faulted": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "b8",
+    "enum": {
+     "ACCESS_CAN_FAULTED_UNSPECIFIED": 0,
+     "ACCESS_CAN_FAULTED_NO_FAILURE": 1,
+     "ACCESS_CAN_FAULTED_FAILURE": 2
+    }
+   }
+  }
+ },
+ "security.alarm.state": {
+  "class": "vr",
+  "dispatch_site": "defpackage/i9g.java:142",
+  "binding": "direct",
+  "fields": {
+   "sound_alarm": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "ur",
+    "enum": {
+     "SOUND_ALARM_STATUS_UNSPECIFIED": 0,
+     "SOUND_ALARM_STATUS_FALSE": 1,
+     "SOUND_ALARM_STATUS_TRUE": 2,
+     "SOUND_ALARM_STATUS_SNA": 3
+    }
+   },
+   "consecutive_alarm_disabled_notification": {
+    "number": 2,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   }
+  }
+ },
+ "security.video_monitoring.state": {
+  "class": "ybn",
+  "dispatch_site": "defpackage/sf7.java:372",
+  "binding": "direct",
+  "fields": {
+   "video_monitoring_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "xbn",
+    "enum": {
+     "VIDEO_MONITORING_STATUS_UNSPECIFIED": 0,
+     "VIDEO_MONITORING_STATUS_DISABLED": 1,
+     "VIDEO_MONITORING_STATUS_ENABLED": 2,
+     "VIDEO_MONITORING_STATUS_ACTIVE": 3
+    }
+   },
+   "video_mode": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "wbn",
+    "enum": {
+     "VIDEO_MODE_NONE": 0,
+     "VIDEO_MODE_EVERYWHERE": 1,
+     "VIDEO_MODE_AWAY_FROM_HOME": 2
+    }
+   },
+   "tos_acceptance": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "vbn",
+    "enum": {
+     "TOS_ACCEPTANCE_UNSPECIFIED": 0,
+     "TOS_ACCEPTANCE_NOT_ACCEPTED": 1,
+     "TOS_ACCEPTANCE_ACCEPTED": 2
+    }
+   }
+  }
+ },
+ "user_passcodes.passcode_types.drive_auth": {
+  "class": "wq6",
+  "dispatch_site": "defpackage/pl7.java:186",
+  "binding": "lambda_registry",
+  "registry_site": "defpackage/ouh.java:46",
+  "fields": {
+   "driveauthsetting": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "vq6",
+    "enum": {
+     "SNA": 0,
+     "NONE": 1,
+     "MOBILE_NOTIF": 2
+    }
+   }
+  }
+ }
+}

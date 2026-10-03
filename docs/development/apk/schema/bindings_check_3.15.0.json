@@ -1,0 +1,327 @@
+{
+ "version": "3.15.0",
+ "topics": {
+  "body.wipers.fluid_level": {
+   "status": "absent",
+   "string_in": []
+  },
+  "charging.energy.state": {
+   "status": "absent",
+   "string_in": []
+  },
+  "charging.schedule.time_window": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "CHARGING_SCHEDULE_TIME_WINDOW",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "charging.session.notification": {
+   "status": "bound",
+   "class": "yfd",
+   "site": "defpackage/mz6.java:284",
+   "binding": "direct",
+   "rvm_enum": "l6e",
+   "member": "CHARGING_SESSION_NOTIFICATION",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "charging.session.power": {
+   "status": "absent",
+   "string_in": []
+  },
+  "charging.session.soc_slider": {
+   "status": "bound",
+   "class": "sug",
+   "site": "defpackage/mz6.java:395",
+   "binding": "direct",
+   "rvm_enum": "l6e",
+   "member": "CHARGING_SESSION_SOC_SLIDER",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "charging.session.trip_target": {
+   "status": "bound",
+   "class": "fgk",
+   "site": "defpackage/mz6.java:581",
+   "binding": "direct",
+   "rvm_enum": "l6e",
+   "member": "CHARGING_SESSION_TRIP_TARGET",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "comfort.user_modes.state": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "COMFORT_USER_MODES_STATE",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "departure.schedule.schedule": {
+   "status": "absent",
+   "string_in": []
+  },
+  "dynamics.brakes.fluid_level": {
+   "status": "absent",
+   "string_in": []
+  },
+  "dynamics.vehicle.efficiency": {
+   "status": "absent",
+   "string_in": []
+  },
+  "dynamics.vehicle.mass_estimate": {
+   "status": "absent",
+   "string_in": []
+  },
+  "navigation.navigation_service.trip_info": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "TRIP_INFO",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "ota.deployment.state": {
+   "status": "bound",
+   "class": "vkd",
+   "site": "defpackage/ds6.java:15640",
+   "binding": "direct",
+   "rvm_enum": "l6e",
+   "member": "OTA_DEPLOYMENT_STATE",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "ota.ota_state.vehicle_ota_state": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "OTA_STATE",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "ota.user_schedule.ota_config": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "OTA_SCHEDULE_CONFIGURATION",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "parallax.wakeup.heartbeat": {
+   "status": "absent",
+   "string_in": []
+  },
+  "security.access.passive_entry": {
+   "status": "bound",
+   "class": "w9e",
+   "site": "defpackage/t8.java:72",
+   "binding": "lambda_registry",
+   "rvm_enum": "iol",
+   "member": "PASSIVE_ENTRY_SETTING_V2",
+   "string_in": [
+    "defpackage/iol.java"
+   ]
+  },
+  "vehicle.profiles.active_user": {
+   "status": "absent",
+   "string_in": []
+  },
+  "vehicle.setting.network": {
+   "status": "absent",
+   "string_in": []
+  },
+  "body.windows.states": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "BODY_WINDOW_STATES",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "charging.session.remote_command": {
+   "status": "bound",
+   "class": "v6g",
+   "site": "defpackage/mz6.java:353",
+   "binding": "direct",
+   "rvm_enum": "l6e",
+   "member": "CHARGING_SESSION_REMOTE_COMMAND",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "comfort.cabin.cabin_ventilation_setting": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "CABIN_VENTILATION_SETTING",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "comfort.cabin.hvac_settings_status": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "COMFORT_CABIN_HVAC_SETTINGS_STATUS",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "device_table.vas_keyper.devices": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "DEVICE_TABLE_VAS_KEYPER_DEVICES",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "energy_edge_compute.graphs.cold_weather_soc": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "CHARGING_BATTERY_SOC_DATA",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "energy_edge_compute.graphs.parked_energy_distributions": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "PARKED_ENERGY_MONITOR",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "gearguard_streaming.privacy.gearguard_streaming_daily_limit": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "GEAR_GUARD_DAILY_LIMITS",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "GEAR_GUARD_CONSENTS",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "geofence.geofence_service.favoriteGeofences": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "VEHICLE_GEO_FENCES",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "navigation.navigation_service.trip_progress": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "TRIP_PROGRESS",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "secure_file_transfer.pet_snapshot.secure_file": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "PET_CAM_SNAPSHOT",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "vehicle.network.state": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "VEHICLE_NETWORK",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "vehicle_access.passive_entry.passive_entry": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "PASSIVE_ENTRY_SETTING",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  },
+  "vehicle_access.state.passive_entry": {
+   "status": "referenced_only",
+   "rvm_enum": "l6e",
+   "member": "PASSIVE_ENTRY_STATUS",
+   "string_in": [
+    "defpackage/l6e.java"
+   ]
+  }
+ },
+ "rvm_enums": {
+  "iol": {
+   "USER_PASSCODES_DRIVE_AUTH": "user_passcodes.passcode_types.drive_auth",
+   "PASSIVE_ENTRY_SETTING_V2": "security.access.passive_entry"
+  },
+  "l6e": {
+   "PARKED_ENERGY_MONITOR": "energy_edge_compute.graphs.parked_energy_distributions",
+   "CHARGING_SESSION_CHART_DATA": "energy_edge_compute.graphs.charging_graph_global",
+   "CHARGING_SESSION_LIVE_DATA": "energy_edge_compute.graphs.charge_session_breakdown",
+   "CHARGING_BATTERY_SOC_DATA": "energy_edge_compute.graphs.cold_weather_soc",
+   "VEHICLE_GEO_FENCES": "geofence.geofence_service.favoriteGeofences",
+   "OTA_SCHEDULE_CONFIGURATION": "ota.user_schedule.ota_config",
+   "OTA_STATE": "ota.ota_state.vehicle_ota_state",
+   "GEAR_GUARD_CONSENTS": "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent",
+   "GEAR_GUARD_DAILY_LIMITS": "gearguard_streaming.privacy.gearguard_streaming_daily_limit",
+   "TRIP_INFO": "navigation.navigation_service.trip_info",
+   "TRIP_PROGRESS": "navigation.navigation_service.trip_progress",
+   "CLIMATE_HOLD_SETTING": "comfort.cabin.climate_hold_setting",
+   "CABIN_VENTILATION_SETTING": "comfort.cabin.cabin_ventilation_setting",
+   "PASSIVE_ENTRY_SETTING": "vehicle_access.passive_entry.passive_entry",
+   "CHARGING_SCHEDULE_TIME_WINDOW": "charging.schedule.time_window",
+   "PASSIVE_ENTRY_STATUS": "vehicle_access.state.passive_entry",
+   "DEVICE_TABLE_VAS_KEYPER_DEVICES": "device_table.vas_keyper.devices",
+   "PET_CAM_SNAPSHOT": "secure_file_transfer.pet_snapshot.secure_file",
+   "BODY_TRAILER_STATES": "body.trailer.state",
+   "BODY_CLOSURES_STATES": "body.closures.states",
+   "BODY_WINDOW_STATES": "body.windows.states",
+   "DYNAMICS_VEHICLE_DRIVE_MODE": "dynamics.vehicle.drive_mode",
+   "DYNAMICS_VEHICLE_GEAR": "dynamics.vehicle.gear",
+   "DYNAMICS_VEHICLE_GNSS": "dynamics.vehicle.gnss",
+   "DYNAMICS_VEHICLE_KNOWN_LOCATION": "dynamics.vehicle.location",
+   "DYNAMICS_VEHICLE_ODOMETER": "dynamics.vehicle.odometer",
+   "DYNAMICS_VEHICLE_RANGE": "dynamics.vehicle.range",
+   "ENERGY_HIGH_VOLTAGE_BATTERY_STATE": "energy.high_voltage.battery_state",
+   "ENERGY_HIGH_VOLTAGE_BATTERY_CHARACTERISTICS": "energy.high_voltage.battery_characteristics",
+   "CHARGING_SESSION_STATUS": "charging.session.status",
+   "CHARGING_SESSION_TIME_ESTIMATION": "charging.session.time_estimation",
+   "CHARGING_SESSION_NOTIFICATION": "charging.session.notification",
+   "CHARGING_SESSION_SOC_SLIDER": "charging.session.soc_slider",
+   "CHARGING_SESSION_TRIP_TARGET": "charging.session.trip_target",
+   "CHARGING_SESSION_REMOTE_COMMAND": "charging.session.remote_command",
+   "ENERGY_LOW_VOLTAGE_BATTERY_STATE": "energy.low_voltage.battery_state",
+   "SECURITY_IMMOBILIZER_STATE": "security.access.immobilizer_state",
+   "SECURITY_VIDEO_MONITORING_STATE": "security.video_monitoring.state",
+   "SECURITY_BTM_DIAGNOSIS": "security.access.btm",
+   "SECURITY_PASSIVE_ENTRY_DEBUG": "security.access.passive_entry_debug",
+   "SECURITY_VAS_FAULT": "security.access.vas_fault",
+   "COMFORT_USER_MODES_STATE": "comfort.user_modes.state",
+   "COMFORT_CABIN_PET_MODE_STATUS": "comfort.cabin.pet_mode_status",
+   "COMFORT_CABIN_PRECONDITIONING_STATUS": "comfort.cabin.cabin_preconditioning_status",
+   "CLIMATE_HOLD_STATUS": "comfort.cabin.climate_hold_status",
+   "COMFORT_CABIN_DEFROST_DEFOG_STATUS": "comfort.cabin.defrost_defog_status",
+   "COMFORT_CABIN_SEAT_CONDITIONING_STATUS": "comfort.cabin.seat_conditioning_status",
+   "COMFORT_CABIN_HVAC_SETTINGS_STATUS": "comfort.cabin.hvac_settings_status",
+   "VEHICLE_POWER_STATE": "vehicle.power.state",
+   "OTA_DEPLOYMENT_STATE": "ota.deployment.state",
+   "VEHICLE_NETWORK": "vehicle.network.state",
+   "VEHICLE_WHEELS": "vehicle.wheels.vehicle_wheels",
+   "BODY_LOCKS_STATES": "body.locks.states",
+   "DYNAMICS_TIRES_STATE": "dynamics.tires.state",
+   "SECURITY_ALARM_STATE": "security.alarm.state",
+   "COMFORT_CABIN_TEMPERATURES": "comfort.cabin.cabin_temperatures"
+  }
+ }
+}

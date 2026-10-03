@@ -1,0 +1,4805 @@
+{
+ "a2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "a3m": {
+  "alarm_sound_state": [
+   1,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   2,
+   "message"
+  ]
+ },
+ "a5l": {
+  "data": [
+   1,
+   "bytes"
+  ]
+ },
+ "a8e": {
+  "last24hours": [
+   1,
+   "message"
+  ],
+  "last8hours": [
+   2,
+   "message"
+  ],
+  "lastparksession": [
+   3,
+   "message"
+  ]
+ },
+ "af9": {
+  "requestid": [
+   1,
+   "string"
+  ],
+  "events": [
+   2,
+   "message[]"
+  ],
+  "next_page_token": [
+   3,
+   "string"
+  ],
+  "total_size": [
+   4,
+   "int32"
+  ]
+ },
+ "ai3": {
+  "auto_cabin_ventilation_enabled": [
+   1,
+   "bool"
+  ]
+ },
+ "amf": {
+  "private": [
+   1,
+   "bool"
+  ],
+  "privacy_category": [
+   2,
+   "int64"
+  ]
+ },
+ "api": {
+  "device_identifier": [
+   1,
+   "string"
+  ]
+ },
+ "at9": {
+  "hash": [
+   1,
+   "enum"
+  ],
+  "tag_size": [
+   2,
+   "uint32"
+  ]
+ },
+ "atg": {
+  "route": [
+   1,
+   "enum"
+  ],
+  "state": [
+   2,
+   "enum"
+  ]
+ },
+ "ay": {
+  "package_name": [
+   1,
+   "string"
+  ],
+  "sdk_version": [
+   2,
+   "string"
+  ],
+  "version_name": [
+   3,
+   "string"
+  ]
+ },
+ "b02": {
+  "target_preconditioning_temperature_celsius": [
+   1,
+   "float"
+  ]
+ },
+ "b0b": {
+  "latitude": [
+   1,
+   "double"
+  ],
+  "longitude": [
+   2,
+   "double"
+  ]
+ },
+ "b1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "b3n": {
+  "wheelslist": [
+   1,
+   "message[]"
+  ]
+ },
+ "b4l": {
+  "mobile_info": [
+   1,
+   "message"
+  ],
+  "sensor_info": [
+   2,
+   "message"
+  ],
+  "endpoint_info": [
+   3,
+   "message"
+  ],
+  "keyfob_system_info": [
+   4,
+   "message"
+  ]
+ },
+ "b55": {
+  "daily_limit": [
+   1,
+   "enum"
+  ],
+  "next_reset_time_unix_sec": [
+   2,
+   "uint64"
+  ]
+ },
+ "b5l": {
+  "signature": [
+   1,
+   "bytes"
+  ],
+  "signing_input": [
+   2,
+   "bytes"
+  ]
+ },
+ "b6l": {
+  "type": [
+   1,
+   "enum"
+  ],
+  "data": [
+   2,
+   "bytes"
+  ]
+ },
+ "b75": {
+  "type": [
+   1,
+   "enum"
+  ],
+  "signed_payload": [
+   2,
+   "bytes"
+  ]
+ },
+ "baf": {
+  "boolean": [
+   1,
+   "bool"
+  ],
+  "float": [
+   2,
+   "float"
+  ],
+  "integer": [
+   3,
+   "int32"
+  ],
+  "long": [
+   4,
+   "int64"
+  ],
+  "string": [
+   5,
+   "string"
+  ],
+  "string_set": [
+   6,
+   "message"
+  ],
+  "double": [
+   7,
+   "double"
+  ],
+  "bytes": [
+   8,
+   "bytes"
+  ]
+ },
+ "bfm": {
+  "security_info": [
+   1,
+   "message"
+  ],
+  "payload": [
+   2,
+   "bytes"
+  ]
+ },
+ "bih": {
+  "signature": [
+   1,
+   "message"
+  ],
+  "mapped_identity": [
+   2,
+   "string"
+  ]
+ },
+ "bp": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "params": [
+   2,
+   "message"
+  ],
+  "key_value": [
+   3,
+   "bytes"
+  ]
+ },
+ "bu4": {
+  "client_time_us": [
+   1,
+   "int64"
+  ],
+  "user_time_us": [
+   2,
+   "int64"
+  ],
+  "system_time_us": [
+   3,
+   "int64"
+  ]
+ },
+ "c1m": {
+  "global_lock_status": [
+   1,
+   "message"
+  ],
+  "fl_door_lock_status": [
+   2,
+   "message"
+  ],
+  "fr_door_lock_status": [
+   3,
+   "message"
+  ],
+  "rl_door_lock_status": [
+   4,
+   "message"
+  ],
+  "rr_door_lock_status": [
+   5,
+   "message"
+  ],
+  "fl_door_ajar_status": [
+   6,
+   "message"
+  ],
+  "fr_door_ajar_status": [
+   7,
+   "message"
+  ],
+  "rl_door_ajar_status": [
+   8,
+   "message"
+  ],
+  "rr_door_ajar_status": [
+   9,
+   "message"
+  ],
+  "frunk_ajar_status": [
+   10,
+   "message"
+  ],
+  "tailgate_ajar_status": [
+   11,
+   "message"
+  ],
+  "liftgate_ajar_status": [
+   12,
+   "message"
+  ],
+  "tonneau_cover_ajar_status": [
+   13,
+   "message"
+  ],
+  "side_bin_left_ajar_status": [
+   14,
+   "message"
+  ],
+  "side_bin_right_ajar_status": [
+   15,
+   "message"
+  ],
+  "charge_port_ajar_status": [
+   16,
+   "message"
+  ],
+  "frunk_next_action_status": [
+   17,
+   "message"
+  ],
+  "tailgate_next_action_status": [
+   18,
+   "message"
+  ],
+  "liftgate_next_action_status": [
+   19,
+   "message"
+  ],
+  "side_bin_left_next_action_status": [
+   20,
+   "message"
+  ],
+  "side_bin_right_next_action_status": [
+   21,
+   "message"
+  ],
+  "windows_next_action_status": [
+   22,
+   "message"
+  ],
+  "window_front_left_ajar_status": [
+   23,
+   "message"
+  ],
+  "window_front_right_ajar_status": [
+   24,
+   "message"
+  ],
+  "window_rear_left_ajar_status": [
+   25,
+   "message"
+  ],
+  "window_rear_right_ajar_status": [
+   26,
+   "message"
+  ],
+  "gear_guard_lock_status": [
+   31,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   32,
+   "message"
+  ],
+  "window_front_left_calibrated": [
+   33,
+   "bool"
+  ],
+  "window_front_right_calibrated": [
+   34,
+   "bool"
+  ],
+  "window_rear_left_calibrated": [
+   35,
+   "bool"
+  ],
+  "window_rear_right_calibrated": [
+   36,
+   "bool"
+  ],
+  "charge_port_door_next_action_status": [
+   37,
+   "message"
+  ],
+  "drop_glass_ajar_status": [
+   38,
+   "message"
+  ]
+ },
+ "c2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "c3m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "c75": {
+  "type": [
+   1,
+   "enum"
+  ],
+  "bytes": [
+   2,
+   "bytes"
+  ]
+ },
+ "c8b": {
+  "abrplegid": [
+   1,
+   "string"
+  ],
+  "googlerouterequest": [
+   2,
+   "string"
+  ],
+  "destination": [
+   3,
+   "message"
+  ]
+ },
+ "cb1": {
+  "charge_percentage": [
+   1,
+   "double"
+  ],
+  "charge_kwh": [
+   2,
+   "double"
+  ]
+ },
+ "cih": {
+  "signature": [
+   1,
+   "message"
+  ],
+  "mapped_identity": [
+   2,
+   "string"
+  ]
+ },
+ "cm5": {
+  "current_level": [
+   1,
+   "enum"
+  ]
+ },
+ "co": {
+  "tag_size": [
+   1,
+   "uint32"
+  ]
+ },
+ "coi": {},
+ "cq": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "key_value": [
+   3,
+   "bytes"
+  ]
+ },
+ "cwa": {
+  "type_url": [
+   1,
+   "string"
+  ],
+  "status": [
+   2,
+   "enum"
+  ],
+  "key_id": [
+   3,
+   "uint32"
+  ],
+  "output_prefix_type": [
+   4,
+   "enum"
+  ]
+ },
+ "d": {
+  "seconds": [
+   1,
+   "int64"
+  ],
+  "nanos": [
+   2,
+   "int32"
+  ]
+ },
+ "d02": {
+  "seat": [
+   1,
+   "enum"
+  ],
+  "temperature_celsius": [
+   2,
+   "float"
+  ]
+ },
+ "d2m": {
+  "drive_mode": [
+   1,
+   "message"
+  ],
+  "prndl_gear_status": [
+   2,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   6,
+   "message"
+  ],
+  "vehicle_mileage": [
+   7,
+   "double"
+  ],
+  "limited_accel_cold": [
+   8,
+   "bool"
+  ],
+  "limited_regen_cold": [
+   9,
+   "bool"
+  ]
+ },
+ "d3m": {
+  "trailer_status": [
+   1,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   2,
+   "message"
+  ]
+ },
+ "d4l": {
+  "code": [
+   1,
+   "message"
+  ],
+  "keyfob_dfu_params": [
+   2,
+   "message"
+  ]
+ },
+ "d4n": {
+  "wpa_status": [
+   1,
+   "enum"
+  ],
+  "conn_status": [
+   2,
+   "enum"
+  ],
+  "ssid": [
+   3,
+   "string"
+  ],
+  "signal_quality": [
+   7,
+   "enum"
+  ],
+  "signal_strength": [
+   8,
+   "int32"
+  ],
+  "link_speed": [
+   9,
+   "uint32"
+  ],
+  "frequency": [
+   10,
+   "uint32"
+  ],
+  "bandwidth": [
+   11,
+   "uint32"
+  ],
+  "security": [
+   12,
+   "enum"
+  ],
+  "secured": [
+   13,
+   "enum"
+  ],
+  "user_enabled": [
+   14,
+   "enum"
+  ]
+ },
+ "d5l": {
+  "action": [
+   1,
+   "enum"
+  ],
+  "buttons": [
+   2,
+   "enum[]"
+  ]
+ },
+ "d6l": {
+  "msg_list_data": [
+   1,
+   "bytes"
+  ],
+  "sequence_num": [
+   2,
+   "uint32"
+  ],
+  "excludes_device_nonce": [
+   3,
+   "bool"
+  ],
+  "excludes_vehicle_nonce": [
+   4,
+   "bool"
+  ],
+  "signature": [
+   5,
+   "message"
+  ]
+ },
+ "d7l": {
+  "states": [
+   1,
+   "message[]"
+  ],
+  "action": [
+   2,
+   "enum"
+  ],
+  "all": [
+   3,
+   "bool"
+  ]
+ },
+ "db1": {
+  "cell_avg_temperature_celsius": [
+   1,
+   "float"
+  ],
+  "cell_max_temperature_celsius": [
+   2,
+   "float"
+  ],
+  "cell_min_temperature_celsius": [
+   3,
+   "float"
+  ]
+ },
+ "dee": {
+  "string_val": [
+   1,
+   "string"
+  ],
+  "int32_val": [
+   2,
+   "int32"
+  ],
+  "int64_val": [
+   3,
+   "int64"
+  ],
+  "uint32_val": [
+   4,
+   "uint32"
+  ],
+  "uint64_val": [
+   5,
+   "uint64"
+  ],
+  "bool_val": [
+   6,
+   "bool"
+  ],
+  "float_val": [
+   7,
+   "float"
+  ],
+  "double_val": [
+   8,
+   "double"
+  ],
+  "bytes_val": [
+   9,
+   "bytes"
+  ],
+  "composite": [
+   10,
+   "message"
+  ],
+  "version": [
+   11,
+   "int32"
+  ],
+  "last_update": [
+   12,
+   "message"
+  ],
+  "trace": [
+   13,
+   "message"
+  ],
+  "property_attributes": [
+   14,
+   "message"
+  ],
+  "header": [
+   15,
+   "message"
+  ],
+  "correlation_id": [
+   16,
+   "bytes"
+  ],
+  "security_info": [
+   17,
+   "message"
+  ]
+ },
+ "dlg": {
+  "uid": [
+   1,
+   "bytes"
+  ],
+  "wrapped_shared_secret": [
+   2,
+   "bytes"
+  ]
+ },
+ "ds1": {
+  "spake_w0": [
+   1,
+   "bytes"
+  ],
+  "spake_l": [
+   2,
+   "bytes"
+  ],
+  "salt": [
+   3,
+   "bytes"
+  ],
+  "uid": [
+   4,
+   "bytes"
+  ],
+  "wrapped_shared_secret": [
+   5,
+   "bytes"
+  ]
+ },
+ "dt3": {
+  "soc_perc_green": [
+   1,
+   "uint32"
+  ],
+  "soc_perc_blue": [
+   2,
+   "uint32"
+  ],
+  "cold_range_impact_km": [
+   3,
+   "uint32"
+  ]
+ },
+ "dwa": {
+  "primary_key_id": [
+   1,
+   "uint32"
+  ],
+  "key_info": [
+   2,
+   "message[]"
+  ]
+ },
+ "e1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "e1n": {
+  "command": [
+   1,
+   "message"
+  ],
+  "commandresponse": [
+   2,
+   "message"
+  ],
+  "metrics": [
+   3,
+   "message"
+  ],
+  "metadata_request": [
+   11,
+   "message"
+  ],
+  "files_request": [
+   12,
+   "message"
+  ],
+  "cancel_request": [
+   13,
+   "message"
+  ]
+ },
+ "e2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "e4l": {
+  "code": [
+   1,
+   "message"
+  ],
+  "result": [
+   2,
+   "enum"
+  ]
+ },
+ "e5l": {
+  "timeout_s": [
+   1,
+   "uint32"
+  ]
+ },
+ "e7l": {
+  "major": [
+   1,
+   "uint32"
+  ],
+  "minor": [
+   2,
+   "uint32"
+  ],
+  "patch": [
+   3,
+   "uint32"
+  ],
+  "build": [
+   4,
+   "uint32"
+  ]
+ },
+ "eb1": {
+  "high_voltage_battery_thermal_event": [
+   1,
+   "bool"
+  ],
+  "high_voltage_battery_thermal_event_propagation": [
+   2,
+   "bool"
+  ]
+ },
+ "ec2": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "key_value": [
+   2,
+   "bytes"
+  ]
+ },
+ "ee9": {
+  "request_id": [
+   1,
+   "string"
+  ],
+  "request_type": [
+   2,
+   "enum"
+  ],
+  "request_ids_to_cancel": [
+   3,
+   "string[]"
+  ]
+ },
+ "ef9": {
+  "uuid": [
+   1,
+   "string"
+  ],
+  "commandname": [
+   2,
+   "enum"
+  ],
+  "camera": [
+   3,
+   "enum"
+  ],
+  "reason": [
+   4,
+   "message"
+  ]
+ },
+ "ejm": {
+  "version": [
+   1,
+   "string"
+  ],
+  "software_version_id": [
+   2,
+   "string"
+  ],
+  "year": [
+   3,
+   "uint32"
+  ],
+  "week": [
+   4,
+   "uint32"
+  ],
+  "number": [
+   5,
+   "uint32"
+  ],
+  "git_hash": [
+   6,
+   "string"
+  ]
+ },
+ "ek9": {
+  "coordinate": [
+   1,
+   "message"
+  ],
+  "speed": [
+   2,
+   "float"
+  ],
+  "bearing": [
+   3,
+   "float"
+  ],
+  "offroad": [
+   4,
+   "bool"
+  ],
+  "time": [
+   5,
+   "int64"
+  ],
+  "altitude": [
+   6,
+   "double"
+  ],
+  "accuracy": [
+   7,
+   "double"
+  ]
+ },
+ "el1": {
+  "ff_hardware_failure_status": [
+   1,
+   "enum"
+  ],
+  "ic_hardware_failure_status": [
+   2,
+   "enum"
+  ],
+  "lfd_hardware_failure_status": [
+   3,
+   "enum"
+  ],
+  "rf_hardware_failure_status": [
+   4,
+   "enum"
+  ],
+  "rfd_hardware_failure_status": [
+   5,
+   "enum"
+  ],
+  "oc_hardware_failure_error": [
+   6,
+   "enum"
+  ],
+  "ffr_hardware_failure_error": [
+   7,
+   "enum"
+  ],
+  "rfr_hardware_failure_error": [
+   8,
+   "enum"
+  ],
+  "ffl_hardware_failure_error": [
+   9,
+   "enum"
+  ],
+  "rfl_hardware_failure_error": [
+   10,
+   "enum"
+  ]
+ },
+ "ep2": {
+  "soc": [
+   1,
+   "uint32"
+  ],
+  "power": [
+   2,
+   "float"
+  ],
+  "start_time_ms": [
+   3,
+   "uint64"
+  ],
+  "end_time_ms": [
+   4,
+   "uint64"
+  ],
+  "time_estimation_validity_status": [
+   5,
+   "enum"
+  ],
+  "charging_state": [
+   6,
+   "enum"
+  ],
+  "bar_context": [
+   7,
+   "enum"
+  ]
+ },
+ "eq3": {
+  "states": [
+   1,
+   "message[]"
+  ]
+ },
+ "eq9": {
+  "code": [
+   1,
+   "enum"
+  ],
+  "message": [
+   2,
+   "string"
+  ]
+ },
+ "eya": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "params": [
+   2,
+   "message"
+  ]
+ },
+ "f4l": {
+  "response": [
+   1,
+   "message"
+  ]
+ },
+ "f5l": {
+  "firmware_version": [
+   1,
+   "message"
+  ],
+  "battery_info": [
+   2,
+   "message"
+  ],
+  "lifetime_uptime_sec": [
+   3,
+   "uint32"
+  ],
+  "reset_count": [
+   4,
+   "uint32"
+  ],
+  "temperature_c": [
+   5,
+   "int32"
+  ],
+  "time_to_ready_ms": [
+   6,
+   "uint32"
+  ],
+  "cold_boot_count": [
+   7,
+   "uint32"
+  ],
+  "reset_reason": [
+   8,
+   "uint32"
+  ],
+  "random_battery_disconnections": [
+   9,
+   "uint32"
+  ],
+  "disconnect_reason": [
+   10,
+   "uint32"
+  ]
+ },
+ "f6l": {
+  "request": [
+   1,
+   "message"
+  ],
+  "response": [
+   2,
+   "message"
+  ]
+ },
+ "fgk": {
+  "soc": [
+   1,
+   "uint32"
+  ],
+  "time_estimate": [
+   2,
+   "uint32"
+  ],
+  "status": [
+   3,
+   "enum"
+  ]
+ },
+ "flg": {
+  "ble_uid": [
+   1,
+   "bytes"
+  ],
+  "ble_wrapped_shared_secret": [
+   2,
+   "bytes"
+  ],
+  "nfc_uid": [
+   3,
+   "bytes"
+  ],
+  "nfc_wrapped_shared_secret": [
+   4,
+   "bytes"
+  ]
+ },
+ "fp": {
+  "params": [
+   1,
+   "message"
+  ],
+  "key_size": [
+   2,
+   "uint32"
+  ]
+ },
+ "fzm": {
+  "coordinate": [
+   1,
+   "message"
+  ],
+  "navcoordinate": [
+   2,
+   "message"
+  ],
+  "status": [
+   3,
+   "enum"
+  ],
+  "name": [
+   4,
+   "string"
+  ],
+  "placeid": [
+   5,
+   "string"
+  ],
+  "stopduration": [
+   6,
+   "double"
+  ],
+  "arrivalsoc": [
+   7,
+   "double"
+  ],
+  "arrivalreachabledistance": [
+   8,
+   "double"
+  ],
+  "arriveatutc": [
+   9,
+   "message"
+  ]
+ },
+ "g1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "g1n": {
+  "command": [
+   1,
+   "message"
+  ],
+  "commandresponse": [
+   2,
+   "message"
+  ],
+  "metadata_response": [
+   11,
+   "message"
+  ],
+  "files_response": [
+   12,
+   "message"
+  ],
+  "cancel_response": [
+   13,
+   "message"
+  ]
+ },
+ "g2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "g4k": {
+  "dispatch_destination": [
+   1,
+   "enum"
+  ]
+ },
+ "gb1": {
+  "charge_state": [
+   1,
+   "message"
+  ],
+  "temperature_state": [
+   2,
+   "message"
+  ],
+  "thermal_event": [
+   3,
+   "message"
+  ],
+  "power_output": [
+   4,
+   "enum"
+  ],
+  "requires_calibration": [
+   5,
+   "bool"
+  ]
+ },
+ "ge9": {
+  "request_id": [
+   1,
+   "string"
+  ],
+  "status": [
+   2,
+   "enum"
+  ]
+ },
+ "gf9": {
+  "uuid": [
+   1,
+   "string"
+  ],
+  "responsecode": [
+   2,
+   "enum"
+  ],
+  "responsestring": [
+   3,
+   "string"
+  ]
+ },
+ "gmd": {
+  "odometer_km": [
+   1,
+   "uint32"
+  ]
+ },
+ "gok": {
+  "all": [
+   1,
+   "bool"
+  ],
+  "user_preference": [
+   2,
+   "bool"
+  ]
+ },
+ "gp2": {
+  "global_charging_graph_bar": [
+   1,
+   "message[]"
+  ]
+ },
+ "gq": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "key_size": [
+   2,
+   "uint32"
+  ]
+ },
+ "gq9": {
+  "status": [
+   1,
+   "message"
+  ]
+ },
+ "gx6": {},
+ "gxf": {
+  "range_km": [
+   1,
+   "uint32"
+  ],
+  "range_threshold": [
+   2,
+   "enum"
+  ],
+  "temperature_impact": [
+   3,
+   "enum"
+  ]
+ },
+ "gya": {
+  "kek_uri": [
+   1,
+   "string"
+  ],
+  "dek_template": [
+   2,
+   "message"
+  ]
+ },
+ "gyh": {
+  "response_status": [
+   1,
+   "enum"
+  ],
+  "error": [
+   2,
+   "message"
+  ]
+ },
+ "h1m": {
+  "gear_guard_video_mode": [
+   1,
+   "message"
+  ],
+  "gear_guard_video_status": [
+   2,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   4,
+   "message"
+  ],
+  "gear_guard_terms_accepted": [
+   5,
+   "bool"
+  ]
+ },
+ "h2m": {
+  "vehicle_ota_status": [
+   5,
+   "message"
+  ],
+  "current_status": [
+   9,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   10,
+   "message"
+  ],
+  "current_version": [
+   11,
+   "string"
+  ],
+  "current_version_git_hash": [
+   12,
+   "string"
+  ],
+  "available_version": [
+   13,
+   "string"
+  ],
+  "available_version_git_hash": [
+   14,
+   "string"
+  ],
+  "install_duration": [
+   16,
+   "int32"
+  ],
+  "install_progress": [
+   17,
+   "int32"
+  ],
+  "install_ready": [
+   18,
+   "bool"
+  ]
+ },
+ "h4l": {
+  "code": [
+   1,
+   "enum"
+  ]
+ },
+ "h5g": {
+  "config_name": [
+   1,
+   "string"
+  ],
+  "entry": [
+   2,
+   "message[]"
+  ]
+ },
+ "h6a": {},
+ "h6k": {
+  "id": [
+   1,
+   "string"
+  ],
+  "origin": [
+   2,
+   "message"
+  ],
+  "route": [
+   3,
+   "message"
+  ],
+  "preferences": [
+   4,
+   "message"
+  ],
+  "initialsocpercentage": [
+   5,
+   "double"
+  ],
+  "departuretime": [
+   6,
+   "message"
+  ],
+  "fasterroute": [
+   7,
+   "message"
+  ]
+ },
+ "h6l": {
+  "code": [
+   1,
+   "message"
+  ],
+  "precondition_temp_params": [
+   2,
+   "message"
+  ],
+  "charging_limits_params": [
+   3,
+   "message"
+  ],
+  "cabin_hvac_level_params": [
+   4,
+   "message"
+  ],
+  "cabin_hvac_control_status_params": [
+   5,
+   "message"
+  ],
+  "keyfob_action_params": [
+   6,
+   "message"
+  ],
+  "hc_choose_theme_params": [
+   7,
+   "message"
+  ],
+  "hc_set_interior_sound_volume": [
+   8,
+   "message"
+  ],
+  "hc_set_light_show": [
+   9,
+   "message"
+  ],
+  "hc_interior_overhead_lights": [
+   10,
+   "message"
+  ],
+  "hc_set_exterior_light_show": [
+   11,
+   "message"
+  ],
+  "hc_lights_color": [
+   12,
+   "message"
+  ],
+  "hc_music_type_select": [
+   13,
+   "message"
+  ],
+  "hc_music_enable": [
+   14,
+   "message"
+  ],
+  "hc_play_sound_effect": [
+   15,
+   "message"
+  ],
+  "hc_mute_ext_sound": [
+   16,
+   "message"
+  ]
+ },
+ "h7f": {
+  "power_mode": [
+   1,
+   "enum"
+  ]
+ },
+ "hh6": {
+  "driveauthsetting": [
+   1,
+   "enum"
+  ]
+ },
+ "hi9": {
+  "latitude_degrees": [
+   1,
+   "double"
+  ],
+  "longitude_degrees": [
+   2,
+   "double"
+  ],
+  "altitude_meters": [
+   3,
+   "double"
+  ],
+  "speed_meters_per_sec": [
+   4,
+   "float"
+  ],
+  "bearing_degrees": [
+   5,
+   "float"
+  ],
+  "horizontal_accuracy_meters": [
+   6,
+   "float"
+  ],
+  "vertical_accuracy_meters": [
+   7,
+   "float"
+  ],
+  "speed_accuracy_meters_per_second": [
+   8,
+   "float"
+  ],
+  "bearing_accuracy_degrees": [
+   9,
+   "float"
+  ],
+  "timestamp": [
+   10,
+   "int64"
+  ]
+ },
+ "hk8": {
+  "gear": [
+   1,
+   "enum"
+  ]
+ },
+ "hlg": {
+  "uid": [
+   1,
+   "bytes"
+  ],
+  "wrapped_shared_secret": [
+   2,
+   "bytes"
+  ]
+ },
+ "hoe": {
+  "active_mode": [
+   1,
+   "bool"
+  ],
+  "fast_charging": [
+   2,
+   "bool"
+  ],
+  "hv_batt_low": [
+   3,
+   "bool"
+  ],
+  "lv_batt": [
+   4,
+   "bool"
+  ],
+  "lv_temp_low": [
+   5,
+   "bool"
+  ],
+  "not_parked": [
+   6,
+   "bool"
+  ],
+  "other": [
+   7,
+   "bool"
+  ],
+  "transport": [
+   8,
+   "bool"
+  ],
+  "unplugged": [
+   9,
+   "bool"
+  ],
+  "camp_mode": [
+   10,
+   "bool"
+  ]
+ },
+ "i02": {
+  "instance": [
+   1,
+   "enum"
+  ],
+  "level": [
+   2,
+   "enum"
+  ],
+  "status": [
+   3,
+   "enum"
+  ],
+  "device": [
+   4,
+   "enum"
+  ]
+ },
+ "i1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "i2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "i4l": {
+  "data": [
+   1,
+   "message"
+  ],
+  "control": [
+   2,
+   "message"
+  ]
+ },
+ "i5l": {
+  "transaction_id": [
+   1,
+   "uint32"
+  ],
+  "common": [
+   2,
+   "message"
+  ],
+  "protocol": [
+   3,
+   "message"
+  ],
+  "data_stream": [
+   4,
+   "message"
+  ],
+  "auth": [
+   5,
+   "message"
+  ],
+  "vehicle_command": [
+   6,
+   "message"
+  ],
+  "vehicle_state": [
+   7,
+   "message"
+  ],
+  "passive_entry": [
+   8,
+   "message"
+  ],
+  "client_info": [
+   9,
+   "message"
+  ],
+  "key_fob_auth": [
+   10,
+   "message"
+  ],
+  "client_command": [
+   11,
+   "message"
+  ]
+ },
+ "i86": {},
+ "ic2": {},
+ "ie9": {
+  "file_id": [
+   1,
+   "string"
+  ],
+  "current_byte_offset": [
+   2,
+   "int32"
+  ],
+  "is_last_packet": [
+   3,
+   "bool"
+  ],
+  "sequence_number": [
+   4,
+   "int32"
+  ],
+  "payload": [
+   5,
+   "bytes"
+  ]
+ },
+ "if9": {
+  "mobile_remote_command_start_timestamp": [
+   1,
+   "uint32"
+  ],
+  "mobile_remote_command_success_timestamp": [
+   2,
+   "uint32"
+  ],
+  "mobile_signaling_channel_start_timestamp": [
+   3,
+   "uint32"
+  ],
+  "mobile_signaling_channel_success_timestamp": [
+   4,
+   "uint32"
+  ],
+  "mobile_first_packet_timestamp": [
+   5,
+   "uint32"
+  ],
+  "mobile_first_frame_timestamp": [
+   6,
+   "uint32"
+  ],
+  "mobile_connection_type": [
+   7,
+   "string"
+  ]
+ },
+ "in3": {
+  "instances": [
+   1,
+   "enum[]"
+  ]
+ },
+ "io": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "aes_ctr_key": [
+   2,
+   "message"
+  ],
+  "hmac_key": [
+   3,
+   "message"
+  ]
+ },
+ "ira": {
+  "display": [
+   1,
+   "message"
+  ],
+  "key_device_cloud": [
+   2,
+   "message"
+  ],
+  "kd_vas_data": [
+   3,
+   "message"
+  ]
+ },
+ "itj": {
+  "trace_id": [
+   1,
+   "bytes"
+  ],
+  "parent_id": [
+   2,
+   "bytes"
+  ]
+ },
+ "iua": {
+  "type_url": [
+   1,
+   "string"
+  ],
+  "value": [
+   2,
+   "bytes"
+  ],
+  "output_prefix_type": [
+   3,
+   "enum"
+  ]
+ },
+ "j": {
+  "seconds": [
+   1,
+   "int64"
+  ],
+  "nanos": [
+   2,
+   "int32"
+  ]
+ },
+ "j1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "j3l": {
+  "secure_element_faulted": [
+   1,
+   "enum"
+  ],
+  "access_can_faulted": [
+   2,
+   "enum"
+  ]
+ },
+ "j4l": {
+  "code": [
+   1,
+   "enum"
+  ]
+ },
+ "je9": {
+  "feature": [
+   1,
+   "enum"
+  ],
+  "file_info": [
+   2,
+   "message[]"
+  ],
+  "event_time": [
+   3,
+   "message"
+  ],
+  "location": [
+   4,
+   "message"
+  ],
+  "is_favorite": [
+   5,
+   "bool"
+  ],
+  "is_media_available": [
+   6,
+   "bool"
+  ]
+ },
+ "jf7": {
+  "route": [
+   1,
+   "message"
+  ],
+  "timesaved": [
+   2,
+   "double"
+  ]
+ },
+ "jj7": {
+  "filename": [
+   1,
+   "string"
+  ],
+  "file_type": [
+   2,
+   "enum"
+  ],
+  "file_size": [
+   3,
+   "uint64"
+  ],
+  "created_at": [
+   4,
+   "message"
+  ]
+ },
+ "jqa": {
+  "type_url": [
+   1,
+   "string"
+  ],
+  "value": [
+   2,
+   "bytes"
+  ],
+  "key_material_type": [
+   3,
+   "enum"
+  ]
+ },
+ "jrd": {
+  "instances": [
+   1,
+   "enum[]"
+  ]
+ },
+ "jri": {
+  "plug_connection_status": [
+   1,
+   "enum"
+  ],
+  "display_status": [
+   2,
+   "enum"
+  ],
+  "evse_type": [
+   3,
+   "enum"
+  ]
+ },
+ "jtj": {
+  "traceparent": [
+   1,
+   "message"
+  ]
+ },
+ "jvc": {
+  "currency_code": [
+   1,
+   "string"
+  ],
+  "units": [
+   2,
+   "int64"
+  ],
+  "nanos": [
+   3,
+   "int32"
+  ]
+ },
+ "jx6": {},
+ "jyh": {
+  "code": [
+   1,
+   "int32"
+  ],
+  "message": [
+   2,
+   "string"
+  ]
+ },
+ "k2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "k4l": {
+  "length": [
+   1,
+   "uint32"
+  ]
+ },
+ "k5l": {
+  "unsigned_msg_list": [
+   1,
+   "message"
+  ],
+  "signed_msg_list": [
+   2,
+   "message"
+  ]
+ },
+ "k6n": {
+  "states": [
+   1,
+   "message[]"
+  ]
+ },
+ "kf9": {
+  "reasoncode": [
+   1,
+   "enum"
+  ],
+  "reasonmessage": [
+   2,
+   "string"
+  ]
+ },
+ "klj": {
+  "validity_flag": [
+   1,
+   "enum"
+  ],
+  "remaining_minutes": [
+   2,
+   "uint32"
+  ]
+ },
+ "klm": {
+  "video_monitoring_status": [
+   1,
+   "enum"
+  ],
+  "video_mode": [
+   2,
+   "enum"
+  ],
+  "tos_acceptance": [
+   3,
+   "enum"
+  ]
+ },
+ "kmj": {
+  "start_time": [
+   1,
+   "int32"
+  ],
+  "end_time": [
+   2,
+   "int32"
+  ],
+  "duration": [
+   3,
+   "int32"
+  ],
+  "amps": [
+   4,
+   "uint32"
+  ],
+  "location": [
+   5,
+   "message"
+  ],
+  "start_day_of_week": [
+   6,
+   "uint32"
+  ],
+  "end_day_of_week": [
+   7,
+   "uint32"
+  ]
+ },
+ "kp": {
+  "iv_size": [
+   1,
+   "uint32"
+  ]
+ },
+ "l0k": {
+  "firstindex": [
+   1,
+   "int32"
+  ],
+  "firstindexfractional": [
+   2,
+   "float"
+  ],
+  "lastindex": [
+   3,
+   "int32"
+  ],
+  "lastindexfractional": [
+   4,
+   "float"
+  ],
+  "priority": [
+   5,
+   "enum"
+  ]
+ },
+ "l0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "l1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "l20": {
+  "client_time_us": [
+   1,
+   "int64"
+  ],
+  "used_app_java_heap_memory_kb": [
+   2,
+   "int32"
+  ]
+ },
+ "l2m": {
+  "power_state": [
+   1,
+   "message"
+  ],
+  "low_voltage_battery_health_status": [
+   2,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   5,
+   "message"
+  ],
+  "high_voltage_battery_thermal_event": [
+   6,
+   "bool"
+  ],
+  "high_voltage_battery_thermal_event_propagation": [
+   7,
+   "bool"
+  ]
+ },
+ "l4l": {
+  "asset_info": [
+   1,
+   "message"
+  ],
+  "requires_ack": [
+   2,
+   "bool"
+  ],
+  "index": [
+   3,
+   "uint32"
+  ],
+  "data": [
+   4,
+   "bytes"
+  ],
+  "crc32": [
+   5,
+   "uint32"
+  ]
+ },
+ "l6l": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "le9": {
+  "media_info": [
+   1,
+   "message"
+  ],
+  "metadata": [
+   2,
+   "message"
+  ]
+ },
+ "li6": {
+  "drive_mode": [
+   1,
+   "enum"
+  ],
+  "limited_accel_cold": [
+   8,
+   "bool"
+  ],
+  "limited_regen_cold": [
+   9,
+   "bool"
+  ]
+ },
+ "lmj": {
+  "is_valid": [
+   1,
+   "bool"
+  ],
+  "window_data": [
+   2,
+   "message"
+  ]
+ },
+ "lo": {
+  "aes_ctr_key_format": [
+   1,
+   "message"
+  ],
+  "hmac_key_format": [
+   2,
+   "message"
+  ]
+ },
+ "lol": {
+  "model": [
+   1,
+   "string"
+  ],
+  "operation": [
+   2,
+   "enum"
+  ],
+  "uuid": [
+   3,
+   "bytes"
+  ],
+  "bytes_val": [
+   4,
+   "bytes"
+  ],
+  "created_at": [
+   5,
+   "message"
+  ],
+  "scope": [
+   6,
+   "string"
+  ],
+  "vehicle_id": [
+   7,
+   "string"
+  ]
+ },
+ "m02": {
+  "temperatures": [
+   1,
+   "message[]"
+  ],
+  "exterior_temperature_celsius": [
+   2,
+   "float"
+  ],
+  "interior_temperature_celsius": [
+   3,
+   "float"
+  ],
+  "interior_display_temperature_celsius": [
+   4,
+   "float"
+  ]
+ },
+ "m44": {
+  "bytes_val": [
+   2,
+   "bytes"
+  ]
+ },
+ "m4l": {
+  "code": [
+   1,
+   "enum"
+  ]
+ },
+ "m5l": {
+  "msgs": [
+   1,
+   "message[]"
+  ]
+ },
+ "m6l": {
+  "resp_code": [
+   1,
+   "message"
+  ]
+ },
+ "me9": {
+  "file_id": [
+   1,
+   "string"
+  ],
+  "size_bytes": [
+   2,
+   "uint64"
+  ],
+  "checksum": [
+   3,
+   "string"
+  ]
+ },
+ "mf9": {
+  "uuid": [
+   1,
+   "string"
+  ],
+  "commandname": [
+   2,
+   "enum"
+  ],
+  "teardownreason": [
+   3,
+   "message"
+  ]
+ },
+ "mfm": {
+  "wheelpackage": [
+   1,
+   "enum"
+  ],
+  "tireodometermileagemeters": [
+   2,
+   "int32"
+  ],
+  "savedtireodometermileagedeltameters": [
+   3,
+   "uint32"
+  ],
+  "odometeratlastrotationmeters": [
+   4,
+   "int32"
+  ],
+  "savedodometeratlastrotationdeltameters": [
+   5,
+   "uint32"
+  ],
+  "rotationreminderintervalmeters": [
+   6,
+   "uint32"
+  ],
+  "isinstalled": [
+   7,
+   "bool"
+  ],
+  "timestamp": [
+   8,
+   "message"
+  ],
+  "tires": [
+   9,
+   "enum"
+  ],
+  "currentodometermeters": [
+   10,
+   "uint32"
+  ]
+ },
+ "mg0": {
+  "google_app_id": [
+   1,
+   "string"
+  ],
+  "app_instance_id": [
+   2,
+   "string"
+  ],
+  "android_app_info": [
+   3,
+   "message"
+  ],
+  "application_process_state": [
+   5,
+   "enum"
+  ],
+  "custom_attributes": [
+   6,
+   "map"
+  ]
+ },
+ "mi2": {
+  "total_kwh": [
+   1,
+   "float"
+  ],
+  "pack_kwh": [
+   2,
+   "float"
+  ],
+  "thermal_kwh": [
+   3,
+   "float"
+  ],
+  "outlets_kwh": [
+   4,
+   "float"
+  ],
+  "system_kwh": [
+   5,
+   "float"
+  ],
+  "session_duration_mins": [
+   6,
+   "uint32"
+  ],
+  "time_remaining_mins": [
+   7,
+   "uint32"
+  ],
+  "range_added_kms": [
+   8,
+   "uint32"
+  ],
+  "current_power": [
+   9,
+   "float"
+  ],
+  "current_range_per_hour": [
+   10,
+   "uint32"
+  ],
+  "session_cost": [
+   11,
+   "message"
+  ],
+  "is_free_session": [
+   12,
+   "bool"
+  ],
+  "charging_state": [
+   13,
+   "enum"
+  ]
+ },
+ "mkd": {
+  "download_policy": [
+   1,
+   "enum"
+  ]
+ },
+ "mob": {
+  "known_location": [
+   1,
+   "enum"
+  ]
+ },
+ "mq1": {
+  "uid": [
+   2,
+   "bytes"
+  ],
+  "wrapped_shared_secret": [
+   3,
+   "bytes"
+  ]
+ },
+ "msb": {
+  "instance": [
+   1,
+   "enum"
+  ],
+  "status": [
+   2,
+   "enum"
+  ],
+  "fault": [
+   3,
+   "enum"
+  ]
+ },
+ "n0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "n2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "n3l": {
+  "voltage_mv": [
+   1,
+   "uint32"
+  ],
+  "level": [
+   2,
+   "enum"
+  ],
+  "load_tag": [
+   3,
+   "enum"
+  ]
+ },
+ "n4l": {
+  "costume": [
+   1,
+   "enum"
+  ]
+ },
+ "nbd": {
+  "url": [
+   1,
+   "string"
+  ],
+  "http_method": [
+   2,
+   "enum"
+  ],
+  "request_payload_bytes": [
+   3,
+   "int64"
+  ],
+  "response_payload_bytes": [
+   4,
+   "int64"
+  ],
+  "http_response_code": [
+   5,
+   "int32"
+  ],
+  "response_content_type": [
+   6,
+   "string"
+  ],
+  "client_start_time_us": [
+   7,
+   "int64"
+  ],
+  "time_to_request_completed_us": [
+   8,
+   "int64"
+  ],
+  "time_to_response_initiated_us": [
+   9,
+   "int64"
+  ],
+  "time_to_response_completed_us": [
+   10,
+   "int64"
+  ],
+  "network_client_error_reason": [
+   11,
+   "enum"
+  ],
+  "custom_attributes": [
+   12,
+   "map"
+  ],
+  "perf_sessions": [
+   13,
+   "message[]"
+  ]
+ },
+ "nbi": {
+  "startsatutc": [
+   1,
+   "message"
+  ]
+ },
+ "noe": {
+  "application_info": [
+   1,
+   "message"
+  ],
+  "trace_metric": [
+   2,
+   "message"
+  ],
+  "network_request_metric": [
+   3,
+   "message"
+  ],
+  "gauge_metric": [
+   4,
+   "message"
+  ],
+  "transport_info": [
+   5,
+   "message"
+  ]
+ },
+ "nzk": {
+  "in_service": [
+   1,
+   "enum"
+  ],
+  "car_wash": [
+   2,
+   "enum"
+  ],
+  "pet_mode": [
+   3,
+   "enum"
+  ],
+  "camp_mode": [
+   4,
+   "enum"
+  ],
+  "transport_mode": [
+   5,
+   "enum"
+  ],
+  "climate_keep": [
+   6,
+   "enum"
+  ],
+  "factory_mode": [
+   7,
+   "enum"
+  ]
+ },
+ "o1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "o4l": {
+  "enabled": [
+   1,
+   "bool"
+  ]
+ },
+ "oe9": {
+  "file_id": [
+   1,
+   "string"
+  ],
+  "requested_byte_offset": [
+   2,
+   "int32"
+  ],
+  "chunk_size_kb": [
+   3,
+   "int32"
+  ]
+ },
+ "of7": {
+  "favorites": [
+   1,
+   "message[]"
+  ]
+ },
+ "oh8": {
+  "process_name": [
+   1,
+   "string"
+  ],
+  "cpu_clock_rate_khz": [
+   2,
+   "int32"
+  ],
+  "device_ram_size_kb": [
+   3,
+   "int32"
+  ],
+  "max_app_java_heap_memory_kb": [
+   4,
+   "int32"
+  ],
+  "max_encouraged_app_java_heap_memory_kb": [
+   5,
+   "int32"
+  ],
+  "cpu_processor_count": [
+   6,
+   "int32"
+  ]
+ },
+ "oi2": {
+  "entityid": [
+   1,
+   "string"
+  ],
+  "name": [
+   2,
+   "string"
+  ],
+  "coordinate": [
+   3,
+   "message"
+  ],
+  "chargeduration": [
+   4,
+   "double"
+  ],
+  "chargedataaccuracy": [
+   5,
+   "enum"
+  ],
+  "arrivalsoc": [
+   6,
+   "double"
+  ],
+  "arrivalreachabledistance": [
+   7,
+   "double"
+  ],
+  "departuresoc": [
+   8,
+   "double"
+  ],
+  "departurereachabledistance": [
+   9,
+   "double"
+  ],
+  "departatutc": [
+   10,
+   "message"
+  ],
+  "arriveatutc": [
+   11,
+   "message"
+  ],
+  "issystemadded": [
+   12,
+   "bool"
+  ],
+  "compatible": [
+   13,
+   "bool"
+  ],
+  "adapterrequired": [
+   14,
+   "bool"
+  ],
+  "stopduration": [
+   16,
+   "double"
+  ],
+  "status": [
+   17,
+   "enum"
+  ]
+ },
+ "okd": {
+  "started_at": [
+   1,
+   "message"
+  ],
+  "progress_percent": [
+   2,
+   "uint32"
+  ],
+  "completion_at": [
+   4,
+   "message"
+  ],
+  "pause_reason": [
+   5,
+   "enum"
+  ],
+  "failure_reason": [
+   6,
+   "string"
+  ]
+ },
+ "ooi": {
+  "camera": [
+   1,
+   "enum"
+  ],
+  "device_identifier": [
+   2,
+   "string"
+  ]
+ },
+ "opl": {
+  "default_link": [
+   1,
+   "enum"
+  ],
+  "routes": [
+   2,
+   "message[]"
+  ],
+  "default_link_quality": [
+   3,
+   "enum"
+  ],
+  "wifi": [
+   4,
+   "message"
+  ],
+  "cellular": [
+   5,
+   "message"
+  ]
+ },
+ "oq": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "key_value": [
+   2,
+   "bytes"
+  ]
+ },
+ "oyk": {
+  "user_consent": [
+   1,
+   "enum"
+  ]
+ },
+ "p0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "p1k": {
+  "trailer_presence_status": [
+   1,
+   "enum"
+  ],
+  "trailer_status": [
+   2,
+   "enum"
+  ]
+ },
+ "p2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "p3l": {
+  "credentials": [
+   1,
+   "message"
+  ],
+  "control": [
+   2,
+   "message"
+  ]
+ },
+ "p4l": {
+  "colorpallete": [
+   1,
+   "enum"
+  ]
+ },
+ "p6l": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "p9f": {
+  "currentarrivalsocpercentage": [
+   1,
+   "float"
+  ],
+  "defaultarrivalsocpercentage": [
+   2,
+   "float"
+  ],
+  "excludeoptions": [
+   3,
+   "string[]"
+  ],
+  "evchargefilters": [
+   4,
+   "string[]"
+  ]
+ },
+ "pf9": {
+  "uuid": [
+   1,
+   "string"
+  ],
+  "responsecode": [
+   2,
+   "enum"
+  ],
+  "responsestring": [
+   3,
+   "string"
+  ]
+ },
+ "phi": {
+  "category": [
+   1,
+   "enum"
+  ],
+  "version": [
+   2,
+   "message"
+  ],
+  "deployment_id": [
+   3,
+   "string"
+  ],
+  "available_ota": [
+   4,
+   "message"
+  ]
+ },
+ "pol": {
+  "ref_uuid": [
+   1,
+   "bytes"
+  ],
+  "ref_model": [
+   2,
+   "string"
+  ],
+  "progress": [
+   3,
+   "enum"
+  ],
+  "operation_error": [
+   4,
+   "message"
+  ],
+  "data": [
+   5,
+   "bytes"
+  ]
+ },
+ "psb": {},
+ "pz0": {
+  "deployment_id": [
+   1,
+   "string"
+  ],
+  "version": [
+   2,
+   "message"
+  ],
+  "ota_type": [
+   3,
+   "enum"
+  ],
+  "ota_deployment_context": [
+   4,
+   "message"
+  ],
+  "ota_progress": [
+   5,
+   "message"
+  ],
+  "install_time_secs": [
+   6,
+   "uint64"
+  ],
+  "install_tod": [
+   7,
+   "uint32"
+  ],
+  "skip_count": [
+   8,
+   "int32"
+  ],
+  "skip_allowed": [
+   9,
+   "bool"
+  ],
+  "deployment_intent": [
+   10,
+   "enum"
+  ],
+  "is_active": [
+   11,
+   "bool"
+  ]
+ },
+ "pz1": {
+  "action": [
+   1,
+   "enum"
+  ]
+ },
+ "q0i": {
+  "action": [
+   1,
+   "enum"
+  ]
+ },
+ "q1a": {
+  "polylinefirstindex": [
+   1,
+   "int32"
+  ],
+  "polylinelastindex": [
+   2,
+   "int32"
+  ],
+  "incident": [
+   3,
+   "enum"
+  ]
+ },
+ "q1c": {
+  "low_voltage_battery_health_status": [
+   1,
+   "enum"
+  ]
+ },
+ "q1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "q2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "q4l": {
+  "play": [
+   1,
+   "bool"
+  ]
+ },
+ "q5l": {
+  "model": [
+   1,
+   "enum"
+  ],
+  "model_raw": [
+   2,
+   "string"
+  ]
+ },
+ "q6l": {
+  "firmware_version": [
+   1,
+   "message"
+  ]
+ },
+ "q9g": {
+  "startsatmin": [
+   1,
+   "uint32"
+  ],
+  "geofence": [
+   2,
+   "message"
+  ]
+ },
+ "qan": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "key_value": [
+   3,
+   "bytes"
+  ]
+ },
+ "qe9": {
+  "requestid": [
+   1,
+   "string"
+  ],
+  "file_info": [
+   2,
+   "message[]"
+  ]
+ },
+ "qkd": {
+  "started_at": [
+   1,
+   "message"
+  ],
+  "progress_percent": [
+   2,
+   "uint32"
+  ],
+  "completion_at": [
+   3,
+   "message"
+  ]
+ },
+ "qm8": {
+  "type": [
+   1,
+   "enum"
+  ],
+  "name": [
+   2,
+   "string"
+  ]
+ },
+ "qn": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "key_value": [
+   2,
+   "bytes"
+  ],
+  "params": [
+   3,
+   "message"
+  ]
+ },
+ "qp": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "key_value": [
+   3,
+   "bytes"
+  ]
+ },
+ "qr3": {
+  "cloud_id": [
+   1,
+   "string"
+  ],
+  "hrid": [
+   2,
+   "string"
+  ],
+  "profileid": [
+   3,
+   "string"
+  ],
+  "phone_public_key": [
+   4,
+   "string"
+  ],
+  "publish_sequence_counter": [
+   5,
+   "int32"
+  ],
+  "vehicle_response_required": [
+   6,
+   "enum"
+  ]
+ },
+ "qs9": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "params": [
+   2,
+   "message"
+  ],
+  "key_value": [
+   3,
+   "bytes"
+  ]
+ },
+ "r0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "r1m": {
+  "driver_occupancy_presence": [
+   1,
+   "message"
+  ],
+  "immobilizer_authorization_status": [
+   2,
+   "message"
+  ],
+  "btm_lfd_sensor_status": [
+   3,
+   "message"
+  ],
+  "btm_ic_sensor_status": [
+   4,
+   "message"
+  ],
+  "btm_oc_sensor_status": [
+   5,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   6,
+   "message"
+  ],
+  "high_security_drive_auth_setting": [
+   7,
+   "message"
+  ],
+  "high_security_drive_auth_req_status": [
+   8,
+   "message"
+  ]
+ },
+ "r2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "r3l": {
+  "code": [
+   1,
+   "enum"
+  ]
+ },
+ "r4l": {
+  "musicsample": [
+   1,
+   "uint32"
+  ]
+ },
+ "r6l": {
+  "firmware_version": [
+   1,
+   "message"
+  ]
+ },
+ "r86": {},
+ "r9n": {
+  "mapped_identity": [
+   1,
+   "string"
+  ],
+  "wrapped_sym_key": [
+   2,
+   "bytes"
+  ]
+ },
+ "ra6": {
+  "name": [
+   1,
+   "string"
+  ],
+  "devtype": [
+   3,
+   "enum"
+  ],
+  "deletable": [
+   4,
+   "bool"
+  ],
+  "wccversion": [
+   5,
+   "enum"
+  ]
+ },
+ "re9": {
+  "requestid": [
+   1,
+   "string"
+  ],
+  "data": [
+   2,
+   "message"
+  ]
+ },
+ "ro": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "params": [
+   2,
+   "message"
+  ],
+  "key_value": [
+   3,
+   "bytes"
+  ]
+ },
+ "rol": {
+  "error": [
+   1,
+   "enum"
+  ],
+  "message": [
+   2,
+   "string"
+  ]
+ },
+ "rq": {
+  "key_size": [
+   1,
+   "uint32"
+  ],
+  "version": [
+   2,
+   "uint32"
+  ]
+ },
+ "rsb": {
+  "states": [
+   1,
+   "message[]"
+  ]
+ },
+ "rtj": {
+  "name": [
+   1,
+   "string"
+  ],
+  "is_auto": [
+   2,
+   "bool"
+  ],
+  "client_start_time_us": [
+   4,
+   "int64"
+  ],
+  "duration_us": [
+   5,
+   "int64"
+  ],
+  "counters": [
+   6,
+   "map"
+  ],
+  "subtraces": [
+   7,
+   "message[]"
+  ],
+  "custom_attributes": [
+   8,
+   "map"
+  ],
+  "perf_sessions": [
+   9,
+   "message[]"
+  ]
+ },
+ "rvk": {
+  "planidentifiermetadata": [
+   1,
+   "message"
+  ],
+  "preferences": [
+   2,
+   "message"
+  ]
+ },
+ "rw6": {},
+ "s1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "s2m": {
+  "costume": [
+   1,
+   "enum"
+  ]
+ },
+ "s4l": {
+  "enabled": [
+   1,
+   "bool"
+  ]
+ },
+ "s5l": {
+  "rssi": [
+   1,
+   "message"
+  ],
+  "keep_alive": [
+   2,
+   "message"
+  ]
+ },
+ "sfd": {
+  "startdrivelegindex": [
+   1,
+   "int32"
+  ],
+  "startpolylineindex": [
+   2,
+   "int32"
+  ],
+  "enddrivelegindex": [
+   3,
+   "int32"
+  ],
+  "endpolylineindex": [
+   4,
+   "int32"
+  ]
+ },
+ "sh8": {
+  "session_id": [
+   1,
+   "string"
+  ],
+  "cpu_metric_readings": [
+   2,
+   "message[]"
+  ],
+  "gauge_metadata": [
+   3,
+   "message"
+  ],
+  "android_memory_readings": [
+   4,
+   "message[]"
+  ]
+ },
+ "skd": {
+  "ota_status": [
+   1,
+   "enum"
+  ],
+  "ota_current_status": [
+   2,
+   "enum"
+  ],
+  "download_progress": [
+   3,
+   "message"
+  ],
+  "install_progress": [
+   4,
+   "message"
+  ],
+  "pending_reasons": [
+   5,
+   "message"
+  ],
+  "countdown_timer": [
+   6,
+   "uint32"
+  ],
+  "install_ready": [
+   7,
+   "bool"
+  ],
+  "status_acknowledge": [
+   8,
+   "enum"
+  ],
+  "install_duration": [
+   9,
+   "int32"
+  ]
+ },
+ "slg": {
+  "uid": [
+   1,
+   "bytes"
+  ],
+  "wrapped_shared_secret": [
+   2,
+   "bytes"
+  ]
+ },
+ "soe": {
+  "session_id": [
+   1,
+   "string"
+  ],
+  "session_verbosity": [
+   2,
+   "enum[]"
+  ]
+ },
+ "spj": {
+  "tire": [
+   1,
+   "enum"
+  ],
+  "status": [
+   2,
+   "enum"
+  ],
+  "pressure": [
+   3,
+   "double"
+  ],
+  "validity": [
+   4,
+   "enum"
+  ],
+  "tp_lastknown_valid_time": [
+   5,
+   "uint64"
+  ]
+ },
+ "sr3": {
+  "something_that_requires_signing": [
+   1,
+   "string"
+  ]
+ },
+ "sua": {
+  "primitive_name": [
+   1,
+   "string"
+  ],
+  "type_url": [
+   2,
+   "string"
+  ],
+  "key_manager_version": [
+   3,
+   "uint32"
+  ],
+  "new_key_allowed": [
+   4,
+   "bool"
+  ],
+  "catalogue_name": [
+   5,
+   "string"
+  ]
+ },
+ "sug": {
+  "user_soc_limit": [
+   1,
+   "uint32"
+  ]
+ },
+ "sz9": {
+  "secure_immo_status": [
+   1,
+   "enum"
+  ]
+ },
+ "t0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "t1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "t2h": {
+  "id": [
+   1,
+   "string"
+  ],
+  "isenabled": [
+   2,
+   "bool"
+  ],
+  "repeatsdaily": [
+   3,
+   "message"
+  ],
+  "singleoccurrence": [
+   4,
+   "message"
+  ]
+ },
+ "t3l": {
+  "id": [
+   1,
+   "bytes"
+  ],
+  "nonce": [
+   2,
+   "bytes"
+  ]
+ },
+ "t4l": {
+  "volume": [
+   1,
+   "uint32"
+  ]
+ },
+ "t5l": {
+  "should_send_rssi": [
+   1,
+   "bool"
+  ]
+ },
+ "t6l": {
+  "subscribe": [
+   1,
+   "message"
+  ],
+  "request": [
+   2,
+   "message"
+  ],
+  "state": [
+   3,
+   "message"
+  ]
+ },
+ "t7b": {
+  "distance": [
+   1,
+   "double"
+  ],
+  "duration": [
+   2,
+   "double"
+  ],
+  "summary": [
+   3,
+   "string"
+  ],
+  "polyline": [
+   4,
+   "string"
+  ],
+  "traffic_slow": [
+   5,
+   "int32[]"
+  ],
+  "traffic_jam": [
+   6,
+   "int32[]"
+  ],
+  "traffic_severe": [
+   7,
+   "int32[]"
+  ],
+  "energyconsumption": [
+   8,
+   "message"
+  ],
+  "incidents": [
+   9,
+   "message[]"
+  ],
+  "trafficblockfractional": [
+   10,
+   "message[]"
+  ]
+ },
+ "tan": {
+  "version": [
+   1,
+   "uint32"
+  ]
+ },
+ "te9": {
+  "type": [
+   1,
+   "enum"
+  ],
+  "camera": [
+   2,
+   "enum"
+  ],
+  "is_trigger_view": [
+   3,
+   "bool"
+  ],
+  "is_favorite": [
+   4,
+   "bool"
+  ]
+ },
+ "tm8": {
+  "location": [
+   1,
+   "string"
+  ]
+ },
+ "tpj": {
+  "tpms_monitor_status": [
+   1,
+   "enum"
+  ],
+  "tire_pressure": [
+   2,
+   "message[]"
+  ]
+ },
+ "tri": {
+  "waypoint": [
+   1,
+   "message"
+  ],
+  "chargestop": [
+   2,
+   "message"
+  ]
+ },
+ "tsg": {
+  "distance": [
+   1,
+   "double"
+  ],
+  "duration": [
+   2,
+   "double"
+  ],
+  "stops": [
+   3,
+   "message[]"
+  ],
+  "legs": [
+   4,
+   "message[]"
+  ],
+  "socisbelowlimit": [
+   5,
+   "bool"
+  ],
+  "arrivalsoc": [
+   6,
+   "double"
+  ],
+  "arrivalreachabledistance": [
+   7,
+   "double"
+  ],
+  "batteryemptylocation": [
+   8,
+   "message"
+  ],
+  "batteryemptytodestinationdistance": [
+   9,
+   "double"
+  ],
+  "polyline": [
+   10,
+   "string"
+  ],
+  "alternativeroutes": [
+   11,
+   "message[]"
+  ],
+  "routeindex": [
+   12,
+   "int32"
+  ],
+  "alternativeoverlaps": [
+   13,
+   "message[]"
+  ]
+ },
+ "tu": {
+  "alternativeindex": [
+   1,
+   "int32"
+  ],
+  "notoverlappingsegments": [
+   2,
+   "message[]"
+  ]
+ },
+ "tz1": {
+  "defrost_defog_level": [
+   1,
+   "enum"
+  ]
+ },
+ "u1l": {
+  "record": [
+   1,
+   "message"
+  ],
+  "signed_cloud": [
+   2,
+   "message"
+  ],
+  "owner": [
+   3,
+   "message"
+  ],
+  "friend": [
+   4,
+   "message"
+  ],
+  "keycard": [
+   5,
+   "message"
+  ],
+  "keyfob": [
+   6,
+   "message"
+  ],
+  "phone": [
+   7,
+   "message"
+  ],
+  "keyfob2": [
+   8,
+   "message"
+  ],
+  "form_factor": [
+   9,
+   "enum"
+  ],
+  "dev_oem": [
+   10,
+   "enum"
+  ]
+ },
+ "u2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "u3l": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "u4l": {
+  "enabled": [
+   1,
+   "bool"
+  ]
+ },
+ "ufh": {
+  "instance": [
+   1,
+   "enum"
+  ],
+  "device": [
+   2,
+   "enum"
+  ],
+  "level": [
+   3,
+   "enum"
+  ]
+ },
+ "uh2": {
+  "soc_limit": [
+   1,
+   "uint32"
+  ]
+ },
+ "ulf": {
+  "max_age": [
+   12,
+   "message"
+  ],
+  "flags": [
+   17,
+   "message"
+  ]
+ },
+ "un": {
+  "key_size": [
+   1,
+   "uint32"
+  ],
+  "params": [
+   2,
+   "message"
+  ]
+ },
+ "uo": {
+  "params": [
+   1,
+   "message"
+  ],
+  "key_size": [
+   2,
+   "uint32"
+  ]
+ },
+ "up": {
+  "key_size": [
+   2,
+   "uint32"
+  ],
+  "version": [
+   3,
+   "uint32"
+  ]
+ },
+ "us9": {
+  "params": [
+   1,
+   "message"
+  ],
+  "key_size": [
+   2,
+   "uint32"
+  ],
+  "version": [
+   3,
+   "uint32"
+  ]
+ },
+ "uv9": {
+  "set_temperature_celsius": [
+   1,
+   "float"
+  ]
+ },
+ "ux6": {
+  "encrypted_keyset": [
+   2,
+   "bytes"
+  ],
+  "keyset_info": [
+   3,
+   "message"
+  ]
+ },
+ "v0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "v1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "v2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "v3l": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "v4l": {
+  "mutesound": [
+   1,
+   "bool"
+  ]
+ },
+ "v5l": {
+  "rssi": [
+   1,
+   "int32"
+  ]
+ },
+ "v5n": {
+  "window_instance": [
+   1,
+   "enum"
+  ],
+  "calibration_status": [
+   2,
+   "enum"
+  ]
+ },
+ "v6g": {
+  "start_available": [
+   1,
+   "enum"
+  ]
+ },
+ "v6l": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "v86": {},
+ "v91": {
+  "chemistry": [
+   1,
+   "enum"
+  ],
+  "cell_type": [
+   2,
+   "enum"
+  ],
+  "module_type": [
+   3,
+   "enum"
+  ],
+  "pack_capacity": [
+   4,
+   "enum"
+  ],
+  "user_total_kwh": [
+   5,
+   "float"
+  ],
+  "user_max_kwh": [
+   6,
+   "float"
+  ]
+ },
+ "v9e": {
+  "allowpassiveentryviabluetoothwhileinccc": [
+   1,
+   "bool"
+  ],
+  "cccpassivepermissionstatus": [
+   2,
+   "enum"
+  ]
+ },
+ "vfh": {
+  "levels": [
+   1,
+   "message[]"
+  ]
+ },
+ "vh3": {
+  "hold_time_duration_seconds": [
+   1,
+   "int32"
+  ]
+ },
+ "vj3": {
+  "status": [
+   1,
+   "enum"
+  ],
+  "availability": [
+   2,
+   "enum"
+  ],
+  "unavailability_reason": [
+   3,
+   "enum"
+  ],
+  "hold_end_time": [
+   4,
+   "message"
+  ]
+ },
+ "vkd": {
+  "softwares": [
+   1,
+   "message[]"
+  ]
+ },
+ "vpl": {
+  "id": [
+   1,
+   "string"
+  ],
+  "install_time_epoch": [
+   2,
+   "message"
+  ]
+ },
+ "vre": {
+  "status": [
+   1,
+   "enum"
+  ],
+  "temperature": [
+   2,
+   "enum"
+  ],
+  "cabin_climate": [
+   3,
+   "enum"
+  ]
+ },
+ "vu": {
+  "legs": [
+   1,
+   "message[]"
+  ],
+  "polyline": [
+   2,
+   "string"
+  ],
+  "routeindex": [
+   3,
+   "int32"
+  ],
+  "alternativeoverlaps": [
+   4,
+   "message[]"
+  ]
+ },
+ "vva": {
+  "key_data": [
+   1,
+   "message"
+  ],
+  "status": [
+   2,
+   "enum"
+  ],
+  "key_id": [
+   3,
+   "uint32"
+  ],
+  "output_prefix_type": [
+   4,
+   "enum"
+  ]
+ },
+ "vyd": {
+  "schedules": [
+   1,
+   "message[]"
+  ],
+  "timestamp": [
+   2,
+   "message"
+  ]
+ },
+ "vze": {
+  "abrprouteid": [
+   1,
+   "string"
+  ],
+  "legs": [
+   2,
+   "message[]"
+  ]
+ },
+ "w2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "w3l": {
+  "temperature": [
+   1,
+   "int32"
+  ]
+ },
+ "w4l": {
+  "samplenumber": [
+   1,
+   "uint32"
+  ]
+ },
+ "w5l": {
+  "info": [
+   1,
+   "message"
+  ]
+ },
+ "w9e": {
+  "cccpassivepermissionstatus": [
+   1,
+   "enum"
+  ]
+ },
+ "w9f": {
+  "preferences": [
+   1,
+   "map"
+  ]
+ },
+ "we9": {
+  "requestid": [
+   1,
+   "string"
+  ],
+  "filter": [
+   2,
+   "message"
+  ],
+  "page_size": [
+   3,
+   "int32"
+  ],
+  "page_token": [
+   4,
+   "string"
+  ]
+ },
+ "wgh": {
+  "s3_id": [
+   1,
+   "string"
+  ],
+  "raw_data": [
+   2,
+   "bytes"
+  ],
+  "wrapped_keys": [
+   3,
+   "message[]"
+  ],
+  "metadata": [
+   4,
+   "message"
+  ]
+ },
+ "wo3": {
+  "instance": [
+   1,
+   "enum"
+  ],
+  "status": [
+   2,
+   "enum"
+  ],
+  "open_position_percent": [
+   3,
+   "int32"
+  ],
+  "fault": [
+   4,
+   "enum"
+  ],
+  "windows_next_action": [
+   5,
+   "enum"
+  ],
+  "frunk_next_action": [
+   6,
+   "enum"
+  ],
+  "liftgate_next_action": [
+   7,
+   "enum"
+  ],
+  "side_bin_next_action": [
+   8,
+   "enum"
+  ],
+  "tailgate_next_action": [
+   9,
+   "enum"
+  ],
+  "charge_port_door_next_action": [
+   10,
+   "enum"
+  ],
+  "tonneau_next_action": [
+   11,
+   "enum"
+  ]
+ },
+ "wva": {
+  "primary_key_id": [
+   1,
+   "uint32"
+  ],
+  "key": [
+   2,
+   "message[]"
+  ]
+ },
+ "wy6": {
+  "totalenergyconsumptionwh": [
+   1,
+   "double"
+  ],
+  "thermalenergyconsumptionwh": [
+   2,
+   "double"
+  ],
+  "lvenergyconsumptionwh": [
+   3,
+   "double"
+  ],
+  "hvacenergyconsumptionwh": [
+   4,
+   "double"
+  ],
+  "elevationenergyconsumptionwh": [
+   5,
+   "double"
+  ]
+ },
+ "x0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "x1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "x2m": {
+  "cabin_preconditioning_status": [
+   1,
+   "message"
+  ],
+  "cabin_preconditioning_type": [
+   2,
+   "message"
+  ],
+  "defrost_defog_status": [
+   5,
+   "message"
+  ],
+  "streering_wheel_status": [
+   6,
+   "message"
+  ],
+  "seat_heat_status_front_left": [
+   7,
+   "message"
+  ],
+  "seat_heat_status_front_right": [
+   8,
+   "message"
+  ],
+  "seat_heat_status_rear_left": [
+   9,
+   "message"
+  ],
+  "seat_heat_status_rear_right": [
+   10,
+   "message"
+  ],
+  "seat_vent_status_front_left": [
+   11,
+   "message"
+  ],
+  "seat_vent_status_front_right": [
+   12,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   14,
+   "message"
+  ],
+  "cabin_climate_interior_temperature": [
+   15,
+   "int32"
+  ],
+  "cabin_climate_driver_temperature": [
+   16,
+   "double"
+  ],
+  "cabin_climate_cached_setpoint": [
+   17,
+   "double"
+  ],
+  "seat_heat_status_third_row_left": [
+   18,
+   "message"
+  ],
+  "seat_heat_status_third_row_right": [
+   19,
+   "message"
+  ],
+  "pet_mode_status": [
+   20,
+   "message"
+  ],
+  "pet_mode_temperature_status": [
+   21,
+   "message"
+  ],
+  "vehicle_in_service": [
+   22,
+   "bool"
+  ],
+  "vehicle_in_car_wash": [
+   23,
+   "bool"
+  ],
+  "umm_mode_car_costume_availabiity_status": [
+   24,
+   "message"
+  ],
+  "cgm_car_costume_status": [
+   25,
+   "message"
+  ],
+  "hol_celeb_internal_vol_level": [
+   26,
+   "uint32"
+  ]
+ },
+ "x3l": {
+  "soc_limit": [
+   2,
+   "int32"
+  ]
+ },
+ "x5l": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "supported_features": [
+   2,
+   "message[]"
+  ]
+ },
+ "x6l": {
+  "vehicle_drive_state": [
+   1,
+   "bytes"
+  ],
+  "vehicle_location_state": [
+   2,
+   "bytes"
+  ],
+  "vehicle_charging_state": [
+   3,
+   "bytes"
+  ],
+  "body_closures_state": [
+   4,
+   "bytes"
+  ],
+  "vehicle_preconditioning_state": [
+   6,
+   "bytes"
+  ],
+  "vehicle_security_state": [
+   7,
+   "bytes"
+  ],
+  "vehicle_ota_state": [
+   8,
+   "bytes"
+  ],
+  "tire_pressure_state": [
+   9,
+   "bytes"
+  ],
+  "vehicle_fluids_state": [
+   10,
+   "bytes"
+  ],
+  "vehicle_power_state": [
+   11,
+   "bytes"
+  ],
+  "vehicle_trailer_state": [
+   12,
+   "bytes"
+  ],
+  "vehicle_access_state": [
+   13,
+   "bytes"
+  ],
+  "gear_guard_video": [
+   14,
+   "bytes"
+  ]
+ },
+ "x7b": {
+  "name": [
+   1,
+   "string"
+  ],
+  "coordinate": [
+   2,
+   "message"
+  ],
+  "placeid": [
+   3,
+   "string"
+  ],
+  "ischargestop": [
+   4,
+   "bool"
+  ],
+  "issystemadded": [
+   5,
+   "bool"
+  ]
+ },
+ "xek": {
+  "legetautc": [
+   1,
+   "message"
+  ],
+  "tripetautc": [
+   2,
+   "message"
+  ],
+  "nextstopindex": [
+   3,
+   "int32"
+  ],
+  "legremainingdistancemeters": [
+   4,
+   "double"
+  ],
+  "legremainingdurationseconds": [
+   5,
+   "double"
+  ],
+  "vehiclecurrentgpslocation": [
+   6,
+   "message"
+  ]
+ },
+ "xo": {
+  "iv_size": [
+   1,
+   "uint32"
+  ]
+ },
+ "xq": {
+  "sound_alarm": [
+   1,
+   "enum"
+  ],
+  "consecutive_alarm_disabled_notification": [
+   2,
+   "bool"
+  ]
+ },
+ "xxa": {
+  "version": [
+   1,
+   "uint32"
+  ],
+  "params": [
+   2,
+   "message"
+  ]
+ },
+ "y1m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "y3l": {
+  "request": [
+   1,
+   "message"
+  ],
+  "response": [
+   2,
+   "message"
+  ]
+ },
+ "y4l": {
+  "key_fob_signing_request": [
+   1,
+   "message"
+  ],
+  "key_fob_signing_response": [
+   2,
+   "message"
+  ]
+ },
+ "y56": {
+  "key_id": [
+   1,
+   "int32"
+  ],
+  "ts_epoch_ms": [
+   2,
+   "int64"
+  ],
+  "expiration_epoch_ms": [
+   3,
+   "int64"
+  ],
+  "revision": [
+   4,
+   "int32"
+  ],
+  "status": [
+   5,
+   "enum"
+  ],
+  "slot_id": [
+   6,
+   "int32"
+  ],
+  "permissions": [
+   7,
+   "int32"
+  ]
+ },
+ "y7e": {
+  "total_kwh": [
+   1,
+   "float"
+  ],
+  "thermal_kwh": [
+   2,
+   "float"
+  ],
+  "outlets_kwh": [
+   3,
+   "float"
+  ],
+  "system_kwh": [
+   4,
+   "float"
+  ],
+  "gear_guard_kwh": [
+   5,
+   "float"
+  ],
+  "total_range": [
+   6,
+   "float"
+  ],
+  "thermal_range": [
+   7,
+   "float"
+  ],
+  "outlets_range": [
+   8,
+   "float"
+  ],
+  "system_range": [
+   9,
+   "float"
+  ],
+  "gear_guard_range": [
+   10,
+   "float"
+  ],
+  "session_duration_mins": [
+   11,
+   "uint32"
+  ]
+ },
+ "y9f": {
+  "strings": [
+   1,
+   "string[]"
+  ]
+ },
+ "ye9": {
+  "specification_filters": [
+   1,
+   "enum[]"
+  ]
+ },
+ "yfd": {
+  "unexpected_stop_reason": [
+   1,
+   "enum"
+  ],
+  "derate_status": [
+   2,
+   "enum"
+  ],
+  "fault_chime": [
+   3,
+   "enum"
+  ]
+ },
+ "yri": {},
+ "yz1": {
+  "state": [
+   1,
+   "enum"
+  ],
+  "type": [
+   2,
+   "enum"
+  ]
+ },
+ "z0m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "z1m": {
+  "charging_state": [
+   2,
+   "message"
+  ],
+  "charger_status": [
+   3,
+   "message"
+  ],
+  "charger_derate_status": [
+   4,
+   "message"
+  ],
+  "range_threshold": [
+   9,
+   "message"
+  ],
+  "charging_time_estimation_validity_status": [
+   10,
+   "message"
+  ],
+  "updated_at_timestamp": [
+   11,
+   "message"
+  ],
+  "battery_level": [
+   12,
+   "int32"
+  ],
+  "time_to_end_of_charge": [
+   13,
+   "int32"
+  ],
+  "distance_to_empty": [
+   14,
+   "int32"
+  ],
+  "remote_charging_available": [
+   15,
+   "bool"
+  ],
+  "battery_limit": [
+   16,
+   "int32"
+  ]
+ },
+ "z2m": {
+  "val": [
+   1,
+   "enum"
+  ]
+ },
+ "z3l": {
+  "value": [
+   1,
+   "enum"
+  ]
+ },
+ "z6l": {
+  "states": [
+   1,
+   "message[]"
+  ],
+  "all": [
+   2,
+   "bool"
+  ]
+ },
+ "z9e": {
+  "passive_entry_unlock_fail_reason": [
+   1,
+   "enum"
+  ],
+  "send_lock_fail_notification": [
+   2,
+   "enum"
+  ]
+ },
+ "zb2": {
+  "carrier": [
+   1,
+   "string"
+  ],
+  "network": [
+   2,
+   "string"
+  ],
+  "signal_quality": [
+   3,
+   "enum"
+  ],
+  "signal_strength": [
+   4,
+   "int32"
+  ]
+ },
+ "zxa": {
+  "key_uri": [
+   1,
+   "string"
+  ]
+ }
+}
