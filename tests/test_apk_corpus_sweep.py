@@ -269,8 +269,8 @@ class TestIntegrationSetsAreParsedNotImported:
 
         assert len(sweep.integration_vehicle_state_fields(root)) == 149
         assert (
-            len(sweep.integration_rvm_names(root)) == 42
-        )  # 33 before s34, 37 before s44
+            len(sweep.integration_rvm_names(root)) == 53
+        )  # 33 before s34, 37 before s44, 42 before s45, 51 before the request-side passive_entry topic
         assert len(sweep.integration_feature_pairs(root)) == 64
         assert sweep.integration_charging_fields(root)
 

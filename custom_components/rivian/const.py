@@ -199,6 +199,37 @@ def _energy_window_total(window: Any) -> float | None:
     return window.get("totalKwh")
 
 
+def _list_length(value: Any) -> int | None:
+    """A decoded list as its length; the list itself rides as attributes."""
+    return len(value) if isinstance(value, list) else None
+
+
+def _list_attributes(value: Any) -> dict[str, Any] | None:
+    return {"items": value} if isinstance(value, list) and value else None
+
+
+def _ota_schedule_state(schedules: Any) -> str | None:
+    """`daily` / `once` for the first enabled schedule, else `none`."""
+    if not isinstance(schedules, list):
+        return None
+    for entry in schedules:
+        if isinstance(entry, dict) and entry.get("enabled"):
+            return "daily" if "dailyStartMinute" in entry else "once"
+    return "none"
+
+
+def _pet_snapshot_created(snapshot: Any) -> datetime | None:
+    if not isinstance(snapshot, dict):
+        return None
+    return _epoch_seconds_to_utc(snapshot.get("createdAt"))
+
+
+def _pet_snapshot_attributes(snapshot: Any) -> dict[str, Any] | None:
+    if not isinstance(snapshot, dict):
+        return None
+    return {k: v for k, v in snapshot.items() if k != "createdAt"} or None
+
+
 def _energy_window_attributes(window: Any) -> dict[str, Any] | None:
     """The other nine measurements of a parked-energy window.
 
@@ -1748,6 +1779,140 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         # bound in the app, which outranks the witnessed-arrival rule here. It
         # reads unavailable until the vehicle sends one.
     ),
+    RivianSensorEntityDescription(
+        key="trip_target_time_remaining",
+        translation_key="trip_target_time_remaining",
+        field="tripTargetMinutesRemaining",
+        icon="mdi:timer-outline",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        # Same topic and owner decision as trip_target_soc above.
+    ),
+    # -- s45: name-matched topics (rivian_client/parallax.py, "s45" block).
+    # Ungated: no VehicleFeature name is known for any of them. Enabled only
+    # where a frame of the topic is committed under tests/client/fixtures/
+    # parallax/; the rest are disabled until one is witnessed (owner decision).
+    # body.windows.states and comfort.user_modes.state feed existing entities.
+    RivianSensorEntityDescription(
+        key="hvac_set_temperature",
+        translation_key="hvac_set_temperature",
+        field="hvacSetTemperature",
+        icon="mdi:thermostat",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+    ),
+    # energy_edge_compute.graphs.cold_weather_soc (`jx3`): captured, so enabled.
+    # What "green" and "blue" mean is not in the app; the names are its own.
+    RivianSensorEntityDescription(
+        key="cold_weather_soc_green",
+        translation_key="cold_weather_soc_green",
+        field="coldWeatherSocGreen",
+        icon="mdi:snowflake-thermometer",
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+    RivianSensorEntityDescription(
+        key="cold_weather_soc_blue",
+        translation_key="cold_weather_soc_blue",
+        field="coldWeatherSocBlue",
+        icon="mdi:snowflake-thermometer",
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+    RivianSensorEntityDescription(
+        key="cold_range_impact",
+        translation_key="cold_range_impact",
+        field="coldRangeImpact",
+        icon="mdi:snowflake-alert",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        suggested_unit_of_measurement=UnitOfLength.MILES,
+    ),
+    RivianSensorEntityDescription(
+        key="ota_one_time_install_time",
+        translation_key="ota_one_time_install_time",
+        field="otaOneTimeInstallTime",
+        icon="mdi:calendar-clock",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_lambda=_epoch_seconds_to_utc,
+    ),
+    RivianSensorEntityDescription(
+        key="ota_install_schedule",
+        translation_key="ota_install_schedule",
+        field="otaInstallSchedules",
+        icon="mdi:calendar-sync",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_lambda=_ota_schedule_state,
+        attributes_lambda=_list_attributes,
+        entity_registry_enabled_default=False,
+    ),
+    RivianSensorEntityDescription(
+        key="ccc_passive_permission_status",
+        translation_key="ccc_passive_permission_status",
+        field="cccPassivePermissionStatus",
+        icon="mdi:key-wireless",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_lambda=_to_title_case,
+        entity_registry_enabled_default=False,
+    ),
+    RivianSensorEntityDescription(
+        key="favorite_geofences",
+        translation_key="favorite_geofences",
+        field="favoriteGeofences",
+        icon="mdi:map-marker-star",
+        value_lambda=_list_length,
+        attributes_lambda=_list_attributes,
+        entity_registry_enabled_default=False,
+    ),
+    RivianSensorEntityDescription(
+        key="pet_snapshot_created",
+        translation_key="pet_snapshot_created",
+        field="petSnapshot",
+        icon="mdi:dog",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_lambda=_pet_snapshot_created,
+        attributes_lambda=_pet_snapshot_attributes,
+        entity_registry_enabled_default=False,
+    ),
+    RivianSensorEntityDescription(
+        key="nav_trip_eta",
+        translation_key="nav_trip_eta",
+        field="navTripEta",
+        icon="mdi:map-clock",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_lambda=_epoch_seconds_to_utc,
+        entity_registry_enabled_default=False,
+    ),
+    RivianSensorEntityDescription(
+        key="nav_leg_eta",
+        translation_key="nav_leg_eta",
+        field="navLegEta",
+        icon="mdi:map-clock-outline",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_lambda=_epoch_seconds_to_utc,
+        entity_registry_enabled_default=False,
+    ),
+    RivianSensorEntityDescription(
+        key="nav_leg_remaining_distance",
+        translation_key="nav_leg_remaining_distance",
+        field="navLegRemainingDistance",
+        icon="mdi:map-marker-distance",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.METERS,
+        suggested_unit_of_measurement=UnitOfLength.MILES,
+        suggested_display_precision=1,
+        entity_registry_enabled_default=False,
+    ),
+    RivianSensorEntityDescription(
+        key="nav_leg_remaining_duration",
+        translation_key="nav_leg_remaining_duration",
+        field="navLegRemainingDuration",
+        icon="mdi:timer-sand",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.MINUTES,
+        entity_registry_enabled_default=False,
+    ),
 )
 BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
     RivianBinarySensorEntityDescription(
@@ -2038,7 +2203,10 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         icon="mdi:progress-check",
         device_class=BinarySensorDeviceClass.UPDATE,
         entity_category=EntityCategory.DIAGNOSTIC,
-        on_value="available",
+        # The wire strings are "ota_available" / "ota_not_available"; the app
+        # maps exactly those (FOLLOWUP_S45.md, xqm.java:1312-1318). It never
+        # compares against "available", so the old on_value never fired.
+        on_value="ota_available",
     ),
     RivianBinarySensorEntityDescription(
         key="car_wash_mode",
@@ -2135,6 +2303,15 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         feature="AUTO_VENT",
         icon="mdi:air-filter",
     ),
+    # s45, vehicle_access.state.passive_entry (`fre` #1). No frame captured.
+    RivianBinarySensorEntityDescription(
+        key="passive_entry_bluetooth_in_ccc",
+        translation_key="passive_entry_bluetooth_in_ccc",
+        field="passiveEntryBluetoothInCcc",
+        icon="mdi:bluetooth-connect",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
 )
 
 # Fields a sensor reads but the GraphQL VehicleState type does not have, or that
@@ -2186,17 +2363,32 @@ PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "cabinVentilationMode",
     "cabinVentilationSunroofOpenPercent",
     "cabinVentilationWindowsOpenPercent",
+    "cccPassivePermissionStatus",
     "chargingFaultChime",
+    "coldRangeImpact",
+    "coldWeatherSocBlue",
+    "coldWeatherSocGreen",
     "consecutiveAlarmDisabledNotification",
+    "favoriteGeofences",
     "gearGuardStreamingConsent",
     "gearGuardStreamingDailyLimit",
     "gearGuardStreamingLimitResetTime",
+    "hvacSetTemperature",
     "knownLocation",
+    "navLegEta",
+    "navLegRemainingDistance",
+    "navLegRemainingDuration",
+    "navTripEta",
+    "otaInstallSchedules",
+    "otaOneTimeInstallTime",
     "parkedEnergyLast24Hours",
     "parkedEnergyLast8Hours",
     "parkedEnergyLastParkSession",
+    "passiveEntryBluetoothInCcc",
     "passiveEntryUnlockFailReason",
+    "petSnapshot",
     "secureImmobilizerStatus",
+    "tripTargetMinutesRemaining",
     "tripTargetSoc",
     "vasAccessCanFaulted",
     "vasSecureElementFaulted",

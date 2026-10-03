@@ -107,6 +107,9 @@
       "cabin_ventilation_windows_open": {
         "name": "Cabin Ventilation Windows Open"
       },
+      "ccc_passive_permission_status": {
+        "name": "Digital Key Passive Entry Permission"
+      },
       "cellular_antenna_bars": {
         "name": "Cellular Signal Bars"
       },
@@ -211,8 +214,17 @@
       "closure_tailgate_next_action": {
         "name": "Tailgate Next Action"
       },
+      "cold_range_impact": {
+        "name": "Cold Range Impact"
+      },
       "cold_range_notification": {
         "name": "Cold Range Notification"
+      },
+      "cold_weather_soc_blue": {
+        "name": "Cold Weather SOC (Blue)"
+      },
+      "cold_weather_soc_green": {
+        "name": "Cold Weather SOC (Green)"
       },
       "consecutive_alarm_disabled_notification": {
         "name": "Consecutive Alarm Disabled Notification"
@@ -228,6 +240,9 @@
       },
       "drivers": {
         "name": "Drivers"
+      },
+      "favorite_geofences": {
+        "name": "Favorite Locations"
       },
       "gear_guard_streaming_consent": {
         "name": "Gear Guard Streaming Consent"
@@ -274,6 +289,9 @@
       "gnss_speed": {
         "name": "Speed"
       },
+      "hvac_set_temperature": {
+        "name": "HVAC Set Temperature"
+      },
       "keys": {
         "name": "Keys"
       },
@@ -285,6 +303,18 @@
       },
       "limited_regen_cold": {
         "name": "Limited Regenerative Braking (Cold)"
+      },
+      "nav_leg_eta": {
+        "name": "Navigation Next Stop ETA"
+      },
+      "nav_leg_remaining_distance": {
+        "name": "Navigation Distance to Next Stop"
+      },
+      "nav_leg_remaining_duration": {
+        "name": "Navigation Time to Next Stop"
+      },
+      "nav_trip_eta": {
+        "name": "Navigation Trip ETA"
       },
       "ota_available_version": {
         "name": "OTA Available Version"
@@ -331,11 +361,17 @@
       "ota_install_progress": {
         "name": "OTA Install Progress"
       },
+      "ota_install_schedule": {
+        "name": "OTA Install Schedule"
+      },
       "ota_install_time": {
         "name": "OTA Install Time"
       },
       "ota_install_type": {
         "name": "OTA Install Type"
+      },
+      "ota_one_time_install_time": {
+        "name": "OTA Scheduled Install Time"
       },
       "ota_software_category": {
         "name": "OTA Software Category"
@@ -360,6 +396,9 @@
       },
       "pet_mode_temperature_status": {
         "name": "Pet Comfort Temperature Status"
+      },
+      "pet_snapshot_created": {
+        "name": "Pet Mode Snapshot"
       },
       "power": {
         "name": "Power"
@@ -441,6 +480,9 @@
       },
       "trip_target_soc": {
         "name": "Trip Target State of Charge"
+      },
+      "trip_target_time_remaining": {
+        "name": "Trip Target Time Remaining"
       },
       "vas_access_can_faulted": {
         "name": "VAS Access CAN Faulted"
@@ -614,6 +656,9 @@
       },
       "ota_install_ready": {
         "name": "OTA Install Ready"
+      },
+      "passive_entry_bluetooth_in_ccc": {
+        "name": "Bluetooth Passive Entry in Digital Key Mode"
       },
       "service_mode": {
         "name": "Service Mode"

@@ -66,8 +66,17 @@ def test_registered_and_bound_in_the_app(topic: str) -> None:
 
 class TestMapsAreTheAppsEnums:
     def test_derate_status(self) -> None:
+        """Only the seven members the app maps (FOLLOWUP_S45.md); the rest keep
+        the previous value, which here means emitting nothing."""
         apk = _enum(BOUND[NOTIFICATION]["fields"], "derate_status")
-        assert {n: f"DERATE_STATUS_{v}" for n, v in _DERATE_STATUS.items()} == apk
+        assert {n: f"DERATE_STATUS_{v}" for n, v in _DERATE_STATUS.items()} == {
+            n: apk[n] for n in (0, 3, 4, 5, 6, 8, 9)
+        }
+
+    def test_an_unmapped_derate_member_emits_nothing(self) -> None:
+        """DC_WARM_PLUG (2) is not one of the app's seven."""
+        out = decode_charging_notification(_b64(b"\x10\x02"))
+        assert "chargerDerateStatus" not in out
 
     def test_fault_chime(self) -> None:
         apk = _enum(BOUND[NOTIFICATION]["fields"], "fault_chime")
@@ -138,6 +147,7 @@ class TestTheCaptures:
             "otaCurrentStatus": "Install_Success",
             "otaDownloadProgress": 0,
             "otaInstallProgress": 0,
+            "otaInstallReady": "ota_not_available",
         }
 
 
@@ -162,15 +172,16 @@ class TestDecoders:
             "chargingFaultChime": "none",
         }
 
-    def test_trip_target_emits_only_the_soc(self) -> None:
-        """#2 has no unit in the app and #3 no enum, so neither is emitted."""
+    def test_trip_target_soc_and_minutes(self) -> None:
+        """#2 is minutes (FOLLOWUP_S45.md); #3 has no enum and is not emitted."""
         assert decode_trip_target(_b64(b"\x08\x50\x10\x2d\x18\x01")) == {
-            "tripTargetSoc": 80
+            "tripTargetSoc": 80,
+            "tripTargetMinutesRemaining": 45,
         }
 
     def test_ota_available_version_and_ready_to_install(self) -> None:
         version = b"\x0a\x092026.33.1\x18\xea\x0f\x20\x21"  # 2026.33.1, 2026, 33
-        progress = b"\x08\x08"  # READY_TO_INSTALL
+        progress = b"\x08\x08\x38\x01"  # READY_TO_INSTALL, install_ready
         available = b"\x12" + bytes([len(version)]) + version
         available += b"\x2a" + bytes([len(progress)]) + progress
         firmware = b"\x08\x01\x22" + bytes([len(available)]) + available
@@ -182,6 +193,7 @@ class TestDecoders:
             "otaAvailableVersionYear": 2026,
             "otaAvailableVersionWeek": 33,
             "otaStatus": "Ready_To_Install",
+            "otaInstallReady": "ota_available",
         }
 
     def test_ota_ignores_non_firmware_categories(self) -> None:

@@ -89,14 +89,14 @@ class TestPublishedCountsAreRecomputed:
     """Numbers that appear in docs are asserted here or they are unchecked."""
 
     def test_fixture_and_decoder_totals(self, manifest: dict) -> None:
-        """42 captured topics; 37 decoders after s34, 42 after s44.
+        """42 captured topics; 37 decoders after s34, 42 after s44, 51 after s45.
 
         40 until the 2026-09-02 active re-run, which was the first capture to
         run under the additive `--write`. It added two frames and rewrote none,
         which is the whole point of `TestCaptureRerunIsAdditive`.
         """
         assert len(manifest) == 42
-        assert len(RVM_DECODERS) == 42
+        assert len(RVM_DECODERS) == 53
 
     def test_the_frame_without_decoder_count(self, manifest: dict) -> None:
         """The number published wrong five times.
@@ -109,7 +109,8 @@ class TestPublishedCountsAreRecomputed:
         """
         undecoded = {topic for topic in manifest if topic not in RVM_DECODERS}
 
-        assert len(undecoded) == 6
+        # 2 after s45, which decoded four more captured topics on a name-match.
+        assert len(undecoded) == 2
 
     def test_decoders_without_a_fixture(self, manifest: dict) -> None:
         """The asymmetry the earlier arithmetic hid.
@@ -119,7 +120,8 @@ class TestPublishedCountsAreRecomputed:
         2026-09-02 re-run captured two of those seven, leaving five. s44 added
         charging.session.trip_target, decoded from the APK with no capture: six.
         """
-        assert len(set(RVM_DECODERS) - set(manifest)) == 6
+        # s45's name-matched decoders added seven more with no capture: 13.
+        assert len(set(RVM_DECODERS) - set(manifest)) == 13
 
 
 class TestFixturesCarryNoPersonalData:
@@ -365,6 +367,11 @@ class TestDecodersProduceSomethingFromTheirOwnFrame:
 
     # topic -> why it yields nothing, measured from the committed frame
     KNOWN_EMPTY = {
+        "ota.ota_state.vehicle_ota_state": (
+            "correctly empty. The app's `ugm` (name-match) is #1 id, #2 "
+            "install_time_epoch; the frame carries only #1 = 'VehicleOTAState'. "
+            "No one-time install is scheduled, so nothing to report."
+        ),
         "security.access.passive_entry_debug": (
             "correctly empty. The app's `jre` puts the unlock fail reason on "
             "field 1 and send_lock_fail_notification on field 2; the frame "

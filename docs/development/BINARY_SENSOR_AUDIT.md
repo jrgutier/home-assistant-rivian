@@ -171,7 +171,7 @@ three rejected rows are recorded below — a keyword match is not a binding.
 | `alarm_sound_status` | `alarmSoundStatus` | `SoundAlarm` | `ACTIVE` / `INACTIVE` | `SOUND` or `PROBLEM` | no |
 | `twelve_volt_battery_health` | `twelveVoltBatteryHealth` | `TwelveVoltBatteryHealth` | `OK` / `LOW` | `PROBLEM` | no |
 | `service_mode` | `serviceMode` | `ServiceModeStatus` | `ON` / `OFF` | none | no |
-| `ota_install_ready` | `otaInstallReady` | `OverTheAirInstallReady` | `AVAILABLE` / `NOT_AVAILABLE` | `UPDATE` | no |
+| `ota_install_ready` | `otaInstallReady` | `OverTheAirInstallReady` | `AVAILABLE` / `NOT_AVAILABLE` (wire: `ota_available` / `ota_not_available`; s45) | `UPDATE` | no |
 
 **None of the 12 gains voice-assistant exposure.** Every one lands in `problem` / `update` /
 no-device-class, which HomeKit and Google do not surface as accessories. The gain is real but

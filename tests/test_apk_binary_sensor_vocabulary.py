@@ -72,7 +72,9 @@ TWO_STATE_BINARY = {
     "battery_hv_thermal_event_propagation": ("BatteryThermalEvent", "detected"),
     "twelve_volt_battery_health": ("TwelveVoltBatteryHealth", "low"),
     "service_mode": ("ServiceModeStatus", "on"),
-    "ota_install_ready": ("OverTheAirInstallReady", "available"),
+    # Wire string, not the member name: the app maps "ota_available" to
+    # AVAILABLE (FOLLOWUP_S45.md); "available" never arrives.
+    "ota_install_ready": ("OverTheAirInstallReady", "ota_available"),
     "car_wash_mode": ("CarWashModeStatus", "on"),
 }
 

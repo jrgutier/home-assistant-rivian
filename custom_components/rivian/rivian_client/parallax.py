@@ -1732,28 +1732,22 @@ def decode_remote_command(payload: str) -> dict[str, Any]:
         return {}
 
 
-# `wwd` #2 DERATE_STATUS and #3 FAULT_CHIME (3.16.0), prefix-stripped. Derate is
-# emitted upper-case because that is the gateway's chargerDerateStatus vocabulary
-# ("NONE" in every community capture). #1 unexpected_stop_reason has no
-# attributable enum in either build, so it is not decoded.
+# `wwd` #2 DERATE_STATUS and #3 FAULT_CHIME (3.16.0), prefix-stripped.
+#
+# Derate follows what the APP does with it (FOLLOWUP_S45.md, c97.java:296-333):
+# it maps exactly seven members onto chargerDerateStatus and, for the other
+# eleven, keeps the previous value. So do we -- an unmapped member emits
+# nothing. Upper-case because that is the gateway's chargerDerateStatus
+# vocabulary ("NONE" in every community capture). #1 unexpected_stop_reason has
+# no enum in any of 54 app versions, so it is not decoded.
 _DERATE_STATUS: Final[dict[int, str]] = {
     0: "NONE",
-    1: "WARM_ADAPTER",
-    2: "DC_WARM_PLUG",
-    3: "AC_WARM_PLUG",
     4: "EVSE_DERATING",
     5: "NEARING_TOC",
     6: "NEAR_TOC_LFP_BATT_CALIBRATING",
-    7: "HVAC_PRIORITIZED",
     8: "BATTERY_HEATING",
     9: "BATTERY_COOLING",
-    10: "CELL_THERMAL_LIM_COLD_NO_CURRENT",
-    11: "CELL_THERMAL_LIM_HOT_NO_CURRENT",
-    12: "CELL_THERMAL_LIM_COLD",
-    13: "CELL_THERMAL_LIM_HOT",
-    14: "PACK_HARDWARE_THERMAL_LIM",
-    15: "HIGH_SOC_SIGMA",
-    16: "HV_BATTERY_FAULT",
+    3: "AC_WARM_PLUG",
 }
 _FAULT_CHIME: Final[dict[int, str]] = {
     0: "none",
@@ -1804,21 +1798,26 @@ def decode_charging_notification(payload: str) -> dict[str, Any]:
 def decode_trip_target(payload: str) -> dict[str, Any]:
     """Decode charging.session.trip_target -- `d5l`.
 
-    #1 soc is the only field with a known meaning and unit. #2 time_estimate has
-    no unit in the app and #3 status no attributable enum, so neither is emitted.
+    #1 soc and #2 time_estimate, which the app passes unmodified into its
+    chargingTripTargetMinsRemaining (FOLLOWUP_S45.md, c97.java:591) -- minutes.
+    #3 status has no enum in any app version and is not emitted.
 
-    Returns dict with keys:
+    Returns dict with keys, when sent:
         - tripTargetSoc: int (percent)
+        - tripTargetMinutesRemaining: int (minutes)
     """
     if not payload:
         return {}
     try:
+        result: dict[str, Any] = {}
         for field_num, wire_type, value in _decode_protobuf_fields(
             base64.b64decode(payload)
         ):
             if field_num == 1 and wire_type == 0:
-                return {"tripTargetSoc": value}
-        return {}
+                result["tripTargetSoc"] = value
+            elif field_num == 2 and wire_type == 0:
+                result["tripTargetMinutesRemaining"] = value
+        return result
     except Exception:
         _LOGGER.debug("Failed to decode trip_target payload", exc_info=True)
         return {}
@@ -1866,13 +1865,20 @@ def _ota_version(data: bytes, prefix: str) -> dict[str, Any]:
 def _ota_progress(data: bytes) -> dict[str, Any]:
     """`ota_progress`: 1 ota_status, 2 ota_current_status, 3 download and
     4 install progress, each with progress_percent on #2 (a oneof member, so
-    serialised even at 0)."""
-    out: dict[str, Any] = {}
+    serialised even at 0), and 7 install_ready.
+
+    install_ready is a bool the app turns into the gateway's own strings,
+    "ota_available" / "ota_not_available" (FOLLOWUP_S45.md, uf7.java:1778).
+    proto3 omits False, so a progress message without #7 is not ready.
+    """
+    out: dict[str, Any] = {"otaInstallReady": "ota_not_available"}
     for num, wt, val in _decode_protobuf_fields(data):
         if num == 1 and wt == 0 and val in _OTA_STATUS:
             out["otaStatus"] = _gql_case(_OTA_STATUS[val])
         elif num == 2 and wt == 0 and val in _OTA_CURRENT_STATUS:
             out["otaCurrentStatus"] = _gql_case(_OTA_CURRENT_STATUS[val])
+        elif num == 7 and wt == 0:
+            out["otaInstallReady"] = "ota_available" if val else "ota_not_available"
         elif num in (3, 4) and wt == 2:
             key = "otaDownloadProgress" if num == 3 else "otaInstallProgress"
             for p_num, p_wt, p_val in _decode_protobuf_fields(val):
@@ -1890,12 +1896,13 @@ def decode_ota_deployment_state(payload: str) -> dict[str, Any]:
 
     Values use the gateway's casing (`Ready_To_Install`), which update.py
     compares against. Fields the app has no unit or vocabulary for -- install
-    time, duration, OTA type, install-ready -- are not emitted.
+    time, duration, OTA type -- are not emitted.
 
     Returns dict with keys, each only when sent:
         - otaCurrentVersion, otaCurrentVersionYear/Week/Number/GitHash
         - otaAvailableVersion, otaAvailableVersionYear/Week/Number/GitHash
-        - otaStatus, otaCurrentStatus, otaDownloadProgress, otaInstallProgress
+        - otaStatus, otaCurrentStatus, otaDownloadProgress, otaInstallProgress,
+          otaInstallReady ("ota_available" / "ota_not_available")
     """
     if not payload:
         return {}
@@ -1926,6 +1933,336 @@ def decode_ota_deployment_state(payload: str) -> dict[str, Any]:
         return {}
 
 
+# --- s45: name-matched topics --------------------------------------------------
+#
+# Owner decision: decode the topics the app subscribes to but never parses,
+# using the app's own message class whose field names match the topic -- an
+# uncalled parse wrapper in `apk/schema/uncalled_parse_wrappers_<ver>.json`.
+# That is a NAME-MATCH, not a binding read off a dispatch site, the same class
+# of inference vehicle.network.state already is. Each decoder names its class.
+# Key material, encrypted payloads and storage ids are never emitted.
+
+
+def _fields(payload: str) -> list[tuple[int, int, Any]]:
+    return _decode_protobuf_fields(base64.b64decode(payload))
+
+
+def _timestamp_seconds(data: bytes) -> int | None:
+    """google.protobuf.Timestamp -> epoch seconds (nanos dropped)."""
+    for num, wt, val in _decode_protobuf_fields(data):
+        if num == 1 and wt == 0:
+            return val
+    return None
+
+
+# `zzn` (3.16.0): repeated #1 states {#1 window_instance, #2 calibration_status}.
+_WINDOW_CALIBRATION_FIELDS: Final[dict[int, str]] = {
+    1: "windowFrontLeftCalibrated",
+    2: "windowFrontRightCalibrated",
+    3: "windowRearLeftCalibrated",
+    4: "windowRearRightCalibrated",
+    # 5 WINDOW_INSTANCE_REAR has no gateway field
+}
+# CALIBRATION_STATUS, in the gateway's casing ("Calibrated" in every capture)
+_WINDOW_CALIBRATION: Final[dict[int, str]] = {1: "Calibrated", 2: "Not_Calibrated"}
+
+
+def decode_window_states(payload: str) -> dict[str, Any]:
+    """Decode body.windows.states (name-match: `zzn`).
+
+    Returns dict with keys window{FrontLeft,FrontRight,RearLeft,RearRight}Calibrated.
+    """
+    if not payload:
+        return {}
+    try:
+        result: dict[str, Any] = {}
+        for num, wt, val in _fields(payload):
+            if num != 1 or wt != 2:
+                continue
+            instance = status = 0
+            for in_num, in_wt, in_val in _decode_protobuf_fields(val):
+                if in_wt == 0 and in_num == 1:
+                    instance = in_val
+                elif in_wt == 0 and in_num == 2:
+                    status = in_val
+            if instance in _WINDOW_CALIBRATION_FIELDS and status in _WINDOW_CALIBRATION:
+                result[_WINDOW_CALIBRATION_FIELDS[instance]] = _WINDOW_CALIBRATION[
+                    status
+                ]
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode body.windows.states payload", exc_info=True)
+        return {}
+
+
+def decode_hvac_settings_status(payload: str) -> dict[str, Any]:
+    """Decode comfort.cabin.hvac_settings_status (name-match: `e9a`).
+
+    #1 set_temperature_celsius, float. The capture (`0d0000a841`) is 21.0.
+
+    Returns dict with keys:
+        - hvacSetTemperature: float (Celsius)
+    """
+    if not payload:
+        return {}
+    try:
+        for num, wt, val in _fields(payload):
+            if num == 1 and wt == 5:
+                return {"hvacSetTemperature": round(val, 1)}
+        return {}
+    except Exception:
+        _LOGGER.debug("Failed to decode hvac_settings_status payload", exc_info=True)
+        return {}
+
+
+# `uql` #1 in_service and #2 car_wash: MODE_STATUS 0 UNSPECIFIED, 1 ON. The
+# enum has no OFF member, so 0 -- which proto3 omits -- is how "not on" is
+# encoded. Emitted as the gateway's serviceMode / carWashMode ("on" / "off").
+# #3-#7 (pet_mode, camp_mode, transport_mode, climate_keep, factory_mode) use
+# enums the s42 extraction could not attribute and are not decoded.
+_USER_MODE_FIELDS: Final[dict[int, str]] = {1: "serviceMode", 2: "carWashMode"}
+
+
+def decode_user_modes(payload: str) -> dict[str, Any]:
+    """Decode comfort.user_modes.state (name-match: `uql`).
+
+    Returns dict with keys:
+        - serviceMode, carWashMode: str ("on" / "off")
+    """
+    try:
+        result = dict.fromkeys(_USER_MODE_FIELDS.values(), "off")
+        for num, wt, val in _fields(payload or ""):
+            if num in _USER_MODE_FIELDS and wt == 0 and val == 1:
+                result[_USER_MODE_FIELDS[num]] = "on"
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode user_modes payload", exc_info=True)
+        return {}
+
+
+# `fre` #2 CCC_PASSIVE_PERMISSION_STATUS (3.16.0)
+_CCC_PASSIVE_PERMISSION: Final[dict[int, str]] = {
+    0: "sna",
+    1: "disabled",
+    2: "enabled",
+}
+
+
+def decode_passive_entry_state(payload: str) -> dict[str, Any]:
+    """Decode vehicle_access.{state.passive_entry,passive_entry.passive_entry}.
+
+    `fre` is BOUND, request-side, to vehicle_access.passive_entry.passive_entry:
+    the app builds it and sends it there as a PARALLAX_OPERATION_REQUEST
+    (FOLLOWUP_S45.md, wy9.java:2225-2234). It never parses one. Reading the
+    vehicle's publication on that topic, and on the .state sibling (a
+    name-match), as the same message is the inference here.
+
+    Returns dict with keys:
+        - passiveEntryBluetoothInCcc: bool (#1)
+        - cccPassivePermissionStatus: str (#2)
+    """
+    try:
+        result: dict[str, Any] = {
+            "passiveEntryBluetoothInCcc": False,
+            "cccPassivePermissionStatus": _CCC_PASSIVE_PERMISSION[0],
+        }
+        for num, wt, val in _fields(payload or ""):
+            if num == 1 and wt == 0:
+                result["passiveEntryBluetoothInCcc"] = bool(val)
+            elif num == 2 and wt == 0 and val in _CCC_PASSIVE_PERMISSION:
+                result["cccPassivePermissionStatus"] = _CCC_PASSIVE_PERMISSION[val]
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode passive_entry state payload", exc_info=True)
+        return {}
+
+
+_GEOFENCE_TYPE: Final[dict[int, str]] = {0: "custom", 1: "home", 2: "work"}
+
+
+def decode_favorite_geofences(payload: str) -> dict[str, Any]:
+    """Decode geofence.geofence_service.favoriteGeofences (name-match: `wq7`).
+
+    Repeated #1 favorites {#1 type (0 CUSTOM, 1 HOME, 2 WORK), #2 name}.
+
+    Returns dict with keys:
+        - favoriteGeofences: list[{"type": str, "name": str}]
+    """
+    try:
+        favorites: list[dict[str, str]] = []
+        for num, wt, val in _fields(payload or ""):
+            if num != 1 or wt != 2:
+                continue
+            entry = {"type": _GEOFENCE_TYPE[0], "name": ""}
+            for in_num, in_wt, in_val in _decode_protobuf_fields(val):
+                if in_num == 1 and in_wt == 0:
+                    entry["type"] = _GEOFENCE_TYPE.get(in_val, "unknown")
+                elif in_num == 2 and in_wt == 2:
+                    entry["name"] = in_val.decode("utf-8", "replace")
+            favorites.append(entry)
+        return {"favoriteGeofences": favorites}
+    except Exception:
+        _LOGGER.debug("Failed to decode favoriteGeofences payload", exc_info=True)
+        return {}
+
+
+def decode_vehicle_ota_state(payload: str) -> dict[str, Any]:
+    """Decode ota.ota_state.vehicle_ota_state (name-match: `ugm`).
+
+    #1 id (string), #2 install_time_epoch (Timestamp). The capture carries only
+    the id, the literal "VehicleOTAState", so it decodes to {}.
+
+    Returns dict with keys:
+        - otaOneTimeInstallTime: int (epoch seconds), when sent
+    """
+    if not payload:
+        return {}
+    try:
+        for num, wt, val in _fields(payload):
+            if num == 2 and wt == 2 and (ts := _timestamp_seconds(val)) is not None:
+                return {"otaOneTimeInstallTime": ts}
+        return {}
+    except Exception:
+        _LOGGER.debug("Failed to decode vehicle_ota_state payload", exc_info=True)
+        return {}
+
+
+def decode_ota_config(payload: str) -> dict[str, Any]:
+    """Decode ota.user_schedule.ota_config (name-match: `rfe`).
+
+    Repeated #1 schedules {#1 id, #2 isenabled, #3 repeatsdaily {#1 startsatmin,
+    #2 geofence {#1 location}}, #4 singleoccurrence {#1 startsatutc}}.
+
+    Returns dict with keys:
+        - otaInstallSchedules: list[dict] -- enabled, and either
+          dailyStartMinute (minutes after midnight) or startsAt (epoch seconds)
+    """
+    try:
+        schedules: list[dict[str, Any]] = []
+        for num, wt, val in _fields(payload or ""):
+            if num != 1 or wt != 2:
+                continue
+            entry: dict[str, Any] = {"enabled": False}
+            for in_num, in_wt, in_val in _decode_protobuf_fields(val):
+                if in_num == 2 and in_wt == 0:
+                    entry["enabled"] = bool(in_val)
+                elif in_num == 3 and in_wt == 2:
+                    entry["dailyStartMinute"] = 0
+                    for d_num, d_wt, d_val in _decode_protobuf_fields(in_val):
+                        if d_num == 1 and d_wt == 0:
+                            entry["dailyStartMinute"] = d_val
+                elif in_num == 4 and in_wt == 2:
+                    for o_num, o_wt, o_val in _decode_protobuf_fields(in_val):
+                        if o_num == 1 and o_wt == 2:
+                            entry["startsAt"] = _timestamp_seconds(o_val)
+            schedules.append(entry)
+        return {"otaInstallSchedules": schedules}
+    except Exception:
+        _LOGGER.debug("Failed to decode ota_config payload", exc_info=True)
+        return {}
+
+
+_PET_SNAPSHOT_FILE_TYPE: Final[dict[int, str]] = {
+    1: "image/png",
+    2: "image/jpeg",
+    3: "image/webp",
+}
+
+
+def decode_pet_snapshot(payload: str) -> dict[str, Any]:
+    """Decode secure_file_transfer.pet_snapshot.secure_file (name-match: `g2i`).
+
+    METADATA ONLY. #2 raw_data is the encrypted image and #3 wrapped_keys its
+    key material; neither is decodable here and neither is emitted. #1 s3_id
+    and #5 session_id are storage/session identifiers and are not emitted
+    either. #4 metadata {#1 filename, #2 file_type, #3 file_size, #4 created_at}.
+
+    Returns dict with keys, when metadata is sent:
+        - petSnapshot: {"createdAt": int (epoch s), "fileType": str,
+          "fileSize": int} -- each inner key only when sent
+    """
+    if not payload:
+        return {}
+    try:
+        snapshot: dict[str, Any] = {}
+        for num, wt, val in _fields(payload):
+            if num != 4 or wt != 2:
+                continue
+            for m_num, m_wt, m_val in _decode_protobuf_fields(val):
+                if m_num == 2 and m_wt == 0 and m_val in _PET_SNAPSHOT_FILE_TYPE:
+                    snapshot["fileType"] = _PET_SNAPSHOT_FILE_TYPE[m_val]
+                elif m_num == 3 and m_wt == 0:
+                    snapshot["fileSize"] = m_val
+                elif (
+                    m_num == 4
+                    and m_wt == 2
+                    and (ts := _timestamp_seconds(m_val)) is not None
+                ):
+                    snapshot["createdAt"] = ts
+        return {"petSnapshot": snapshot} if snapshot else {}
+    except Exception:
+        _LOGGER.debug("Failed to decode pet_snapshot payload", exc_info=True)
+        return {}
+
+
+def decode_cold_weather_soc(payload: str) -> dict[str, Any]:
+    """Decode energy_edge_compute.graphs.cold_weather_soc (name-match: `jx3`).
+
+    #1 soc_perc_green, #2 soc_perc_blue (percent), #3 cold_range_impact_km.
+    Units are from the field names only; the app references the class nowhere
+    (FOLLOWUP_S45.md). proto3 omits zeros, so absent fields are 0. The capture
+    (`082e`) is green = 46.
+
+    Returns dict with keys:
+        - coldWeatherSocGreen, coldWeatherSocBlue: int (percent)
+        - coldRangeImpact: int (km)
+    """
+    try:
+        result = {
+            "coldWeatherSocGreen": 0,
+            "coldWeatherSocBlue": 0,
+            "coldRangeImpact": 0,
+        }
+        keys = {1: "coldWeatherSocGreen", 2: "coldWeatherSocBlue", 3: "coldRangeImpact"}
+        for num, wt, val in _fields(payload or ""):
+            if num in keys and wt == 0:
+                result[keys[num]] = val
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode cold_weather_soc payload", exc_info=True)
+        return {}
+
+
+def decode_trip_progress(payload: str) -> dict[str, Any]:
+    """Decode navigation.navigation_service.trip_progress (name-match: `u3l`).
+
+    #1 legetautc and #2 tripetautc (Timestamps), #3 nextstopindex (not
+    emitted; nothing reads it), #4 legremainingdistancemeters and #5 legremainingdurationseconds (doubles,
+    units in the app's own field names). #6, the vehicle's GPS fix, is not
+    emitted: dynamics.vehicle.gnss already supplies the location.
+
+    Returns dict with keys, when sent:
+        - navLegEta, navTripEta: int (epoch seconds)
+        - navLegRemainingDistance: float (m), navLegRemainingDuration: float (s)
+    """
+    if not payload:
+        return {}
+    try:
+        result: dict[str, Any] = {}
+        for num, wt, val in _fields(payload):
+            if num in (1, 2) and wt == 2:
+                if (ts := _timestamp_seconds(val)) is not None:
+                    result["navLegEta" if num == 1 else "navTripEta"] = ts
+            elif num == 4 and wt == 1:
+                result["navLegRemainingDistance"] = round(val, 1)
+            elif num == 5 and wt == 1:
+                result["navLegRemainingDuration"] = round(val, 1)
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode trip_progress payload", exc_info=True)
+        return {}
+
+
 RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "body.closures.states": decode_closures,
     "body.locks.states": decode_locks,
@@ -1936,6 +2273,18 @@ RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "charging.session.soc_slider": decode_soc_slider,
     "charging.session.trip_target": decode_trip_target,
     "ota.deployment.state": decode_ota_deployment_state,
+    # s45: name-matched (uncalled parse wrapper), not dispatch-bound
+    "body.windows.states": decode_window_states,
+    "comfort.cabin.hvac_settings_status": decode_hvac_settings_status,
+    "comfort.user_modes.state": decode_user_modes,
+    "energy_edge_compute.graphs.cold_weather_soc": decode_cold_weather_soc,
+    "geofence.geofence_service.favoriteGeofences": decode_favorite_geofences,
+    "navigation.navigation_service.trip_progress": decode_trip_progress,
+    "ota.ota_state.vehicle_ota_state": decode_vehicle_ota_state,
+    "ota.user_schedule.ota_config": decode_ota_config,
+    "secure_file_transfer.pet_snapshot.secure_file": decode_pet_snapshot,
+    "vehicle_access.state.passive_entry": decode_passive_entry_state,
+    "vehicle_access.passive_entry.passive_entry": decode_passive_entry_state,
     "charging.session.time_estimation": decode_time_estimation,
     "comfort.cabin.cabin_preconditioning_status": decode_preconditioning,
     "comfort.cabin.cabin_temperatures": decode_cabin_temperatures,

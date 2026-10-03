@@ -68,6 +68,24 @@ Where the gateway names the value, the subscription still wins (gap-fill rule); 
 decoded, because the app gives no unit or vocabulary: notification #1 stop reason, trip-target #2 time and #3
 status, OTA install time / duration / type / install-ready.
 
+## Status (s45)
+
+Owner decisions: decode every name-matched topic (entities disabled where no frame is captured), and enable
+trip-target sensors on the APK binding alone. `apk/schema/FOLLOWUP_S45.md` (from the APK) answered the open
+questions.
+
+| | |
+|---|---|
+| name-matched decoders | `body.windows.states` (`zzn` → `window*Calibrated`), `comfort.cabin.hvac_settings_status` (`e9a`), `comfort.user_modes.state` (`uql` #1/#2 → `serviceMode`/`carWashMode`), `geofence…favoriteGeofences` (`wq7`), `navigation…trip_progress` (`u3l`), `ota.ota_state.vehicle_ota_state` (`ugm`), `ota.user_schedule.ota_config` (`rfe`), `secure_file_transfer.pet_snapshot.secure_file` (`g2i`, metadata only), `vehicle_access.state.passive_entry` (`fre`), `energy_edge_compute.graphs.cold_weather_soc` (`jx3`) |
+| request-side binding | `vehicle_access.passive_entry.passive_entry` → `fre` (the app sends it there) |
+| `ota_install_ready` | **fixed**: on_value is `ota_available`, the wire string the app maps to AVAILABLE; `"available"` never arrived, so the binary sensor could never turn on. `ota.deployment.state` now also emits it from `install_ready` |
+| derate status | only the seven members the app maps; the other eleven emit nothing (the app keeps the previous value) |
+| trip target | `#2` is minutes → new `trip_target_time_remaining` |
+| not decoded, no evidence anywhere | `uql` #3–#7, `wwd` #1, `d5l` #3, `r1e` ota_type / download_policy / pause_reason / status_acknowledge — their enums are in none of 54 app versions; `charging.schedule.time_window` (`pak`: no unit or day numbering), `navigation…trip_info` (`bvk`), `device_table.vas_keyper.devices` (`y5b`: key material and unrecoverable enums) |
+| cold weather SOC | `jx3` decoded → `coldWeatherSocGreen` / `Blue` (%), `coldRangeImpact` (km); units from the field names, meaning of green/blue not in the app |
+
+Pinned in `tests/test_parallax_s45_name_match.py`.
+
 ## Bugs in ours
 
 ### Confirmed (APK bound **and** the live capture agree)
