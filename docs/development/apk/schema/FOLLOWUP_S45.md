@@ -129,3 +129,19 @@ list:
 
 Those three, plus `gre`, are every typed message the app sends as a Parallax
 request; the remaining request sites forward an already-serialised command.
+
+## Decisions (2026-10-03)
+
+Put to the owner after this file was first pushed, so they are not re-asked.
+
+- **`message_index_<ver>.json` stays whole.** It lists every protobuf class in the
+  app, not only the Parallax ones. `PARALLAX_CROSS_CHECK.md` cites it for the
+  name-match findings O4, O5 and O8, so trimming it would break those citations.
+- **The `install_ready` trace is deliberately not done.** Section 1 still stands
+  as written: the app writes `"ota_available"` from its OTA model's
+  `installReady`, and the step from the message's `ota_progress.install_ready`
+  (#7) into that model was not followed. The owner chose to leave it flagged, on
+  the understanding that Parallax install-ready would stay undecoded.
+  `dc8a5ea` on the comparison branch decodes `otaInstallReady` from field 7
+  anyway; that decoder rests on the field name plus the untraced step, not on a
+  traced binding.
