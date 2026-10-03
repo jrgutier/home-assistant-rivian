@@ -1795,11 +1795,12 @@ def decode_charging_notification(payload: str) -> dict[str, Any]:
         return {}
 
 
-# 0xFFFF in trip_target #2 is the no-estimate sentinel: the only live frame
-# (`10ffff03`, s46) carries it with no #1 SOC, i.e. no trip target is set. The
-# app passes #2 through unmodified, so where it filters this is not traced;
-# suppressing it is an inference, but 65535 minutes rendered as 45 days is not.
-_TRIP_TARGET_NO_ESTIMATE: Final = 0xFFFF
+# The app's own rule (FOLLOWUP_S47.md): a trip target exists only when its SOC
+# is 1-100 -- every reader (np4.java:81, y13.java:397, j23.java:1146) tests
+# `soc > 0 && soc <= 100` and hides the whole indicator otherwise, minutes
+# included. The app has no sentinel for the minutes themselves; s46's frame
+# (`10ffff03`, #2 = 65535, no #1) is hidden by the SOC test, not by its value.
+_TRIP_TARGET_SOC_RANGE: Final = range(1, 101)
 
 
 def decode_trip_target(payload: str) -> dict[str, Any]:
@@ -1809,23 +1810,31 @@ def decode_trip_target(payload: str) -> dict[str, Any]:
     chargingTripTargetMinsRemaining (FOLLOWUP_S45.md, c97.java:591) -- minutes.
     #3 status has no enum in any app version and is not emitted.
 
-    Returns dict with keys, when sent:
+    Emits nothing unless the SOC is 1-100, the app's own test for "there is a
+    trip target" (FOLLOWUP_S47.md). Minutes are then passed through as the app
+    does, unfiltered.
+
+    Returns dict with keys, when a trip target is set:
         - tripTargetSoc: int (percent)
-        - tripTargetMinutesRemaining: int (minutes)
+        - tripTargetMinutesRemaining: int (minutes), when sent
     """
     if not payload:
         return {}
     try:
-        result: dict[str, Any] = {}
+        soc = 0
+        minutes: int | None = None
         for field_num, wire_type, value in _decode_protobuf_fields(
             base64.b64decode(payload)
         ):
             if field_num == 1 and wire_type == 0:
-                result["tripTargetSoc"] = value
-            elif (
-                field_num == 2 and wire_type == 0 and value != _TRIP_TARGET_NO_ESTIMATE
-            ):
-                result["tripTargetMinutesRemaining"] = value
+                soc = value
+            elif field_num == 2 and wire_type == 0:
+                minutes = value
+        if soc not in _TRIP_TARGET_SOC_RANGE:
+            return {}
+        result: dict[str, Any] = {"tripTargetSoc": soc}
+        if minutes is not None:
+            result["tripTargetMinutesRemaining"] = minutes
         return result
     except Exception:
         _LOGGER.debug("Failed to decode trip_target payload", exc_info=True)
