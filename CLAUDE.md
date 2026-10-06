@@ -61,16 +61,27 @@ The integration is installed via HACS. For local development:
 package to bump, no publish step, and no external client repository to keep in
 sync at install time.
 
-`manifest.json` declares exactly one requirement:
+`manifest.json` declares exactly two requirements:
 
 ```json
-"requirements": ["bleak>=0.21"]
+"requirements": ["bleak>=0.21", "protobuf>=6.31.1,<8"]
 ```
 
-That is the whole list, and it is deliberate. Home Assistant core does not ship
-`bleak` -- it belongs to the `bluetooth` integration -- so the pairing button needs
-it declared. Everything else the client imports (`aiohttp`, `cryptography`) is
-genuine HA core metadata.
+That is the whole list, and it is deliberate. Home Assistant core ships neither:
+`bleak` belongs to the `bluetooth` integration, so the pairing button needs it
+declared, and `protobuf` is only *constrained* by core, never depended on, so the
+Parallax decoders need it declared. Everything else the client imports
+(`aiohttp`, `cryptography`) is genuine HA core metadata.
+
+**`protobuf` is not an ordinary requirement.** The Parallax decoders run on
+`*_pb2.py` modules generated from `rivian_client/parallax/proto/*.proto` and
+committed; each refuses to import under a protobuf *older* than the protoc that
+wrote it, which is what once took the integration down. The generator pin
+(`grpcio-tools==1.80.0`), the stamp `scripts/regen_proto.sh` enforces (6.31.1),
+the manifest range and the `hacs.json` floor (2025.6.0) are one decision and move
+together. Never bump one alone, and never edit a `*_pb2.py` by hand. See
+[docs/development/PARALLAX_SCHEMAS.md](docs/development/PARALLAX_SCHEMAS.md),
+which also has the step-by-step for adding a Parallax topic.
 
 It previously read:
 

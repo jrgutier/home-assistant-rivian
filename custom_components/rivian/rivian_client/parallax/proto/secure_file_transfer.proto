@@ -1,0 +1,45 @@
+// secure_file_transfer.* Parallax payloads.
+//
+// Layout and names started from bretterer/rivian-python-client PR 205
+// (commit 91b41cf). Every message one of this integration's decoders reads has
+// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
+// lists each change and the three rules behind them:
+//
+//   optional   a field the decoder reports only when it was sent
+//   uint64     an integer the decoder passes through unchanged (the app's
+//              narrower type is in the comment)
+//   undeclared a length-delimited field no decoder reads; a wrong guess at its
+//              type would fail the parse of the whole message
+//
+// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
+
+syntax = "proto3";
+
+package rivian_ha.parallax.secure_file_transfer;
+
+
+// secure_file_transfer.pet_snapshot.secure_file -- the app's `g2i` (name-match).
+// METADATA ONLY. 1 s3_id, 2 raw_data (the encrypted image), 3 wrapped_keys (its
+// key material) and 5 session_id are deliberately undeclared: nothing here
+// reads them and nothing here should.
+message PetSnapshotSecureFile {
+  Metadata metadata = 4;
+
+  message Metadata {
+    // 1 filename -- undeclared.
+    FileType file_type = 2;
+    optional uint64 file_size = 3;
+    CreatedAt created_at = 4;
+  }
+
+  message CreatedAt {
+    optional uint64 seconds = 1; // epoch seconds
+  }
+
+  enum FileType {
+    FILE_TYPE_UNSPECIFIED = 0;
+    FILE_TYPE_PNG = 1;
+    FILE_TYPE_JPEG = 2;
+    FILE_TYPE_WEBP = 3;
+  }
+}

@@ -1,5 +1,11 @@
 # Parallax decoders: what was transcribed, and what was not
 
+> **Since s49** the layouts recorded here live in `.proto` schemas and the decoders
+> parse with generated classes; see [PARALLAX_SCHEMAS.md](PARALLAX_SCHEMAS.md) for
+> where each one is and how to add another. This document is still the record of
+> how the layouts were recovered from the app. Where it cites `parallax.py:NN` or
+> a `rivian_*.proto` file, PARALLAX_SCHEMAS.md says where that content went.
+
 ## The method
 
 R8 renames `GeneratedMessageLite` to `com.google.protobuf.e` and every message

@@ -1,0 +1,82 @@
+// holiday_celebration.* Parallax payloads.
+//
+// Layout and names started from bretterer/rivian-python-client PR 205
+// (commit 91b41cf). Every message one of this integration's decoders reads has
+// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
+// lists each change and the three rules behind them:
+//
+//   optional   a field the decoder reports only when it was sent
+//   uint64     an integer the decoder passes through unchanged (the app's
+//              narrower type is in the comment)
+//   undeclared a length-delimited field no decoder reads; a wrong guess at its
+//              type would fail the parse of the whole message
+//
+// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
+
+syntax = "proto3";
+
+package rivian_ha.parallax.holiday_celebration;
+
+
+// holiday_celebration.car_costume.holiday_celebration_enabled
+// Unmapped.
+message HolidayCelebrationEnabled {}
+
+// holiday_celebration.car_costume.settings -- int enum types unknown.
+message CarCostumeSettings {
+  optional uint64 celebration_sound_volume = 1; // app: uint32
+  optional bool interior_music_enabled = 2;
+  optional uint64 interior_music_type = 3; // app: uint32
+  int32 motion_exterior_light_sound_effect = 4;
+  optional bool interior_light_show_enabled = 6;
+  optional bool interior_overhead_lights_enabled = 7;
+  int32 lights_color = 9;
+  int32 costume_effect = 11;
+  CostumeEffectTrigger effect_trigger = 12;
+}
+
+enum CostumeEffectTrigger {
+  COSTUME_EFFECT_TRIGGER_UNSPECIFIED = 0;
+  COSTUME_EFFECT_TRIGGER_MANUAL = 1;
+  COSTUME_EFFECT_TRIGGER_MOTION = 2;
+}
+
+// holiday_celebration.car_costume.state -- enum types unknown.
+message CarCostumeState {
+  int32 car_costume_availability = 1;
+  int32 costume_theme = 2;
+  optional bool motion_trigger_detected = 3;
+  // 4 costume_start_time {int64 seconds, int32 nanos} -- undeclared.
+  int32 active_costume_effect = 6;
+}
+
+// holiday_celebration.mobile_vehicle_settings.halloween_celebration_settings
+// Names from the app.
+message HalloweenCelebrationSettings {
+  CostumeTheme costume_theme = 1;
+  Int32Value sound_volume = 2;
+  BoolValue music_enabled = 3;
+  Int32Value music_type = 4;
+  StringValue sound_effect = 5;
+  optional int32 exterior_sound_effect = 6;
+  BoolValue exterior_sounds_muted = 7;
+  BoolValue light_show_enabled = 8;
+  BoolValue interior_overhead_lights_enabled = 9;
+  BoolValue exterior_light_show_enabled = 10;
+  Int32Value lights_color = 11;
+  StringValue car_costume_availability = 12;
+  optional bool motion_light_sound_enabled = 13;
+
+  message CostumeTheme {
+    optional string theme_name = 1;
+  }
+  message BoolValue {
+    optional bool value = 1;
+  }
+  message Int32Value {
+    optional int32 value = 1;
+  }
+  message StringValue {
+    optional string value = 1;
+  }
+}

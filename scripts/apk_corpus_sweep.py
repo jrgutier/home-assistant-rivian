@@ -661,7 +661,16 @@ def integration_vehicle_state_fields(repo_root: Path) -> set[str]:
 
 def integration_rvm_names(repo_root: Path) -> set[str]:
     """The keys of `RVM_DECODERS` -- the RVMs this fork can actually decode."""
-    path = repo_root / "custom_components" / "rivian" / "rivian_client" / "parallax.py"
+    # The package's __init__, where RVM_DECODERS is written out as a literal
+    # precisely so this can read it without importing Home Assistant.
+    path = (
+        repo_root
+        / "custom_components"
+        / "rivian"
+        / "rivian_client"
+        / "parallax"
+        / "__init__.py"
+    )
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for statement in tree.body:
         target = None

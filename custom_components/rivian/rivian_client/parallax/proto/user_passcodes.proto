@@ -1,0 +1,31 @@
+// user_passcodes.* Parallax payloads.
+//
+// Layout and names started from bretterer/rivian-python-client PR 205
+// (commit 91b41cf). Every message one of this integration's decoders reads has
+// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
+// lists each change and the three rules behind them:
+//
+//   optional   a field the decoder reports only when it was sent
+//   uint64     an integer the decoder passes through unchanged (the app's
+//              narrower type is in the comment)
+//   undeclared a length-delimited field no decoder reads; a wrong guess at its
+//              type would fail the parse of the whole message
+//
+// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
+
+syntax = "proto3";
+
+package rivian_ha.parallax.user_passcodes;
+
+
+// user_passcodes.passcode_types.drive_auth -- whether multi-factor drive
+// (passcode to drive) is on.
+message DriveAuthPasscode {
+  optional DriveAuthState state = 1;
+}
+
+enum DriveAuthState {
+  DRIVE_AUTH_STATE_UNSPECIFIED = 0;
+  DRIVE_AUTH_DISABLED = 1;
+  DRIVE_AUTH_ENABLED = 2;
+}

@@ -1,0 +1,2417 @@
+{
+ "recorded_from": "8a8377a3fce1c7129fe27bf14c3c0f08facc8a44",
+ "rvm_decoders": {
+  "body.closures.states": "decode_closures",
+  "body.locks.states": "decode_locks",
+  "charging.session.status": "decode_charging_session_status",
+  "charging.session.notification": "decode_charging_notification",
+  "charging.session.remote_command": "decode_remote_command",
+  "charging.session.soc_slider": "decode_soc_slider",
+  "charging.session.trip_target": "decode_trip_target",
+  "ota.deployment.state": "decode_ota_deployment_state",
+  "body.windows.states": "decode_window_states",
+  "comfort.cabin.hvac_settings_status": "decode_hvac_settings_status",
+  "comfort.user_modes.state": "decode_user_modes",
+  "energy_edge_compute.graphs.cold_weather_soc": "decode_cold_weather_soc",
+  "geofence.geofence_service.favoriteGeofences": "decode_favorite_geofences",
+  "navigation.navigation_service.trip_progress": "decode_trip_progress",
+  "ota.ota_state.vehicle_ota_state": "decode_vehicle_ota_state",
+  "ota.user_schedule.ota_config": "decode_ota_config",
+  "secure_file_transfer.pet_snapshot.secure_file": "decode_pet_snapshot",
+  "vehicle_access.state.passive_entry": "decode_passive_entry_state",
+  "vehicle_access.passive_entry.passive_entry": "decode_passive_entry_state",
+  "charging.session.time_estimation": "decode_time_estimation",
+  "comfort.cabin.cabin_preconditioning_status": "decode_preconditioning",
+  "comfort.cabin.cabin_temperatures": "decode_cabin_temperatures",
+  "comfort.cabin.seat_conditioning_status": "decode_seat_conditioning_status",
+  "comfort.cabin.defrost_defog_status": "decode_defrost",
+  "dynamics.tires.state": "decode_tires",
+  "dynamics.vehicle.gnss": "decode_gnss",
+  "dynamics.vehicle.odometer": "decode_odometer",
+  "energy.high_voltage.battery_state": "decode_battery_state",
+  "energy_edge_compute.graphs.charge_session_breakdown": "decode_charge_session_breakdown",
+  "energy_edge_compute.graphs.charging_graph_global": "decode_charging_graph_global",
+  "vehicle.power.state": "decode_power_state",
+  "charging.schedule.time_window": "decode_charging_schedule_time_window",
+  "holiday_celebration.car_costume.state": "decode_car_costume_state",
+  "holiday_celebration.car_costume.settings": "decode_car_costume_settings",
+  "user_passcodes.passcode_types.drive_auth": "decode_drive_auth",
+  "comfort.cabin.cabin_ventilation_setting": "decode_cabin_ventilation_setting",
+  "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent": "decode_gear_guard_streaming_consent",
+  "gearguard_streaming.privacy.gearguard_streaming_daily_limit": "decode_gear_guard_streaming_daily_limit",
+  "energy_edge_compute.graphs.parked_energy_distributions": "decode_parked_energy_distributions",
+  "comfort.cabin.climate_hold_setting": "decode_climate_hold_setting",
+  "comfort.cabin.climate_hold_status": "decode_climate_hold_status",
+  "vehicle.wheels.vehicle_wheels": "decode_vehicle_wheels",
+  "body.trailer.state": "decode_trailer_state",
+  "comfort.cabin.pet_mode_status": "decode_pet_mode_status",
+  "dynamics.vehicle.drive_mode": "decode_drive_mode",
+  "dynamics.vehicle.gear": "decode_gear",
+  "dynamics.vehicle.location": "decode_known_location",
+  "dynamics.vehicle.range": "decode_range",
+  "energy.high_voltage.battery_characteristics": "decode_battery_characteristics",
+  "energy.low_voltage.battery_state": "decode_low_voltage_battery",
+  "security.access.btm": "decode_btm_diagnosis",
+  "security.access.immobilizer_state": "decode_immobilizer_state",
+  "security.access.passive_entry_debug": "decode_passive_entry_debug",
+  "security.access.vas_fault": "decode_vas_fault",
+  "security.alarm.state": "decode_alarm_state",
+  "security.video_monitoring.state": "decode_video_monitoring",
+  "vehicle.network.state": "decode_network_state"
+ },
+ "parallax_rvms": [
+  "body.closures.states",
+  "body.locks.states",
+  "charging.session.status",
+  "charging.session.notification",
+  "charging.session.remote_command",
+  "charging.session.soc_slider",
+  "charging.session.trip_target",
+  "ota.deployment.state",
+  "body.windows.states",
+  "comfort.cabin.hvac_settings_status",
+  "comfort.user_modes.state",
+  "energy_edge_compute.graphs.cold_weather_soc",
+  "geofence.geofence_service.favoriteGeofences",
+  "navigation.navigation_service.trip_progress",
+  "ota.ota_state.vehicle_ota_state",
+  "ota.user_schedule.ota_config",
+  "secure_file_transfer.pet_snapshot.secure_file",
+  "vehicle_access.state.passive_entry",
+  "vehicle_access.passive_entry.passive_entry",
+  "charging.session.time_estimation",
+  "comfort.cabin.cabin_preconditioning_status",
+  "comfort.cabin.cabin_temperatures",
+  "comfort.cabin.seat_conditioning_status",
+  "comfort.cabin.defrost_defog_status",
+  "dynamics.tires.state",
+  "dynamics.vehicle.gnss",
+  "dynamics.vehicle.odometer",
+  "energy.high_voltage.battery_state",
+  "energy_edge_compute.graphs.charge_session_breakdown",
+  "energy_edge_compute.graphs.charging_graph_global",
+  "vehicle.power.state",
+  "charging.schedule.time_window",
+  "holiday_celebration.car_costume.state",
+  "holiday_celebration.car_costume.settings",
+  "user_passcodes.passcode_types.drive_auth",
+  "comfort.cabin.cabin_ventilation_setting",
+  "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent",
+  "gearguard_streaming.privacy.gearguard_streaming_daily_limit",
+  "energy_edge_compute.graphs.parked_energy_distributions",
+  "comfort.cabin.climate_hold_setting",
+  "comfort.cabin.climate_hold_status",
+  "vehicle.wheels.vehicle_wheels",
+  "body.trailer.state",
+  "comfort.cabin.pet_mode_status",
+  "dynamics.vehicle.drive_mode",
+  "dynamics.vehicle.gear",
+  "dynamics.vehicle.location",
+  "dynamics.vehicle.range",
+  "energy.high_voltage.battery_characteristics",
+  "energy.low_voltage.battery_state",
+  "security.access.btm",
+  "security.access.immobilizer_state",
+  "security.access.passive_entry_debug",
+  "security.access.vas_fault",
+  "security.alarm.state",
+  "security.video_monitoring.state",
+  "vehicle.network.state"
+ ],
+ "charging_rvms": [
+  "charging.session.notification",
+  "charging.session.remote_command",
+  "charging.session.soc_slider",
+  "charging.session.status",
+  "charging.session.time_estimation",
+  "energy.high_voltage.battery_state",
+  "energy_edge_compute.graphs.charge_session_breakdown",
+  "energy_edge_compute.graphs.charging_graph_global"
+ ],
+ "subscribed_rvms": [
+  "body.closures.states",
+  "body.locks.states",
+  "body.trailer.state",
+  "body.windows.states",
+  "charging.schedule.time_window",
+  "charging.session.notification",
+  "charging.session.remote_command",
+  "charging.session.soc_slider",
+  "charging.session.status",
+  "charging.session.time_estimation",
+  "charging.session.trip_target",
+  "comfort.cabin.cabin_preconditioning_status",
+  "comfort.cabin.cabin_temperatures",
+  "comfort.cabin.cabin_ventilation_setting",
+  "comfort.cabin.climate_hold_setting",
+  "comfort.cabin.climate_hold_status",
+  "comfort.cabin.defrost_defog_status",
+  "comfort.cabin.hvac_settings_status",
+  "comfort.cabin.pet_mode_status",
+  "comfort.cabin.seat_conditioning_status",
+  "comfort.user_modes.state",
+  "dynamics.tires.state",
+  "dynamics.vehicle.drive_mode",
+  "dynamics.vehicle.gear",
+  "dynamics.vehicle.gnss",
+  "dynamics.vehicle.location",
+  "dynamics.vehicle.odometer",
+  "dynamics.vehicle.range",
+  "energy.high_voltage.battery_characteristics",
+  "energy.high_voltage.battery_state",
+  "energy.low_voltage.battery_state",
+  "energy_edge_compute.graphs.charge_session_breakdown",
+  "energy_edge_compute.graphs.charging_graph_global",
+  "energy_edge_compute.graphs.cold_weather_soc",
+  "energy_edge_compute.graphs.parked_energy_distributions",
+  "gearguard_streaming.privacy.gearguard_streaming_daily_limit",
+  "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent",
+  "geofence.geofence_service.favoriteGeofences",
+  "holiday_celebration.car_costume.settings",
+  "holiday_celebration.car_costume.state",
+  "navigation.navigation_service.trip_progress",
+  "ota.deployment.state",
+  "ota.ota_state.vehicle_ota_state",
+  "ota.user_schedule.ota_config",
+  "secure_file_transfer.pet_snapshot.secure_file",
+  "security.access.btm",
+  "security.access.immobilizer_state",
+  "security.access.passive_entry_debug",
+  "security.access.vas_fault",
+  "security.alarm.state",
+  "security.video_monitoring.state",
+  "user_passcodes.passcode_types.drive_auth",
+  "vehicle.network.state",
+  "vehicle.power.state",
+  "vehicle.wheels.vehicle_wheels",
+  "vehicle_access.passive_entry.passive_entry",
+  "vehicle_access.state.passive_entry"
+ ],
+ "names": {
+  "CHARGING_RVMS": {
+   "kind": "list",
+   "value": {
+    "__seq__": [
+     "charging.session.notification",
+     "charging.session.remote_command",
+     "charging.session.soc_slider",
+     "charging.session.status",
+     "charging.session.time_estimation",
+     "energy.high_voltage.battery_state",
+     "energy_edge_compute.graphs.charge_session_breakdown",
+     "energy_edge_compute.graphs.charging_graph_global"
+    ],
+    "type": "list"
+   },
+   "required": true
+  },
+  "CLOSURE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "doorFrontLeftClosed"
+     ],
+     [
+      2,
+      "doorFrontRightClosed"
+     ],
+     [
+      3,
+      "doorRearLeftClosed"
+     ],
+     [
+      4,
+      "doorRearRightClosed"
+     ],
+     [
+      5,
+      "closureFrunkClosed"
+     ],
+     [
+      6,
+      "closureTailgateClosed"
+     ],
+     [
+      7,
+      "closureLiftgateClosed"
+     ],
+     [
+      8,
+      "closureSideBinLeftClosed"
+     ],
+     [
+      9,
+      "closureSideBinRightClosed"
+     ],
+     [
+      11,
+      "closureTonneauClosed"
+     ],
+     [
+      12,
+      "windowFrontLeftClosed"
+     ],
+     [
+      13,
+      "windowFrontRightClosed"
+     ],
+     [
+      14,
+      "windowRearLeftClosed"
+     ],
+     [
+      15,
+      "windowRearRightClosed"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "DEFROST_DEFOG_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "Defog"
+     ],
+     [
+      2,
+      "Defrost"
+     ],
+     [
+      3,
+      "Defog_Defrost"
+     ],
+     [
+      4,
+      "Off"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "LOCK_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "doorFrontLeftLocked"
+     ],
+     [
+      2,
+      "doorFrontRightLocked"
+     ],
+     [
+      3,
+      "doorRearLeftLocked"
+     ],
+     [
+      4,
+      "doorRearRightLocked"
+     ],
+     [
+      5,
+      "closureFrunkLocked"
+     ],
+     [
+      6,
+      "closureTailgateLocked"
+     ],
+     [
+      7,
+      "closureLiftgateLocked"
+     ],
+     [
+      8,
+      "closureSideBinLeftLocked"
+     ],
+     [
+      9,
+      "closureSideBinRightLocked"
+     ],
+     [
+      15,
+      "closureTonneauLocked"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "PARALLAX_RVMS": {
+   "kind": "list",
+   "value": {
+    "__seq__": [
+     "body.closures.states",
+     "body.locks.states",
+     "charging.session.status",
+     "charging.session.notification",
+     "charging.session.remote_command",
+     "charging.session.soc_slider",
+     "charging.session.trip_target",
+     "ota.deployment.state",
+     "body.windows.states",
+     "comfort.cabin.hvac_settings_status",
+     "comfort.user_modes.state",
+     "energy_edge_compute.graphs.cold_weather_soc",
+     "geofence.geofence_service.favoriteGeofences",
+     "navigation.navigation_service.trip_progress",
+     "ota.ota_state.vehicle_ota_state",
+     "ota.user_schedule.ota_config",
+     "secure_file_transfer.pet_snapshot.secure_file",
+     "vehicle_access.state.passive_entry",
+     "vehicle_access.passive_entry.passive_entry",
+     "charging.session.time_estimation",
+     "comfort.cabin.cabin_preconditioning_status",
+     "comfort.cabin.cabin_temperatures",
+     "comfort.cabin.seat_conditioning_status",
+     "comfort.cabin.defrost_defog_status",
+     "dynamics.tires.state",
+     "dynamics.vehicle.gnss",
+     "dynamics.vehicle.odometer",
+     "energy.high_voltage.battery_state",
+     "energy_edge_compute.graphs.charge_session_breakdown",
+     "energy_edge_compute.graphs.charging_graph_global",
+     "vehicle.power.state",
+     "charging.schedule.time_window",
+     "holiday_celebration.car_costume.state",
+     "holiday_celebration.car_costume.settings",
+     "user_passcodes.passcode_types.drive_auth",
+     "comfort.cabin.cabin_ventilation_setting",
+     "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent",
+     "gearguard_streaming.privacy.gearguard_streaming_daily_limit",
+     "energy_edge_compute.graphs.parked_energy_distributions",
+     "comfort.cabin.climate_hold_setting",
+     "comfort.cabin.climate_hold_status",
+     "vehicle.wheels.vehicle_wheels",
+     "body.trailer.state",
+     "comfort.cabin.pet_mode_status",
+     "dynamics.vehicle.drive_mode",
+     "dynamics.vehicle.gear",
+     "dynamics.vehicle.location",
+     "dynamics.vehicle.range",
+     "energy.high_voltage.battery_characteristics",
+     "energy.low_voltage.battery_state",
+     "security.access.btm",
+     "security.access.immobilizer_state",
+     "security.access.passive_entry_debug",
+     "security.access.vas_fault",
+     "security.alarm.state",
+     "security.video_monitoring.state",
+     "vehicle.network.state"
+    ],
+    "type": "list"
+   },
+   "required": true
+  },
+  "POWER_STATE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "sleep"
+     ],
+     [
+      2,
+      "standby"
+     ],
+     [
+      3,
+      "ready"
+     ],
+     [
+      4,
+      "go"
+     ],
+     [
+      5,
+      "vehicle_reset"
+     ],
+     [
+      6,
+      "ota_update"
+     ],
+     [
+      7,
+      "shutdown"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "PRECONDITIONING_STATE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "undefined"
+     ],
+     [
+      1,
+      "initiate"
+     ],
+     [
+      2,
+      "active"
+     ],
+     [
+      3,
+      "active_warning"
+     ],
+     [
+      4,
+      "complete_maintain"
+     ],
+     [
+      5,
+      "timeout_temperature_not_achieved"
+     ],
+     [
+      6,
+      "error_soc_low"
+     ],
+     [
+      7,
+      "error_system_fault"
+     ],
+     [
+      8,
+      "unavailable"
+     ],
+     [
+      9,
+      "timeout_complete"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "ParallaxCommand": {
+   "kind": "class",
+   "required": true
+  },
+  "RVMType": {
+   "kind": "class",
+   "members": {
+    "CLIMATE_HOLD_SETTING": "comfort.cabin.climate_hold_setting",
+    "CLIMATE_HOLD_STATUS": "comfort.cabin.climate_hold_status",
+    "VEHICLE_WHEELS": "vehicle.wheels.vehicle_wheels",
+    "OTA_SCHEDULE_CONFIGURATION": "ota.user_schedule.ota_config"
+   },
+   "required": true
+  },
+  "SEAT_DEVICES": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "Heat"
+     ],
+     [
+      2,
+      "Vent"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "SEAT_FIELDS": {
+   "kind": "frozenset",
+   "value": {
+    "__set__": [
+     "seatFrontLeftHeat",
+     "seatFrontLeftVent",
+     "seatFrontRightHeat",
+     "seatFrontRightVent",
+     "seatRearLeftHeat",
+     "seatRearRightHeat",
+     "seatThirdRowLeftHeat",
+     "seatThirdRowRightHeat",
+     "steeringWheelHeat"
+    ]
+   },
+   "required": true
+  },
+  "SEAT_INSTANCES": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "steeringWheel"
+     ],
+     [
+      5,
+      "seatFrontLeft"
+     ],
+     [
+      7,
+      "seatFrontRight"
+     ],
+     [
+      8,
+      "seatRearLeft"
+     ],
+     [
+      10,
+      "seatRearRight"
+     ],
+     [
+      11,
+      "seatThirdRowLeft"
+     ],
+     [
+      13,
+      "seatThirdRowRight"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "SEAT_LEVELS": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "Off"
+     ],
+     [
+      1,
+      "Level_1"
+     ],
+     [
+      2,
+      "Level_2"
+     ],
+     [
+      3,
+      "Level_3"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "SupportsSerializeToString": {
+   "kind": "class",
+   "required": true
+  },
+  "TIRE_POSITION_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "FrontLeft"
+     ],
+     [
+      2,
+      "FrontRight"
+     ],
+     [
+      3,
+      "RearLeft"
+     ],
+     [
+      4,
+      "RearRight"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_ACCESS_CAN_FAULTED_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "no_failure"
+     ],
+     [
+      2,
+      "failure"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_ALARM_SOUND_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "false"
+     ],
+     [
+      2,
+      "true"
+     ],
+     [
+      3,
+      "signal_not_available"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_BATTERY_CELL_TYPE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "50g"
+     ],
+     [
+      2,
+      "53g"
+     ],
+     [
+      3,
+      "g124"
+     ],
+     [
+      4,
+      "lg_4695"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_CCC_PASSIVE_PERMISSION": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "sna"
+     ],
+     [
+      1,
+      "disabled"
+     ],
+     [
+      2,
+      "enabled"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_CELLULAR_SPEC": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      {
+       "__seq__": [
+        "cellularCarrier",
+        null
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      2,
+      {
+       "__seq__": [
+        "cellularMode",
+        null
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      3,
+      {
+       "__seq__": [
+        "cellularAntennaBars",
+        {
+         "__items__": [
+          [
+           1,
+           "level_0"
+          ],
+          [
+           2,
+           "level_1"
+          ],
+          [
+           3,
+           "level_2"
+          ],
+          [
+           4,
+           "level_3"
+          ],
+          [
+           5,
+           "level_4"
+          ]
+         ]
+        }
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      4,
+      {
+       "__seq__": [
+        "cellularSignalStrength",
+        null
+       ],
+       "type": "tuple"
+      }
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_CLIMATE_HOLD_AVAILABILITY": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "unspecified"
+     ],
+     [
+      1,
+      "available"
+     ],
+     [
+      2,
+      "controllable"
+     ],
+     [
+      3,
+      "unavailable"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_CLIMATE_HOLD_STATUS": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "unspecified"
+     ],
+     [
+      1,
+      "unavailable"
+     ],
+     [
+      2,
+      "off"
+     ],
+     [
+      3,
+      "on"
+     ],
+     [
+      4,
+      "fault"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_CLIMATE_HOLD_UNAVAILABILITY_REASON": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "unspecified"
+     ],
+     [
+      1,
+      "unknown"
+     ],
+     [
+      2,
+      "low_soc"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_CONNECTIVITY_LEVEL_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "level_0"
+     ],
+     [
+      2,
+      "level_1"
+     ],
+     [
+      3,
+      "level_2"
+     ],
+     [
+      4,
+      "level_3"
+     ],
+     [
+      5,
+      "level_4"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_COSTUME_AVAILABILITY_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "available"
+     ],
+     [
+      2,
+      "controllable"
+     ],
+     [
+      3,
+      "unavailable"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_COSTUME_EFFECT_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "none"
+     ],
+     [
+      2,
+      "random"
+     ],
+     [
+      3,
+      "effect_1"
+     ],
+     [
+      4,
+      "effect_2"
+     ],
+     [
+      5,
+      "effect_3"
+     ],
+     [
+      6,
+      "effect_4"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_COSTUME_EFFECT_TRIGGER_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "manual"
+     ],
+     [
+      2,
+      "motion"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_COSTUME_LIGHTS_COLOR_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "none"
+     ],
+     [
+      2,
+      "swamp_gas"
+     ],
+     [
+      3,
+      "player_piano"
+     ],
+     [
+      4,
+      "bayou_blend"
+     ],
+     [
+      5,
+      "slimy_spirits"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_COSTUME_THEME_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "none"
+     ],
+     [
+      2,
+      "ghostbusters"
+     ],
+     [
+      3,
+      "ghostbusters_display"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_DERATE_STATUS": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "NONE"
+     ],
+     [
+      4,
+      "EVSE_DERATING"
+     ],
+     [
+      5,
+      "NEARING_TOC"
+     ],
+     [
+      6,
+      "NEAR_TOC_LFP_BATT_CALIBRATING"
+     ],
+     [
+      8,
+      "BATTERY_HEATING"
+     ],
+     [
+      9,
+      "BATTERY_COOLING"
+     ],
+     [
+      3,
+      "AC_WARM_PLUG"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_DRIVE_AUTH_SETTING_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "none"
+     ],
+     [
+      2,
+      "mobile_notif"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_DRIVE_MODE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "init_mode"
+     ],
+     [
+      2,
+      "everyday"
+     ],
+     [
+      3,
+      "off_road_snow_ice"
+     ],
+     [
+      4,
+      "off_road_sport_auto"
+     ],
+     [
+      5,
+      "off_road_sport_drift"
+     ],
+     [
+      6,
+      "sport_launch"
+     ],
+     [
+      7,
+      "fault"
+     ],
+     [
+      8,
+      "sport"
+     ],
+     [
+      9,
+      "distance"
+     ],
+     [
+      10,
+      "towing"
+     ],
+     [
+      11,
+      "off_road_auto"
+     ],
+     [
+      12,
+      "off_road_sand"
+     ],
+     [
+      13,
+      "off_road_rocks"
+     ],
+     [
+      14,
+      "off_road_mud"
+     ],
+     [
+      15,
+      "winter"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_ENERGY_DISTRIBUTION": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "totalKwh"
+     ],
+     [
+      2,
+      "thermalKwh"
+     ],
+     [
+      3,
+      "outletsKwh"
+     ],
+     [
+      4,
+      "systemKwh"
+     ],
+     [
+      5,
+      "gearGuardKwh"
+     ],
+     [
+      6,
+      "totalRange"
+     ],
+     [
+      7,
+      "thermalRange"
+     ],
+     [
+      8,
+      "outletsRange"
+     ],
+     [
+      9,
+      "systemRange"
+     ],
+     [
+      10,
+      "gearGuardRange"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_FAULT_CHIME": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "none"
+     ],
+     [
+      1,
+      "charging_disabled_all"
+     ],
+     [
+      2,
+      "charging_disabled_dc"
+     ],
+     [
+      3,
+      "charging_disabled_pin_temp_dc"
+     ],
+     [
+      4,
+      "charging_disabled_pin_temp_gradient_dc"
+     ],
+     [
+      5,
+      "charging_degraded_dc"
+     ],
+     [
+      6,
+      "charging_disabled_ac"
+     ],
+     [
+      7,
+      "charging_disabled_pin_temp_ac"
+     ],
+     [
+      8,
+      "charging_degraded_ac"
+     ],
+     [
+      9,
+      "charging_disabled_partial_connection"
+     ],
+     [
+      10,
+      "charging_disabled_not_parked"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_GEAR_GUARD_CONSENT": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "unknown"
+     ],
+     [
+      1,
+      "not_applicable"
+     ],
+     [
+      2,
+      "consented"
+     ],
+     [
+      3,
+      "not_consented"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_GEAR_GUARD_DAILY_LIMIT": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "undefined"
+     ],
+     [
+      1,
+      "hit"
+     ],
+     [
+      2,
+      "not_hit"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_GEAR_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "not_defined"
+     ],
+     [
+      1,
+      "park"
+     ],
+     [
+      2,
+      "reverse"
+     ],
+     [
+      3,
+      "neutral"
+     ],
+     [
+      4,
+      "drive"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_GEOFENCE_TYPE": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "custom"
+     ],
+     [
+      1,
+      "home"
+     ],
+     [
+      2,
+      "work"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_HARDWARE_FAILURE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "unspecified"
+     ],
+     [
+      1,
+      "set"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_IMMOBILIZER_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "not_assigned"
+     ],
+     [
+      1,
+      "not_authorized"
+     ],
+     [
+      2,
+      "authorized_to_drive"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_KNOWN_LOCATION_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "unknown"
+     ],
+     [
+      2,
+      "home"
+     ],
+     [
+      3,
+      "work"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_LOGGER": {
+   "kind": "logger",
+   "value": "custom_components.rivian.rivian_client.parallax",
+   "required": true
+  },
+  "_LOW_VOLTAGE_HEALTH_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "normal"
+     ],
+     [
+      2,
+      "low"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_OTA_CURRENT_STATUS": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "INSTALL_SUCCESS"
+     ],
+     [
+      2,
+      "INSTALL_FAILED"
+     ],
+     [
+      3,
+      "INSTALL_UNABLE_TO_START"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_OTA_SOFTWARE_CATEGORY_FIRMWARE": {
+   "kind": "int",
+   "value": 1,
+   "required": true
+  },
+  "_OTA_STATUS": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "IDLE"
+     ],
+     [
+      2,
+      "READY_TO_DOWNLOAD"
+     ],
+     [
+      3,
+      "FAULT"
+     ],
+     [
+      4,
+      "CONNECTION_LOST"
+     ],
+     [
+      5,
+      "INSTALL_COUNTDOWN"
+     ],
+     [
+      6,
+      "PREPARING"
+     ],
+     [
+      7,
+      "DOWNLOADING"
+     ],
+     [
+      8,
+      "READY_TO_INSTALL"
+     ],
+     [
+      9,
+      "SCHEDULED_TO_INSTALL"
+     ],
+     [
+      10,
+      "AWAITING_INSTALL"
+     ],
+     [
+      11,
+      "INSTALLING"
+     ],
+     [
+      12,
+      "INSTALL_SUCCESS"
+     ],
+     [
+      13,
+      "DOWNLOAD_FAILED"
+     ],
+     [
+      14,
+      "INSTALL_FAILED"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_PASSIVE_ENTRY_FAIL_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "not_in_park"
+     ],
+     [
+      2,
+      "at_home_disable"
+     ],
+     [
+      3,
+      "passenger_in_seat"
+     ],
+     [
+      4,
+      "device_not_enabled"
+     ],
+     [
+      5,
+      "transport_mode"
+     ],
+     [
+      6,
+      "car_wash_mode"
+     ],
+     [
+      7,
+      "camp_mode"
+     ],
+     [
+      8,
+      "active_ota"
+     ],
+     [
+      9,
+      "show_and_tell_mode"
+     ],
+     [
+      10,
+      "rcvd_rssi_pending"
+     ],
+     [
+      11,
+      "lock_only_at_home"
+     ],
+     [
+      12,
+      "car_costume_mode"
+     ],
+     [
+      13,
+      "slept_immediate"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_PET_MODE_STATE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "off"
+     ],
+     [
+      1,
+      "on"
+     ],
+     [
+      2,
+      "disabled"
+     ],
+     [
+      3,
+      "faulty"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_PET_MODE_TEMPERATURE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "default"
+     ],
+     [
+      1,
+      "cold"
+     ],
+     [
+      2,
+      "hot"
+     ],
+     [
+      3,
+      "faulty"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_PET_SNAPSHOT_FILE_TYPE": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "image/png"
+     ],
+     [
+      2,
+      "image/jpeg"
+     ],
+     [
+      3,
+      "image/webp"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_RANGE_THRESHOLD_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "normal"
+     ],
+     [
+      2,
+      "low"
+     ],
+     [
+      3,
+      "red"
+     ],
+     [
+      4,
+      "critically_low"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_SECURE_ELEMENT_FAULTED_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "no_failure"
+     ],
+     [
+      2,
+      "lost_communication"
+     ],
+     [
+      3,
+      "applet_not_programmed"
+     ],
+     [
+      4,
+      "not_configured"
+     ],
+     [
+      5,
+      "attack_counter"
+     ],
+     [
+      6,
+      "ursk_decrypt_failure"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_START_AVAILABLE": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      0
+     ],
+     [
+      2,
+      1
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_TEMPERATURE_IMPACT_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "normal_range"
+     ],
+     [
+      2,
+      "cold_may_impact"
+     ],
+     [
+      3,
+      "cold_impact"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_TIME_ESTIMATE_INVALID": {
+   "kind": "frozenset",
+   "value": {
+    "__set__": [
+     2,
+     3
+    ]
+   },
+   "required": true
+  },
+  "_TOS_ACCEPTANCE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "not_accepted"
+     ],
+     [
+      2,
+      "accepted"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_TRAILER_PRESENCE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "trailer_not_present"
+     ],
+     [
+      2,
+      "trailer_present"
+     ],
+     [
+      3,
+      "trailer_present_with_brakes"
+     ],
+     [
+      4,
+      "trailer_invalid"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_TRIP_TARGET_SOC_RANGE": {
+   "kind": "range",
+   "value": {
+    "__range__": [
+     1,
+     101,
+     1
+    ]
+   },
+   "required": true
+  },
+  "_USER_MODE_FIELDS": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "serviceMode"
+     ],
+     [
+      2,
+      "carWashMode"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_VIDEO_MODE_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      0,
+      "none"
+     ],
+     [
+      1,
+      "everywhere"
+     ],
+     [
+      2,
+      "away_from_home"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_VIDEO_MONITORING_STATUS_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "disabled"
+     ],
+     [
+      2,
+      "enabled"
+     ],
+     [
+      3,
+      "active"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_WARNED_UNKNOWN_RVMS": {
+   "kind": "set",
+   "value": {
+    "__set__": []
+   },
+   "required": true
+  },
+  "_WIFI_SECURITY_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "open"
+     ],
+     [
+      2,
+      "wpa_personal"
+     ],
+     [
+      3,
+      "wpa_enterprise"
+     ],
+     [
+      4,
+      "wpa2_personal"
+     ],
+     [
+      5,
+      "wpa2_enterprise"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_WIFI_SPEC": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      {
+       "__seq__": [
+        "wifiWpaStatus",
+        {
+         "__items__": [
+          [
+           1,
+           "not_connected"
+          ],
+          [
+           2,
+           "connected"
+          ],
+          [
+           3,
+           "scanning"
+          ],
+          [
+           4,
+           "connecting"
+          ],
+          [
+           5,
+           "disconnecting"
+          ]
+         ]
+        }
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      3,
+      {
+       "__seq__": [
+        "wifiSsid",
+        null
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      7,
+      {
+       "__seq__": [
+        "wifiAntennaBars",
+        {
+         "__items__": [
+          [
+           1,
+           "level_0"
+          ],
+          [
+           2,
+           "level_1"
+          ],
+          [
+           3,
+           "level_2"
+          ],
+          [
+           4,
+           "level_3"
+          ],
+          [
+           5,
+           "level_4"
+          ]
+         ]
+        }
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      8,
+      {
+       "__seq__": [
+        "wifiSignal",
+        null
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      9,
+      {
+       "__seq__": [
+        "wifiLinkSpeed",
+        null
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      10,
+      {
+       "__seq__": [
+        "wifiFreq",
+        null
+       ],
+       "type": "tuple"
+      }
+     ],
+     [
+      12,
+      {
+       "__seq__": [
+        "wifiSecureStatus",
+        {
+         "__items__": [
+          [
+           1,
+           "open"
+          ],
+          [
+           2,
+           "wpa_personal"
+          ],
+          [
+           3,
+           "wpa_enterprise"
+          ],
+          [
+           4,
+           "wpa2_personal"
+          ],
+          [
+           5,
+           "wpa2_enterprise"
+          ]
+         ]
+        }
+       ],
+       "type": "tuple"
+      }
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_WINDOW_CALIBRATION": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "Calibrated"
+     ],
+     [
+      2,
+      "Not_Calibrated"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_WINDOW_CALIBRATION_FIELDS": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "windowFrontLeftCalibrated"
+     ],
+     [
+      2,
+      "windowFrontRightCalibrated"
+     ],
+     [
+      3,
+      "windowRearLeftCalibrated"
+     ],
+     [
+      4,
+      "windowRearRightCalibrated"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_WPA_STATUS_MAP": {
+   "kind": "dict",
+   "value": {
+    "__items__": [
+     [
+      1,
+      "not_connected"
+     ],
+     [
+      2,
+      "connected"
+     ],
+     [
+      3,
+      "scanning"
+     ],
+     [
+      4,
+      "connecting"
+     ],
+     [
+      5,
+      "disconnecting"
+     ]
+    ]
+   },
+   "required": true
+  },
+  "_decode_enum_fields": {
+   "kind": "function",
+   "signature": "(payload: 'str', spec: 'dict[int, tuple[str, dict[int, str] | None]]', what: 'str') -> 'dict[str, Any]'",
+   "required": false
+  },
+  "_decode_protobuf_fields": {
+   "kind": "function",
+   "signature": "(data: 'bytes') -> 'list[tuple[int, int, Any]]'",
+   "required": true
+  },
+  "_decode_varint": {
+   "kind": "function",
+   "signature": "(data: 'bytes', offset: 'int') -> 'tuple[int, int]'",
+   "required": true
+  },
+  "_fields": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'list[tuple[int, int, Any]]'",
+   "required": false
+  },
+  "_gql_case": {
+   "kind": "function",
+   "signature": "(name: 'str') -> 'str'",
+   "required": false
+  },
+  "_ota_progress": {
+   "kind": "function",
+   "signature": "(data: 'bytes') -> 'dict[str, Any]'",
+   "required": false
+  },
+  "_ota_version": {
+   "kind": "function",
+   "signature": "(data: 'bytes', prefix: 'str') -> 'dict[str, Any]'",
+   "required": false
+  },
+  "_submessage": {
+   "kind": "function",
+   "signature": "(data: 'bytes', spec: 'dict[int, tuple[str, dict[int, str] | None]]') -> 'dict[str, Any]'",
+   "required": false
+  },
+  "_timestamp_seconds": {
+   "kind": "function",
+   "signature": "(data: 'bytes') -> 'int | None'",
+   "required": false
+  },
+  "build_climate_hold_command": {
+   "kind": "function",
+   "signature": "(duration_minutes: 'int' = 120) -> 'ParallaxCommand'",
+   "required": true
+  },
+  "build_climate_status_query": {
+   "kind": "function",
+   "signature": "() -> 'ParallaxCommand'",
+   "required": true
+  },
+  "build_ota_schedule_query": {
+   "kind": "function",
+   "signature": "() -> 'ParallaxCommand'",
+   "required": true
+  },
+  "build_vehicle_wheels_query": {
+   "kind": "function",
+   "signature": "() -> 'ParallaxCommand'",
+   "required": true
+  },
+  "decode_alarm_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_battery_characteristics": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_battery_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_btm_diagnosis": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_cabin_temperatures": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_cabin_ventilation_setting": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_car_costume_settings": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_car_costume_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_charge_session_breakdown": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_charging_graph_global": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_charging_notification": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_charging_schedule_time_window": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_charging_session_status": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_climate_hold_setting": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_climate_hold_status": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_closures": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_cold_weather_soc": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_defrost": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_drive_auth": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_drive_mode": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_favorite_geofences": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_gear": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_gear_guard_streaming_consent": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_gear_guard_streaming_daily_limit": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_gnss": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_hvac_settings_status": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_immobilizer_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_known_location": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_locks": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_low_voltage_battery": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_network_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_odometer": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_ota_config": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_ota_deployment_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_parallax_message": {
+   "kind": "function",
+   "signature": "(rvm: 'str', payload: 'str', **kwargs: 'Any') -> 'dict[str, Any] | None'",
+   "required": true
+  },
+  "decode_parked_energy_distributions": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_passive_entry_debug": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_passive_entry_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_pet_mode_status": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_pet_snapshot": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_power_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_preconditioning": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_range": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_remote_command": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_seat_conditioning_status": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_soc_slider": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_time_estimation": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_tires": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_trailer_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_trip_progress": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_trip_target": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_user_modes": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_vas_fault": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_vehicle_ota_state": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_vehicle_wheels": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_video_monitoring": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "decode_window_states": {
+   "kind": "function",
+   "signature": "(payload: 'str') -> 'dict[str, Any]'",
+   "required": true
+  },
+  "encode_climate_hold_setting": {
+   "kind": "function",
+   "signature": "(hold_time_duration_seconds: 'int') -> 'bytes'",
+   "required": true
+  }
+ }
+}

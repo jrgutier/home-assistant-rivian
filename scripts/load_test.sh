@@ -14,6 +14,10 @@
 # wake button included -- would have failed to load. Every test passed.
 #
 # Usage: scripts/load_test.sh [venv-dir]
+#   LOAD_TEST_PROTOBUF selects the protobuf runtime (see pin_protobuf below):
+#     unset   the version this Home Assistant pins in package_constraints.txt
+#     floor   the oldest version manifest.json admits
+#     X.Y.Z   exactly that
 #   The venv is reused when its stamp matches and `uv pip check` is clean.
 #   A reaped macOS TMPDIR venv still has bin/python, so the executable check
 #   alone is not enough; a failed import on a reused venv retries once from
@@ -110,6 +114,44 @@ PY
 }
 install_ha_camera_reqs
 
+pin_protobuf() {
+  # The generated *_pb2.py modules refuse to import under a protobuf OLDER than
+  # the protoc that wrote them, so which protobuf is installed decides whether
+  # the integration loads at all -- and installing the manifest's range alone
+  # does not say. `uv pip install` applies no constraints file and resolves the
+  # range to the NEWEST release, a version no Home Assistant has ever run. A
+  # real install is constrained by HA's package_constraints.txt to one exact
+  # version, so that is the default here; `floor` is the oldest the manifest
+  # admits, which is what the hacs.json floor release pins.
+  local want="${LOAD_TEST_PROTOBUF:-ha}" version
+  version=$(WANT="$want" "$VENV/bin/python" - <<'PY'
+import json, os, pathlib, re
+
+want = os.environ["WANT"]
+reqs = json.loads(
+    pathlib.Path("custom_components/rivian/manifest.json").read_text()
+)["requirements"]
+declared = [r for r in reqs if re.match(r"protobuf\b", r)]
+if not declared:
+    raise SystemExit(0)  # nothing generated ships; nothing to pin
+if want == "floor":
+    print(re.search(r">=\s*([0-9.]+)", declared[0]).group(1))
+elif want == "ha":
+    import homeassistant
+
+    constraints = pathlib.Path(homeassistant.__file__).parent / "package_constraints.txt"
+    print(re.search(r"^protobuf==([0-9.]+)", constraints.read_text(), re.M).group(1))
+else:
+    print(want)
+PY
+)
+  if [ -n "$version" ]; then
+    echo "  protobuf: $version ($want)"
+    VIRTUAL_ENV="$VENV" uv pip install -q "protobuf==$version"
+  fi
+}
+pin_protobuf
+
 run_import() {
   ( cd "$WORK"
     "$VENV/bin/python" - <<'PY'
@@ -141,6 +183,7 @@ if ! run_import; then
     echo "  recreating (retry after import failure)"
     install_venv
     install_ha_camera_reqs
+    pin_protobuf
     run_import
   else
     exit 1

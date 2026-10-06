@@ -8,6 +8,17 @@
 
 source "$(dirname "$0")/_lib.sh"
 
+# RETIRED by s49, deliberately. This gate asserted that no google.protobuf import
+# remained and that the client imported with protobuf absent. s49 reversed that
+# decision: the Parallax decoders now run on generated protobuf classes, and
+# manifest.json declares the runtime. Running the checks below would fail on
+# purpose-built code, so the gate stops here and says why. What guards the
+# dependency now is tests/client/test_proto_generated.py (the generated code's
+# version against the Home Assistant floor) and scripts/load_test.sh at both
+# protobuf pins. docs/development/PARALLAX_SCHEMAS.md, "Regenerating".
+echo "S10 -- RETIRED by s49: protobuf is a declared dependency again (see header)"
+exit 0
+
 echo "S10 — protobuf removed"
 
 VC="$HA/custom_components/rivian/rivian_client"

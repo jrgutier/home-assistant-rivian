@@ -1,0 +1,46 @@
+// vehicle_access.* Parallax payloads.
+//
+// Layout and names started from bretterer/rivian-python-client PR 205
+// (commit 91b41cf). Every message one of this integration's decoders reads has
+// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
+// lists each change and the three rules behind them:
+//
+//   optional   a field the decoder reports only when it was sent
+//   uint64     an integer the decoder passes through unchanged (the app's
+//              narrower type is in the comment)
+//   undeclared a length-delimited field no decoder reads; a wrong guess at its
+//              type would fail the parse of the whole message
+//
+// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
+
+syntax = "proto3";
+
+package rivian_ha.parallax.vehicle_access;
+
+
+// vehicle_access.passive_entry.passive_entry -- the passive entry setting.
+// Not seen yet; the app's likely schema.
+message PassiveEntrySetting {
+  CccPassiveSetting ccc_passive_permission = 1;
+}
+
+enum CccPassiveSetting {
+  CCC_PASSIVE_SETTING_UNAVAILABLE = 0;
+  CCC_PASSIVE_SETTING_DISABLED = 1;
+  CCC_PASSIVE_SETTING_ENABLED = 2;
+}
+
+// vehicle_access.state.passive_entry AND vehicle_access.passive_entry.passive_entry.
+// This integration reads both topics as the app's `fre`. Upstream models the
+// second as PassiveEntrySetting above, which no decoder here uses.
+message PassiveEntryState {
+  bool allow_bluetooth_while_in_ccc = 1;
+  CccPassivePermission ccc_passive_permission = 2;
+}
+
+// CCC: Car Connectivity Consortium digital key.
+enum CccPassivePermission {
+  CCC_PASSIVE_PERMISSION_SNA = 0;
+  CCC_PASSIVE_PERMISSION_DISABLED = 1;
+  CCC_PASSIVE_PERMISSION_ENABLED = 2;
+}

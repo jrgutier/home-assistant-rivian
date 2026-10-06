@@ -19,6 +19,11 @@
 #     docs/development/WS_CONTENTION.md, claim C8. Capture is now schedulable
 #     with no outage; until it happens these stay transcription tests.
 
+# HISTORICAL since s49. This gate keys on rivian_client/parallax.py by path, and
+# s49 replaced that module with the parallax/ package, so it no longer runs to
+# completion. It is kept as the record of what its story had to prove. What it
+# checked is now held by tests/client/test_parallax_surface.py and
+# test_parallax_golden.py; see docs/development/PARALLAX_SCHEMAS.md.
 source "$(dirname "$0")/_lib.sh"
 
 echo "f5 — Parallax decoders"

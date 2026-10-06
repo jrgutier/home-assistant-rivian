@@ -1,0 +1,103 @@
+// energy_edge_compute.* Parallax payloads.
+//
+// Layout and names started from bretterer/rivian-python-client PR 205
+// (commit 91b41cf). Every message one of this integration's decoders reads has
+// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
+// lists each change and the three rules behind them:
+//
+//   optional   a field the decoder reports only when it was sent
+//   uint64     an integer the decoder passes through unchanged (the app's
+//              narrower type is in the comment)
+//   undeclared a length-delimited field no decoder reads; a wrong guess at its
+//              type would fail the parse of the whole message
+//
+// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
+
+syntax = "proto3";
+
+package rivian_ha.parallax.energy_edge_compute;
+
+
+
+// energy_edge_compute.graphs.cold_weather_soc
+message ColdWeatherSoc {
+  uint64 soc_perc_green = 1; // percent; app: int32
+  uint64 soc_perc_blue = 2;  // percent; app: int32
+  uint64 cold_range_impact = 3; // km; app: int32
+}
+
+// energy_edge_compute.graphs.parked_energy_distributions
+// One EnergyDistribution per window; *_range values are km.
+message ParkedEnergyDistributions {
+  EnergyDistribution last_24_hours = 1;
+  EnergyDistribution last_8_hours = 2;
+  EnergyDistribution last_park_session = 3;
+
+  message EnergyDistribution {
+    optional float total_energy = 1; // kWh
+    optional float thermal_energy = 2; // kWh
+    optional float outlets_energy = 3; // kWh
+    optional float system_energy = 4; // kWh
+    optional float gear_guard_energy = 5; // kWh
+    optional float total_range = 6;
+    optional float thermal_range = 7;
+    optional float outlets_range = 8;
+    optional float system_range = 9;
+    optional float gear_guard_range = 10;
+    int32 duration = 11; // minutes; counts up for last_park_session
+  }
+}
+
+// energy_edge_compute.graphs.charge_session_breakdown
+// Full snapshots (absent = zero). A session survives stop / charge-now /
+// schedule holds, and its totals persist after plug-in until the next one
+// starts. The last message before charging stops keeps its power/rate, so
+// gate on SessionStatus.
+message ChargeSessionBreakdown {
+  optional float total_energy = 1; // kWh; sum of fields 2-5
+  float pack_energy = 2; // kWh
+  float thermal_energy = 3; // kWh
+  float outlets_energy = 4; // kWh
+  float system_energy = 5; // kWh
+  int32 active_charging_time = 6; // minutes; pauses while stopped
+  int32 time_remaining = 7; // minutes; same as TimeEstimation
+  uint64 range_added = 8; // km; app: uint32
+  float power = 9; // kW
+  uint64 range_rate = 10; // km/h of range; app: uint32
+  // 11 session_cost {string currency_code, int64 units, int32 nanos} --
+  // undeclared.
+  bool is_free_session = 12;
+  // charging.ChargingState. An int32 so this file imports nothing: a generated
+  // module that imports a sibling does it by absolute package path.
+  optional int32 charging_state = 13;
+}
+
+// energy_edge_compute.graphs.charging_graph_global
+// Empty when a session starts. Segments are fixed-length windows that
+// lengthen as the session goes on; the last is the current one.
+message ChargingGraphGlobal {
+  message Segment {
+    optional uint64 soc = 1; // app: int32
+    optional float power = 2; // kW
+    optional uint64 start_time = 3; // epoch milliseconds
+    optional uint64 end_time = 4; // epoch milliseconds
+    BarValidity time_estimation_validity = 5;
+    optional uint64 state = 6; // charging.ChargingState; see charging_state above
+    BarContext bar_context = 7;
+  }
+  repeated Segment segment = 1;
+}
+
+enum BarValidity {
+  BAR_VALIDITY_NONE = 0;
+  BAR_VALIDITY_PACK_DISCHARGING = 1;
+  BAR_VALIDITY_INVALID = 2;
+  BAR_VALIDITY_VALID = 3;
+}
+
+enum BarContext {
+  BAR_CONTEXT_HISTORICAL = 0;
+  BAR_CONTEXT_PREDICTIVE = 1;
+  BAR_CONTEXT_NOT_CHARGING = 2;
+  BAR_CONTEXT_PAUSED_CHARGING = 3;
+}

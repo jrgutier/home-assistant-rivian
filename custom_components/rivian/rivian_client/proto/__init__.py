@@ -1,17 +1,13 @@
-"""Wire-format message types for the Parallax protocol.
+"""The sendVehicleOperation envelope classes.
 
-Everything here is hand-rolled. The package carries no protobuf runtime: the
-integration encodes exactly ONE message (ClimateHoldSetting, a single int32) and
-one envelope, which did not justify a dependency Home Assistant pins separately
-and whose generated code refuses to load when its gencode is newer than the
-runtime -- a failure that took the whole integration down during vendoring.
+This package used to hold the reverse-engineered `.proto` files as documentation
+and a hand-rolled encoder beside them, and its docstring said the client carried
+no protobuf runtime. Since s49 it does: the schemas live in `../parallax/proto/`,
+are compiled by scripts/regen_proto.sh, and are what both the decoders and this
+encoder run on. See docs/development/PARALLAX_SCHEMAS.md.
 
-The .proto files in this directory REMAIN as the source of truth for the wire
-formats, reverse-engineered from com.rivian.android.consumer. They are
-documentation and a regeneration input, not shipped code. scripts/regen_proto.sh
-regenerates the classes into a temporary directory and re-asserts the golden bytes
-in tests/fixtures/golden/, so the .proto files cannot drift from what is actually
-encoded.
+What stays here is `vehicle_operation.py`, at the import path the client and its
+tests have always used.
 """
 
 from .vehicle_operation import (

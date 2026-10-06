@@ -192,7 +192,7 @@ class RivianSensorEntityDescription(SensorEntityDescription, RivianGateMixin):
     #
     # Added for the three parked-energy windows (const.py), whose Parallax
     # decoder emits a NESTED dict of ten measurements per window
-    # (parallax.py's `_ENERGY_DISTRIBUTION`). The state is one of those ten
+    # (`_ENERGY_DISTRIBUTION` in rivian_client/parallax/). The state is one of those ten
     # (`totalKwh`); the other nine describe the same window and belong beside
     # it, not as nine more entities per window -- thirty entities for ten
     # concepts is what the decoder itself refused to do when it chose nested

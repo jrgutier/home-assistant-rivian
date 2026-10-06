@@ -241,3 +241,63 @@ distribution so the day it changes, a test says so.
 
 A planning note said `issue-245` carried all three flags. It does not; it carries
 two. Measured, not assumed — which is why the number is in a test.
+
+## The golden corpus (s49)
+
+`tests/client/fixtures/parallax_golden/` is a different kind of fixture from the
+captured frames above. It was recorded once, by
+`scripts/record_parallax_golden.py`, from the hand-rolled decoders immediately
+before s49 rebuilt them on generated protobuf classes, and it is what holds the
+rebuilt decoders to the old behaviour:
+
+| file | holds |
+|---|---|
+| `golden.jsonl` | payload → exact decoder output, for all 56 decoders |
+| `surface.json` | topic → decoder, the subscription lists, every module-level name |
+| `send_path.json` | the bytes the hand-rolled encoders produced |
+
+Each `golden.jsonl` case names its `source`:
+
+| source | what it is | proves |
+|---|---|---|
+| `captured` | a frame in `fixtures/parallax/` | the decoder on what the vehicle sends |
+| `harvested` | a payload an existing test built by hand | the cases a test author cared about |
+| `probed` | one field at a time, fields 1-40, every wire type | which fields a decoder reads at all |
+| `synthetic` | a mutation of the above: field dropped, varint zeroed, varint unmapped | absent is not zero; unmapped enums |
+
+Only `captured` is evidence about the vehicle. The other three are evidence about
+the *decoder*, which is all a behaviour-preserving rewrite needs, and they must not
+be cited as proof a decoder reads a real frame correctly.
+
+**Twelve decoded topics have no committed frame**, so every golden case for them
+is `harvested`, `probed` or `synthetic`. What each did when asked, measured on
+2026-10-06 by `scripts/parallax_differential.py --live` (the owner's R1T, 150 s):
+
+| topic | 2026-10-06 | why no fixture |
+|---|---|---|
+| `body.windows.states` | silent | |
+| `dynamics.vehicle.gnss` | published, 59 B | coordinates |
+| `dynamics.vehicle.location` | published, 2 B | not written this run |
+| `geofence.geofence_service.favoriteGeofences` | published, 89 B | saved-place names |
+| `navigation.navigation_service.trip_progress` | published, 73 B | carries a GPS fix |
+| `ota.user_schedule.ota_config` | empty payload | nothing to store; also empty in three earlier sessions |
+| `secure_file_transfer.pet_snapshot.secure_file` | silent | |
+| `security.access.btm` | empty payload | nothing to store |
+| `security.access.immobilizer_state` | silent | |
+| `vehicle.network.state` | published, 77 B | Wi-Fi SSID |
+| `vehicle_access.passive_entry.passive_entry` | silent | |
+| `vehicle_access.state.passive_entry` | silent | |
+
+The five that published were compared in memory and not kept: on each, the
+pre-s49 decoder and the rebuilt one returned the same thing, and no field the
+schema declares arrived with another wire type. That is the first time
+`vehicle.network.state`, whose topic-to-message binding is an inference, has been
+checked against a real frame at all. The five silent topics remain covered only
+by hand-built payloads.
+
+Truncated and otherwise malformed payloads are deliberately absent from the
+corpus. The hand walker returned whatever it had parsed before the damage; a
+protobuf parser rejects the whole message. See `PARALLAX_SCHEMAS.md`.
+
+**Never re-record the corpus to make a test pass.** Re-running the recorder
+against the rebuilt decoders records the rebuilt decoders.

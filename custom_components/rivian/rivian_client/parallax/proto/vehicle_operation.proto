@@ -1,0 +1,52 @@
+// The sendVehicleOperation envelope: what this integration SENDS.
+//
+// Not from PR 205, which does not touch the send path. From MITM analysis of the
+// Rivian iOS app, and verified against the vehicle: `08a038` (a 7200 s climate
+// hold) is recorded in docs/development/SENDVEHICLEOPERATION_TEST_RESULTS.md.
+//
+// No field here is `optional`, on purpose. The bytes must match what the
+// hand-rolled encoder produced before s49, and that encoder omitted a scalar at
+// its default -- which is exactly what a plain proto3 field does. The one thing
+// it did that a generated class does not do by default is emit every SUBMESSAGE
+// even when empty; proto/vehicle_operation.py marks them present explicitly.
+//
+// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
+
+syntax = "proto3";
+
+package rivian_ha.parallax.vehicle_operation;
+
+message VehicleOperationRequest {
+  Metadata metadata = 1;
+  Operation operation = 2;
+
+  message PhoneInfo {
+    int32 version = 1;  // protocol version, always 1
+    bytes phone_id = 2; // 16 bytes: uuid.UUID(vasPhoneId).bytes
+  }
+
+  message Metadata {
+    PhoneInfo phone_info = 1;
+    string request_id = 2; // UUID string
+  }
+
+  message Operation {
+    string rvm_type = 1;      // e.g. "comfort.cabin.climate_hold_setting"
+    int32 operation_type = 2; // 1 = SET
+    bytes operation_id = 3;   // 16-byte UUID
+    bytes payload = 4;        // the RVM's own message, serialised
+    Timestamp timestamp = 5;
+  }
+
+  // google.protobuf.Timestamp's shape, declared here so this file imports
+  // nothing.
+  message Timestamp {
+    int64 seconds = 1;
+    int32 nanos = 2;
+  }
+}
+
+// Response from the sendVehicleOperation mutation.
+message SendVehicleOperationSuccess {
+  bool success = 1;
+}

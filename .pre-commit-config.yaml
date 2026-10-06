@@ -11,6 +11,14 @@ repos:
         language: system
         pass_filenames: false
         files: ^custom_components/.*\.py$
+      # The committed *_pb2.py must be what the .proto files generate, from the
+      # pinned generator. Regenerates in place and fails if that changed anything.
+      - id: protoc-drift
+        name: generated protobuf modules match their .proto
+        entry: scripts/regen_proto.sh --check
+        language: system
+        pass_filenames: false
+        files: ^custom_components/rivian/rivian_client/parallax/proto/
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
     rev: v0.16.2

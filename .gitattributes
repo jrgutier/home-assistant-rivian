@@ -1,0 +1,3 @@
+# Generated from the .proto schemas by scripts/regen_proto.sh; collapsed in GitHub diffs.
+custom_components/rivian/rivian_client/parallax/proto/*_pb2.py linguist-generated
+custom_components/rivian/rivian_client/parallax/proto/*_pb2.pyi linguist-generated
