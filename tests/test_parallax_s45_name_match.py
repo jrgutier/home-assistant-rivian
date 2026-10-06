@@ -341,8 +341,10 @@ class TestTheS46CaptureShapes:
 
 
 class TestTripTargetCapture:
-    def test_the_sentinel_is_not_rendered_as_minutes(self) -> None:
-        """`10ffff03`: #2 = 0xFFFF, no #1. Not 65535 minutes."""
+    """The app's rule (FOLLOWUP_S47.md): no trip target unless SOC is 1-100."""
+
+    def test_the_capture_has_no_trip_target(self) -> None:
+        """`10ffff03`: #2 = 65535, no #1. Hidden by the SOC test, as in the app."""
         assert _capture("charging.session.trip_target") == {}
 
     def test_a_real_estimate_still_decodes(self) -> None:
@@ -352,3 +354,19 @@ class TestTripTargetCapture:
             "tripTargetSoc": 80,
             "tripTargetMinutesRemaining": 45,
         }
+
+    def test_minutes_are_not_filtered_when_the_soc_is_valid(self) -> None:
+        """The app has no guard on the minutes, so neither do we."""
+        from custom_components.rivian.rivian_client.parallax import decode_trip_target
+
+        assert decode_trip_target(_b64(b"\x08\x50\x10\xff\xff\x03")) == {
+            "tripTargetSoc": 80,
+            "tripTargetMinutesRemaining": 65535,
+        }
+
+    @pytest.mark.parametrize("soc", [0, 101, 200])
+    def test_soc_outside_1_to_100_is_no_trip_target(self, soc: int) -> None:
+        from custom_components.rivian.rivian_client.parallax import decode_trip_target
+
+        raw = (bytes([0x08, soc]) if soc < 128 else b"\x08\xc8\x01") + b"\x10\x2d"
+        assert decode_trip_target(_b64(raw)) == {}

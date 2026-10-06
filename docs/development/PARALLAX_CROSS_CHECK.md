@@ -92,7 +92,7 @@ A 300 s additive capture of the ten unwitnessed topics (`wt/rvm-captures`):
 
 | topic | result | action |
 |---|---|---|
-| `charging.session.trip_target` | committed, `10ffff03`: #2 = 0xFFFF, no SOC | 0xFFFF suppressed as the no-estimate sentinel (inference: the app passes #2 through unmodified) |
+| `charging.session.trip_target` | committed, `10ffff03`: #2 = 65535, no SOC | no trip target: the app shows one only for SOC 1–100 and has no minutes sentinel (`apk/schema/FOLLOWUP_S47.md`) |
 | `geofence…favoriteGeofences` | arrived, withheld (place names); shape matches `wq7` | entity enabled |
 | `navigation…trip_progress` | arrived, withheld (GPS); shape matches `u3l` | four entities enabled |
 | `charging.schedule.time_window` | arrived, withheld (location); shape matches `pak` | still not decoded: no units |

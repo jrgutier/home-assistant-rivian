@@ -371,9 +371,9 @@ class TestDecodersProduceSomethingFromTheirOwnFrame:
     # topic -> why it yields nothing, measured from the committed frame
     KNOWN_EMPTY = {
         "charging.session.trip_target": (
-            "correctly empty. s46's frame `10ffff03` is #2 = 0xFFFF with no #1 "
-            "SOC -- no trip target set. 0xFFFF is suppressed as the no-estimate "
-            "sentinel rather than rendered as 65535 minutes."
+            "correctly empty. s46's frame `10ffff03` is #2 = 65535 with no #1 "
+            "SOC. The app shows a trip target only for SOC 1-100 (FOLLOWUP_S47), "
+            "so there is none to report."
         ),
         "ota.ota_state.vehicle_ota_state": (
             "correctly empty. The app's `ugm` (name-match) is #1 id, #2 "
