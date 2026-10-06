@@ -2311,8 +2311,14 @@ def decode_charging_schedule_time_window(payload: str) -> dict[str, Any]:
     frame -- so no is_valid=False ever arrives to decode. An "active" binary sensor
     could therefore only ever read "on"/stale-on and can't represent "disabled", so
     it was dropped. The valid=False branch stays as a correctness guard, not a live
-    path. window/amps hold their last value until the next frame (the vehicle's send
-    cadence), which is the expected gap-fill behaviour for these sensors.
+    path.
+
+    chargeScheduleWindow/Amps are correct when a frame arrives, but this topic is
+    EVENT-GATED: hardware verify saw it push promptly on schedule hour/amp edits
+    yet send nothing for 20+ min after a disable+re-enable, while the car was awake
+    and other topics streamed. So these sensors can lag the app by minutes after a
+    change even when the vehicle is online, and they never go "unavailable" -- they
+    hold the last received schedule (gap-fill). That is expected, not a fault.
     """
     if not payload:
         return {}
