@@ -254,8 +254,18 @@ accepts a field in either wire type (see the comment on `_network_part` in
 `vehicle.py`): when a field arrives both ways in one message, which one wins is no
 longer the wire order.
 
-Rerun after s49 merges with `--ref <the commit before it>`; the script reads the
-old module out of git and writes nothing.
+**Against the vehicle.** `scripts/parallax_differential.py --live 150` asks the
+same question of real frames: it subscribes read-only to all 57 decoded topics,
+holds what arrives in memory, and prints only whether the two decoders agree and
+whether each frame fits its schema. On 2026-10-06, against the owner's R1T, 52 of 57
+topics published; the decoders agreed on every frame and every frame fit its
+schema. The five silent topics (`body.windows.states`, the pet snapshot, the
+immobilizer state and both `vehicle_access` topics) are covered only by
+hand-built payloads -- for those, "identical" is a statement about the decoder,
+not about the vehicle.
+
+Rerun either mode after s49 merges with `--ref <the commit before it>`; the
+script reads the old module out of git and writes nothing.
 
 ## What replaced the legacy `rivian_*.proto` files
 

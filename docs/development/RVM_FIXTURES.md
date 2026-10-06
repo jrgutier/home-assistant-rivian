@@ -269,27 +269,31 @@ Only `captured` is evidence about the vehicle. The other three are evidence abou
 the *decoder*, which is all a behaviour-preserving rewrite needs, and they must not
 be cited as proof a decoder reads a real frame correctly.
 
-**Twelve decoded topics have no captured frame**, so every golden case for them is
-`harvested`, `probed` or `synthetic`:
+**Twelve decoded topics have no committed frame**, so every golden case for them
+is `harvested`, `probed` or `synthetic`. What each did when asked, measured on
+2026-10-06 by `scripts/parallax_differential.py --live` (the owner's R1T, 150 s):
 
-| topic | note |
-|---|---|
-| `body.windows.states` | |
-| `dynamics.vehicle.gnss` | coordinates: the capture guard withholds these by design |
-| `dynamics.vehicle.location` | |
-| `geofence.geofence_service.favoriteGeofences` | saved-place names: withheld by design |
-| `navigation.navigation_service.trip_progress` | |
-| `ota.user_schedule.ota_config` | silent across three sessions, no OTA schedule configured (recorded above) |
-| `secure_file_transfer.pet_snapshot.secure_file` | |
-| `security.access.btm` | |
-| `security.access.immobilizer_state` | |
-| `vehicle.network.state` | Wi-Fi SSID: withheld by design |
-| `vehicle_access.passive_entry.passive_entry` | |
-| `vehicle_access.state.passive_entry` | |
+| topic | 2026-10-06 | why no fixture |
+|---|---|---|
+| `body.windows.states` | silent | |
+| `dynamics.vehicle.gnss` | published, 59 B | coordinates |
+| `dynamics.vehicle.location` | published, 2 B | not written this run |
+| `geofence.geofence_service.favoriteGeofences` | published, 89 B | saved-place names |
+| `navigation.navigation_service.trip_progress` | published, 73 B | carries a GPS fix |
+| `ota.user_schedule.ota_config` | empty payload | nothing to store; also empty in three earlier sessions |
+| `secure_file_transfer.pet_snapshot.secure_file` | silent | |
+| `security.access.btm` | empty payload | nothing to store |
+| `security.access.immobilizer_state` | silent | |
+| `vehicle.network.state` | published, 77 B | Wi-Fi SSID |
+| `vehicle_access.passive_entry.passive_entry` | silent | |
+| `vehicle_access.state.passive_entry` | silent | |
 
-A blank note means only that no frame is committed. Whether the vehicle publishes
-the topic at all was not re-measured for s49; the three "by design" rows follow
-from `scripts/capture_rvm_frames.py`'s withholding rules, not from a capture run.
+The five that published were compared in memory and not kept: on each, the
+pre-s49 decoder and the rebuilt one returned the same thing, and no field the
+schema declares arrived with another wire type. That is the first time
+`vehicle.network.state`, whose topic-to-message binding is an inference, has been
+checked against a real frame at all. The five silent topics remain covered only
+by hand-built payloads.
 
 Truncated and otherwise malformed payloads are deliberately absent from the
 corpus. The hand walker returned whatever it had parsed before the damage; a
