@@ -54,6 +54,7 @@ from tests.apk.transcription import (
     INVALID_WRAPPER_COMMANDS,
     PARALLAX_REQUEST_ONLY_COMMANDS,
     RVM_NAMES,
+    RVM_NAMES_317,
     RVM_TOPICS,
     SENDABLE_COMMANDS,
     SENTINEL_COMMAND,
@@ -372,8 +373,13 @@ class TestRvmTopicTranscription:
         not deleting -- but there are none, so the assertion is free. The reverse
         direction is NOT asserted: 38 topics the app names have no decoder here,
         and that is f5's work queue, not a failure.
+
+        Grounding spans two app versions: RVM_NAMES is the 3.15.0 l6e table, and
+        RVM_NAMES_317 adds the topics the 3.17.0 table (zff) named afterwards
+        (car_costume.*, drive_auth). A decoder must appear in one or the other --
+        i.e. the app must name it in some transcribed version.
         """
-        assert set(RVM_DECODERS) <= RVM_NAMES
+        assert set(RVM_DECODERS) <= RVM_NAMES | RVM_NAMES_317
 
     def test_the_undecoded_remainder_shrank_by_exactly_what_f5_transcribed(
         self,
@@ -394,8 +400,13 @@ class TestRvmTopicTranscription:
         # against the app's uncalled parse wrappers (owner decision).
         # vehicle_access.passive_entry.passive_entry joined on its request-side
         # binding to `fre` (FOLLOWUP_S45.md), and cold_weather_soc: 3 and 53.
-        assert len(RVM_NAMES - set(RVM_DECODERS)) == 3
-        assert len(RVM_DECODERS) == 53
+        # 2 and 54 after charging.schedule.time_window shipped (s34 withheld it for
+        # its GPS coordinate; a 3.17.0 capture supplied the GPS-scrubbed frame).
+        # Then 57 after the three 3.17.0-new topics (car_costume.{state,settings},
+        # drive_auth) -- grounded via RVM_NAMES_317, so this 3.15.0-only remainder
+        # is unchanged at 2.
+        assert len(RVM_NAMES - set(RVM_DECODERS)) == 2
+        assert len(RVM_DECODERS) == 57
 
     def test_the_two_already_decoded_topics_are_not_mistaken_for_candidates(
         self,

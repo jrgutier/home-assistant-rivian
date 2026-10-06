@@ -19,6 +19,11 @@
   "file": "charging_energy_state.bin",
   "sha256_12": "cb6aaafe4c6ce9f8"
  },
+ "charging.schedule.time_window": {
+  "bytes": 39,
+  "file": "charging_schedule_time_window.bin",
+  "sha256_12": "25b133ef298e2794"
+ },
  "charging.session.notification": {
   "bytes": 2,
   "file": "charging_session_notification.bin",
@@ -173,6 +178,16 @@
   "file": "gearguard_streaming_privacy_gearguard_streaming_in_vehicle_consent.bin",
   "sha256_12": "7a53cc5deb60512f"
  },
+ "holiday_celebration.car_costume.settings": {
+  "bytes": 16,
+  "file": "holiday_celebration_car_costume_settings.bin",
+  "sha256_12": "f81f654769cb60e8"
+ },
+ "holiday_celebration.car_costume.state": {
+  "bytes": 8,
+  "file": "holiday_celebration_car_costume_state.bin",
+  "sha256_12": "53ba73a8e87605fd"
+ },
  "holiday_celebration.mobile_vehicle_settings.halloween_celebration_settings": {
   "bytes": 26,
   "file": "holiday_celebration_mobile_vehicle_settings_halloween_celebration_settings.bin",
@@ -207,6 +222,11 @@
   "bytes": 6,
   "file": "security_video_monitoring_state.bin",
   "sha256_12": "d07f78b1905aada3"
+ },
+ "user_passcodes.passcode_types.drive_auth": {
+  "bytes": 2,
+  "file": "user_passcodes_passcode_types_drive_auth.bin",
+  "sha256_12": "fb8da7eb5b1b399e"
  },
  "vehicle.power.state": {
   "bytes": 2,

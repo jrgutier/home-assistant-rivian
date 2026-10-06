@@ -125,6 +125,12 @@
       "charge_port_status": {
         "name": "Charge Port Status"
       },
+      "charge_schedule_amps": {
+        "name": "Charge Schedule Amperage"
+      },
+      "charge_schedule_window": {
+        "name": "Charge Schedule Window"
+      },
       "charger_derate_status": {
         "name": "Charger Derate Status"
       },

@@ -560,6 +560,23 @@ RVM_TOPICS: Final[tuple[dict[str, object], ...]] = (
 
 RVM_NAMES: Final[frozenset[str]] = frozenset(str(r["rvm_name"]) for r in RVM_TOPICS)
 
+# RVM names the app added AFTER the 3.15.0 l6e transcription above, read from the
+# 3.17.0 RVM table (`zff.java`, the renamed+expanded l6e: 80+ entries). This is
+# NOT the complete 3.17.0 table -- only the topics this repo has decoded off that
+# version, recorded so `set(RVM_DECODERS) <= RVM_NAMES | RVM_NAMES_317` keeps
+# every decoder grounded in an app-named topic without re-basing the
+# contiguity-locked 3.15.0 transcription onto a different version's ordinals.
+#   zff.CAR_COSTUME_SETTINGS   (ordinal 61)
+#   zff.CAR_COSTUME_STATE      (ordinal 62)
+#   zff.*DRIVE_AUTH*           (user_passcodes.passcode_types.drive_auth, q97)
+RVM_NAMES_317: Final[frozenset[str]] = frozenset(
+    {
+        "holiday_celebration.car_costume.settings",
+        "holiday_celebration.car_costume.state",
+        "user_passcodes.passcode_types.drive_auth",
+    }
+)
+
 # --- VASCommand -------------------------------------------------------------
 #
 # `wrapper` is which factory builds the subclass's cloudData:

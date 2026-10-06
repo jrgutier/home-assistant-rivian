@@ -2281,6 +2281,222 @@ def decode_trip_progress(payload: str) -> dict[str, Any]:
         return {}
 
 
+def decode_charging_schedule_time_window(payload: str) -> dict[str, Any]:
+    """Decode charging.schedule.time_window -> ChargingScheduleTimeWindow.
+
+    Returns dict with keys:
+        - chargeScheduleValid: bool              (is_valid)
+        - chargeScheduleStartMinute: int         (minutes since midnight, 0-1439)
+        - chargeScheduleEndMinute: int
+        - chargeScheduleDurationMinute: int
+        - chargeScheduleAmps: int                (charge current limit)
+        - chargeScheduleStartDay: int            (0=Sun .. 6=Sat)
+        - chargeScheduleEndDay: int
+        - chargeScheduleWindow: str              ("HH:MM-HH:MM", when both times present)
+
+    Outer message: #1 is_valid (bool), #2 window_data (WindowData submessage).
+    WindowData: #1 start_time, #2 end_time, #3 duration, #4 amps, #5 location
+    (google-style Location {#1 lat, #2 lon}, both double), #6 start_day_of_week,
+    #7 end_day_of_week.
+
+    Times are MINUTES, not seconds -- the captured 3.17.0 frame reads start 1380 /
+    end 360 / duration 420, which is 23:00 / 06:00 / 7h, and 23:00 + 7h = 06:00
+    reconciles only in minutes. The app UI confirms "Daily 11pm-6am". The .proto
+    comment that said "seconds" was wrong and is corrected alongside this.
+
+    Field #5 (location) is deliberately NOT surfaced: it carries the owner's home
+    coordinates, which is the same reason s34 withheld this decoder until a frame
+    could be verified. The committed fixture has field #5 zeroed; nothing here
+    emits latitude/longitude.
+
+    Validity under proto3: a false `is_valid` is the scalar default and is omitted
+    from the wire, so field #1 is simply ABSENT on an inactive schedule, never
+    `field1=0`. A non-empty frame with no field #1 decodes as is_valid=False, and
+    the window/amps are surfaced ONLY when valid.
+
+    chargeScheduleValid is decoded but NOT surfaced as an entity. Hardware verify
+    (2026-10-06, live R1T) settled the open question: when the schedule is disabled
+    the vehicle STOPS sending this topic entirely -- it does not send an inactive
+    frame -- so no is_valid=False ever arrives to decode. An "active" binary sensor
+    could therefore only ever read "on"/stale-on and can't represent "disabled", so
+    it was dropped. The valid=False branch stays as a correctness guard, not a live
+    path.
+
+    chargeScheduleWindow/Amps are correct when a frame arrives, but this topic is
+    EVENT-GATED: hardware verify saw it push promptly on schedule hour/amp edits
+    yet send nothing for 20+ min after a disable+re-enable, while the car was awake
+    and other topics streamed. So these sensors can lag the app by minutes after a
+    change even when the vehicle is online, and they never go "unavailable" -- they
+    hold the last received schedule (gap-fill). That is expected, not a fault.
+    """
+    if not payload:
+        return {}
+    try:
+        fields = _fields(payload)
+        if not fields:
+            return {}
+        result: dict[str, Any] = {}
+        window: dict[str, Any] = {}
+        valid = False
+        for num, wt, val in fields:
+            if num == 1 and wt == 0:
+                valid = bool(val)
+            elif num == 2 and wt == 2:
+                for snum, swt, sval in _decode_protobuf_fields(val):
+                    if swt != 0:
+                        continue  # skip #5 location (and any non-varint)
+                    if snum == 1:
+                        window["chargeScheduleStartMinute"] = sval
+                    elif snum == 2:
+                        window["chargeScheduleEndMinute"] = sval
+                    elif snum == 3:
+                        window["chargeScheduleDurationMinute"] = sval
+                    elif snum == 4:
+                        window["chargeScheduleAmps"] = sval
+                    elif snum == 6:
+                        window["chargeScheduleStartDay"] = sval
+                    elif snum == 7:
+                        window["chargeScheduleEndDay"] = sval
+        result["chargeScheduleValid"] = valid
+        if valid:
+            result.update(window)
+            start, end = (
+                window.get("chargeScheduleStartMinute"),
+                window.get("chargeScheduleEndMinute"),
+            )
+            if start is not None and end is not None:
+                result["chargeScheduleWindow"] = (
+                    f"{start // 60:02d}:{start % 60:02d}-{end // 60:02d}:{end % 60:02d}"
+                )
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode charging schedule time_window", exc_info=True)
+        return {}
+
+
+# Holiday / drive-auth enum vocabularies, transcribed from the 3.17.0 app's
+# protobuf-lite field-info descriptors (defpackage/{vg2,sg2,q97}.java:
+# `e.x(DEFAULT_INSTANCE, ...)`) and the enum classes they reference
+# (hg2/re5/me5/ycc/pe5/p97). 0 is UNSPECIFIED/SNA everywhere and is dropped
+# rather than surfaced, per the enum rule.
+_COSTUME_AVAILABILITY_MAP: Final[dict[int, str]] = {
+    1: "available",
+    2: "controllable",
+    3: "unavailable",
+}
+_COSTUME_THEME_MAP: Final[dict[int, str]] = {
+    1: "none",
+    2: "ghostbusters",
+    3: "ghostbusters_display",
+}
+_COSTUME_EFFECT_MAP: Final[dict[int, str]] = {
+    1: "none",
+    2: "random",
+    3: "effect_1",
+    4: "effect_2",
+    5: "effect_3",
+    6: "effect_4",
+}
+_COSTUME_LIGHTS_COLOR_MAP: Final[dict[int, str]] = {
+    1: "none",
+    2: "swamp_gas",
+    3: "player_piano",
+    4: "bayou_blend",
+    5: "slimy_spirits",
+}
+_COSTUME_EFFECT_TRIGGER_MAP: Final[dict[int, str]] = {
+    1: "manual",
+    2: "motion",
+}
+_DRIVE_AUTH_SETTING_MAP: Final[dict[int, str]] = {
+    1: "none",
+    2: "mobile_notif",
+}
+
+
+def decode_car_costume_state(payload: str) -> dict[str, Any]:
+    """Decode holiday_celebration.car_costume.state -> `vg2`.
+
+    Field map from the protobuf descriptor, NOT the DTO's field order (which the
+    captured frame disproves -- its field 6 is activeCostumeEffect, not the DTO's
+    trailing `timestamp`):
+        1 carCostumeAvailability (enum hg2)  2 costumeTheme (enum re5)
+        3 motionTriggerDetected (bool)       4 costumeStartTime (Timestamp, skipped)
+        6 activeCostumeEffect (enum me5)
+    """
+    if not payload:
+        return {}
+    try:
+        result: dict[str, Any] = {}
+        for num, wt, val in _fields(payload):
+            if wt != 0:
+                continue
+            if num == 1 and val in _COSTUME_AVAILABILITY_MAP:
+                result["carCostumeAvailability"] = _COSTUME_AVAILABILITY_MAP[val]
+            elif num == 2 and val in _COSTUME_THEME_MAP:
+                result["costumeTheme"] = _COSTUME_THEME_MAP[val]
+            elif num == 3:
+                result["costumeMotionTriggered"] = bool(val)
+            elif num == 6 and val in _COSTUME_EFFECT_MAP:
+                result["activeCostumeEffect"] = _COSTUME_EFFECT_MAP[val]
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode car_costume.state", exc_info=True)
+        return {}
+
+
+def decode_car_costume_settings(payload: str) -> dict[str, Any]:
+    """Decode holiday_celebration.car_costume.settings -> `sg2`.
+
+    Field map from the protobuf descriptor:
+        1 celebrationSoundVolume (uint32)   2 interiorMusicEnabled (bool)
+        3 interiorMusicType (uint32)        4 motionExteriorLightSoundEffect (enum,
+                                              no vocabulary transcribed -> skipped)
+        6 interiorLightShowEnabled (bool)   7 interiorOverheadLightsEnabled (bool)
+        9 lightsColor (enum ycc)           11 costumeEffect (enum me5)
+       12 effectTrigger (enum pe5)
+    An unmapped enum value is dropped.
+    """
+    if not payload:
+        return {}
+    try:
+        result: dict[str, Any] = {}
+        for num, wt, val in _fields(payload):
+            if wt != 0:
+                continue
+            if num == 1:
+                result["costumeCelebrationVolume"] = val
+            elif num == 2:
+                result["costumeInteriorMusicEnabled"] = bool(val)
+            elif num == 3:
+                result["costumeInteriorMusicType"] = val
+            elif num == 6:
+                result["costumeInteriorLightShowEnabled"] = bool(val)
+            elif num == 7:
+                result["costumeInteriorOverheadLightsEnabled"] = bool(val)
+            elif num == 9 and val in _COSTUME_LIGHTS_COLOR_MAP:
+                result["costumeLightsColor"] = _COSTUME_LIGHTS_COLOR_MAP[val]
+            elif num == 11 and val in _COSTUME_EFFECT_MAP:
+                result["costumeEffect"] = _COSTUME_EFFECT_MAP[val]
+            elif num == 12 and val in _COSTUME_EFFECT_TRIGGER_MAP:
+                result["costumeEffectTrigger"] = _COSTUME_EFFECT_TRIGGER_MAP[val]
+        return result
+    except Exception:
+        _LOGGER.debug("Failed to decode car_costume.settings", exc_info=True)
+        return {}
+
+
+def decode_drive_auth(payload: str) -> dict[str, Any]:
+    """Decode user_passcodes.passcode_types.drive_auth -> `q97`.
+
+    Single field: #1 driveAuthSetting (enum p97: 0 SNA, 1 NONE, 2 MOBILE_NOTIF).
+    0 (SNA) is dropped like every other invalid state.
+    """
+    return _decode_enum_fields(
+        payload, {1: ("driveAuthSetting", _DRIVE_AUTH_SETTING_MAP)}, "drive_auth"
+    )
+
+
 RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "body.closures.states": decode_closures,
     "body.locks.states": decode_locks,
@@ -2316,9 +2532,21 @@ RVM_DECODERS: dict[str, Callable[[str], dict[str, Any]]] = {
     "energy_edge_compute.graphs.charging_graph_global": decode_charging_graph_global,
     "vehicle.power.state": decode_power_state,
     # s34: written from the named .proto schemas, each verified against a
-    # captured frame. charging.schedule.time_window is deliberately absent --
-    # its frame carries a GPS coordinate and the fixture was withheld, so the
-    # decoder has nothing to verify against.
+    # captured frame. charging.schedule.time_window was deliberately absent at
+    # s34 -- its frame carries a GPS coordinate and the fixture was withheld, so
+    # the decoder had nothing to verify against. A 3.17.0 app capture now supplies
+    # a verified frame; its location field is zeroed in the committed fixture and
+    # the decoder never emits coordinates, so the original reason is resolved.
+    "charging.schedule.time_window": decode_charging_schedule_time_window,
+    # 3.17.0-new topics, transcribed from the app's protobuf-lite field-info
+    # descriptors (vg2/sg2/q97) + enum classes, each verified against a captured
+    # frame. The DTO field ORDER disagrees with the wire numbers, so these rest on
+    # the descriptor, not a guess. They are named by the 3.17.0 RVM table (zff.java)
+    # rather than the 3.15.0 l6e transcription, so they are grounded via
+    # RVM_NAMES_317 in tests/apk/transcription.py.
+    "holiday_celebration.car_costume.state": decode_car_costume_state,
+    "holiday_celebration.car_costume.settings": decode_car_costume_settings,
+    "user_passcodes.passcode_types.drive_auth": decode_drive_auth,
     "comfort.cabin.cabin_ventilation_setting": decode_cabin_ventilation_setting,
     "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent": (
         decode_gear_guard_streaming_consent
