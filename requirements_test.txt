@@ -9,6 +9,12 @@ pytest-homeassistant-custom-component==0.13.356
 pytest-cov>=4.1.0
 pytest-timeout>=2.1.0
 
+# protoc, for scripts/regen_proto.sh. Pinned exactly because the version decides
+# the stamp in every generated *_pb2.py: 1.80.0 stamps 6.31.1, the protobuf of the
+# oldest Home Assistant hacs.json admits. A newer one generates code that older
+# installs refuse to import. See the header of scripts/regen_proto.sh.
+grpcio-tools==1.80.0
+
 # Mocking
 freezegun>=1.2.0
 # Used by the vendored client's own tests, moved here in s07.

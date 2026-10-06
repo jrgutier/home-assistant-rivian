@@ -16,7 +16,8 @@
     "custom_components.rivian"
   ],
   "requirements": [
-    "bleak>=0.21"
+    "bleak>=0.21",
+    "protobuf>=6.31.1,<8"
   ],
   "version": "1.6.0-beta19"
 }

@@ -51,6 +51,12 @@ jobs:
           .venv/bin/python -m ruff check .
           .venv/bin/python -m ruff format --check .
 
+      # The shipped *_pb2.py are generated, committed, and never rebuilt by Home
+      # Assistant. This is what stops a hand-edited or stale one from shipping,
+      # and what refuses a generator newer than the oldest supported runtime.
+      - name: Generated protobuf modules match their .proto
+        run: bash scripts/regen_proto.sh --check
+
       # pytest.ini carries --cov-fail-under, which ratchets upward only.
       - name: Test
         run: .venv/bin/pytest -q
@@ -82,8 +88,15 @@ jobs:
       # out of it. It caught button.py importing homeassistant.components.bluetooth
       # at module scope -- which would have taken the entire button platform down
       # on any install without the bluetooth integration, with every test green.
+      # Twice, because the generated protobuf modules refuse to import under a
+      # runtime older than their generator. The default run uses the protobuf
+      # this Home Assistant pins; the second uses the oldest one manifest.json
+      # admits, which is what a user on the hacs.json floor release has.
       - name: Load test
         run: bash scripts/load_test.sh
+
+      - name: Load test at the protobuf floor
+        run: LOAD_TEST_PROTOBUF=floor bash scripts/load_test.sh "${RUNNER_TEMP}/load-floor-venv"
 
       # Same scanner both release workflows run, so "safe to publish" has one
       # definition rather than three.
