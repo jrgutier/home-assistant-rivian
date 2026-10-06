@@ -298,3 +298,41 @@ the package imported with protobuf absent. s49 reversed that decision on purpose
 the dependency now. `s03`, `s08b`, `s09a`, `s09b` and `f5` key on
 `rivian_client/parallax.py` by path and are historical for the same reason; what
 they checked is held by `test_parallax_surface.py` and `test_parallax_golden.py`.
+
+## Hardware verification, 2026-10-06
+
+The build at `88136104` (s49 through the simplify pass) was copied to the live
+host, which the integration's own machine could not reach, by a second session
+running beside it. Nothing on the host records which build is installed --
+`manifest.json` still read `1.6.0-beta19` -- so the sha is the record.
+
+| check | result |
+|---|---|
+| Home Assistant | 2026.9.4 |
+| load | config entry `loaded`; no `VersionError`, `ImportError` or traceback since restart |
+| protobuf in the core container | not read (no access to the container); the clean load is the evidence |
+| entities | 246 before, 246 after, same ids, none changed in kind |
+| Parallax on the host | 52 topics arriving; `rvms_requested` 57, `rvms_decodable` 57 |
+| climate hold, ON | sent 21:29:44.4Z; the vehicle's duration setting went from empty to `08a038` = 7200 s at 21:29:45Z |
+| climate hold, OFF | an earlier OFF (21:06:01Z) cleared a non-zero setting to empty. The one sent at 21:32:45Z did not: the vehicle had been driven out of Park 30 s before, and hold was unavailable |
+
+Two things this turned up that are **not** s49's, and are worth knowing before the
+next hardware check:
+
+**The climate-hold command sets a duration; it does not switch a hold on.** The
+hold status stayed `off` with 7200 s configured, so `switch.r1t_climate_hold`
+never moves and no entity shows the duration. A check that waits for the switch
+or the status sensor to change cannot pass. The confirmation is the
+`comfort.cabin.climate_hold_setting` frame, which has to be read off the
+subscription.
+
+**An invalid value from the subscription blocks Parallax.** After the restart the
+gear-tunnel and tailgate sensors read `unknown` for 28 minutes while the frunk and
+doors were fine. The subscription had delivered `signal_not_available` for those
+three keys; `coordinator.py` treats any non-null subscription value as claiming
+the key, so Parallax's `closed` -- decoded correctly, the frames were arriving --
+was discarded, and the binary sensor filtered the invalid value to `unknown`. They
+recovered when the subscription sent a valid value. `coordinator.py` is untouched
+by s49. A key the subscription has only ever delivered as an invalid value should
+probably not block Parallax; that is its own story, because it changes which
+source wins for subscribed fields.
