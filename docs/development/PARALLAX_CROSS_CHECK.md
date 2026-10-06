@@ -1,5 +1,10 @@
 # Parallax cross-check: ours vs bretterer vs the app vs the wire
 
+> A dated audit. Its `parallax.py:NN` citations are to the single hand-rolled
+> module as it stood then; s49 replaced that module with the `parallax/` package
+> ([PARALLAX_SCHEMAS.md](PARALLAX_SCHEMAS.md)). The findings stand; the line
+> numbers no longer resolve.
+
 Three sources compared, one topic at a time:
 
 | | what it is | how it was read |

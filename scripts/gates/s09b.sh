@@ -3,6 +3,11 @@
 #
 # The previous version passed FILE paths to absent(), which expects a directory,
 # so two of its three assertions failed for the wrong reason. Same defect as S6c.
+# HISTORICAL since s49. This gate keys on rivian_client/parallax.py by path, and
+# s49 replaced that module with the parallax/ package, so it no longer runs to
+# completion. It is kept as the record of what its story had to prove. What it
+# checked is now held by tests/client/test_parallax_surface.py and
+# test_parallax_golden.py; see docs/development/PARALLAX_SCHEMAS.md.
 source "$(dirname "$0")/_lib.sh"
 echo "S9b — wire verified RVMs"
 
