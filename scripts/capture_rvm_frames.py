@@ -64,6 +64,7 @@ import aiohttp
 from f8_probe import load_env
 
 from custom_components.rivian.rivian_client import Rivian
+from custom_components.rivian.rivian_client.parallax import _decode_protobuf_fields
 
 FIXTURES = (
     Path(__file__).resolve().parents[1] / "tests" / "client" / "fixtures" / "parallax"
@@ -96,6 +97,47 @@ PRINTABLE_RUN = re.compile(rb"[ -~]{5,}")
 # Firmware versions and protobuf type names are the same on every vehicle, so
 # they identify nobody.
 SAFE_STRINGS = re.compile(rb"^(?:\d[\d.]+|[A-Z][A-Za-z]+State|[0-9a-f]{8})$")
+
+
+def carries_coordinates(raw: bytes) -> bool:
+    """True if the frame contains a lat/lon pair -- GPS the text guard cannot see.
+
+    The text guard (`carries_identifiers`) only matches printable strings, so a
+    binary `Location { double latitude = 1; double longitude = 2; }` -- exactly
+    what `charging.schedule.time_window` carries -- walks straight past it. This
+    closes that gap, which the module docstring already promised was closed.
+
+    Flags ANY submessage whose field 1 and field 2 are both 64-bit doubles with
+    |lat| <= 90, |lon| <= 180, not both within ~1 km of null island -- every
+    quadrant, both signs. A non-negative measurement pair such as battery_state's
+    #1 soc% / #2 pack-kWh (45.6, 124.7) sits in the same ranges and is therefore
+    ALSO withheld; that is the intended bias (the module's rule is "refuse and
+    report rather than classify which are safe"), and it is harmless because
+    `write_decision` only reaches here for a topic with no fixture yet -- an
+    over-withheld frame merely needs a look by hand, while a missed coordinate
+    reaches a public repo. An earlier sign-only version let a northern/eastern
+    first-quadrant home coordinate through; this does not.
+    """
+
+    def scan(data: bytes) -> bool:
+        doubles: dict[int, float] = {}
+        for field, wt, val in _decode_protobuf_fields(data):
+            if wt == 1 and isinstance(val, float):
+                doubles[field] = val
+            elif wt == 2 and isinstance(val, bytes) and scan(val):
+                return True
+        lat, lon = doubles.get(1), doubles.get(2)
+        if lat is None or lon is None:
+            return False
+        if abs(lat) > 90 or abs(lon) > 180:
+            return False
+        # not both within ~1 km of null island (spares a zeroed/scrubbed location)
+        return not (abs(lat) < 0.01 and abs(lon) < 0.01)
+
+    try:
+        return scan(raw)
+    except Exception:  # noqa: BLE001 -- a guard must not crash on a malformed frame
+        return False
 
 
 def load_manifest() -> dict[str, dict]:
@@ -148,6 +190,8 @@ def write_decision(
         return "already-fixtured", manifest[topic]["file"]
     if found := carries_identifiers(raw):
         return "withheld", ", ".join(found[:2])
+    if carries_coordinates(raw):
+        return "withheld", "GPS coordinate"
     name = fixture_name(topic)
     if (fixtures / name).exists():
         return "refused", name

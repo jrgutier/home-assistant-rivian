@@ -396,3 +396,26 @@ The second is a **third** spelling alongside `l6e`'s
 `vehicle_access.state.passive_entry` and
 `vehicle_access.passive_entry.passive_entry`. Recorded here so a future pass does
 not treat `l6e` as the complete topic list — it is not.
+
+## charging.schedule.time_window (shipped from a 3.17.0 app capture)
+
+s34 withheld this decoder: its only frame carried the owner's home GPS coordinate
+(a `Location {double latitude = 1; double longitude = 2;}` submessage at
+`WindowData` field 5), the fixture was withheld, and a decoder with no frame to
+verify against is worse than the gap. A 3.17.0 MITM capture of the official app
+supplied a verifiable frame, so it now ships, with two safeguards:
+
+- The committed fixture has field 5's two doubles **zeroed**; the raw home
+  coordinate is never on disk.
+- `decode_charging_schedule_time_window` **never emits** latitude/longitude — it
+  surfaces only the window (start/end/duration minutes), amps, days and validity.
+
+The frame also corrected the `.proto`: `WindowData` start/end/duration are
+**minutes**, not seconds. The capture reads start 1380 / end 360 / duration 420,
+i.e. 23:00 / 06:00 / 7h, and 23:00 + 7h = 06:00 reconciles only in minutes; the
+app UI shows "Daily 11pm-6am". `rivian_charging.proto` was fixed to match.
+
+This also exposed that the capture tool's commit guard
+(`scripts/capture_rvm_frames.py`) was text-only and could not see a binary
+coordinate, despite its own docstring promising GPS protection. `carries_coordinates`
+now closes that: it withholds any frame carrying a lat/lon double pair.

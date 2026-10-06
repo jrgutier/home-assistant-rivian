@@ -192,7 +192,13 @@ class TestDecodersAreRegisteredAndVerifiable:
         assert topic in manifest
         assert (FIXTURES / manifest[topic]["file"]).is_file()
 
-    def test_the_withheld_topic_has_no_decoder(self) -> None:
-        """`charging.schedule.time_window` carried a coordinate; both are absent."""
-        assert "charging.schedule.time_window" not in RVM_DECODERS
-        assert not (FIXTURES / "charging_schedule_time_window.bin").exists()
+    def test_the_withheld_topic_is_now_decoded_with_a_scrubbed_fixture(self) -> None:
+        """`charging.schedule.time_window` was withheld at s34 for its GPS field.
+
+        A 3.17.0 app capture supplied a verifiable frame; its location submessage
+        is zeroed in the committed fixture and the decoder never emits coordinates,
+        so the reason for the original absence is resolved. Decode and leak checks
+        live in test_parallax_charge_schedule.py.
+        """
+        assert "charging.schedule.time_window" in RVM_DECODERS
+        assert (FIXTURES / "charging_schedule_time_window.bin").exists()

@@ -12,6 +12,7 @@ from homeassistant.const import (
     PERCENTAGE,
     EntityCategory,
     UnitOfDataRate,
+    UnitOfElectricCurrent,
     UnitOfEnergy,
     UnitOfFrequency,
     UnitOfLength,
@@ -1788,6 +1789,27 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         # Same topic and owner decision as trip_target_soc above.
     ),
+    # charging.schedule.time_window: the decoder s34 withheld for its GPS field,
+    # now shipped from a 3.17.0 app capture with the location zeroed in the
+    # fixture and never emitted by the decoder. Parallax-only, ungated. A frame
+    # is committed, so these are enabled. The window string is preformatted by
+    # the decoder ("HH:MM-HH:MM"); start/end/duration/day fields are decoded but
+    # not surfaced.
+    RivianSensorEntityDescription(
+        key="charge_schedule_window",
+        translation_key="charge_schedule_window",
+        field="chargeScheduleWindow",
+        icon="mdi:calendar-clock",
+    ),
+    RivianSensorEntityDescription(
+        key="charge_schedule_amps",
+        translation_key="charge_schedule_amps",
+        field="chargeScheduleAmps",
+        icon="mdi:current-ac",
+        device_class=SensorDeviceClass.CURRENT,
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
     # -- s45: name-matched topics (rivian_client/parallax.py, "s45" block).
     # s46's capture witnessed favoriteGeofences, trip_progress and ota_config
     # arriving (the first two withheld as carrying places, the third empty), so
@@ -1918,6 +1940,14 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         field="chargePortState",
         device_class=BinarySensorDeviceClass.DOOR,
         on_value=["open", "opening", "in_transition"],
+    ),
+    # charging.schedule.time_window #1 is_valid -- whether a charge schedule is
+    # active. Parallax-only bool, ungated; see the sensors block comment.
+    RivianBinarySensorEntityDescription(
+        key="charge_schedule_active",
+        translation_key="charge_schedule_active",
+        field="chargeScheduleValid",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     RivianBinarySensorEntityDescription(
         key="closure_frunk_closed",
@@ -2361,6 +2391,9 @@ PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "cabinVentilationSunroofOpenPercent",
     "cabinVentilationWindowsOpenPercent",
     "cccPassivePermissionStatus",
+    "chargeScheduleAmps",
+    "chargeScheduleValid",
+    "chargeScheduleWindow",
     "chargingFaultChime",
     "coldRangeImpact",
     "coldWeatherSocBlue",

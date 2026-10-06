@@ -95,8 +95,10 @@ class TestPublishedCountsAreRecomputed:
         run under the additive `--write`. It added two frames and rewrote none,
         which is the whole point of `TestCaptureRerunIsAdditive`.
         """
-        assert len(manifest) == 43  # +1 s46: charging.session.trip_target
-        assert len(RVM_DECODERS) == 53
+        assert (
+            len(manifest) == 47
+        )  # +charging.schedule.time_window, car_costume.{state,settings}, drive_auth
+        assert len(RVM_DECODERS) == 57
 
     def test_the_frame_without_decoder_count(self, manifest: dict) -> None:
         """The number published wrong five times.
@@ -419,3 +421,82 @@ class TestDecodersProduceSomethingFromTheirOwnFrame:
     def test_the_majority_do_decode(self, decoded: dict) -> None:
         """Guards the guard: if the harness broke, everything would look silent."""
         assert len(decoded) - len(self.KNOWN_EMPTY) >= 25
+
+
+class TestCoordinateGuard:
+    """The binary-GPS guard the text filter cannot provide.
+
+    `carries_identifiers` only sees printable strings, so a
+    `Location {double latitude = 1; double longitude = 2;}` submessage -- the one
+    `charging.schedule.time_window` carried -- passed straight through. s48 added
+    `carries_coordinates`; these pin that it flags real coordinates in every
+    quadrant and does not flag a zeroed/absent location.
+    """
+
+    @staticmethod
+    def _capture():
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "capture_rvm_frames",
+            pathlib.Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "capture_rvm_frames.py",
+        )
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_flags_a_western_hemisphere_coordinate(self) -> None:
+        capture = self._capture()
+        # the real captured frame, location intact (lat 35.56, lon -97.68)
+        raw = bytes.fromhex(
+            "0801122308e40a10e80218a40320302a12"
+            "09000000803fc741401100000040636b58c030033804"
+        )
+        assert capture.carries_coordinates(raw) is True
+        assert not capture.carries_identifiers(raw)  # text guard misses it
+
+    def test_flags_a_first_quadrant_coordinate(self) -> None:
+        import struct
+
+        capture = self._capture()
+        # Paris: lat 48.8566, lon 2.3522 -- both positive, the case sign-only missed
+        raw = (
+            b"\x2a\x12\x09"
+            + struct.pack("<d", 48.8566)
+            + b"\x11"
+            + struct.pack("<d", 2.3522)
+        )
+        assert capture.carries_coordinates(raw) is True
+
+    def test_does_not_flag_a_zeroed_location(self) -> None:
+        capture = self._capture()
+        scrubbed = bytes.fromhex(
+            "0801122308e40a10e80218a40320302a12"
+            + "09"
+            + "00" * 8
+            + "11"
+            + "00" * 8
+            + "30033804"
+        )
+        assert capture.carries_coordinates(scrubbed) is False
+
+    def test_write_decision_withholds_a_new_gps_topic(self, manifest: dict) -> None:
+        capture = self._capture()
+        raw = bytes.fromhex(
+            "0801122308e40a10e80218a40320302a12"
+            "09000000803fc741401100000040636b58c030033804"
+        )
+        action, detail = capture.write_decision(
+            "new.gps.topic", raw, manifest, FIXTURES
+        )
+        assert action == "withheld"
+        assert detail == "GPS coordinate"
+
+    def test_the_committed_schedule_fixture_is_clean(self, manifest: dict) -> None:
+        capture = self._capture()
+        entry = manifest["charging.schedule.time_window"]
+        raw = (FIXTURES / entry["file"]).read_bytes()
+        assert capture.carries_coordinates(raw) is False
