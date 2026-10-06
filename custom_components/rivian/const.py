@@ -168,7 +168,7 @@ def _epoch_seconds_to_utc(value: Any) -> datetime | None:
     here rather than in the decoder.
 
     Converts, never corrects. `decode_gear_guard_streaming_daily_limit`
-    (rivian_client/parallax.py) emits the vehicle's number verbatim, including
+    (rivian_client/parallax/) emits the vehicle's number verbatim, including
     the captured frame's value that sits in the PAST relative to its capture
     date, and `tests/test_parallax_s34_decoders.py` pins that verbatim
     behaviour deliberately. Rebasing it to "next midnight" here would assert
@@ -365,7 +365,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Error System Fault",
             "Timeout Temperature Not Achieved",
             "Unavailable",
-            # decode_preconditioning (rivian_client/parallax.py) now emits the
+            # decode_preconditioning (rivian_client/parallax/) now emits the
             # app's whole CABIN_PRECONDITIONING_STATE, which is the list above
             # (s43). "Off" is no longer emitted -- the app has no such state --
             # but stays so existing history does not read as an unknown option.
@@ -1609,7 +1609,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
     #
     # decode_cabin_ventilation_setting, decode_gear_guard_streaming_consent,
     # decode_gear_guard_streaming_daily_limit and
-    # decode_parked_energy_distributions (rivian_client/parallax.py) have been
+    # decode_parked_energy_distributions (rivian_client/parallax/) have been
     # decoding on the live vehicle since s34 and were read by NOTHING. That is
     # the same state the gap-fill rule left the f5 decoders in -- fourteen new
     # decoders and not one new entity -- and it is why the Parallax-only block
@@ -1810,7 +1810,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # -- s45: name-matched topics (rivian_client/parallax.py, "s45" block).
+    # -- s45: name-matched topics (rivian_client/parallax/; PARALLAX_SCHEMAS.md).
     # s46's capture witnessed favoriteGeofences, trip_progress and ota_config
     # arriving (the first two withheld as carrying places, the third empty), so
     # their entities are enabled; the topics that stayed silent are not.
@@ -2350,7 +2350,7 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
 # odometer, no tire pressures. Every test passed, because no test speaks to the
 # real gateway; it took a live boot to see it.
 #
-# wheelsInstalled is computed by decode_vehicle_wheels (rivian_client/parallax.py)
+# wheelsInstalled is computed by decode_vehicle_wheels (rivian_client/parallax/)
 # from the vehicle.wheels.vehicle_wheels RVM, so excluding it here costs nothing:
 # the sensor still reads it out of the coordinator, which Parallax populates.
 #

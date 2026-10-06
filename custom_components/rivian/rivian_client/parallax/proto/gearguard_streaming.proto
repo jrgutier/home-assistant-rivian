@@ -1,0 +1,43 @@
+// gearguard_streaming.* Parallax payloads.
+//
+// Layout and names started from bretterer/rivian-python-client PR 205
+// (commit 91b41cf). Every message one of this integration's decoders reads has
+// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
+// lists each change and the three rules behind them:
+//
+//   optional   a field the decoder reports only when it was sent
+//   uint64     an integer the decoder passes through unchanged (the app's
+//              narrower type is in the comment)
+//   undeclared a length-delimited field no decoder reads; a wrong guess at its
+//              type would fail the parse of the whole message
+//
+// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
+
+syntax = "proto3";
+
+package rivian_ha.parallax.gearguard_streaming;
+
+
+// gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent
+message GearGuardStreamingConsent {
+  optional ConsentValue consent = 1;
+}
+
+enum ConsentValue {
+  CONSENT_UNKNOWN = 0;
+  CONSENT_NOT_APPLICABLE = 1;
+  CONSENT_CONSENTED = 2;
+  CONSENT_NOT_CONSENTED = 3;
+}
+
+// gearguard_streaming.privacy.gearguard_streaming_daily_limit
+message GearGuardStreamingDailyLimit {
+  optional DailyLimitValue limit = 1;
+  optional uint64 limit_reset_time = 2; // epoch seconds; only while a limit is active
+}
+
+enum DailyLimitValue {
+  DAILY_LIMIT_UNDEFINED = 0;
+  DAILY_LIMIT_HIT = 1;
+  DAILY_LIMIT_NOT_HIT = 2;
+}

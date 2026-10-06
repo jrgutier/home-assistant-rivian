@@ -15,8 +15,8 @@ custom_components/rivian/rivian_client/rivian.py	raise err_cls(response.status, 
 custom_components/rivian/rivian_client/rivian.py	"Error occurred while reading the graphql response from Rivian.",	custom_components/rivian/rivian_client/exceptions.py	84c199210edb	second mention of the five-arg site
 custom_components/rivian/sensor.py	if str(rval).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/binary_sensor.py	5113d3e0d7fb	off by one: sensor.py's INVALID_SENSOR_STATES check is :184, not :183
 custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	6d8bee8e7bd0	binary_sensor.py's INVALID_SENSOR_STATES check
-custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	f473735a962e	second mention, same target
-custom_components/rivian/rivian_client/parallax.py	_CLIMATE_HOLD_STATUS = {	custom_components/rivian/switch.py	f473735a962e	the climateHoldStatus decode table
+custom_components/rivian/binary_sensor.py	if str(val).lower() in INVALID_SENSOR_STATES:	custom_components/rivian/switch.py	efb2de0a8fba	second mention, same target
+custom_components/rivian/rivian_client/parallax/comfort.py	_CLIMATE_HOLD_STATUS = {	custom_components/rivian/switch.py	efb2de0a8fba	the climateHoldStatus decode table
 custom_components/rivian/sensor.py	RivianVehicleEntity.available is driven by the field being present, and	custom_components/rivian/coordinator.py	f603badfc781	sensor.py's matching-control-down-with-sensor paragraph
 custom_components/rivian/binary_sensor.py	Returning None yields `unknown`, NOT `unavailable` --	custom_components/rivian/coordinator.py	91dcfd0479e7	binary_sensor.py's matching-control-down-with-sensor paragraph
 custom_components/rivian/update.py	current_version = self._get_value("otaCurrentVersion")	custom_components/rivian/const.py	965cc91e8f4f	update.py's installed/latest-version construction

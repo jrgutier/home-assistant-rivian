@@ -62,9 +62,15 @@ done
 echo "regen_proto: ${#PROTOS[@]} schemas, stamped $STAMP"
 
 if [ "${1:-}" = "--check" ]; then
-  if [ -n "$(git status --porcelain -- "$PROTO_DIR")" ]; then
+  # Against the INDEX, not HEAD: as a pre-commit hook this runs with the new
+  # schema and its modules staged, and staged-and-consistent must pass. What
+  # fails is a generated file that regenerating just changed, or one that was
+  # never added.
+  stale=$(git diff --name-only -- "$PROTO_DIR")
+  unadded=$(git ls-files --others --exclude-standard -- "$PROTO_DIR")
+  if [ -n "$stale$unadded" ]; then
     echo "regen_proto: generated modules were out of date:" >&2
-    git status --short -- "$PROTO_DIR" >&2
+    printf '%s\n' $stale $unadded | sed 's/^/  /' >&2
     exit 1
   fi
 fi

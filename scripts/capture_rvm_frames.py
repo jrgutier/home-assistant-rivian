@@ -64,7 +64,9 @@ import aiohttp
 from f8_probe import load_env
 
 from custom_components.rivian.rivian_client import Rivian
-from custom_components.rivian.rivian_client.parallax import _decode_protobuf_fields
+from custom_components.rivian.rivian_client.parallax._wire import (
+    _decode_protobuf_fields,
+)
 
 FIXTURES = (
     Path(__file__).resolve().parents[1] / "tests" / "client" / "fixtures" / "parallax"

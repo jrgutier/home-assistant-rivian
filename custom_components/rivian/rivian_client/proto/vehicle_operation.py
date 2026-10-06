@@ -1,9 +1,33 @@
-"""Vehicle operation Protocol Buffer messages for sendVehicleOperation mutation."""
+"""The sendVehicleOperation envelope, as plain classes over the generated message.
+
+The classes here are attribute holders with the interface the rest of the client
+has always used -- keyword construction, `to_dict()`, `SerializeToString()`,
+fields that may be assigned after construction. Until s49 each one also built its
+own bytes by hand. Now `SerializeToString()` fills in the generated
+`VehicleOperationRequest` from `parallax/proto/vehicle_operation.proto` and lets
+protobuf write the bytes.
+
+The bytes did not change, and
+tests/client/fixtures/parallax_golden/send_path.json holds them to that. Two
+things the hand-rolled encoder did are reproduced deliberately, because a
+generated message does neither by default:
+
+* It emitted every SUBMESSAGE, even an empty one: a request with a zero
+  timestamp still carries `2a 00`. A generated message omits a submessage that
+  was never touched, so each `_message()` below copies its children in
+  explicitly, which marks them present.
+* `Timestamp.from_datetime` computes nanos in floating point. google.protobuf's
+  own `FromDatetime` is exact and gives a different last digit for some moments.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 import uuid
+
+from ..parallax.proto import vehicle_operation_pb2
+
+_Request = vehicle_operation_pb2.VehicleOperationRequest
 
 
 def _encode_varint(value: int) -> bytes:
@@ -16,69 +40,18 @@ def _encode_varint(value: int) -> bytes:
     return bytes(result)
 
 
-def _encode_field_tag(field_number: int, wire_type: int) -> bytes:
-    """Encode a field tag (field number + wire type).
-
-    Args:
-        field_number: Protobuf field number
-        wire_type: Wire type (0=varint, 1=64-bit, 2=length-delimited, 5=32-bit)
-
-    Returns:
-        Encoded tag bytes
-    """
-    tag = (field_number << 3) | wire_type
-    return _encode_varint(tag)
-
-
 def _encode_length_delimited(field_number: int, value: bytes) -> bytes:
-    """Encode a length-delimited field.
+    """Encode a length-delimited field by hand.
 
-    Args:
-        field_number: Protobuf field number
-        value: Bytes to encode
-
-    Returns:
-        Encoded field bytes with tag and length
+    Nothing in the client calls this. It is here for tests that build a frame
+    byte by byte, so that a decoder test does not depend on an encoder to prove
+    the decoder decodes.
     """
-    tag = _encode_field_tag(field_number, 2)  # Wire type 2 = length-delimited
-    length = _encode_varint(len(value))
-    return tag + length + value
-
-
-def _encode_string(field_number: int, value: str) -> bytes:
-    """Encode a string field.
-
-    Args:
-        field_number: Protobuf field number
-        value: String to encode
-
-    Returns:
-        Encoded field bytes
-    """
-    return _encode_length_delimited(field_number, value.encode("utf-8"))
-
-
-def _encode_varint_field(field_number: int, value: int) -> bytes:
-    """Encode a varint field.
-
-    Args:
-        field_number: Protobuf field number
-        value: Integer value
-
-    Returns:
-        Encoded field bytes
-    """
-    tag = _encode_field_tag(field_number, 0)  # Wire type 0 = varint
-    return tag + _encode_varint(value)
+    return _encode_varint(field_number << 3 | 2) + _encode_varint(len(value)) + value
 
 
 class Timestamp:
-    """google.protobuf.Timestamp, hand-rolled.
-
-    Two varint fields, seconds and nanos, and neither is emitted when zero --
-    proto3 omits defaults. Replaces timestamp_pb2 so the package carries no
-    protobuf runtime; verified byte-for-byte against the generated class.
-    """
+    """Seconds and nanoseconds since the epoch; neither is emitted when zero."""
 
     def __init__(self, seconds: int = 0, nanos: int = 0) -> None:
         """Initialize a Timestamp."""
@@ -98,14 +71,12 @@ class Timestamp:
             self.seconds + self.nanos / 1_000_000_000, tz=timezone.utc
         )
 
+    def _message(self) -> _Request.Timestamp:
+        return _Request.Timestamp(seconds=self.seconds, nanos=self.nanos)
+
     def SerializeToString(self) -> bytes:
         """Serialize to protobuf wire format."""
-        output = bytearray()
-        if self.seconds:
-            output.extend(_encode_varint_field(1, self.seconds))
-        if self.nanos:
-            output.extend(_encode_varint_field(2, self.nanos))
-        return bytes(output)
+        return self._message().SerializeToString()
 
 
 class PhoneInfo:
@@ -128,14 +99,12 @@ class PhoneInfo:
             "phone_id": self.phone_id.hex(),
         }
 
+    def _message(self) -> _Request.PhoneInfo:
+        return _Request.PhoneInfo(version=self.version, phone_id=self.phone_id)
+
     def SerializeToString(self) -> bytes:
         """Serialize message to protobuf wire format."""
-        output = bytearray()
-        if self.version:
-            output.extend(_encode_varint_field(1, self.version))
-        if self.phone_id:
-            output.extend(_encode_length_delimited(2, self.phone_id))
-        return bytes(output)
+        return self._message().SerializeToString()
 
 
 class Metadata:
@@ -158,15 +127,15 @@ class Metadata:
             "request_id": self.request_id,
         }
 
+    def _message(self) -> _Request.Metadata:
+        message = _Request.Metadata(request_id=self.request_id)
+        if self.phone_info:
+            message.phone_info.CopyFrom(self.phone_info._message())
+        return message
+
     def SerializeToString(self) -> bytes:
         """Serialize message to protobuf wire format."""
-        output = bytearray()
-        if self.phone_info:
-            phone_info_bytes = self.phone_info.SerializeToString()
-            output.extend(_encode_length_delimited(1, phone_info_bytes))
-        if self.request_id:
-            output.extend(_encode_string(2, self.request_id))
-        return bytes(output)
+        return self._message().SerializeToString()
 
 
 class Operation:
@@ -207,21 +176,20 @@ class Operation:
             "timestamp": self.timestamp.ToDatetime().isoformat(),
         }
 
+    def _message(self) -> _Request.Operation:
+        message = _Request.Operation(
+            rvm_type=self.rvm_type,
+            operation_type=self.operation_type,
+            operation_id=self.operation_id,
+            payload=self.payload,
+        )
+        if self.timestamp:
+            message.timestamp.CopyFrom(self.timestamp._message())
+        return message
+
     def SerializeToString(self) -> bytes:
         """Serialize message to protobuf wire format."""
-        output = bytearray()
-        if self.rvm_type:
-            output.extend(_encode_string(1, self.rvm_type))
-        if self.operation_type:
-            output.extend(_encode_varint_field(2, self.operation_type))
-        if self.operation_id:
-            output.extend(_encode_length_delimited(3, self.operation_id))
-        if self.payload:
-            output.extend(_encode_length_delimited(4, self.payload))
-        if self.timestamp:
-            timestamp_bytes = self.timestamp.SerializeToString()
-            output.extend(_encode_length_delimited(5, timestamp_bytes))
-        return bytes(output)
+        return self._message().SerializeToString()
 
 
 class VehicleOperationRequest:
@@ -248,13 +216,14 @@ class VehicleOperationRequest:
             "operation": self.operation.to_dict(),
         }
 
+    def _message(self) -> _Request:
+        message = _Request()
+        if self.metadata:
+            message.metadata.CopyFrom(self.metadata._message())
+        if self.operation:
+            message.operation.CopyFrom(self.operation._message())
+        return message
+
     def SerializeToString(self) -> bytes:
         """Serialize message to protobuf wire format."""
-        output = bytearray()
-        if self.metadata:
-            metadata_bytes = self.metadata.SerializeToString()
-            output.extend(_encode_length_delimited(1, metadata_bytes))
-        if self.operation:
-            operation_bytes = self.operation.SerializeToString()
-            output.extend(_encode_length_delimited(2, operation_bytes))
-        return bytes(output)
+        return self._message().SerializeToString()
