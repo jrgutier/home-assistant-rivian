@@ -64,12 +64,20 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from record_parallax_golden import _enc_varint, _varint, assemble, to_jsonable, tokenize
+from record_parallax_golden import (
+    FROZEN_NOW,
+    _enc_varint,
+    _varint,
+    assemble,
+    field_number,
+    repeats_singular_field,
+    to_jsonable,
+    tokenize,
+)
 
 OLD_PATH = "custom_components/rivian/rivian_client/parallax.py"
 FIXTURES = REPO / "tests" / "client" / "fixtures" / "parallax"
 GOLDEN = REPO / "tests" / "client" / "fixtures" / "parallax_golden" / "golden.jsonl"
-FROZEN_NOW = "2026-01-01T00:00:00+00:00"
 MAX_DEPTH = 3
 MAX_MUTATIONS_PER_SEED = 400
 
@@ -98,12 +106,6 @@ def load_old(ref: str) -> types.ModuleType:
     return module
 
 
-def _number(tag: bytes) -> int:
-    got = _varint(tag, 0)
-    assert got is not None
-    return got[0] >> 3
-
-
 def mutations(data: bytes, depth: int = MAX_DEPTH) -> list[bytes]:
     out = [data[:cut] for cut in range(len(data))]
     fields = tokenize(data)
@@ -125,69 +127,71 @@ def mutations(data: bytes, depth: int = MAX_DEPTH) -> list[bytes]:
     return out
 
 
+def _has_wide_varint(descriptor: Any, raw: bytes) -> bool:
+    """Whether a varint in `raw` does not fit its field's declared 32-bit type."""
+    from google.protobuf.descriptor import FieldDescriptor
+
+    limits = {
+        FieldDescriptor.TYPE_ENUM: 2**31,
+        FieldDescriptor.TYPE_INT32: 2**31,
+        FieldDescriptor.TYPE_SINT32: 2**31,
+        FieldDescriptor.TYPE_UINT32: 2**32,
+    }
+    for tag, wire, value in tokenize(raw) or []:
+        field = descriptor.fields_by_number.get(field_number(tag))
+        if field is None:
+            continue
+        if wire == 0 and field.type in limits:
+            got = _varint(value, 0)
+            if got is not None and got[0] >= limits[field.type]:
+                return True
+        if (
+            wire == 2
+            and field.message_type is not None
+            and _has_wide_varint(field.message_type, value)
+        ):
+            return True
+    return False
+
+
 def classify(message_class: Any, raw: bytes) -> str | None:
     """The accepted class a disagreement on `raw` falls in, or None."""
-    from google.protobuf.descriptor import FieldDescriptor
     from google.protobuf.message import DecodeError
 
     try:
         message_class.FromString(raw)
     except DecodeError:
         return "rejected"
-
-    narrow = {
-        FieldDescriptor.TYPE_ENUM: 2**31,
-        FieldDescriptor.TYPE_INT32: 2**31,
-        FieldDescriptor.TYPE_SINT32: 2**31,
-        FieldDescriptor.TYPE_UINT32: 2**32,
-    }
-
-    def walk(descriptor: Any, data: bytes) -> str | None:
-        seen: set[int] = set()
-        found = None
-        for tag, wire, value in tokenize(data) or []:
-            field = descriptor.fields_by_number.get(_number(tag))
-            if field is None:
-                continue
-            if not field.is_repeated:
-                if field.number in seen:
-                    return "repeated"
-                seen.add(field.number)
-            if wire == 0 and field.type in narrow:
-                got = _varint(value, 0)
-                if got is not None and got[0] >= narrow[field.type]:
-                    found = "wide"
-            if wire == 2 and field.type == FieldDescriptor.TYPE_MESSAGE:
-                inner = walk(field.message_type, value)
-                if inner == "repeated":
-                    return inner
-                found = found or inner
-        return found
-
-    return walk(message_class.DESCRIPTOR, raw)
+    if repeats_singular_field(message_class.DESCRIPTOR, raw):
+        return "repeated"
+    if _has_wide_varint(message_class.DESCRIPTOR, raw):
+        return "wide"
+    return None
 
 
-def mistyped(message: Any) -> bool:
-    """Whether a field the schema declares arrived with another wire type.
+def mistyped(message: Any, path: str = "") -> list[str]:
+    """Declared fields of `message` that arrived with another wire type.
 
-    Protobuf files such a field under "unknown", and a decoder reading it sees
-    the default. tests/client/test_parallax_schema_parse.py holds the committed
-    frames to this; here it is asked of whatever the vehicle sends.
+    Protobuf files a field under "unknown" when its number is not in the schema
+    -- or when it is, but arrived with a wire type the schema does not expect.
+    The first is normal here. The second means the declared type is wrong, and a
+    decoder reading that field silently sees its default.
     """
-    from google.protobuf.descriptor import FieldDescriptor
     from google.protobuf.unknown_fields import UnknownFieldSet
 
-    if any(
-        unknown.field_number in message.DESCRIPTOR.fields_by_number
+    path = path or message.DESCRIPTOR.name
+    found = [
+        f"{path}: field {unknown.field_number} is declared, "
+        f"but arrived as wire type {unknown.wire_type}"
         for unknown in UnknownFieldSet(message)
-    ):
-        return True
-    return any(
-        mistyped(item)
-        for field, value in message.ListFields()
-        if field.type == FieldDescriptor.TYPE_MESSAGE
-        for item in (value if field.is_repeated else [value])
-    )
+        if unknown.field_number in message.DESCRIPTOR.fields_by_number
+    ]
+    for field, value in message.ListFields():
+        if field.message_type is None:
+            continue
+        for index, item in enumerate(value if field.is_repeated else [value]):
+            found += mistyped(item, f"{path}.{field.name}[{index}]")
+    return found
 
 
 async def listen(topics: list[str], seconds: int) -> dict[str, set[bytes]] | None:

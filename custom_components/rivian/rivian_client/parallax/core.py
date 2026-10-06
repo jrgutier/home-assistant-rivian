@@ -56,8 +56,10 @@ class RVMDecoder:
         bytes is a statement -- "no hold is set", "neither mode is on" --
         and the decoder reports it. Without this an empty payload is `{}`.
 
-        `skip_empty_message`: `{}` when the payload decodes to no bytes at all,
-        for the decoders that otherwise report defaults for whatever arrived.
+        `skip_empty_message`: `{}` when a non-empty payload decodes to no bytes
+        at all (base64 padding and nothing else). It matters only for the two
+        decoders that report defaults for whatever arrived; they said nothing
+        about such a payload before s49 and still do. No vehicle sends one.
 
         Raises `ValueError` if a topic already has a decoder.
         """

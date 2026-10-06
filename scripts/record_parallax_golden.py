@@ -151,6 +151,37 @@ def tokenize(data: bytes) -> list[tuple[bytes, int, bytes]] | None:
     return fields
 
 
+def field_number(tag: bytes) -> int:
+    """The field number in a tag as `tokenize` returns it."""
+    key = _varint(tag, 0)
+    assert key is not None
+    return key[0] >> 3
+
+
+def repeats_singular_field(descriptor: Any, raw: bytes) -> bool:
+    """Whether `raw` sends a non-repeated field of `descriptor` twice, at any depth.
+
+    `descriptor` is a google.protobuf Descriptor. A parser keeps the last
+    occurrence; the hand walker's decoders each did their own thing.
+    """
+    seen: set[int] = set()
+    for tag, wire, value in tokenize(raw) or []:
+        field = descriptor.fields_by_number.get(field_number(tag))
+        if field is None:
+            continue
+        if not field.is_repeated:
+            if field.number in seen:
+                return True
+            seen.add(field.number)
+        if (
+            wire == 2
+            and field.message_type is not None
+            and repeats_singular_field(field.message_type, value)
+        ):
+            return True
+    return False
+
+
 def assemble(fields: list[tuple[bytes, int, bytes]]) -> bytes:
     out = bytearray()
     for tag, wire, value in fields:
@@ -322,16 +353,16 @@ def _mutate_into(chosen: dict[str, str], payloads: list[str], budget: int) -> No
                 chosen.setdefault(base64.b64encode(queue.pop(0)).decode(), "synthetic")
 
 
-def _canonical(value: Any) -> Any:
+def canonical(value: Any) -> Any:
     """Like to_jsonable, for module constants: sets, ranges and int-keyed dicts."""
     if isinstance(value, (set, frozenset)):
-        return {"__set__": sorted((_canonical(v) for v in value), key=repr)}
+        return {"__set__": sorted((canonical(v) for v in value), key=repr)}
     if isinstance(value, range):
         return {"__range__": [value.start, value.stop, value.step]}
     if isinstance(value, dict):
-        return {"__items__": [[_canonical(k), _canonical(v)] for k, v in value.items()]}
+        return {"__items__": [[canonical(k), canonical(v)] for k, v in value.items()]}
     if isinstance(value, (list, tuple)):
-        return {"__seq__": [_canonical(v) for v in value], "type": type(value).__name__}
+        return {"__seq__": [canonical(v) for v in value], "type": type(value).__name__}
     return to_jsonable(value)
 
 
@@ -371,7 +402,7 @@ def record_surface(sha: str) -> None:
         elif isinstance(obj, logging.Logger):
             entry = {"kind": "logger", "value": obj.name}
         elif isinstance(obj, (dict, set, frozenset, range, list, tuple, int, str)):
-            entry = {"kind": type(obj).__name__, "value": _canonical(obj)}
+            entry = {"kind": type(obj).__name__, "value": canonical(obj)}
         else:
             continue  # typing aliases and other imports
         # A private function is an implementation detail unless something

@@ -17,34 +17,18 @@ from __future__ import annotations
 
 import json
 import pathlib
+import sys
 
-from google.protobuf.descriptor import FieldDescriptor
-from google.protobuf.message import Message
-from google.protobuf.unknown_fields import UnknownFieldSet
 import pytest
 
 from custom_components.rivian.rivian_client.parallax.core import RVMDecoder
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
+from parallax_differential import mistyped
+
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "parallax"
 MANIFEST: dict[str, dict] = json.loads((FIXTURES / "manifest.json").read_text())
 CAPTURED = sorted(topic for topic in MANIFEST if topic in RVMDecoder.messages)
-
-
-def _mistyped(message: Message, path: str = "") -> list[str]:
-    """Declared fields that arrived with a wire type the schema does not expect."""
-    path = path or message.DESCRIPTOR.name
-    found = [
-        f"{path}: field {unknown.field_number} is declared, "
-        f"but arrived as wire type {unknown.wire_type}"
-        for unknown in UnknownFieldSet(message)
-        if unknown.field_number in message.DESCRIPTOR.fields_by_number
-    ]
-    for field, value in message.ListFields():
-        if field.type != FieldDescriptor.TYPE_MESSAGE:
-            continue
-        for index, item in enumerate(value if field.is_repeated else [value]):
-            found += _mistyped(item, f"{path}.{field.name}[{index}]")
-    return found
 
 
 def test_most_decoded_topics_have_a_captured_frame() -> None:
@@ -60,7 +44,7 @@ def test_captured_frame_parses(topic: str) -> None:
 @pytest.mark.parametrize("topic", CAPTURED)
 def test_no_declared_field_arrived_with_another_wire_type(topic: str) -> None:
     raw = (FIXTURES / MANIFEST[topic]["file"]).read_bytes()
-    assert not _mistyped(RVMDecoder.messages[topic].FromString(raw))
+    assert not mistyped(RVMDecoder.messages[topic].FromString(raw))
 
 
 @pytest.mark.parametrize("topic", CAPTURED)

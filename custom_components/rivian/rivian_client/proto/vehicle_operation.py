@@ -22,8 +22,11 @@ generated message does neither by default:
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 import uuid
+
+from google.protobuf.message import Message
 
 from ..parallax.proto import vehicle_operation_pb2
 
@@ -50,7 +53,19 @@ def _encode_length_delimited(field_number: int, value: bytes) -> bytes:
     return _encode_varint(field_number << 3 | 2) + _encode_varint(len(value)) + value
 
 
-class Timestamp:
+class _Message(ABC):
+    """`SerializeToString` for a class that can build its generated message."""
+
+    @abstractmethod
+    def _message(self) -> Message:
+        """Build the generated message from this object's current attributes."""
+
+    def SerializeToString(self) -> bytes:
+        """Serialize to protobuf wire format."""
+        return self._message().SerializeToString()
+
+
+class Timestamp(_Message):
     """Seconds and nanoseconds since the epoch; neither is emitted when zero."""
 
     def __init__(self, seconds: int = 0, nanos: int = 0) -> None:
@@ -74,12 +89,8 @@ class Timestamp:
     def _message(self) -> _Request.Timestamp:
         return _Request.Timestamp(seconds=self.seconds, nanos=self.nanos)
 
-    def SerializeToString(self) -> bytes:
-        """Serialize to protobuf wire format."""
-        return self._message().SerializeToString()
 
-
-class PhoneInfo:
+class PhoneInfo(_Message):
     """Phone information for vehicle operation request.
 
     Attributes:
@@ -102,12 +113,8 @@ class PhoneInfo:
     def _message(self) -> _Request.PhoneInfo:
         return _Request.PhoneInfo(version=self.version, phone_id=self.phone_id)
 
-    def SerializeToString(self) -> bytes:
-        """Serialize message to protobuf wire format."""
-        return self._message().SerializeToString()
 
-
-class Metadata:
+class Metadata(_Message):
     """Request metadata for vehicle operation.
 
     Attributes:
@@ -133,12 +140,8 @@ class Metadata:
             message.phone_info.CopyFrom(self.phone_info._message())
         return message
 
-    def SerializeToString(self) -> bytes:
-        """Serialize message to protobuf wire format."""
-        return self._message().SerializeToString()
 
-
-class Operation:
+class Operation(_Message):
     """Operation details for vehicle operation request.
 
     Attributes:
@@ -187,12 +190,8 @@ class Operation:
             message.timestamp.CopyFrom(self.timestamp._message())
         return message
 
-    def SerializeToString(self) -> bytes:
-        """Serialize message to protobuf wire format."""
-        return self._message().SerializeToString()
 
-
-class VehicleOperationRequest:
+class VehicleOperationRequest(_Message):
     """Vehicle operation request wrapper for sendVehicleOperation mutation.
 
     Attributes:
@@ -223,7 +222,3 @@ class VehicleOperationRequest:
         if self.operation:
             message.operation.CopyFrom(self.operation._message())
         return message
-
-    def SerializeToString(self) -> bytes:
-        """Serialize message to protobuf wire format."""
-        return self._message().SerializeToString()

@@ -20,12 +20,18 @@ import inspect
 import json
 import logging
 import pathlib
+import sys
 from typing import Any
 
 import pytest
 
 from custom_components.rivian import coordinator
 from custom_components.rivian.rivian_client import parallax
+
+# The recorder's own encoding of a module constant: the snapshot was written with
+# it, so it is compared with it.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
+from record_parallax_golden import canonical
 
 SURFACE: dict[str, Any] = json.loads(
     (
@@ -34,19 +40,6 @@ SURFACE: dict[str, Any] = json.loads(
 )
 NAMES: dict[str, dict[str, Any]] = SURFACE["names"]
 REQUIRED = sorted(name for name, entry in NAMES.items() if entry["required"])
-
-
-def _canonical(value: Any) -> Any:
-    """The recorder's encoding of a module constant."""
-    if isinstance(value, (set, frozenset)):
-        return {"__set__": sorted((_canonical(v) for v in value), key=repr)}
-    if isinstance(value, range):
-        return {"__range__": [value.start, value.stop, value.step]}
-    if isinstance(value, dict):
-        return {"__items__": [[_canonical(k), _canonical(v)] for k, v in value.items()]}
-    if isinstance(value, (list, tuple)):
-        return {"__seq__": [_canonical(v) for v in value], "type": type(value).__name__}
-    return value
 
 
 class TestSubscriptions:
@@ -91,7 +84,7 @@ class TestNames:
             assert type(obj) is set
         else:
             assert type(obj).__name__ == kind
-            assert _canonical(obj) == entry["value"]
+            assert canonical(obj) == entry["value"]
 
     def test_decoder_table_is_a_plain_dict_of_callables(self) -> None:
         assert type(parallax.RVM_DECODERS) is dict

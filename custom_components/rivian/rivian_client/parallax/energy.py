@@ -54,11 +54,10 @@ def decode_battery_characteristics(
     Returns dict with keys:
         - batteryCellType: str
 
-    Fields 5 and 6 (user_total_kwh, user_max_kwh) are floats and would map to
-    batteryCapacity, but they are fixed32 (wire type 5) and _decode_enum_fields
-    reads varints only. Left undecoded rather than misdecoded: the
-    subscription already carries batteryCapacity, and a wrong kWh figure on the
-    energy sensor is worse than no second source for it.
+    Fields 5 and 6 (user_total_kwh, user_max_kwh) would map to batteryCapacity
+    and are deliberately not reported: the subscription already carries
+    batteryCapacity, and a wrong kWh figure on the energy sensor is worse than
+    no second source for it.
     """
     return _fields(m, {"cell_type": ("batteryCellType", _BATTERY_CELL_TYPE_MAP)})
 

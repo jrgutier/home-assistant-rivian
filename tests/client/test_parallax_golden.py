@@ -33,7 +33,6 @@ docs/development/PARALLAX_SCHEMAS.md lists the accepted differences.
 from __future__ import annotations
 
 import base64
-import binascii
 from collections import defaultdict
 from datetime import datetime
 import json
@@ -43,15 +42,13 @@ import sys
 from typing import Any
 
 from freezegun import freeze_time
-from google.protobuf.descriptor import Descriptor, FieldDescriptor
-from google.protobuf.message import DecodeError
 import pytest
 
 from custom_components.rivian.rivian_client import parallax
 from custom_components.rivian.rivian_client.parallax.core import RVMDecoder
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
-from record_parallax_golden import tokenize
+from parallax_differential import classify
 
 GOLDEN = pathlib.Path(__file__).parent / "fixtures" / "parallax_golden" / "golden.jsonl"
 
@@ -98,55 +95,18 @@ def _same(a: Any, b: Any) -> bool:
     return a == b
 
 
-def _schema_rejects(name: str, payload: str) -> bool:
-    """Whether the topic's message class refuses to parse `payload`."""
-    message = RVMDecoder.messages[HEADER["topics_by_decoder"][name][0]]
-    try:
-        message.FromString(base64.b64decode(payload))
-    except (DecodeError, binascii.Error, ValueError):
-        return True
-    return False
-
-
-def _field_number(tag: bytes) -> int:
-    key = shift = 0
-    for byte in tag:
-        key |= (byte & 0x7F) << shift
-        shift += 7
-    return key >> 3
-
-
-def _repeats_a_singular_field(descriptor: Descriptor, raw: bytes) -> bool:
-    """Whether `raw` sends a non-repeated field of `descriptor` twice, at any depth."""
-    seen: set[int] = set()
-    for tag, wire, value in tokenize(raw) or []:
-        number = _field_number(tag)
-        field = descriptor.fields_by_number.get(number)
-        if field is None:
-            continue
-        if not field.is_repeated:
-            if number in seen:
-                return True
-            seen.add(number)
-        if (
-            wire == 2
-            and field.type == FieldDescriptor.TYPE_MESSAGE
-            and _repeats_a_singular_field(field.message_type, value)
-        ):
-            return True
-    return False
-
-
 def _exempt(name: str, case: dict[str, Any]) -> str | None:
-    """Why `case` is not held to its recorded output, or None if it is."""
+    """Why `case` is not held to its recorded output, or None if it is.
+
+    The classes are the differential's, from the same function. Its third,
+    a varint too wide for its field, is not exempt here: nothing in the corpus
+    is that wide, so a case that lands there is a real difference.
+    """
     if case["source"] not in ("probed", "synthetic") or not case["payload"]:
         return None
-    if _schema_rejects(name, case["payload"]):
-        return "rejected"
     message = RVMDecoder.messages[HEADER["topics_by_decoder"][name][0]]
-    if _repeats_a_singular_field(message.DESCRIPTOR, base64.b64decode(case["payload"])):
-        return "repeated"
-    return None
+    why = classify(message, base64.b64decode(case["payload"]))
+    return why if why in ("rejected", "repeated") else None
 
 
 def test_every_recorded_decoder_still_exists_and_has_cases() -> None:
