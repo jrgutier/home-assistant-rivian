@@ -241,3 +241,59 @@ distribution so the day it changes, a test says so.
 
 A planning note said `issue-245` carried all three flags. It does not; it carries
 two. Measured, not assumed — which is why the number is in a test.
+
+## The golden corpus (s49)
+
+`tests/client/fixtures/parallax_golden/` is a different kind of fixture from the
+captured frames above. It was recorded once, by
+`scripts/record_parallax_golden.py`, from the hand-rolled decoders immediately
+before s49 rebuilt them on generated protobuf classes, and it is what holds the
+rebuilt decoders to the old behaviour:
+
+| file | holds |
+|---|---|
+| `golden.jsonl` | payload → exact decoder output, for all 56 decoders |
+| `surface.json` | topic → decoder, the subscription lists, every module-level name |
+| `send_path.json` | the bytes the hand-rolled encoders produced |
+
+Each `golden.jsonl` case names its `source`:
+
+| source | what it is | proves |
+|---|---|---|
+| `captured` | a frame in `fixtures/parallax/` | the decoder on what the vehicle sends |
+| `harvested` | a payload an existing test built by hand | the cases a test author cared about |
+| `probed` | one field at a time, fields 1-40, every wire type | which fields a decoder reads at all |
+| `synthetic` | a mutation of the above: field dropped, varint zeroed, varint unmapped | absent is not zero; unmapped enums |
+
+Only `captured` is evidence about the vehicle. The other three are evidence about
+the *decoder*, which is all a behaviour-preserving rewrite needs, and they must not
+be cited as proof a decoder reads a real frame correctly.
+
+**Twelve decoded topics have no captured frame**, so every golden case for them is
+`harvested`, `probed` or `synthetic`:
+
+| topic | note |
+|---|---|
+| `body.windows.states` | |
+| `dynamics.vehicle.gnss` | coordinates: the capture guard withholds these by design |
+| `dynamics.vehicle.location` | |
+| `geofence.geofence_service.favoriteGeofences` | saved-place names: withheld by design |
+| `navigation.navigation_service.trip_progress` | |
+| `ota.user_schedule.ota_config` | silent across three sessions, no OTA schedule configured (recorded above) |
+| `secure_file_transfer.pet_snapshot.secure_file` | |
+| `security.access.btm` | |
+| `security.access.immobilizer_state` | |
+| `vehicle.network.state` | Wi-Fi SSID: withheld by design |
+| `vehicle_access.passive_entry.passive_entry` | |
+| `vehicle_access.state.passive_entry` | |
+
+A blank note means only that no frame is committed. Whether the vehicle publishes
+the topic at all was not re-measured for s49; the three "by design" rows follow
+from `scripts/capture_rvm_frames.py`'s withholding rules, not from a capture run.
+
+Truncated and otherwise malformed payloads are deliberately absent from the
+corpus. The hand walker returned whatever it had parsed before the damage; a
+protobuf parser rejects the whole message. See `PARALLAX_SCHEMAS.md`.
+
+**Never re-record the corpus to make a test pass.** Re-running the recorder
+against the rebuilt decoders records the rebuilt decoders.
