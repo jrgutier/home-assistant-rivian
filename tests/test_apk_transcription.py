@@ -386,8 +386,16 @@ class TestRvmTopicTranscription:
         # 23 and 33 before s34, which shipped four decoders written from the
         # named .proto schemas in rivian_client/proto/, each verified against a
         # captured frame rather than against the parse succeeding.
-        assert len(RVM_NAMES - set(RVM_DECODERS)) == 19
-        assert len(RVM_DECODERS) == 37
+        #
+        # 19 and 37 before s44, which decoded the five topics the s42 APK
+        # extraction found bound after all (PARALLAX_CROSS_CHECK.md).
+        #
+        # 14 and 42 before s45, which decoded nine more on a name-match
+        # against the app's uncalled parse wrappers (owner decision).
+        # vehicle_access.passive_entry.passive_entry joined on its request-side
+        # binding to `fre` (FOLLOWUP_S45.md), and cold_weather_soc: 3 and 53.
+        assert len(RVM_NAMES - set(RVM_DECODERS)) == 3
+        assert len(RVM_DECODERS) == 53
 
     def test_the_two_already_decoded_topics_are_not_mistaken_for_candidates(
         self,

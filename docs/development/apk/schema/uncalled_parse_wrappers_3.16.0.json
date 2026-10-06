@@ -1,0 +1,2990 @@
+{
+ "bm3": {
+  "auto_cabin_ventilation_enabled": {
+   "number": 1,
+   "java_type": "boolean",
+   "wire_kind": "bool"
+  }
+ },
+ "bvk": {
+  "id": {
+   "number": 1,
+   "java_type": "String",
+   "wire_kind": "string"
+  },
+  "origin": {
+   "number": 2,
+   "java_type": "lt9",
+   "wire_kind": "message",
+   "message_class": "lt9",
+   "message": {
+    "coordinate": {
+     "number": 1,
+     "java_type": "afb",
+     "wire_kind": "message",
+     "message_class": "afb",
+     "message": {
+      "latitude": {
+       "number": 1,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "longitude": {
+       "number": 2,
+       "java_type": "double",
+       "wire_kind": "double"
+      }
+     }
+    },
+    "speed": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "bearing": {
+     "number": 3,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "offroad": {
+     "number": 4,
+     "java_type": "boolean",
+     "wire_kind": "bool"
+    },
+    "time": {
+     "number": 5,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "altitude": {
+     "number": 6,
+     "java_type": "double",
+     "wire_kind": "double"
+    },
+    "accuracy": {
+     "number": 7,
+     "java_type": "double",
+     "wire_kind": "double"
+    }
+   }
+  },
+  "route": {
+   "number": 3,
+   "java_type": "ieh",
+   "wire_kind": "message",
+   "message_class": "ieh",
+   "message": {
+    "distance": {
+     "number": 1,
+     "java_type": "double",
+     "wire_kind": "double"
+    },
+    "duration": {
+     "number": 2,
+     "java_type": "double",
+     "wire_kind": "double"
+    },
+    "stops": {
+     "number": 3,
+     "java_type": "yma",
+     "wire_kind": "message",
+     "repeated": true,
+     "message_class": "ffj",
+     "message": {
+      "waypoint": {
+       "number": 1,
+       "java_type": null,
+       "wire_kind": "message",
+       "oneof": "stopType",
+       "message_class": "wpn",
+       "message": {
+        "coordinate": {
+         "number": 1,
+         "java_type": "afb",
+         "wire_kind": "message",
+         "message_class": "afb",
+         "message": {
+          "latitude": {
+           "number": 1,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "longitude": {
+           "number": 2,
+           "java_type": "double",
+           "wire_kind": "double"
+          }
+         }
+        },
+        "navcoordinate": {
+         "number": 2,
+         "java_type": "afb",
+         "wire_kind": "message",
+         "message_class": "afb",
+         "message": {
+          "latitude": {
+           "number": 1,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "longitude": {
+           "number": 2,
+           "java_type": "double",
+           "wire_kind": "double"
+          }
+         }
+        },
+        "status": {
+         "number": 3,
+         "java_type": "int",
+         "wire_kind": "enum",
+         "enum_class": "cqn",
+         "enum": {
+          "STOPPING": 0,
+          "ARRIVED": 1,
+          "NEXT_STOP": 2,
+          "FUTURE": 3
+         }
+        },
+        "name": {
+         "number": 4,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "placeid": {
+         "number": 5,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "stopduration": {
+         "number": 6,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "arrivalsoc": {
+         "number": 7,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "arrivalreachabledistance": {
+         "number": 8,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "arriveatutc": {
+         "number": 9,
+         "java_type": "j",
+         "wire_kind": "message",
+         "message_class": "j",
+         "message": {
+          "seconds": {
+           "number": 1,
+           "java_type": "long",
+           "wire_kind": "int64"
+          },
+          "nanos": {
+           "number": 2,
+           "java_type": "int",
+           "wire_kind": "int32"
+          }
+         }
+        }
+       }
+      },
+      "chargestop": {
+       "number": 2,
+       "java_type": null,
+       "wire_kind": "message",
+       "oneof": "stopType",
+       "message_class": "pl2",
+       "message": {
+        "entityid": {
+         "number": 1,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "name": {
+         "number": 2,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "coordinate": {
+         "number": 3,
+         "java_type": "afb",
+         "wire_kind": "message",
+         "message_class": "afb",
+         "message": {
+          "latitude": {
+           "number": 1,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "longitude": {
+           "number": 2,
+           "java_type": "double",
+           "wire_kind": "double"
+          }
+         }
+        },
+        "chargeduration": {
+         "number": 4,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "chargedataaccuracy": {
+         "number": 5,
+         "java_type": "int",
+         "wire_kind": "enum",
+         "enum_class": "lk2",
+         "enum": {
+          "OK": 0,
+          "CONSUMPTION_FAILED": 1,
+          "CHARGETIME_FAILED": 2,
+          "BOTH_FAILED": 3
+         }
+        },
+        "arrivalsoc": {
+         "number": 6,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "arrivalreachabledistance": {
+         "number": 7,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "departuresoc": {
+         "number": 8,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "departurereachabledistance": {
+         "number": 9,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "departatutc": {
+         "number": 10,
+         "java_type": "j",
+         "wire_kind": "message",
+         "message_class": "j",
+         "message": {
+          "seconds": {
+           "number": 1,
+           "java_type": "long",
+           "wire_kind": "int64"
+          },
+          "nanos": {
+           "number": 2,
+           "java_type": "int",
+           "wire_kind": "int32"
+          }
+         }
+        },
+        "arriveatutc": {
+         "number": 11,
+         "java_type": "j",
+         "wire_kind": "message",
+         "message_class": "j",
+         "message": {
+          "seconds": {
+           "number": 1,
+           "java_type": "long",
+           "wire_kind": "int64"
+          },
+          "nanos": {
+           "number": 2,
+           "java_type": "int",
+           "wire_kind": "int32"
+          }
+         }
+        },
+        "issystemadded": {
+         "number": 12,
+         "java_type": "boolean",
+         "wire_kind": "bool"
+        },
+        "compatible": {
+         "number": 13,
+         "java_type": "boolean",
+         "wire_kind": "bool"
+        },
+        "adapterrequired": {
+         "number": 14,
+         "java_type": "boolean",
+         "wire_kind": "bool"
+        },
+        "stopduration": {
+         "number": 16,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "status": {
+         "number": 17,
+         "java_type": "int",
+         "wire_kind": "enum",
+         "enum_class": "cqn",
+         "enum": {
+          "STOPPING": 0,
+          "ARRIVED": 1,
+          "NEXT_STOP": 2,
+          "FUTURE": 3
+         }
+        }
+       }
+      }
+     }
+    },
+    "legs": {
+     "number": 4,
+     "java_type": "yma",
+     "wire_kind": "message",
+     "repeated": true,
+     "message_class": "vmb",
+     "message": {
+      "distance": {
+       "number": 1,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "duration": {
+       "number": 2,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "summary": {
+       "number": 3,
+       "java_type": "String",
+       "wire_kind": "string"
+      },
+      "polyline": {
+       "number": 4,
+       "java_type": "String",
+       "wire_kind": "string"
+      },
+      "traffic_slow": {
+       "number": 5,
+       "java_type": "vma",
+       "wire_kind": "int32",
+       "repeated": true
+      },
+      "traffic_jam": {
+       "number": 6,
+       "java_type": "vma",
+       "wire_kind": "int32",
+       "repeated": true
+      },
+      "traffic_severe": {
+       "number": 7,
+       "java_type": "vma",
+       "wire_kind": "int32",
+       "repeated": true
+      },
+      "energyconsumption": {
+       "number": 8,
+       "java_type": "m87",
+       "wire_kind": "message",
+       "message_class": "m87",
+       "message": {
+        "totalenergyconsumptionwh": {
+         "number": 1,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "thermalenergyconsumptionwh": {
+         "number": 2,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "lvenergyconsumptionwh": {
+         "number": 3,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "hvacenergyconsumptionwh": {
+         "number": 4,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "elevationenergyconsumptionwh": {
+         "number": 5,
+         "java_type": "double",
+         "wire_kind": "double"
+        }
+       }
+      },
+      "incidents": {
+       "number": 9,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "efa",
+       "message": {
+        "polylinefirstindex": {
+         "number": 1,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "polylinelastindex": {
+         "number": 2,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "incident": {
+         "number": 3,
+         "java_type": "int",
+         "wire_kind": "enum",
+         "enum_class": "yea",
+         "enum": {
+          "INCIDENT_UNKNOWN": 0,
+          "NO_INCIDENT": 1,
+          "CLOSURE": 2,
+          "CRASH": 3,
+          "CONSTRUCTION": 4,
+          "JAM": 5
+         }
+        }
+       }
+      },
+      "trafficblockfractional": {
+       "number": 10,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "yok",
+       "message": {
+        "firstindex": {
+         "number": 1,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "firstindexfractional": {
+         "number": 2,
+         "java_type": "float",
+         "wire_kind": "float"
+        },
+        "lastindex": {
+         "number": 3,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "lastindexfractional": {
+         "number": 4,
+         "java_type": "float",
+         "wire_kind": "float"
+        },
+        "priority": {
+         "number": 5,
+         "java_type": "int",
+         "wire_kind": "enum",
+         "enum_class": null,
+         "enum": null
+        }
+       }
+      }
+     }
+    },
+    "socisbelowlimit": {
+     "number": 5,
+     "java_type": "boolean",
+     "wire_kind": "bool"
+    },
+    "arrivalsoc": {
+     "number": 6,
+     "java_type": "double",
+     "wire_kind": "double"
+    },
+    "arrivalreachabledistance": {
+     "number": 7,
+     "java_type": "double",
+     "wire_kind": "double"
+    },
+    "batteryemptylocation": {
+     "number": 8,
+     "java_type": "afb",
+     "wire_kind": "message",
+     "message_class": "afb",
+     "message": {
+      "latitude": {
+       "number": 1,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "longitude": {
+       "number": 2,
+       "java_type": "double",
+       "wire_kind": "double"
+      }
+     }
+    },
+    "batteryemptytodestinationdistance": {
+     "number": 9,
+     "java_type": "double",
+     "wire_kind": "double"
+    },
+    "polyline": {
+     "number": 10,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "alternativeroutes": {
+     "number": 11,
+     "java_type": "yma",
+     "wire_kind": "message",
+     "repeated": true,
+     "message_class": "sv",
+     "message": {
+      "legs": {
+       "number": 1,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "vmb",
+       "message": {
+        "distance": {
+         "number": 1,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "duration": {
+         "number": 2,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "summary": {
+         "number": 3,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "polyline": {
+         "number": 4,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "traffic_slow": {
+         "number": 5,
+         "java_type": "vma",
+         "wire_kind": "int32",
+         "repeated": true
+        },
+        "traffic_jam": {
+         "number": 6,
+         "java_type": "vma",
+         "wire_kind": "int32",
+         "repeated": true
+        },
+        "traffic_severe": {
+         "number": 7,
+         "java_type": "vma",
+         "wire_kind": "int32",
+         "repeated": true
+        },
+        "energyconsumption": {
+         "number": 8,
+         "java_type": "m87",
+         "wire_kind": "message",
+         "message_class": "m87",
+         "message": {
+          "totalenergyconsumptionwh": {
+           "number": 1,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "thermalenergyconsumptionwh": {
+           "number": 2,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "lvenergyconsumptionwh": {
+           "number": 3,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "hvacenergyconsumptionwh": {
+           "number": 4,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "elevationenergyconsumptionwh": {
+           "number": 5,
+           "java_type": "double",
+           "wire_kind": "double"
+          }
+         }
+        },
+        "incidents": {
+         "number": 9,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "efa",
+         "message": {
+          "polylinefirstindex": {
+           "number": 1,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "polylinelastindex": {
+           "number": 2,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "incident": {
+           "number": 3,
+           "java_type": "int",
+           "wire_kind": "enum",
+           "enum_class": "yea",
+           "enum": {
+            "INCIDENT_UNKNOWN": 0,
+            "NO_INCIDENT": 1,
+            "CLOSURE": 2,
+            "CRASH": 3,
+            "CONSTRUCTION": 4,
+            "JAM": 5
+           }
+          }
+         }
+        },
+        "trafficblockfractional": {
+         "number": 10,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "yok",
+         "message": {
+          "firstindex": {
+           "number": 1,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "firstindexfractional": {
+           "number": 2,
+           "java_type": "float",
+           "wire_kind": "float"
+          },
+          "lastindex": {
+           "number": 3,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "lastindexfractional": {
+           "number": 4,
+           "java_type": "float",
+           "wire_kind": "float"
+          },
+          "priority": {
+           "number": 5,
+           "java_type": "int",
+           "wire_kind": "enum",
+           "enum_class": null,
+           "enum": null
+          }
+         }
+        }
+       }
+      },
+      "polyline": {
+       "number": 2,
+       "java_type": "String",
+       "wire_kind": "string"
+      },
+      "routeindex": {
+       "number": 3,
+       "java_type": "int",
+       "wire_kind": "int32"
+      },
+      "alternativeoverlaps": {
+       "number": 4,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "qv",
+       "message": {
+        "alternativeindex": {
+         "number": 1,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "notoverlappingsegments": {
+         "number": 2,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "qwd",
+         "message": {
+          "startdrivelegindex": {
+           "number": 1,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "startpolylineindex": {
+           "number": 2,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "enddrivelegindex": {
+           "number": 3,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "endpolylineindex": {
+           "number": 4,
+           "java_type": "int",
+           "wire_kind": "int32"
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "routeindex": {
+     "number": 12,
+     "java_type": "int",
+     "wire_kind": "int32"
+    },
+    "alternativeoverlaps": {
+     "number": 13,
+     "java_type": "yma",
+     "wire_kind": "message",
+     "repeated": true,
+     "message_class": "qv",
+     "message": {
+      "alternativeindex": {
+       "number": 1,
+       "java_type": "int",
+       "wire_kind": "int32"
+      },
+      "notoverlappingsegments": {
+       "number": 2,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "qwd",
+       "message": {
+        "startdrivelegindex": {
+         "number": 1,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "startpolylineindex": {
+         "number": 2,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "enddrivelegindex": {
+         "number": 3,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "endpolylineindex": {
+         "number": 4,
+         "java_type": "int",
+         "wire_kind": "int32"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "preferences": {
+   "number": 4,
+   "java_type": "btf",
+   "wire_kind": "message",
+   "message_class": "btf",
+   "message": {
+    "currentarrivalsocpercentage": {
+     "number": 1,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "defaultarrivalsocpercentage": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "excludeoptions": {
+     "number": 3,
+     "java_type": "yma",
+     "wire_kind": "string",
+     "repeated": true
+    },
+    "evchargefilters": {
+     "number": 4,
+     "java_type": "yma",
+     "wire_kind": "string",
+     "repeated": true
+    }
+   }
+  },
+  "initialsocpercentage": {
+   "number": 5,
+   "java_type": "double",
+   "wire_kind": "double"
+  },
+  "departuretime": {
+   "number": 6,
+   "java_type": "j",
+   "wire_kind": "message",
+   "message_class": "j",
+   "message": {
+    "seconds": {
+     "number": 1,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "nanos": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "int32"
+    }
+   }
+  },
+  "fasterroute": {
+   "number": 7,
+   "java_type": "rq7",
+   "wire_kind": "message",
+   "message_class": "rq7",
+   "message": {
+    "route": {
+     "number": 1,
+     "java_type": "ieh",
+     "wire_kind": "message",
+     "message_class": "ieh",
+     "message": {
+      "distance": {
+       "number": 1,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "duration": {
+       "number": 2,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "stops": {
+       "number": 3,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "ffj",
+       "message": {
+        "waypoint": {
+         "number": 1,
+         "java_type": null,
+         "wire_kind": "message",
+         "oneof": "stopType",
+         "message_class": "wpn",
+         "message": {
+          "coordinate": {
+           "number": 1,
+           "java_type": "afb",
+           "wire_kind": "message",
+           "message_class": "afb",
+           "message": {
+            "latitude": {
+             "number": 1,
+             "java_type": "double",
+             "wire_kind": "double"
+            },
+            "longitude": {
+             "number": 2,
+             "java_type": "double",
+             "wire_kind": "double"
+            }
+           }
+          },
+          "navcoordinate": {
+           "number": 2,
+           "java_type": "afb",
+           "wire_kind": "message",
+           "message_class": "afb",
+           "message": {
+            "latitude": {
+             "number": 1,
+             "java_type": "double",
+             "wire_kind": "double"
+            },
+            "longitude": {
+             "number": 2,
+             "java_type": "double",
+             "wire_kind": "double"
+            }
+           }
+          },
+          "status": {
+           "number": 3,
+           "java_type": "int",
+           "wire_kind": "enum",
+           "enum_class": "cqn",
+           "enum": {
+            "STOPPING": 0,
+            "ARRIVED": 1,
+            "NEXT_STOP": 2,
+            "FUTURE": 3
+           }
+          },
+          "name": {
+           "number": 4,
+           "java_type": "String",
+           "wire_kind": "string"
+          },
+          "placeid": {
+           "number": 5,
+           "java_type": "String",
+           "wire_kind": "string"
+          },
+          "stopduration": {
+           "number": 6,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "arrivalsoc": {
+           "number": 7,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "arrivalreachabledistance": {
+           "number": 8,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "arriveatutc": {
+           "number": 9,
+           "java_type": "j",
+           "wire_kind": "message",
+           "message_class": "j",
+           "message": {
+            "seconds": {
+             "number": 1,
+             "java_type": "long",
+             "wire_kind": "int64"
+            },
+            "nanos": {
+             "number": 2,
+             "java_type": "int",
+             "wire_kind": "int32"
+            }
+           }
+          }
+         }
+        },
+        "chargestop": {
+         "number": 2,
+         "java_type": null,
+         "wire_kind": "message",
+         "oneof": "stopType",
+         "message_class": "pl2",
+         "message": {
+          "entityid": {
+           "number": 1,
+           "java_type": "String",
+           "wire_kind": "string"
+          },
+          "name": {
+           "number": 2,
+           "java_type": "String",
+           "wire_kind": "string"
+          },
+          "coordinate": {
+           "number": 3,
+           "java_type": "afb",
+           "wire_kind": "message",
+           "message_class": "afb",
+           "message": {
+            "latitude": {
+             "number": 1,
+             "java_type": "double",
+             "wire_kind": "double"
+            },
+            "longitude": {
+             "number": 2,
+             "java_type": "double",
+             "wire_kind": "double"
+            }
+           }
+          },
+          "chargeduration": {
+           "number": 4,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "chargedataaccuracy": {
+           "number": 5,
+           "java_type": "int",
+           "wire_kind": "enum",
+           "enum_class": "lk2",
+           "enum": {
+            "OK": 0,
+            "CONSUMPTION_FAILED": 1,
+            "CHARGETIME_FAILED": 2,
+            "BOTH_FAILED": 3
+           }
+          },
+          "arrivalsoc": {
+           "number": 6,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "arrivalreachabledistance": {
+           "number": 7,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "departuresoc": {
+           "number": 8,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "departurereachabledistance": {
+           "number": 9,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "departatutc": {
+           "number": 10,
+           "java_type": "j",
+           "wire_kind": "message",
+           "message_class": "j",
+           "message": {
+            "seconds": {
+             "number": 1,
+             "java_type": "long",
+             "wire_kind": "int64"
+            },
+            "nanos": {
+             "number": 2,
+             "java_type": "int",
+             "wire_kind": "int32"
+            }
+           }
+          },
+          "arriveatutc": {
+           "number": 11,
+           "java_type": "j",
+           "wire_kind": "message",
+           "message_class": "j",
+           "message": {
+            "seconds": {
+             "number": 1,
+             "java_type": "long",
+             "wire_kind": "int64"
+            },
+            "nanos": {
+             "number": 2,
+             "java_type": "int",
+             "wire_kind": "int32"
+            }
+           }
+          },
+          "issystemadded": {
+           "number": 12,
+           "java_type": "boolean",
+           "wire_kind": "bool"
+          },
+          "compatible": {
+           "number": 13,
+           "java_type": "boolean",
+           "wire_kind": "bool"
+          },
+          "adapterrequired": {
+           "number": 14,
+           "java_type": "boolean",
+           "wire_kind": "bool"
+          },
+          "stopduration": {
+           "number": 16,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "status": {
+           "number": 17,
+           "java_type": "int",
+           "wire_kind": "enum",
+           "enum_class": "cqn",
+           "enum": {
+            "STOPPING": 0,
+            "ARRIVED": 1,
+            "NEXT_STOP": 2,
+            "FUTURE": 3
+           }
+          }
+         }
+        }
+       }
+      },
+      "legs": {
+       "number": 4,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "vmb",
+       "message": {
+        "distance": {
+         "number": 1,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "duration": {
+         "number": 2,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "summary": {
+         "number": 3,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "polyline": {
+         "number": 4,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "traffic_slow": {
+         "number": 5,
+         "java_type": "vma",
+         "wire_kind": "int32",
+         "repeated": true
+        },
+        "traffic_jam": {
+         "number": 6,
+         "java_type": "vma",
+         "wire_kind": "int32",
+         "repeated": true
+        },
+        "traffic_severe": {
+         "number": 7,
+         "java_type": "vma",
+         "wire_kind": "int32",
+         "repeated": true
+        },
+        "energyconsumption": {
+         "number": 8,
+         "java_type": "m87",
+         "wire_kind": "message",
+         "message_class": "m87",
+         "message": {
+          "totalenergyconsumptionwh": {
+           "number": 1,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "thermalenergyconsumptionwh": {
+           "number": 2,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "lvenergyconsumptionwh": {
+           "number": 3,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "hvacenergyconsumptionwh": {
+           "number": 4,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "elevationenergyconsumptionwh": {
+           "number": 5,
+           "java_type": "double",
+           "wire_kind": "double"
+          }
+         }
+        },
+        "incidents": {
+         "number": 9,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "efa",
+         "message": {
+          "polylinefirstindex": {
+           "number": 1,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "polylinelastindex": {
+           "number": 2,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "incident": {
+           "number": 3,
+           "java_type": "int",
+           "wire_kind": "enum",
+           "enum_class": "yea",
+           "enum": {
+            "INCIDENT_UNKNOWN": 0,
+            "NO_INCIDENT": 1,
+            "CLOSURE": 2,
+            "CRASH": 3,
+            "CONSTRUCTION": 4,
+            "JAM": 5
+           }
+          }
+         }
+        },
+        "trafficblockfractional": {
+         "number": 10,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "yok",
+         "message": {
+          "firstindex": {
+           "number": 1,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "firstindexfractional": {
+           "number": 2,
+           "java_type": "float",
+           "wire_kind": "float"
+          },
+          "lastindex": {
+           "number": 3,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "lastindexfractional": {
+           "number": 4,
+           "java_type": "float",
+           "wire_kind": "float"
+          },
+          "priority": {
+           "number": 5,
+           "java_type": "int",
+           "wire_kind": "enum",
+           "enum_class": null,
+           "enum": null
+          }
+         }
+        }
+       }
+      },
+      "socisbelowlimit": {
+       "number": 5,
+       "java_type": "boolean",
+       "wire_kind": "bool"
+      },
+      "arrivalsoc": {
+       "number": 6,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "arrivalreachabledistance": {
+       "number": 7,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "batteryemptylocation": {
+       "number": 8,
+       "java_type": "afb",
+       "wire_kind": "message",
+       "message_class": "afb",
+       "message": {
+        "latitude": {
+         "number": 1,
+         "java_type": "double",
+         "wire_kind": "double"
+        },
+        "longitude": {
+         "number": 2,
+         "java_type": "double",
+         "wire_kind": "double"
+        }
+       }
+      },
+      "batteryemptytodestinationdistance": {
+       "number": 9,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "polyline": {
+       "number": 10,
+       "java_type": "String",
+       "wire_kind": "string"
+      },
+      "alternativeroutes": {
+       "number": 11,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "sv",
+       "message": {
+        "legs": {
+         "number": 1,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "vmb",
+         "message": {
+          "distance": {
+           "number": 1,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "duration": {
+           "number": 2,
+           "java_type": "double",
+           "wire_kind": "double"
+          },
+          "summary": {
+           "number": 3,
+           "java_type": "String",
+           "wire_kind": "string"
+          },
+          "polyline": {
+           "number": 4,
+           "java_type": "String",
+           "wire_kind": "string"
+          },
+          "traffic_slow": {
+           "number": 5,
+           "java_type": "vma",
+           "wire_kind": "int32",
+           "repeated": true
+          },
+          "traffic_jam": {
+           "number": 6,
+           "java_type": "vma",
+           "wire_kind": "int32",
+           "repeated": true
+          },
+          "traffic_severe": {
+           "number": 7,
+           "java_type": "vma",
+           "wire_kind": "int32",
+           "repeated": true
+          },
+          "energyconsumption": {
+           "number": 8,
+           "java_type": "m87",
+           "wire_kind": "message",
+           "message_class": "m87",
+           "message": {
+            "totalenergyconsumptionwh": {
+             "number": 1,
+             "java_type": "double",
+             "wire_kind": "double"
+            },
+            "thermalenergyconsumptionwh": {
+             "number": 2,
+             "java_type": "double",
+             "wire_kind": "double"
+            },
+            "lvenergyconsumptionwh": {
+             "number": 3,
+             "java_type": "double",
+             "wire_kind": "double"
+            },
+            "hvacenergyconsumptionwh": {
+             "number": 4,
+             "java_type": "double",
+             "wire_kind": "double"
+            },
+            "elevationenergyconsumptionwh": {
+             "number": 5,
+             "java_type": "double",
+             "wire_kind": "double"
+            }
+           }
+          },
+          "incidents": {
+           "number": 9,
+           "java_type": "yma",
+           "wire_kind": "message",
+           "repeated": true,
+           "message_class": "efa",
+           "message": {
+            "polylinefirstindex": {
+             "number": 1,
+             "java_type": "int",
+             "wire_kind": "int32"
+            },
+            "polylinelastindex": {
+             "number": 2,
+             "java_type": "int",
+             "wire_kind": "int32"
+            },
+            "incident": {
+             "number": 3,
+             "java_type": "int",
+             "wire_kind": "enum",
+             "enum_class": "yea",
+             "enum": {
+              "INCIDENT_UNKNOWN": 0,
+              "NO_INCIDENT": 1,
+              "CLOSURE": 2,
+              "CRASH": 3,
+              "CONSTRUCTION": 4,
+              "JAM": 5
+             }
+            }
+           }
+          },
+          "trafficblockfractional": {
+           "number": 10,
+           "java_type": "yma",
+           "wire_kind": "message",
+           "repeated": true,
+           "message_class": "yok",
+           "message": {
+            "firstindex": {
+             "number": 1,
+             "java_type": "int",
+             "wire_kind": "int32"
+            },
+            "firstindexfractional": {
+             "number": 2,
+             "java_type": "float",
+             "wire_kind": "float"
+            },
+            "lastindex": {
+             "number": 3,
+             "java_type": "int",
+             "wire_kind": "int32"
+            },
+            "lastindexfractional": {
+             "number": 4,
+             "java_type": "float",
+             "wire_kind": "float"
+            },
+            "priority": {
+             "number": 5,
+             "java_type": "int",
+             "wire_kind": "enum",
+             "enum_class": null,
+             "enum": null
+            }
+           }
+          }
+         }
+        },
+        "polyline": {
+         "number": 2,
+         "java_type": "String",
+         "wire_kind": "string"
+        },
+        "routeindex": {
+         "number": 3,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "alternativeoverlaps": {
+         "number": 4,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "qv",
+         "message": {
+          "alternativeindex": {
+           "number": 1,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "notoverlappingsegments": {
+           "number": 2,
+           "java_type": "yma",
+           "wire_kind": "message",
+           "repeated": true,
+           "message_class": "qwd",
+           "message": {
+            "startdrivelegindex": {
+             "number": 1,
+             "java_type": "int",
+             "wire_kind": "int32"
+            },
+            "startpolylineindex": {
+             "number": 2,
+             "java_type": "int",
+             "wire_kind": "int32"
+            },
+            "enddrivelegindex": {
+             "number": 3,
+             "java_type": "int",
+             "wire_kind": "int32"
+            },
+            "endpolylineindex": {
+             "number": 4,
+             "java_type": "int",
+             "wire_kind": "int32"
+            }
+           }
+          }
+         }
+        }
+       }
+      },
+      "routeindex": {
+       "number": 12,
+       "java_type": "int",
+       "wire_kind": "int32"
+      },
+      "alternativeoverlaps": {
+       "number": 13,
+       "java_type": "yma",
+       "wire_kind": "message",
+       "repeated": true,
+       "message_class": "qv",
+       "message": {
+        "alternativeindex": {
+         "number": 1,
+         "java_type": "int",
+         "wire_kind": "int32"
+        },
+        "notoverlappingsegments": {
+         "number": 2,
+         "java_type": "yma",
+         "wire_kind": "message",
+         "repeated": true,
+         "message_class": "qwd",
+         "message": {
+          "startdrivelegindex": {
+           "number": 1,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "startpolylineindex": {
+           "number": 2,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "enddrivelegindex": {
+           "number": 3,
+           "java_type": "int",
+           "wire_kind": "int32"
+          },
+          "endpolylineindex": {
+           "number": 4,
+           "java_type": "int",
+           "wire_kind": "int32"
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "timesaved": {
+     "number": 2,
+     "java_type": "double",
+     "wire_kind": "double"
+    }
+   }
+  }
+ },
+ "d32": {
+  "temperatures": {
+   "number": 1,
+   "java_type": "yma",
+   "wire_kind": "message",
+   "repeated": true,
+   "message_class": "u22",
+   "message": {
+    "seat": {
+     "number": 1,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": null,
+     "enum": null
+    },
+    "temperature_celsius": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    }
+   }
+  },
+  "exterior_temperature_celsius": {
+   "number": 2,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "interior_temperature_celsius": {
+   "number": 3,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "interior_display_temperature_celsius": {
+   "number": 4,
+   "java_type": "float",
+   "wire_kind": "float"
+  }
+ },
+ "e9a": {
+  "set_temperature_celsius": {
+   "number": 1,
+   "java_type": "float",
+   "wire_kind": "float"
+  }
+ },
+ "fre": {
+  "allowpassiveentryviabluetoothwhileinccc": {
+   "number": 1,
+   "java_type": "boolean",
+   "wire_kind": "bool"
+  },
+  "cccpassivepermissionstatus": {
+   "number": 2,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": "dre",
+   "enum": {
+    "CCC_PASSIVE_PERMISSION_STATUS_SNA": 0,
+    "CCC_PASSIVE_PERMISSION_STATUS_DISABLED": 1,
+    "CCC_PASSIVE_PERMISSION_STATUS_ENABLED": 2
+   }
+  }
+ },
+ "g2i": {
+  "s3_id": {
+   "number": 1,
+   "java_type": null,
+   "wire_kind": "string",
+   "oneof": "payload"
+  },
+  "raw_data": {
+   "number": 2,
+   "java_type": null,
+   "wire_kind": "bytes",
+   "oneof": "payload"
+  },
+  "wrapped_keys": {
+   "number": 3,
+   "java_type": "yma",
+   "wire_kind": "message",
+   "repeated": true,
+   "message_class": "l3o",
+   "message": {
+    "mapped_identity": {
+     "number": 1,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "wrapped_sym_key": {
+     "number": 2,
+     "java_type": "er1",
+     "wire_kind": "bytes"
+    }
+   }
+  },
+  "metadata": {
+   "number": 4,
+   "java_type": "ru7",
+   "wire_kind": "message",
+   "message_class": "ru7",
+   "message": {
+    "filename": {
+     "number": 1,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "file_type": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "rv7",
+     "enum": {
+      "FILE_TYPE_UNSPECIFIED": 0,
+      "FILE_TYPE_IMAGE_PNG": 1,
+      "FILE_TYPE_IMAGE_JPEG": 2,
+      "FILE_TYPE_IMAGE_WEBP": 3
+     }
+    },
+    "file_size": {
+     "number": 3,
+     "java_type": "long",
+     "wire_kind": "uint64"
+    },
+    "created_at": {
+     "number": 4,
+     "java_type": "j",
+     "wire_kind": "message",
+     "message_class": "j",
+     "message": {
+      "seconds": {
+       "number": 1,
+       "java_type": "long",
+       "wire_kind": "int64"
+      },
+      "nanos": {
+       "number": 2,
+       "java_type": "int",
+       "wire_kind": "int32"
+      }
+     }
+    }
+   }
+  },
+  "session_id": {
+   "number": 5,
+   "java_type": "String",
+   "wire_kind": "string"
+  }
+ },
+ "hpe": {
+  "last24hours": {
+   "number": 1,
+   "java_type": "fpe",
+   "wire_kind": "message",
+   "message_class": "fpe",
+   "message": {
+    "total_kwh": {
+     "number": 1,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "thermal_kwh": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "outlets_kwh": {
+     "number": 3,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "system_kwh": {
+     "number": 4,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "gear_guard_kwh": {
+     "number": 5,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "total_range": {
+     "number": 6,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "thermal_range": {
+     "number": 7,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "outlets_range": {
+     "number": 8,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "system_range": {
+     "number": 9,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "gear_guard_range": {
+     "number": 10,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "session_duration_mins": {
+     "number": 11,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    }
+   }
+  },
+  "last8hours": {
+   "number": 2,
+   "java_type": "fpe",
+   "wire_kind": "message",
+   "message_class": "fpe",
+   "message": {
+    "total_kwh": {
+     "number": 1,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "thermal_kwh": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "outlets_kwh": {
+     "number": 3,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "system_kwh": {
+     "number": 4,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "gear_guard_kwh": {
+     "number": 5,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "total_range": {
+     "number": 6,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "thermal_range": {
+     "number": 7,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "outlets_range": {
+     "number": 8,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "system_range": {
+     "number": 9,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "gear_guard_range": {
+     "number": 10,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "session_duration_mins": {
+     "number": 11,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    }
+   }
+  },
+  "lastparksession": {
+   "number": 3,
+   "java_type": "fpe",
+   "wire_kind": "message",
+   "message_class": "fpe",
+   "message": {
+    "total_kwh": {
+     "number": 1,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "thermal_kwh": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "outlets_kwh": {
+     "number": 3,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "system_kwh": {
+     "number": 4,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "gear_guard_kwh": {
+     "number": 5,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "total_range": {
+     "number": 6,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "thermal_range": {
+     "number": 7,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "outlets_range": {
+     "number": 8,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "system_range": {
+     "number": 9,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "gear_guard_range": {
+     "number": 10,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "session_duration_mins": {
+     "number": 11,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    }
+   }
+  }
+ },
+ "iwn": {
+  "wheelslist": {
+   "number": 1,
+   "java_type": "yma",
+   "wire_kind": "message",
+   "repeated": true,
+   "message_class": "b6n",
+   "message": {
+    "wheelpackage": {
+     "number": 1,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": null,
+     "enum": null
+    },
+    "tireodometermileagemeters": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "int32"
+    },
+    "savedtireodometermileagedeltameters": {
+     "number": 3,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    },
+    "odometeratlastrotationmeters": {
+     "number": 4,
+     "java_type": "int",
+     "wire_kind": "int32"
+    },
+    "savedodometeratlastrotationdeltameters": {
+     "number": 5,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    },
+    "rotationreminderintervalmeters": {
+     "number": 6,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    },
+    "isinstalled": {
+     "number": 7,
+     "java_type": "boolean",
+     "wire_kind": "bool"
+    },
+    "timestamp": {
+     "number": 8,
+     "java_type": "j",
+     "wire_kind": "message",
+     "message_class": "j",
+     "message": {
+      "seconds": {
+       "number": 1,
+       "java_type": "long",
+       "wire_kind": "int64"
+      },
+      "nanos": {
+       "number": 2,
+       "java_type": "int",
+       "wire_kind": "int32"
+      }
+     }
+    },
+    "tires": {
+     "number": 9,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": null,
+     "enum": null
+    },
+    "currentodometermeters": {
+     "number": 10,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    }
+   }
+  }
+ },
+ "jx3": {
+  "soc_perc_green": {
+   "number": 1,
+   "java_type": "int",
+   "wire_kind": "uint32"
+  },
+  "soc_perc_blue": {
+   "number": 2,
+   "java_type": "int",
+   "wire_kind": "uint32"
+  },
+  "cold_range_impact_km": {
+   "number": 3,
+   "java_type": "int",
+   "wire_kind": "uint32"
+  }
+ },
+ "lv5": {
+  "current_level": {
+   "number": 1,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": "l22",
+   "enum": {
+    "CABIN_DEFROST_DEFOG_LEVEL_UNSPECIFIED": 0,
+    "CABIN_DEFROST_DEFOG_LEVEL_DEFOG": 1,
+    "CABIN_DEFROST_DEFOG_LEVEL_DEFROST": 2,
+    "CABIN_DEFROST_DEFOG_LEVEL_DEFOG_DEFROST": 3,
+    "CABIN_DEFROST_DEFOG_LEVEL_OFF": 4
+   }
+  }
+ },
+ "mj": {
+  "active_user_id": {
+   "number": 1,
+   "java_type": "String",
+   "wire_kind": "string"
+  }
+ },
+ "nl2": {
+  "total_kwh": {
+   "number": 1,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "pack_kwh": {
+   "number": 2,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "thermal_kwh": {
+   "number": 3,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "outlets_kwh": {
+   "number": 4,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "system_kwh": {
+   "number": 5,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "session_duration_mins": {
+   "number": 6,
+   "java_type": "int",
+   "wire_kind": "uint32"
+  },
+  "time_remaining_mins": {
+   "number": 7,
+   "java_type": "int",
+   "wire_kind": "uint32"
+  },
+  "range_added_kms": {
+   "number": 8,
+   "java_type": "int",
+   "wire_kind": "uint32"
+  },
+  "current_power": {
+   "number": 9,
+   "java_type": "float",
+   "wire_kind": "float"
+  },
+  "current_range_per_hour": {
+   "number": 10,
+   "java_type": "int",
+   "wire_kind": "uint32"
+  },
+  "session_cost": {
+   "number": 11,
+   "java_type": "ebd",
+   "wire_kind": "message",
+   "message_class": "ebd",
+   "message": {
+    "currency_code": {
+     "number": 1,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "units": {
+     "number": 2,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "nanos": {
+     "number": 3,
+     "java_type": "int",
+     "wire_kind": "int32"
+    }
+   }
+  },
+  "is_free_session": {
+   "number": 12,
+   "java_type": "boolean",
+   "wire_kind": "bool"
+  },
+  "charging_state": {
+   "number": 13,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": null,
+   "enum": null
+  }
+ },
+ "pak": {
+  "is_valid": {
+   "number": 1,
+   "java_type": "boolean",
+   "wire_kind": "bool"
+  },
+  "window_data": {
+   "number": 2,
+   "java_type": "oak",
+   "wire_kind": "message",
+   "message_class": "oak",
+   "message": {
+    "start_time": {
+     "number": 1,
+     "java_type": "int",
+     "wire_kind": "int32"
+    },
+    "end_time": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "int32"
+    },
+    "duration": {
+     "number": 3,
+     "java_type": "int",
+     "wire_kind": "int32"
+    },
+    "amps": {
+     "number": 4,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    },
+    "location": {
+     "number": 5,
+     "java_type": "afb",
+     "wire_kind": "message",
+     "message_class": "afb",
+     "message": {
+      "latitude": {
+       "number": 1,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "longitude": {
+       "number": 2,
+       "java_type": "double",
+       "wire_kind": "double"
+      }
+     }
+    },
+    "start_day_of_week": {
+     "number": 6,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    },
+    "end_day_of_week": {
+     "number": 7,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    }
+   }
+  }
+ },
+ "qqf": {
+  "power_mode": {
+   "number": 1,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": "pqf",
+   "enum": {
+    "VEHICLE_POWER_MODE_UNDEFINED": 0,
+    "VEHICLE_POWER_MODE_SLEEP": 1,
+    "VEHICLE_POWER_MODE_STANDBY": 2,
+    "VEHICLE_POWER_MODE_READY": 3,
+    "VEHICLE_POWER_MODE_GO": 4,
+    "VEHICLE_POWER_MODE_VEHICLE_RESET": 5,
+    "VEHICLE_POWER_MODE_OTA_UPDATE": 6,
+    "VEHICLE_POWER_MODE_SHUTDOWN": 7
+   }
+  }
+ },
+ "qs2": {
+  "global_charging_graph_bar": {
+   "number": 1,
+   "java_type": "yma",
+   "wire_kind": "message",
+   "repeated": true,
+   "message_class": "os2",
+   "message": {
+    "soc": {
+     "number": 1,
+     "java_type": "int",
+     "wire_kind": "uint32"
+    },
+    "power": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "start_time_ms": {
+     "number": 3,
+     "java_type": "long",
+     "wire_kind": "uint64"
+    },
+    "end_time_ms": {
+     "number": 4,
+     "java_type": "long",
+     "wire_kind": "uint64"
+    },
+    "time_estimation_validity_status": {
+     "number": 5,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "p9k",
+     "enum": {
+      "NONE": 0,
+      "PACK_DISCHARGING": 1,
+      "INVALID": 2,
+      "VALID": 3
+     }
+    },
+    "charging_state": {
+     "number": 6,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "j1m",
+     "enum": {
+      "SNA": 0,
+      "CHARGING_READY": 1,
+      "CHARGING_CONNECTING": 2,
+      "CHARGING_ACTIVE": 3,
+      "CHARGING_COMPLETE": 4,
+      "CHARGING_SCHEDULED": 5,
+      "CHARGING_VEHICLE_ERROR": 6,
+      "CHARGING_STATION_ERROR": 7,
+      "CHARGING_USER_STOPPED": 8,
+      "CHARGING_STATION_STOPPED": 9,
+      "CHARGING_PAYMENT_ERROR": 10,
+      "CHARGING_CERT_ERROR": 11,
+      "CHARGING_TLS_ERROR": 12,
+      "CHARGING_ERROR_AC_ADAPTER_USED_ON_DC": 13,
+      "CHARGING_ERROR_DC_ADAPTER_USED_ON_AC": 14,
+      "CHARGING_ERROR_INCOMPATIBLE_CHARGER": 15,
+      "CHARGING_SD_COMPENSATION": 16,
+      "WAITING_ON_CHARGER": 17,
+      "CHARGER_NOT_READY_OR_INCOMPATIBLE": 18,
+      "CHARGING_VEHICLE_STOPPED": 19,
+      "CHARGING_PAYMENT_ERROR_START_RIVIAN_APP": 20,
+      "CHARGING_TLS_ERROR_UNKNOWN_CHARGER": 21,
+      "CHARGING_TLS_ERROR_UNEXPECTED_FAIL": 22,
+      "CHARGING_TLS_ERROR_START_RIVIAN_APP": 23,
+      "SMART_CHARGING_PAUSED": 24,
+      "SMART_CHARGING_CHARGING": 25
+     }
+    },
+    "bar_context": {
+     "number": 7,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "lq2",
+     "enum": {
+      "HISTORICAL": 0,
+      "PREDICTIVE": 1,
+      "NOT_CHARGING": 2,
+      "PAUSED_CHARGING": 3
+     }
+    }
+   }
+  }
+ },
+ "rfe": {
+  "schedules": {
+   "number": 1,
+   "java_type": "yma",
+   "wire_kind": "message",
+   "repeated": true,
+   "message_class": "joh",
+   "message": {
+    "id": {
+     "number": 1,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "isenabled": {
+     "number": 2,
+     "java_type": "boolean",
+     "wire_kind": "bool"
+    },
+    "repeatsdaily": {
+     "number": 3,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "occurrence",
+     "message_class": "yug",
+     "message": {
+      "startsatmin": {
+       "number": 1,
+       "java_type": "int",
+       "wire_kind": "uint32"
+      },
+      "geofence": {
+       "number": 2,
+       "java_type": null,
+       "wire_kind": "message",
+       "oneof": "location",
+       "message_class": "rv8",
+       "message": {
+        "location": {
+         "number": 1,
+         "java_type": "String",
+         "wire_kind": "string"
+        }
+       }
+      }
+     }
+    },
+    "singleoccurrence": {
+     "number": 4,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "occurrence",
+     "message_class": "lyi",
+     "message": {
+      "startsatutc": {
+       "number": 1,
+       "java_type": "j",
+       "wire_kind": "message",
+       "message_class": "j",
+       "message": {
+        "seconds": {
+         "number": 1,
+         "java_type": "long",
+         "wire_kind": "int64"
+        },
+        "nanos": {
+         "number": 2,
+         "java_type": "int",
+         "wire_kind": "int32"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "timestamp": {
+   "number": 2,
+   "java_type": "j",
+   "wire_kind": "message",
+   "message_class": "j",
+   "message": {
+    "seconds": {
+     "number": 1,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "nanos": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "int32"
+    }
+   }
+  }
+ },
+ "u3l": {
+  "legetautc": {
+   "number": 1,
+   "java_type": "j",
+   "wire_kind": "message",
+   "message_class": "j",
+   "message": {
+    "seconds": {
+     "number": 1,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "nanos": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "int32"
+    }
+   }
+  },
+  "tripetautc": {
+   "number": 2,
+   "java_type": "j",
+   "wire_kind": "message",
+   "message_class": "j",
+   "message": {
+    "seconds": {
+     "number": 1,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "nanos": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "int32"
+    }
+   }
+  },
+  "nextstopindex": {
+   "number": 3,
+   "java_type": "int",
+   "wire_kind": "int32"
+  },
+  "legremainingdistancemeters": {
+   "number": 4,
+   "java_type": "double",
+   "wire_kind": "double"
+  },
+  "legremainingdurationseconds": {
+   "number": 5,
+   "java_type": "double",
+   "wire_kind": "double"
+  },
+  "vehiclecurrentgpslocation": {
+   "number": 6,
+   "java_type": "lt9",
+   "wire_kind": "message",
+   "message_class": "lt9",
+   "message": {
+    "coordinate": {
+     "number": 1,
+     "java_type": "afb",
+     "wire_kind": "message",
+     "message_class": "afb",
+     "message": {
+      "latitude": {
+       "number": 1,
+       "java_type": "double",
+       "wire_kind": "double"
+      },
+      "longitude": {
+       "number": 2,
+       "java_type": "double",
+       "wire_kind": "double"
+      }
+     }
+    },
+    "speed": {
+     "number": 2,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "bearing": {
+     "number": 3,
+     "java_type": "float",
+     "wire_kind": "float"
+    },
+    "offroad": {
+     "number": 4,
+     "java_type": "boolean",
+     "wire_kind": "bool"
+    },
+    "time": {
+     "number": 5,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "altitude": {
+     "number": 6,
+     "java_type": "double",
+     "wire_kind": "double"
+    },
+    "accuracy": {
+     "number": 7,
+     "java_type": "double",
+     "wire_kind": "double"
+    }
+   }
+  }
+ },
+ "uc5": {
+  "daily_limit": {
+   "number": 1,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": "wc5",
+   "enum": {
+    "UNDEFINED": 0,
+    "DAILY_LIMIT_HIT": 1,
+    "DAILY_LIMIT_NOT_HIT": 2
+   }
+  },
+  "next_reset_time_unix_sec": {
+   "number": 2,
+   "java_type": "long",
+   "wire_kind": "uint64"
+  }
+ },
+ "ugm": {
+  "id": {
+   "number": 1,
+   "java_type": "String",
+   "wire_kind": "string"
+  },
+  "install_time_epoch": {
+   "number": 2,
+   "java_type": "j",
+   "wire_kind": "message",
+   "message_class": "j",
+   "message": {
+    "seconds": {
+     "number": 1,
+     "java_type": "long",
+     "wire_kind": "int64"
+    },
+    "nanos": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "int32"
+    }
+   }
+  }
+ },
+ "uql": {
+  "in_service": {
+   "number": 1,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": "nad",
+   "enum": {
+    "MODE_STATUS_UNSPECIFIED": 0,
+    "MODE_STATUS_ON": 1
+   }
+  },
+  "car_wash": {
+   "number": 2,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": "nad",
+   "enum": {
+    "MODE_STATUS_UNSPECIFIED": 0,
+    "MODE_STATUS_ON": 1
+   }
+  },
+  "pet_mode": {
+   "number": 3,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": null,
+   "enum": null
+  },
+  "camp_mode": {
+   "number": 4,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": null,
+   "enum": null
+  },
+  "transport_mode": {
+   "number": 5,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": null,
+   "enum": null
+  },
+  "climate_keep": {
+   "number": 6,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": null,
+   "enum": null
+  },
+  "factory_mode": {
+   "number": 7,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": null,
+   "enum": null
+  }
+ },
+ "vpl": {
+  "user_consent": {
+   "number": 1,
+   "java_type": "int",
+   "wire_kind": "enum",
+   "enum_class": "wpl",
+   "enum": {
+    "UNKNOWN": 0,
+    "NOT_APPLICABLE": 1,
+    "CONSENTED": 2,
+    "NOT_CONSENTED": 3
+   }
+  }
+ },
+ "wl3": {
+  "hold_time_duration_seconds": {
+   "number": 1,
+   "java_type": "int",
+   "wire_kind": "int32"
+  }
+ },
+ "wq7": {
+  "favorites": {
+   "number": 1,
+   "java_type": "yma",
+   "wire_kind": "message",
+   "repeated": true,
+   "message_class": "ov8",
+   "message": {
+    "type": {
+     "number": 1,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "nv8",
+     "enum": {
+      "CUSTOM": 0,
+      "HOME": 1,
+      "WORK": 2
+     }
+    },
+    "name": {
+     "number": 2,
+     "java_type": "String",
+     "wire_kind": "string"
+    }
+   }
+  }
+ },
+ "y5b": {
+  "display": {
+   "number": 1,
+   "java_type": "wj6",
+   "wire_kind": "message",
+   "message_class": "wj6",
+   "message": {
+    "name": {
+     "number": 1,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "devtype": {
+     "number": 3,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": null,
+     "enum": null
+    },
+    "deletable": {
+     "number": 4,
+     "java_type": "boolean",
+     "wire_kind": "bool"
+    },
+    "wccversion": {
+     "number": 5,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": null,
+     "enum": null
+    }
+   }
+  },
+  "key_device_cloud": {
+   "number": 2,
+   "java_type": "uv3",
+   "wire_kind": "message",
+   "message_class": "uv3",
+   "message": {
+    "cloud_id": {
+     "number": 1,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "hrid": {
+     "number": 2,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "profileid": {
+     "number": 3,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "phone_public_key": {
+     "number": 4,
+     "java_type": "String",
+     "wire_kind": "string"
+    },
+    "publish_sequence_counter": {
+     "number": 5,
+     "java_type": "int",
+     "wire_kind": "int32"
+    },
+    "vehicle_response_required": {
+     "number": 6,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": null,
+     "enum": null
+    }
+   }
+  },
+  "kd_vas_data": {
+   "number": 3,
+   "java_type": "dtl",
+   "wire_kind": "message",
+   "message_class": "dtl",
+   "message": {
+    "record": {
+     "number": 1,
+     "java_type": "ef6",
+     "wire_kind": "message",
+     "message_class": "ef6",
+     "message": {
+      "key_id": {
+       "number": 1,
+       "java_type": "int",
+       "wire_kind": "int32"
+      },
+      "ts_epoch_ms": {
+       "number": 2,
+       "java_type": "long",
+       "wire_kind": "int64"
+      },
+      "expiration_epoch_ms": {
+       "number": 3,
+       "java_type": "long",
+       "wire_kind": "int64"
+      },
+      "revision": {
+       "number": 4,
+       "java_type": "int",
+       "wire_kind": "int32"
+      },
+      "status": {
+       "number": 5,
+       "java_type": "int",
+       "wire_kind": "enum",
+       "enum_class": "df6",
+       "enum": {
+        "DEVICE_UNUSED": 0,
+        "DEVICE_ENABLED": 1,
+        "DEVICE_DISABLED": 2,
+        "DEVICE_DELETED": 3,
+        "DEVICE_PAIRING_REQUIRED": 4,
+        "DEVICE_PAIRING": 5,
+        "DEVICE_AWAITING_DEVICE": 6,
+        "DEVICE_PAIRING_FAILED": 7,
+        "DEVICE_PAIRING_REINIT_REQUEST": 8,
+        "DEVICE_PENDING_DELETION": 9
+       }
+      },
+      "slot_id": {
+       "number": 6,
+       "java_type": "int",
+       "wire_kind": "int32"
+      },
+      "permissions": {
+       "number": 7,
+       "java_type": "int",
+       "wire_kind": "int32"
+      }
+     }
+    },
+    "signed_cloud": {
+     "number": 2,
+     "java_type": "wv3",
+     "wire_kind": "message",
+     "message_class": "wv3",
+     "message": {
+      "something_that_requires_signing": {
+       "number": 1,
+       "java_type": "String",
+       "wire_kind": "string"
+      }
+     }
+    },
+    "owner": {
+     "number": 3,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "deviceType",
+     "message_class": "tu1",
+     "message": {
+      "spake_w0": {
+       "number": 1,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "spake_l": {
+       "number": 2,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "salt": {
+       "number": 3,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "uid": {
+       "number": 4,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "wrapped_shared_secret": {
+       "number": 5,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      }
+     }
+    },
+    "friend": {
+     "number": 4,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "deviceType",
+     "message_class": "at1",
+     "message": {
+      "uid": {
+       "number": 2,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "wrapped_shared_secret": {
+       "number": 3,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      }
+     }
+    },
+    "keycard": {
+     "number": 5,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "deviceType",
+     "message_class": "i6h",
+     "message": {
+      "uid": {
+       "number": 1,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "wrapped_shared_secret": {
+       "number": 2,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      }
+     }
+    },
+    "keyfob": {
+     "number": 6,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "deviceType",
+     "message_class": "m6h",
+     "message": {
+      "uid": {
+       "number": 1,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "wrapped_shared_secret": {
+       "number": 2,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      }
+     }
+    },
+    "phone": {
+     "number": 7,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "deviceType",
+     "message_class": "x6h",
+     "message": {
+      "uid": {
+       "number": 1,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "wrapped_shared_secret": {
+       "number": 2,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      }
+     }
+    },
+    "keyfob2": {
+     "number": 8,
+     "java_type": null,
+     "wire_kind": "message",
+     "oneof": "deviceType",
+     "message_class": "k6h",
+     "message": {
+      "ble_uid": {
+       "number": 1,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "ble_wrapped_shared_secret": {
+       "number": 2,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "nfc_uid": {
+       "number": 3,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      },
+      "nfc_wrapped_shared_secret": {
+       "number": 4,
+       "java_type": "er1",
+       "wire_kind": "bytes"
+      }
+     }
+    },
+    "form_factor": {
+     "number": 9,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": null,
+     "enum": null
+    },
+    "dev_oem": {
+     "number": 10,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "ye6",
+     "enum": {
+      "DEVICE_OEM_UNKNOWN": 0,
+      "DEVICE_OEM_RIVIAN": 1,
+      "DEVICE_OEM_APPLE": 2,
+      "DEVICE_OEM_GOOGLE": 3,
+      "DEVICE_OEM_SAMSUNG": 4,
+      "DEVICE_OEM_VW": 5
+     }
+    }
+   }
+  }
+ },
+ "zzn": {
+  "states": {
+   "number": 1,
+   "java_type": "yma",
+   "wire_kind": "message",
+   "repeated": true,
+   "message_class": "jzn",
+   "message": {
+    "window_instance": {
+     "number": 1,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "hzn",
+     "enum": {
+      "WINDOW_INSTANCE_UNSPECIFIED": 0,
+      "WINDOW_INSTANCE_FRONT_LEFT": 1,
+      "WINDOW_INSTANCE_FRONT_RIGHT": 2,
+      "WINDOW_INSTANCE_REAR_LEFT": 3,
+      "WINDOW_INSTANCE_REAR_RIGHT": 4,
+      "WINDOW_INSTANCE_REAR": 5
+     }
+    },
+    "calibration_status": {
+     "number": 2,
+     "java_type": "int",
+     "wire_kind": "enum",
+     "enum_class": "zxn",
+     "enum": {
+      "CALIBRATION_STATUS_UNSPECIFIED": 0,
+      "CALIBRATION_STATUS_CALIBRATED": 1,
+      "CALIBRATION_STATUS_NOT_CALIBRATED": 2
+     }
+    }
+   }
+  }
+ }
+}

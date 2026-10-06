@@ -102,6 +102,11 @@ request, so they stay excluded on solid ground, not the reversed one.
 
 ## Not transcribed (23)
 
+> **Superseded (s42–s44).** The s42 APK extraction found six of these bound after all; the "exhaustive search"
+> below only matched `X.M(Base64.decode(` on one line and missed `java.util.Base64` decodes into a local. Five are
+> now decoded (s44). The current per-topic state is `PARALLAX_CROSS_CHECK.md` and
+> `apk/schema/bindings_check_<ver>.json`; this table is kept as the historical record.
+
 No decoder for these appears in the app's dispatch files, so there is no
 topic → message binding to read off. They are **not** dropped: they stay in the
 `l6e` transcription, and the moment a binding is found the decoder follows and the

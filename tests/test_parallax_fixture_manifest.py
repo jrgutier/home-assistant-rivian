@@ -89,35 +89,40 @@ class TestPublishedCountsAreRecomputed:
     """Numbers that appear in docs are asserted here or they are unchecked."""
 
     def test_fixture_and_decoder_totals(self, manifest: dict) -> None:
-        """42 captured topics; 37 decoders after s34.
+        """43 captured topics (42 before s46); 37 decoders after s34, 42 after s44, 51 after s45.
 
         40 until the 2026-09-02 active re-run, which was the first capture to
         run under the additive `--write`. It added two frames and rewrote none,
         which is the whole point of `TestCaptureRerunIsAdditive`.
         """
-        assert len(manifest) == 42
-        assert len(RVM_DECODERS) == 37
+        assert len(manifest) == 43  # +1 s46: charging.session.trip_target
+        assert len(RVM_DECODERS) == 53
 
     def test_the_frame_without_decoder_count(self, manifest: dict) -> None:
         """The number published wrong five times.
 
         Derived from the manifest's topics, so a rename cannot move it and a
         filename transform cannot inflate it. It legitimately MOVES when a
-        decoder ships -- 14 before s34's four, 10 after -- which is the point:
-        the count tracks reality instead of a doc someone forgot to edit.
+        decoder ships -- 14 before s34's four, 10 after, 6 after s44 decoded four
+        captured topics -- which is the point: the count tracks reality instead
+        of a doc someone forgot to edit.
         """
         undecoded = {topic for topic in manifest if topic not in RVM_DECODERS}
 
-        assert len(undecoded) == 10
+        # 2 after s45, which decoded four more captured topics on a name-match.
+        assert len(undecoded) == 2
 
-    def test_five_decoders_have_no_fixture(self, manifest: dict) -> None:
+    def test_decoders_without_a_fixture(self, manifest: dict) -> None:
         """The asymmetry the earlier arithmetic hid.
 
         `51 publishing - 33 decoded` assumed every decoded topic published. Seven
         did not, which is why subtraction gave 18 where counting gives 15. The
-        2026-09-02 re-run captured two of those seven, leaving five.
+        2026-09-02 re-run captured two of those seven, leaving five. s44 added
+        charging.session.trip_target, decoded from the APK with no capture: six.
         """
-        assert len(set(RVM_DECODERS) - set(manifest)) == 5
+        # s45's name-matched decoders added seven more with no capture: 13.
+        # s46 captured charging.session.trip_target: 12.
+        assert len(set(RVM_DECODERS) - set(manifest)) == 12
 
 
 class TestFixturesCarryNoPersonalData:
@@ -345,7 +350,7 @@ class TestCaptureRerunIsAdditive:
 
 
 class TestDecodersProduceSomethingFromTheirOwnFrame:
-    """Three shipped decoders return `{}` on the real frame they claim to read.
+    """A shipped decoder must not return `{}` on its own real frame unexplained.
 
     Every decoder swallows exceptions so a bad frame cannot take the whole
     subscription down. The cost is that a decoder wired to the wrong field
@@ -356,32 +361,29 @@ class TestDecodersProduceSomethingFromTheirOwnFrame:
     This makes the failure loud. A decoder that yields nothing from a committed
     frame must be listed below with its diagnosis, or the test fails.
 
-    None of the three is fixed here. Each needs a value vocabulary this capture
-    does not supply, and `PARALLAX_DECODERS.md`'s rule stands: a decoder built on
-    a guess renders wrong values as confidently as right ones, which is worse
-    than the recorded gap it replaces.
+    s43 fixed two of the original three against the app's schema
+    (`time_estimation`: field 2 is the minutes; `seat_conditioning_status`: the
+    decoder modelled a different message). The third was never a bug.
     """
 
     # topic -> why it yields nothing, measured from the committed frame
     KNOWN_EMPTY = {
-        "charging.session.time_estimation": (
-            "decoder reads field 1; the frame carries field 2 = 64. No named "
-            "schema binds either, and 64 is not obviously seconds. Needs a "
-            "capture taken mid-charge."
+        "charging.session.trip_target": (
+            "correctly empty. s46's frame `10ffff03` is #2 = 65535 with no #1 "
+            "SOC. The app shows a trip target only for SOC 1-100 (FOLLOWUP_S47), "
+            "so there is none to report."
+        ),
+        "ota.ota_state.vehicle_ota_state": (
+            "correctly empty. The app's `ugm` (name-match) is #1 id, #2 "
+            "install_time_epoch; the frame carries only #1 = 'VehicleOTAState'. "
+            "No one-time install is scheduled, so nothing to report."
         ),
         "security.access.passive_entry_debug": (
-            "decoder reads field 1; the frame carries field 2 = 2. This is why "
-            "sensor.passive_entry_unlock_fail_reason never populates -- const.py "
-            "attributes that to arrival being UNWITNESSED, but the frame does "
-            "arrive and is read on the wrong field number."
-        ),
-        "comfort.cabin.seat_conditioning_status": (
-            "structural, not off-by-one: the decoder expects the seat position "
-            "to be the OUTER field number (SEAT_STATUS_FIELDS, 7-12). The frame "
-            "is `repeated {1: id, 2: value}` under field 1, nine entries, and "
-            "id 5 and id 7 each appear twice with different values -- so field "
-            "2 is not one level per seat, and the message is not what the "
-            "decoder models."
+            "correctly empty. The app's `jre` puts the unlock fail reason on "
+            "field 1 and send_lock_fail_notification on field 2; the frame "
+            "carries only field 2 = 2 (FALSE). No failure, so nothing for "
+            "passiveEntryUnlockFailReason. An earlier diagnosis here called the "
+            "decoder wrong; the APK says otherwise (PARALLAX_CROSS_CHECK.md)."
         ),
     }
 

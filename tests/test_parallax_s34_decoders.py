@@ -67,15 +67,39 @@ class TestCabinVentilationSetting:
 
 
 class TestGearGuardStreaming:
-    """Two clean enum vocabularies from `rivian_security.proto`."""
+    """Two enum vocabularies. s43: the numbers are the app's (`vpl`, `uc5`,
+    3.16.0), not `rivian_security.proto`'s, which were offset from the wire."""
 
     CONSENT = "gearguard_streaming.privacy.gearguard_streaming_in_vehicle_consent"
     LIMIT = "gearguard_streaming.privacy.gearguard_streaming_daily_limit"
 
     def test_consent_maps_the_enum_not_the_integer(self) -> None:
-        """Value 2 is GEAR_GUARD_NOT_CONSENTED, emitted prefix-stripped."""
+        """Value 2 is the app's CONSENTED (`vpl`). The 3.6.0-derived map read it
+        as not_consented."""
         assert RVM_DECODERS[self.CONSENT](frame(self.CONSENT)) == {
-            "gearGuardStreamingConsent": "not_consented"
+            "gearGuardStreamingConsent": "consented"
+        }
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [(0, "unknown"), (1, "not_applicable"), (2, "consented"), (3, "not_consented")],
+    )
+    def test_consent_vocabulary_is_the_apps(self, value: int, expected: str) -> None:
+        raw = base64.b64encode(bytes([0x08, value])).decode()
+        assert RVM_DECODERS[self.CONSENT](raw) == {
+            "gearGuardStreamingConsent": expected
+        }
+
+    @pytest.mark.parametrize(
+        ("value", "expected"), [(0, "undefined"), (1, "hit"), (2, "not_hit")]
+    )
+    def test_daily_limit_vocabulary_is_the_apps(
+        self, value: int, expected: str
+    ) -> None:
+        """1 is DAILY_LIMIT_HIT in the app; the old map called it undefined."""
+        raw = base64.b64encode(bytes([0x08, value])).decode()
+        assert RVM_DECODERS[self.LIMIT](raw) == {
+            "gearGuardStreamingDailyLimit": expected
         }
 
     def test_daily_limit_maps_status_and_reset_time(self) -> None:

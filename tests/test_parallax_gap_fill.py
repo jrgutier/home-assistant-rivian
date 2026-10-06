@@ -339,16 +339,33 @@ PARALLAX_ONLY_KEYS = (
     "cabinVentilationMode",
     "cabinVentilationSunroofOpenPercent",
     "cabinVentilationWindowsOpenPercent",
+    "cccPassivePermissionStatus",
+    "chargingFaultChime",
+    "coldRangeImpact",
+    "coldWeatherSocBlue",
+    "coldWeatherSocGreen",
     "consecutiveAlarmDisabledNotification",
+    "favoriteGeofences",
     "gearGuardStreamingConsent",
     "gearGuardStreamingDailyLimit",
     "gearGuardStreamingLimitResetTime",
+    "hvacSetTemperature",
     "knownLocation",
+    "navLegEta",
+    "navLegRemainingDistance",
+    "navLegRemainingDuration",
+    "navTripEta",
+    "otaInstallSchedules",
+    "otaOneTimeInstallTime",
     "parkedEnergyLast24Hours",
     "parkedEnergyLast8Hours",
     "parkedEnergyLastParkSession",
+    "passiveEntryBluetoothInCcc",
     "passiveEntryUnlockFailReason",
+    "petSnapshot",
     "secureImmobilizerStatus",
+    "tripTargetMinutesRemaining",
+    "tripTargetSoc",
     "vasAccessCanFaulted",
     "vasSecureElementFaulted",
     "wheelsInstalled",
@@ -479,7 +496,7 @@ class TestTheParallaxOnlyKeysHaveEntities:
             "cabinVentilationDurationMinutes",
             f"{_S34_FIXTURE}; optional field, absent so far",
         ),
-        ("gearGuardStreamingConsent", f"{_S34_FIXTURE}; decoded not_consented"),
+        ("gearGuardStreamingConsent", f"{_S34_FIXTURE}; decoded consented (s43)"),
         ("gearGuardStreamingDailyLimit", f"{_S34_FIXTURE}; decoded not_hit"),
         ("gearGuardStreamingLimitResetTime", f"{_S34_FIXTURE}; decoded verbatim"),
         ("parkedEnergyLast24Hours", f"{_S34_FIXTURE}; all ten measurements decoded"),
@@ -488,8 +505,43 @@ class TestTheParallaxOnlyKeysHaveEntities:
             "parkedEnergyLastParkSession",
             f"{_S34_FIXTURE}; nine measurements, outletsKwh not sent",
         ),
+        (
+            "chargingFaultChime",
+            "s44 decoder; charging.session.notification frame committed, decoded none",
+        ),
+        (
+            "tripTargetSoc",
+            "s44 decoder, APK-bound; enabled unwitnessed on owner decision (s45)",
+        ),
+        (
+            "tripTargetMinutesRemaining",
+            "s44 topic, APK-bound; minutes per FOLLOWUP_S45; owner decision",
+        ),
+        ("hvacSetTemperature", "s45 name-match; frame committed, decoded 21.0"),
+        ("coldWeatherSocGreen", "s45 name-match; frame committed, decoded 46"),
+        ("coldWeatherSocBlue", "s45 name-match; same committed frame, 0"),
+        ("coldRangeImpact", "s45 name-match; same committed frame, 0"),
+        (
+            "favoriteGeofences",
+            "s46: arrived (withheld, carries place names); shape matches wq7",
+        ),
+        (
+            "navLegEta",
+            "s46: trip_progress arrived (withheld, carries GPS); shape matches u3l",
+        ),
+        ("navLegRemainingDistance", "s46: trip_progress arrived; shape matches u3l"),
+        ("navLegRemainingDuration", "s46: trip_progress arrived; shape matches u3l"),
+        ("navTripEta", "s46: trip_progress arrived; shape matches u3l"),
+        ("otaInstallSchedules", "s46: ota_config arrived, empty payload (no schedule)"),
+        (
+            "otaOneTimeInstallTime",
+            "s45 name-match; frame committed (id only, so absent so far)",
+        ),
     ]
     STILL_DISABLED = [
+        ("cccPassivePermissionStatus", "s45 name-match; arrival unwitnessed"),
+        ("passiveEntryBluetoothInCcc", "s45 name-match; arrival unwitnessed"),
+        ("petSnapshot", "s45 name-match; arrival unwitnessed"),
         ("passiveEntryUnlockFailReason", "arrival unwitnessed"),
         ("secureImmobilizerStatus", "arrival unwitnessed"),
         ("consecutiveAlarmDisabledNotification", "arrival unwitnessed"),
@@ -747,7 +799,7 @@ def test_some_decoders_emit_invalid_sensor_states() -> None:
     non-empty so that claim cannot be re-derived by hand.
 
     Limit: this sees dict-valued vocabularies and not ternary-emitted strings.
-    decode_locks (parallax.py:489) and decode_closures (:395) emit from a
+    decode_locks (parallax.py:527) and decode_closures (:429) emit from a
     conditional expression and are invisible to it.
     """
     from custom_components.rivian.rivian_client import parallax

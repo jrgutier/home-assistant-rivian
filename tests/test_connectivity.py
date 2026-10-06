@@ -102,7 +102,7 @@ def test_an_unknown_power_state_string_is_not_special_cased() -> None:
     """Only the four known power states matter; anything else falls through.
 
     Recorded by contrast with the client's `decode_power_state`, which falls back to
-    `"standby"` for an unrecognised Parallax value (`rivian_client/parallax.py:536`).
+    `"standby"` for an unrecognised Parallax value (`rivian_client/parallax.py:574`).
     That fallback means an undecodable power state on an offline vehicle derives to
     SLEEPING -- controls stay available -- while a *string* we simply do not know
     derives to OFFLINE. The bias is on the record as a decision, not an accident.

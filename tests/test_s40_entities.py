@@ -157,7 +157,7 @@ class TestGearGuardStreaming:
             mock_vehicle,
         )
 
-        assert entity.native_value == "not_consented"
+        assert entity.native_value == "consented"
 
     async def test_daily_limit_reads_the_decoded_vocabulary(
         self, hass, mock_config_entry: ConfigEntry, mock_vehicle: dict

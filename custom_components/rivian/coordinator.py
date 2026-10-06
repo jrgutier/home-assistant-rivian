@@ -442,10 +442,10 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
 # The topics we subscribe to: everything in upstream's two lists that we can
 # actually decode.
 #
-# CHARGING_RVMS names three -- charging.session.notification, .remote_command and
-# .soc_slider -- that RVM_DECODERS does not cover. The vehicle pushes them, the
-# payload is discarded, and the client logs "Unknown Parallax RVM topic" for each,
-# roughly every three minutes on a live instance. Subscribing bought nothing.
+# CHARGING_RVMS named three -- charging.session.notification, .remote_command and
+# .soc_slider -- that RVM_DECODERS did not cover until s44, so the vehicle pushed
+# them and the payload was discarded with an "Unknown Parallax RVM topic" log.
+# All three now decode, so today the intersection drops nothing.
 #
 # Filtered here rather than by narrowing CHARGING_RVMS, which is upstream's and
 # vendored: editing it would diverge a file we merge. The intersection is also

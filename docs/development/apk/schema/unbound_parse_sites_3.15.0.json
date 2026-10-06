@@ -1,0 +1,4801 @@
+[
+ {
+  "class": "g1n",
+  "site": "com/rivian/android/cloud/webrtc/handles/DownloadSessionHandler.java:797",
+  "method": "DownloadSessionHandler.handleFileResponse",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "command": {
+    "number": 1,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "mf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "commandname": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "nf9",
+      "enum": {
+       "V2M_COMMAND_NAME_UNKNOWN": 0,
+       "V2M_COMMAND_NAME_INTENT_TO_TEARDOWN": 1
+      }
+     },
+     "teardownreason": {
+      "number": 3,
+      "java_type": null,
+      "wire_kind": "message",
+      "oneof": "params",
+      "message_class": "kf9",
+      "message": {
+       "reasoncode": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "lf9",
+        "enum": {
+         "TEARDOWN_REASON_CODE_UNKNOWN": 0,
+         "TEARDOWN_REASON_CODE_SESSION_LIMIT": 1,
+         "TEARDOWN_REASON_CODE_DAILY_LIMIT": 2,
+         "TEARDOWN_REASON_CODE_NO_RTP_FRAMES": 3,
+         "TEARDOWN_REASON_CODE_VEHICLE_NOT_IN_PARK": 4,
+         "TEARDOWN_REASON_CODE_FEATURE_DISABLED": 5,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_SERVICE": 6,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_TRANSPORT": 7,
+         "TEARDOWN_REASON_CODE_OTA_IN_PROGRESS": 8,
+         "TEARDOWN_REASON_CODE_WAKELOCK_FAILED": 9,
+         "TEARDOWN_REASON_CODE_CAMP_MODE_STAY_OFF": 10,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_TIMEOUT": 11,
+         "TEARDOWN_REASON_CODE_USER_CONSENT_NOT_GIVEN": 12,
+         "TEARDOWN_REASON_CODE_USER_IN_VEHICLE_LIVE_CAM_TOGGLE_DISABLED": 13,
+         "TEARDOWN_REASON_CODE_MOBILE_FIRST_FRAME_TIMEOUT": 100,
+         "TEARDOWN_REASON_CODE_SIGNALING_FETCH_FAILED": 200,
+         "TEARDOWN_REASON_CODE_SIGNALING_CONNECT_FAILED": 201,
+         "TEARDOWN_REASON_CODE_RTC_PEER_CONNECTION_FAILED": 202,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_FAILED": 203,
+         "TEARDOWN_REASON_MOBILE_USER_STREAMING_CLOSE": 254,
+         "TEARDOWN_REASON_CODE_NONE": 255
+        }
+       },
+       "reasonmessage": {
+        "number": 2,
+        "java_type": "String",
+        "wire_kind": "string"
+       }
+      }
+     }
+    }
+   },
+   "commandresponse": {
+    "number": 2,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "pf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "responsecode": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     },
+     "responsestring": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   },
+   "metadata_response": {
+    "number": 11,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "af9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "events": {
+      "number": 2,
+      "java_type": "i9a",
+      "wire_kind": "message",
+      "repeated": true,
+      "message_class": "je9",
+      "message": {
+       "feature": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "ke9",
+        "enum": {
+         "FEATURE_SPECIFICATION_UNSPECIFIED": 0,
+         "FEATURE_SPECIFICATION_MOTION_CAM": 1,
+         "FEATURE_SPECIFICATION_INCIDENT_CAM": 2,
+         "FEATURE_SPECIFICATION_LAUNCH_CAM": 3,
+         "FEATURE_SPECIFICATION_ROAD_CAM": 4
+        }
+       },
+       "file_info": {
+        "number": 2,
+        "java_type": "i9a",
+        "wire_kind": "message",
+        "repeated": true,
+        "message_class": "le9",
+        "message": {
+         "media_info": {
+          "number": 1,
+          "java_type": "te9",
+          "wire_kind": "message",
+          "message_class": "te9",
+          "message": {
+           "type": {
+            "number": 1,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "ue9",
+            "enum": {
+             "UNSPECIFIED": 0,
+             "THUMBNAIL": 1,
+             "VIDEO_LD": 2,
+             "VIDEO_HD": 3
+            }
+           },
+           "camera": {
+            "number": 2,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "se9",
+            "enum": {
+             "MEDIA_CAMERA_UNKNOWN": 0,
+             "MEDIA_CAMERA_FRONT": 1,
+             "MEDIA_CAMERA_REAR": 2,
+             "MEDIA_CAMERA_LEFT": 3,
+             "MEDIA_CAMERA_RIGHT": 4,
+             "MEDIA_CAMERA_BED": 5,
+             "MEDIA_CAMERA_INTERIOR": 6
+            }
+           },
+           "is_trigger_view": {
+            "number": 3,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "is_favorite": {
+            "number": 4,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           }
+          }
+         },
+         "metadata": {
+          "number": 2,
+          "java_type": "me9",
+          "wire_kind": "message",
+          "message_class": "me9",
+          "message": {
+           "file_id": {
+            "number": 1,
+            "java_type": "String",
+            "wire_kind": "string"
+           },
+           "size_bytes": {
+            "number": 2,
+            "java_type": "long",
+            "wire_kind": "uint64"
+           },
+           "checksum": {
+            "number": 3,
+            "java_type": "String",
+            "wire_kind": "string"
+           }
+          }
+         }
+        }
+       },
+       "event_time": {
+        "number": 3,
+        "java_type": "j",
+        "wire_kind": "message",
+        "message_class": "j",
+        "message": {
+         "seconds": {
+          "number": 1,
+          "java_type": "long",
+          "wire_kind": "int64"
+         },
+         "nanos": {
+          "number": 2,
+          "java_type": "int",
+          "wire_kind": "int32"
+         }
+        }
+       },
+       "location": {
+        "number": 4,
+        "java_type": "b0b",
+        "wire_kind": "message",
+        "message_class": "b0b",
+        "message": {
+         "latitude": {
+          "number": 1,
+          "java_type": "double",
+          "wire_kind": "double"
+         },
+         "longitude": {
+          "number": 2,
+          "java_type": "double",
+          "wire_kind": "double"
+         }
+        }
+       },
+       "is_favorite": {
+        "number": 5,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "is_media_available": {
+        "number": 6,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       }
+      }
+     },
+     "next_page_token": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "total_size": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "files_response": {
+    "number": 12,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "re9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "data": {
+      "number": 2,
+      "java_type": "ie9",
+      "wire_kind": "message",
+      "message_class": "ie9",
+      "message": {
+       "file_id": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "current_byte_offset": {
+        "number": 2,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "is_last_packet": {
+        "number": 3,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "sequence_number": {
+        "number": 4,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "payload": {
+        "number": 5,
+        "java_type": "uo1",
+        "wire_kind": "bytes"
+       }
+      }
+     }
+    }
+   },
+   "cancel_response": {
+    "number": 13,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "ge9",
+    "message": {
+     "request_id": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "he9",
+      "enum": {
+       "CANCEL_RESPONSE_STATUS_UNSPECIFIED": 0,
+       "CANCEL_RESPONSE_STATUS_SUCCESS": 1,
+       "CANCEL_RESPONSE_STATUS_FAILURE": 2
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "g1n",
+  "site": "com/rivian/android/cloud/webrtc/handles/DownloadSessionHandler.java:884",
+  "method": "DownloadSessionHandler.handleMediaPackets",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "command": {
+    "number": 1,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "mf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "commandname": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "nf9",
+      "enum": {
+       "V2M_COMMAND_NAME_UNKNOWN": 0,
+       "V2M_COMMAND_NAME_INTENT_TO_TEARDOWN": 1
+      }
+     },
+     "teardownreason": {
+      "number": 3,
+      "java_type": null,
+      "wire_kind": "message",
+      "oneof": "params",
+      "message_class": "kf9",
+      "message": {
+       "reasoncode": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "lf9",
+        "enum": {
+         "TEARDOWN_REASON_CODE_UNKNOWN": 0,
+         "TEARDOWN_REASON_CODE_SESSION_LIMIT": 1,
+         "TEARDOWN_REASON_CODE_DAILY_LIMIT": 2,
+         "TEARDOWN_REASON_CODE_NO_RTP_FRAMES": 3,
+         "TEARDOWN_REASON_CODE_VEHICLE_NOT_IN_PARK": 4,
+         "TEARDOWN_REASON_CODE_FEATURE_DISABLED": 5,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_SERVICE": 6,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_TRANSPORT": 7,
+         "TEARDOWN_REASON_CODE_OTA_IN_PROGRESS": 8,
+         "TEARDOWN_REASON_CODE_WAKELOCK_FAILED": 9,
+         "TEARDOWN_REASON_CODE_CAMP_MODE_STAY_OFF": 10,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_TIMEOUT": 11,
+         "TEARDOWN_REASON_CODE_USER_CONSENT_NOT_GIVEN": 12,
+         "TEARDOWN_REASON_CODE_USER_IN_VEHICLE_LIVE_CAM_TOGGLE_DISABLED": 13,
+         "TEARDOWN_REASON_CODE_MOBILE_FIRST_FRAME_TIMEOUT": 100,
+         "TEARDOWN_REASON_CODE_SIGNALING_FETCH_FAILED": 200,
+         "TEARDOWN_REASON_CODE_SIGNALING_CONNECT_FAILED": 201,
+         "TEARDOWN_REASON_CODE_RTC_PEER_CONNECTION_FAILED": 202,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_FAILED": 203,
+         "TEARDOWN_REASON_MOBILE_USER_STREAMING_CLOSE": 254,
+         "TEARDOWN_REASON_CODE_NONE": 255
+        }
+       },
+       "reasonmessage": {
+        "number": 2,
+        "java_type": "String",
+        "wire_kind": "string"
+       }
+      }
+     }
+    }
+   },
+   "commandresponse": {
+    "number": 2,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "pf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "responsecode": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     },
+     "responsestring": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   },
+   "metadata_response": {
+    "number": 11,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "af9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "events": {
+      "number": 2,
+      "java_type": "i9a",
+      "wire_kind": "message",
+      "repeated": true,
+      "message_class": "je9",
+      "message": {
+       "feature": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "ke9",
+        "enum": {
+         "FEATURE_SPECIFICATION_UNSPECIFIED": 0,
+         "FEATURE_SPECIFICATION_MOTION_CAM": 1,
+         "FEATURE_SPECIFICATION_INCIDENT_CAM": 2,
+         "FEATURE_SPECIFICATION_LAUNCH_CAM": 3,
+         "FEATURE_SPECIFICATION_ROAD_CAM": 4
+        }
+       },
+       "file_info": {
+        "number": 2,
+        "java_type": "i9a",
+        "wire_kind": "message",
+        "repeated": true,
+        "message_class": "le9",
+        "message": {
+         "media_info": {
+          "number": 1,
+          "java_type": "te9",
+          "wire_kind": "message",
+          "message_class": "te9",
+          "message": {
+           "type": {
+            "number": 1,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "ue9",
+            "enum": {
+             "UNSPECIFIED": 0,
+             "THUMBNAIL": 1,
+             "VIDEO_LD": 2,
+             "VIDEO_HD": 3
+            }
+           },
+           "camera": {
+            "number": 2,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "se9",
+            "enum": {
+             "MEDIA_CAMERA_UNKNOWN": 0,
+             "MEDIA_CAMERA_FRONT": 1,
+             "MEDIA_CAMERA_REAR": 2,
+             "MEDIA_CAMERA_LEFT": 3,
+             "MEDIA_CAMERA_RIGHT": 4,
+             "MEDIA_CAMERA_BED": 5,
+             "MEDIA_CAMERA_INTERIOR": 6
+            }
+           },
+           "is_trigger_view": {
+            "number": 3,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "is_favorite": {
+            "number": 4,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           }
+          }
+         },
+         "metadata": {
+          "number": 2,
+          "java_type": "me9",
+          "wire_kind": "message",
+          "message_class": "me9",
+          "message": {
+           "file_id": {
+            "number": 1,
+            "java_type": "String",
+            "wire_kind": "string"
+           },
+           "size_bytes": {
+            "number": 2,
+            "java_type": "long",
+            "wire_kind": "uint64"
+           },
+           "checksum": {
+            "number": 3,
+            "java_type": "String",
+            "wire_kind": "string"
+           }
+          }
+         }
+        }
+       },
+       "event_time": {
+        "number": 3,
+        "java_type": "j",
+        "wire_kind": "message",
+        "message_class": "j",
+        "message": {
+         "seconds": {
+          "number": 1,
+          "java_type": "long",
+          "wire_kind": "int64"
+         },
+         "nanos": {
+          "number": 2,
+          "java_type": "int",
+          "wire_kind": "int32"
+         }
+        }
+       },
+       "location": {
+        "number": 4,
+        "java_type": "b0b",
+        "wire_kind": "message",
+        "message_class": "b0b",
+        "message": {
+         "latitude": {
+          "number": 1,
+          "java_type": "double",
+          "wire_kind": "double"
+         },
+         "longitude": {
+          "number": 2,
+          "java_type": "double",
+          "wire_kind": "double"
+         }
+        }
+       },
+       "is_favorite": {
+        "number": 5,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "is_media_available": {
+        "number": 6,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       }
+      }
+     },
+     "next_page_token": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "total_size": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "files_response": {
+    "number": 12,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "re9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "data": {
+      "number": 2,
+      "java_type": "ie9",
+      "wire_kind": "message",
+      "message_class": "ie9",
+      "message": {
+       "file_id": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "current_byte_offset": {
+        "number": 2,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "is_last_packet": {
+        "number": 3,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "sequence_number": {
+        "number": 4,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "payload": {
+        "number": 5,
+        "java_type": "uo1",
+        "wire_kind": "bytes"
+       }
+      }
+     }
+    }
+   },
+   "cancel_response": {
+    "number": 13,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "ge9",
+    "message": {
+     "request_id": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "he9",
+      "enum": {
+       "CANCEL_RESPONSE_STATUS_UNSPECIFIED": 0,
+       "CANCEL_RESPONSE_STATUS_SUCCESS": 1,
+       "CANCEL_RESPONSE_STATUS_FAILURE": 2
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "g1n",
+  "site": "com/rivian/android/cloud/webrtc/handles/WebRtcManager.java:1504",
+  "method": "WebRtcManager.handleV2MMessage",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "command": {
+    "number": 1,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "mf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "commandname": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "nf9",
+      "enum": {
+       "V2M_COMMAND_NAME_UNKNOWN": 0,
+       "V2M_COMMAND_NAME_INTENT_TO_TEARDOWN": 1
+      }
+     },
+     "teardownreason": {
+      "number": 3,
+      "java_type": null,
+      "wire_kind": "message",
+      "oneof": "params",
+      "message_class": "kf9",
+      "message": {
+       "reasoncode": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "lf9",
+        "enum": {
+         "TEARDOWN_REASON_CODE_UNKNOWN": 0,
+         "TEARDOWN_REASON_CODE_SESSION_LIMIT": 1,
+         "TEARDOWN_REASON_CODE_DAILY_LIMIT": 2,
+         "TEARDOWN_REASON_CODE_NO_RTP_FRAMES": 3,
+         "TEARDOWN_REASON_CODE_VEHICLE_NOT_IN_PARK": 4,
+         "TEARDOWN_REASON_CODE_FEATURE_DISABLED": 5,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_SERVICE": 6,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_TRANSPORT": 7,
+         "TEARDOWN_REASON_CODE_OTA_IN_PROGRESS": 8,
+         "TEARDOWN_REASON_CODE_WAKELOCK_FAILED": 9,
+         "TEARDOWN_REASON_CODE_CAMP_MODE_STAY_OFF": 10,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_TIMEOUT": 11,
+         "TEARDOWN_REASON_CODE_USER_CONSENT_NOT_GIVEN": 12,
+         "TEARDOWN_REASON_CODE_USER_IN_VEHICLE_LIVE_CAM_TOGGLE_DISABLED": 13,
+         "TEARDOWN_REASON_CODE_MOBILE_FIRST_FRAME_TIMEOUT": 100,
+         "TEARDOWN_REASON_CODE_SIGNALING_FETCH_FAILED": 200,
+         "TEARDOWN_REASON_CODE_SIGNALING_CONNECT_FAILED": 201,
+         "TEARDOWN_REASON_CODE_RTC_PEER_CONNECTION_FAILED": 202,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_FAILED": 203,
+         "TEARDOWN_REASON_MOBILE_USER_STREAMING_CLOSE": 254,
+         "TEARDOWN_REASON_CODE_NONE": 255
+        }
+       },
+       "reasonmessage": {
+        "number": 2,
+        "java_type": "String",
+        "wire_kind": "string"
+       }
+      }
+     }
+    }
+   },
+   "commandresponse": {
+    "number": 2,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "pf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "responsecode": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     },
+     "responsestring": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   },
+   "metadata_response": {
+    "number": 11,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "af9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "events": {
+      "number": 2,
+      "java_type": "i9a",
+      "wire_kind": "message",
+      "repeated": true,
+      "message_class": "je9",
+      "message": {
+       "feature": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "ke9",
+        "enum": {
+         "FEATURE_SPECIFICATION_UNSPECIFIED": 0,
+         "FEATURE_SPECIFICATION_MOTION_CAM": 1,
+         "FEATURE_SPECIFICATION_INCIDENT_CAM": 2,
+         "FEATURE_SPECIFICATION_LAUNCH_CAM": 3,
+         "FEATURE_SPECIFICATION_ROAD_CAM": 4
+        }
+       },
+       "file_info": {
+        "number": 2,
+        "java_type": "i9a",
+        "wire_kind": "message",
+        "repeated": true,
+        "message_class": "le9",
+        "message": {
+         "media_info": {
+          "number": 1,
+          "java_type": "te9",
+          "wire_kind": "message",
+          "message_class": "te9",
+          "message": {
+           "type": {
+            "number": 1,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "ue9",
+            "enum": {
+             "UNSPECIFIED": 0,
+             "THUMBNAIL": 1,
+             "VIDEO_LD": 2,
+             "VIDEO_HD": 3
+            }
+           },
+           "camera": {
+            "number": 2,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "se9",
+            "enum": {
+             "MEDIA_CAMERA_UNKNOWN": 0,
+             "MEDIA_CAMERA_FRONT": 1,
+             "MEDIA_CAMERA_REAR": 2,
+             "MEDIA_CAMERA_LEFT": 3,
+             "MEDIA_CAMERA_RIGHT": 4,
+             "MEDIA_CAMERA_BED": 5,
+             "MEDIA_CAMERA_INTERIOR": 6
+            }
+           },
+           "is_trigger_view": {
+            "number": 3,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "is_favorite": {
+            "number": 4,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           }
+          }
+         },
+         "metadata": {
+          "number": 2,
+          "java_type": "me9",
+          "wire_kind": "message",
+          "message_class": "me9",
+          "message": {
+           "file_id": {
+            "number": 1,
+            "java_type": "String",
+            "wire_kind": "string"
+           },
+           "size_bytes": {
+            "number": 2,
+            "java_type": "long",
+            "wire_kind": "uint64"
+           },
+           "checksum": {
+            "number": 3,
+            "java_type": "String",
+            "wire_kind": "string"
+           }
+          }
+         }
+        }
+       },
+       "event_time": {
+        "number": 3,
+        "java_type": "j",
+        "wire_kind": "message",
+        "message_class": "j",
+        "message": {
+         "seconds": {
+          "number": 1,
+          "java_type": "long",
+          "wire_kind": "int64"
+         },
+         "nanos": {
+          "number": 2,
+          "java_type": "int",
+          "wire_kind": "int32"
+         }
+        }
+       },
+       "location": {
+        "number": 4,
+        "java_type": "b0b",
+        "wire_kind": "message",
+        "message_class": "b0b",
+        "message": {
+         "latitude": {
+          "number": 1,
+          "java_type": "double",
+          "wire_kind": "double"
+         },
+         "longitude": {
+          "number": 2,
+          "java_type": "double",
+          "wire_kind": "double"
+         }
+        }
+       },
+       "is_favorite": {
+        "number": 5,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "is_media_available": {
+        "number": 6,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       }
+      }
+     },
+     "next_page_token": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "total_size": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "files_response": {
+    "number": 12,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "re9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "data": {
+      "number": 2,
+      "java_type": "ie9",
+      "wire_kind": "message",
+      "message_class": "ie9",
+      "message": {
+       "file_id": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "current_byte_offset": {
+        "number": 2,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "is_last_packet": {
+        "number": 3,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "sequence_number": {
+        "number": 4,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "payload": {
+        "number": 5,
+        "java_type": "uo1",
+        "wire_kind": "bytes"
+       }
+      }
+     }
+    }
+   },
+   "cancel_response": {
+    "number": 13,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "ge9",
+    "message": {
+     "request_id": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "he9",
+      "enum": {
+       "CANCEL_RESPONSE_STATUS_UNSPECIFIED": 0,
+       "CANCEL_RESPONSE_STATUS_SUCCESS": 1,
+       "CANCEL_RESPONSE_STATUS_FAILURE": 2
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "g1n",
+  "site": "com/rivian/android/cloud/webrtc/handles/WebRtcManager.java:1564",
+  "method": "WebRtcManager.handleVideoDownloadingResponse",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "command": {
+    "number": 1,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "mf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "commandname": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "nf9",
+      "enum": {
+       "V2M_COMMAND_NAME_UNKNOWN": 0,
+       "V2M_COMMAND_NAME_INTENT_TO_TEARDOWN": 1
+      }
+     },
+     "teardownreason": {
+      "number": 3,
+      "java_type": null,
+      "wire_kind": "message",
+      "oneof": "params",
+      "message_class": "kf9",
+      "message": {
+       "reasoncode": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "lf9",
+        "enum": {
+         "TEARDOWN_REASON_CODE_UNKNOWN": 0,
+         "TEARDOWN_REASON_CODE_SESSION_LIMIT": 1,
+         "TEARDOWN_REASON_CODE_DAILY_LIMIT": 2,
+         "TEARDOWN_REASON_CODE_NO_RTP_FRAMES": 3,
+         "TEARDOWN_REASON_CODE_VEHICLE_NOT_IN_PARK": 4,
+         "TEARDOWN_REASON_CODE_FEATURE_DISABLED": 5,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_SERVICE": 6,
+         "TEARDOWN_REASON_CODE_VEHICLE_IN_TRANSPORT": 7,
+         "TEARDOWN_REASON_CODE_OTA_IN_PROGRESS": 8,
+         "TEARDOWN_REASON_CODE_WAKELOCK_FAILED": 9,
+         "TEARDOWN_REASON_CODE_CAMP_MODE_STAY_OFF": 10,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_TIMEOUT": 11,
+         "TEARDOWN_REASON_CODE_USER_CONSENT_NOT_GIVEN": 12,
+         "TEARDOWN_REASON_CODE_USER_IN_VEHICLE_LIVE_CAM_TOGGLE_DISABLED": 13,
+         "TEARDOWN_REASON_CODE_MOBILE_FIRST_FRAME_TIMEOUT": 100,
+         "TEARDOWN_REASON_CODE_SIGNALING_FETCH_FAILED": 200,
+         "TEARDOWN_REASON_CODE_SIGNALING_CONNECT_FAILED": 201,
+         "TEARDOWN_REASON_CODE_RTC_PEER_CONNECTION_FAILED": 202,
+         "TEARDOWN_REASON_CODE_RTSP_CONNECTION_FAILED": 203,
+         "TEARDOWN_REASON_MOBILE_USER_STREAMING_CLOSE": 254,
+         "TEARDOWN_REASON_CODE_NONE": 255
+        }
+       },
+       "reasonmessage": {
+        "number": 2,
+        "java_type": "String",
+        "wire_kind": "string"
+       }
+      }
+     }
+    }
+   },
+   "commandresponse": {
+    "number": 2,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "pf9",
+    "message": {
+     "uuid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "responsecode": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     },
+     "responsestring": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   },
+   "metadata_response": {
+    "number": 11,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "af9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "events": {
+      "number": 2,
+      "java_type": "i9a",
+      "wire_kind": "message",
+      "repeated": true,
+      "message_class": "je9",
+      "message": {
+       "feature": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "ke9",
+        "enum": {
+         "FEATURE_SPECIFICATION_UNSPECIFIED": 0,
+         "FEATURE_SPECIFICATION_MOTION_CAM": 1,
+         "FEATURE_SPECIFICATION_INCIDENT_CAM": 2,
+         "FEATURE_SPECIFICATION_LAUNCH_CAM": 3,
+         "FEATURE_SPECIFICATION_ROAD_CAM": 4
+        }
+       },
+       "file_info": {
+        "number": 2,
+        "java_type": "i9a",
+        "wire_kind": "message",
+        "repeated": true,
+        "message_class": "le9",
+        "message": {
+         "media_info": {
+          "number": 1,
+          "java_type": "te9",
+          "wire_kind": "message",
+          "message_class": "te9",
+          "message": {
+           "type": {
+            "number": 1,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "ue9",
+            "enum": {
+             "UNSPECIFIED": 0,
+             "THUMBNAIL": 1,
+             "VIDEO_LD": 2,
+             "VIDEO_HD": 3
+            }
+           },
+           "camera": {
+            "number": 2,
+            "java_type": "int",
+            "wire_kind": "enum",
+            "enum_class": "se9",
+            "enum": {
+             "MEDIA_CAMERA_UNKNOWN": 0,
+             "MEDIA_CAMERA_FRONT": 1,
+             "MEDIA_CAMERA_REAR": 2,
+             "MEDIA_CAMERA_LEFT": 3,
+             "MEDIA_CAMERA_RIGHT": 4,
+             "MEDIA_CAMERA_BED": 5,
+             "MEDIA_CAMERA_INTERIOR": 6
+            }
+           },
+           "is_trigger_view": {
+            "number": 3,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           },
+           "is_favorite": {
+            "number": 4,
+            "java_type": "boolean",
+            "wire_kind": "bool"
+           }
+          }
+         },
+         "metadata": {
+          "number": 2,
+          "java_type": "me9",
+          "wire_kind": "message",
+          "message_class": "me9",
+          "message": {
+           "file_id": {
+            "number": 1,
+            "java_type": "String",
+            "wire_kind": "string"
+           },
+           "size_bytes": {
+            "number": 2,
+            "java_type": "long",
+            "wire_kind": "uint64"
+           },
+           "checksum": {
+            "number": 3,
+            "java_type": "String",
+            "wire_kind": "string"
+           }
+          }
+         }
+        }
+       },
+       "event_time": {
+        "number": 3,
+        "java_type": "j",
+        "wire_kind": "message",
+        "message_class": "j",
+        "message": {
+         "seconds": {
+          "number": 1,
+          "java_type": "long",
+          "wire_kind": "int64"
+         },
+         "nanos": {
+          "number": 2,
+          "java_type": "int",
+          "wire_kind": "int32"
+         }
+        }
+       },
+       "location": {
+        "number": 4,
+        "java_type": "b0b",
+        "wire_kind": "message",
+        "message_class": "b0b",
+        "message": {
+         "latitude": {
+          "number": 1,
+          "java_type": "double",
+          "wire_kind": "double"
+         },
+         "longitude": {
+          "number": 2,
+          "java_type": "double",
+          "wire_kind": "double"
+         }
+        }
+       },
+       "is_favorite": {
+        "number": 5,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "is_media_available": {
+        "number": 6,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       }
+      }
+     },
+     "next_page_token": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "total_size": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "files_response": {
+    "number": 12,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "re9",
+    "message": {
+     "requestid": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "data": {
+      "number": 2,
+      "java_type": "ie9",
+      "wire_kind": "message",
+      "message_class": "ie9",
+      "message": {
+       "file_id": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "current_byte_offset": {
+        "number": 2,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "is_last_packet": {
+        "number": 3,
+        "java_type": "boolean",
+        "wire_kind": "bool"
+       },
+       "sequence_number": {
+        "number": 4,
+        "java_type": "int",
+        "wire_kind": "int32"
+       },
+       "payload": {
+        "number": 5,
+        "java_type": "uo1",
+        "wire_kind": "bytes"
+       }
+      }
+     }
+    }
+   },
+   "cancel_response": {
+    "number": 13,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "v2MMessageType",
+    "message_class": "ge9",
+    "message": {
+     "request_id": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "he9",
+      "enum": {
+       "CANCEL_RESPONSE_STATUS_UNSPECIFIED": 0,
+       "CANCEL_RESPONSE_STATUS_SUCCESS": 1,
+       "CANCEL_RESPONSE_STATUS_FAILURE": 2
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "bp",
+  "site": "defpackage/a12.java:136",
+  "method": "a12.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "kp",
+    "wire_kind": "message",
+    "message_class": "kp",
+    "message": {
+     "iv_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "qp",
+  "site": "defpackage/a12.java:176",
+  "method": "a12.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "cq",
+  "site": "defpackage/a12.java:212",
+  "method": "a12.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "qn",
+  "site": "defpackage/a12.java:99",
+  "method": "a12.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 2,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   },
+   "params": {
+    "number": 3,
+    "java_type": "co",
+    "wire_kind": "message",
+    "message_class": "co",
+    "message": {
+     "tag_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "wva",
+  "site": "defpackage/ak7.java:177",
+  "method": "ak7.j",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "primary_key_id": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key": {
+    "number": 2,
+    "java_type": "h9a",
+    "wire_kind": "message",
+    "repeated": true,
+    "message_class": "vva",
+    "message": {
+     "key_data": {
+      "number": 1,
+      "java_type": "jqa",
+      "wire_kind": "message",
+      "message_class": "jqa",
+      "message": {
+       "type_url": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "value": {
+        "number": 2,
+        "java_type": "to1",
+        "wire_kind": "bytes"
+       },
+       "key_material_type": {
+        "number": 3,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "iqa",
+        "enum": {
+         "UNKNOWN_KEYMATERIAL": 0,
+         "SYMMETRIC": 1,
+         "ASYMMETRIC_PRIVATE": 2,
+         "ASYMMETRIC_PUBLIC": 3,
+         "REMOTE": 4
+        }
+       }
+      }
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "dua",
+      "enum": {
+       "UNKNOWN_STATUS": 0,
+       "ENABLED": 1,
+       "DISABLED": 2,
+       "DESTROYED": 3
+      }
+     },
+     "key_id": {
+      "number": 3,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "output_prefix_type": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "f0e",
+      "enum": {
+       "UNKNOWN_PREFIX": 0,
+       "TINK": 1,
+       "LEGACY": 2,
+       "RAW": 3,
+       "CRUNCHY": 4
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "pol",
+  "site": "defpackage/cfl.java:36",
+  "method": "cfl.emit",
+  "base64": true,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "ref_uuid": {
+    "number": 1,
+    "java_type": "uo1",
+    "wire_kind": "bytes"
+   },
+   "ref_model": {
+    "number": 2,
+    "java_type": "String",
+    "wire_kind": "string"
+   },
+   "progress": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "nol",
+    "enum": {
+     "VEHICLE_MODEL_OP_PROGRESS_UNSPECIFIED": 0,
+     "VEHICLE_MODEL_OP_PROGRESS_VEHICLE_WAKING_UP": 1,
+     "VEHICLE_MODEL_OP_PROGRESS_VEHICLE_VALIDATING": 2,
+     "VEHICLE_MODEL_OP_PROGRESS_VEHICLE_EXECUTING": 3,
+     "VEHICLE_MODEL_OP_PROGRESS_VEHICLE_COMPLETE": 4
+    }
+   },
+   "operation_error": {
+    "number": 4,
+    "java_type": null,
+    "wire_kind": "message",
+    "oneof": "result",
+    "message_class": "rol",
+    "message": {
+     "error": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     },
+     "message": {
+      "number": 2,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   },
+   "data": {
+    "number": 5,
+    "java_type": null,
+    "wire_kind": "bytes",
+    "oneof": "result"
+   }
+  }
+ },
+ {
+  "class": "gyh",
+  "site": "defpackage/cfl.java:59",
+  "method": "cfl.emit",
+  "base64": true,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "response_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "fyh",
+    "enum": null
+   },
+   "error": {
+    "number": 2,
+    "java_type": "jyh",
+    "wire_kind": "message",
+    "message_class": "jyh",
+    "message": {
+     "code": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "int32"
+     },
+     "message": {
+      "number": 2,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "gyh",
+  "site": "defpackage/cfl.java:68",
+  "method": "cfl.emit",
+  "base64": true,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "response_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "fyh",
+    "enum": null
+   },
+   "error": {
+    "number": 2,
+    "java_type": "jyh",
+    "wire_kind": "message",
+    "message_class": "jyh",
+    "message": {
+     "code": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "int32"
+     },
+     "message": {
+      "number": 2,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "gyh",
+  "site": "defpackage/cfl.java:90",
+  "method": "cfl.emit",
+  "base64": true,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "response_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "fyh",
+    "enum": null
+   },
+   "error": {
+    "number": 2,
+    "java_type": "jyh",
+    "wire_kind": "message",
+    "message_class": "jyh",
+    "message": {
+     "code": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "int32"
+     },
+     "message": {
+      "number": 2,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "rsb",
+  "site": "defpackage/cqf.java:17",
+  "method": "cqf.a",
+  "base64": true,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "states": {
+    "number": 1,
+    "java_type": "i9a",
+    "wire_kind": "message",
+    "repeated": true,
+    "message_class": "msb",
+    "message": {
+     "instance": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "ksb",
+      "enum": {
+       "LOCK_INSTANCE_UNSPECIFIED": 0,
+       "LOCK_INSTANCE_DOOR_FRONT_LEFT": 1,
+       "LOCK_INSTANCE_DOOR_FRONT_RIGHT": 2,
+       "LOCK_INSTANCE_DOOR_BACK_LEFT": 3,
+       "LOCK_INSTANCE_DOOR_BACK_RIGHT": 4,
+       "LOCK_INSTANCE_FRUNK": 5,
+       "LOCK_INSTANCE_TAILGATE": 6,
+       "LOCK_INSTANCE_LIFTGATE": 7,
+       "LOCK_INSTANCE_SIDE_BIN_LEFT": 8,
+       "LOCK_INSTANCE_SIDE_BIN_RIGHT": 9,
+       "LOCK_INSTANCE_CHARGE_PORT": 10,
+       "LOCK_INSTANCE_TRUNK_SECURITY": 11,
+       "LOCK_INSTANCE_CENTER_CONSOLE": 12,
+       "LOCK_INSTANCE_GLOVE_BOX": 13,
+       "LOCK_INSTANCE_GEAR_GUARD": 14,
+       "LOCK_INSTANCE_TONNEAU": 15
+      }
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "ssb",
+      "enum": {
+       "LOCK_STATUS_UNSPECIFIED": 0,
+       "LOCK_STATUS_LOCKED": 1,
+       "LOCK_STATUS_UNLOCKED": 2,
+       "LOCK_STATUS_PARTIALLY_UNLOCKED": 3
+      }
+     },
+     "fault": {
+      "number": 3,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "fsb",
+      "enum": {
+       "LOCK_FAULT_UNSPECIFIED": 0,
+       "LOCK_FAULT_FAULTED": 1
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "ec2",
+  "site": "defpackage/d71.java:157",
+  "method": "d71.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 2,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "ux6",
+  "site": "defpackage/ds5.java:247",
+  "method": "ds5.F",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "encrypted_keyset": {
+    "number": 2,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   },
+   "keyset_info": {
+    "number": 3,
+    "java_type": "dwa",
+    "wire_kind": "message",
+    "message_class": "dwa",
+    "message": {
+     "primary_key_id": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "key_info": {
+      "number": 2,
+      "java_type": "h9a",
+      "wire_kind": "message",
+      "repeated": true,
+      "message_class": "cwa",
+      "message": {
+       "type_url": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "status": {
+        "number": 2,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": null,
+        "enum": null
+       },
+       "key_id": {
+        "number": 3,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       },
+       "output_prefix_type": {
+        "number": 4,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": null,
+        "enum": null
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "tpj",
+  "site": "defpackage/hoj.java:70",
+  "method": "hoj.invokeSuspend",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "tpms_monitor_status": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": null,
+    "enum": null
+   },
+   "tire_pressure": {
+    "number": 2,
+    "java_type": "i9a",
+    "wire_kind": "message",
+    "repeated": true,
+    "message_class": "spj",
+    "message": {
+     "tire": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "qnj",
+      "enum": {
+       "TIRE_INSTANCE_UNSPECIFIED": 0,
+       "TIRE_INSTANCE_FRONT_LEFT": 1,
+       "TIRE_INSTANCE_FRONT_RIGHT": 2,
+       "TIRE_INSTANCE_REAR_LEFT": 3,
+       "TIRE_INSTANCE_REAR_RIGHT": 4
+      }
+     },
+     "status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "mpj",
+      "enum": {
+       "TIRE_PRESSURE_STATUS_UNSPECIFIED": 0,
+       "TIRE_PRESSURE_STATUS_NORMAL": 1,
+       "TIRE_PRESSURE_STATUS_WARNING_HARD": 2,
+       "TIRE_PRESSURE_STATUS_WARNING_SOFT": 3,
+       "TIRE_PRESSURE_STATUS_WARNING_PUNCTURE": 4
+      }
+     },
+     "pressure": {
+      "number": 3,
+      "java_type": "double",
+      "wire_kind": "double"
+     },
+     "validity": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     },
+     "tp_lastknown_valid_time": {
+      "number": 5,
+      "java_type": "long",
+      "wire_kind": "uint64"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "opl",
+  "site": "defpackage/ipf.java:159",
+  "method": "ipf.e",
+  "base64": true,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "default_link": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "v94",
+    "enum": {
+     "CONNECTIVITY_LINK_UNSPECIFIED": 0,
+     "CONNECTIVITY_LINK_WIFI": 1,
+     "CONNECTIVITY_LINK_CELLULAR": 2
+    }
+   },
+   "routes": {
+    "number": 2,
+    "java_type": "i9a",
+    "wire_kind": "message",
+    "repeated": true,
+    "message_class": "atg",
+    "message": {
+     "route": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "ysg",
+      "enum": {
+       "ROUTE_UNSPECIFIED": 0,
+       "ROUTE_WIFI": 1,
+       "ROUTE_CELLULAR_CORE": 2,
+       "ROUTE_CELLULAR_MEDIA": 3,
+       "ROUTE_CELLULAR_HOTSPOT": 4
+      }
+     },
+     "state": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "zsg",
+      "enum": {
+       "ROUTE_STATE_UNSPECIFIED": 0,
+       "ROUTE_STATE_DOWN": 1,
+       "ROUTE_STATE_UP": 2
+      }
+     }
+    }
+   },
+   "default_link_quality": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "enum",
+    "enum_class": "s8b",
+    "enum": {
+     "LEVEL_UNSPECIFIED": 0,
+     "LEVEL_0": 1,
+     "LEVEL_1": 2,
+     "LEVEL_2": 3,
+     "LEVEL_3": 4,
+     "LEVEL_4": 5
+    }
+   },
+   "wifi": {
+    "number": 4,
+    "java_type": "d4n",
+    "wire_kind": "message",
+    "message_class": "d4n",
+    "message": {
+     "wpa_status": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "c4n",
+      "enum": {
+       "WPA_STATUS_UNSPECIFIED": 0,
+       "WPA_STATUS_NOT_CONNECTED": 1,
+       "WPA_STATUS_CONNECTED": 2,
+       "WPA_STATUS_SCANNING": 3,
+       "WPA_STATUS_CONNECTING": 4,
+       "WPA_STATUS_DISCONNECTING": 5,
+       "WPA_STATUS_CONNECTION_FAILED": 6,
+       "WPA_STATUS_DISABLED": 7,
+       "WPA_STATUS_SCAN_FAILURE": 8
+      }
+     },
+     "conn_status": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "a94",
+      "enum": {
+       "CONN_STATUS_UNSPECIFIED": 0,
+       "CONN_STATUS_CHECKING": 1,
+       "CONN_STATUS_SUCCESS": 2,
+       "CONN_STATUS_UNSTABLE": 3,
+       "CONN_STATUS_NO_NETWORK": 4,
+       "CONN_STATUS_OUT_OF_SERVICE": 5,
+       "CONN_STATUS_CAPTIVE_PORTAL": 6,
+       "CONN_STATUS_DNS_ERROR": 7,
+       "CONN_STATUS_DHCP_ERROR": 8,
+       "CONN_STATUS_UNREACHABLE_UNKNOWN": 12
+      }
+     },
+     "ssid": {
+      "number": 3,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "signal_quality": {
+      "number": 7,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "s8b",
+      "enum": {
+       "LEVEL_UNSPECIFIED": 0,
+       "LEVEL_0": 1,
+       "LEVEL_1": 2,
+       "LEVEL_2": 3,
+       "LEVEL_3": 4,
+       "LEVEL_4": 5
+      }
+     },
+     "signal_strength": {
+      "number": 8,
+      "java_type": "int",
+      "wire_kind": "int32"
+     },
+     "link_speed": {
+      "number": 9,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "frequency": {
+      "number": 10,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "bandwidth": {
+      "number": 11,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "security": {
+      "number": 12,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "b4n",
+      "enum": {
+       "SECURITY_UNSPECIFIED": 0,
+       "SECURITY_OPEN": 1,
+       "SECURITY_WPA_PERSONAL": 2,
+       "SECURITY_WPA_ENTERPRISE": 3,
+       "SECURITY_WPA2_PERSONAL": 4,
+       "SECURITY_WPA2_ENTERPRISE": 5,
+       "SECURITY_WPA3_PERSONAL": 6,
+       "SECURITY_WPA3_ENTERPRISE": 7,
+       "SECURITY_ENHANCED_OPEN": 8
+      }
+     },
+     "secured": {
+      "number": 13,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "odj",
+      "enum": {
+       "TERNARY_UNSPECIFIED": 0,
+       "TERNARY_FALSE": 1,
+       "TERNARY_TRUE": 2
+      }
+     },
+     "user_enabled": {
+      "number": 14,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "odj",
+      "enum": {
+       "TERNARY_UNSPECIFIED": 0,
+       "TERNARY_FALSE": 1,
+       "TERNARY_TRUE": 2
+      }
+     }
+    }
+   },
+   "cellular": {
+    "number": 5,
+    "java_type": "zb2",
+    "wire_kind": "message",
+    "message_class": "zb2",
+    "message": {
+     "carrier": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "network": {
+      "number": 2,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "signal_quality": {
+      "number": 3,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "s8b",
+      "enum": {
+       "LEVEL_UNSPECIFIED": 0,
+       "LEVEL_0": 1,
+       "LEVEL_1": 2,
+       "LEVEL_2": 3,
+       "LEVEL_3": 4,
+       "LEVEL_4": 5
+      }
+     },
+     "signal_strength": {
+      "number": 4,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "qan",
+  "site": "defpackage/krl.java:94",
+  "method": "krl.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "io",
+  "site": "defpackage/mo.java:178",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "aes_ctr_key": {
+    "number": 2,
+    "java_type": "ro",
+    "wire_kind": "message",
+    "message_class": "ro",
+    "message": {
+     "version": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "params": {
+      "number": 2,
+      "java_type": "xo",
+      "wire_kind": "message",
+      "message_class": "xo",
+      "message": {
+       "iv_size": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       }
+      }
+     },
+     "key_value": {
+      "number": 3,
+      "java_type": "to1",
+      "wire_kind": "bytes"
+     }
+    }
+   },
+   "hmac_key": {
+    "number": 3,
+    "java_type": "qs9",
+    "wire_kind": "message",
+    "message_class": "qs9",
+    "message": {
+     "version": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "params": {
+      "number": 2,
+      "java_type": "at9",
+      "wire_kind": "message",
+      "message_class": "at9",
+      "message": {
+       "hash": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "cq9",
+        "enum": {
+         "UNKNOWN_HASH": 0,
+         "SHA1": 1,
+         "SHA384": 2,
+         "SHA256": 3,
+         "SHA512": 4,
+         "SHA224": 5
+        }
+       },
+       "tag_size": {
+        "number": 2,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       }
+      }
+     },
+     "key_value": {
+      "number": 3,
+      "java_type": "to1",
+      "wire_kind": "bytes"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "ro",
+  "site": "defpackage/mo.java:180",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "xo",
+    "wire_kind": "message",
+    "message_class": "xo",
+    "message": {
+     "iv_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "bp",
+  "site": "defpackage/mo.java:182",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "kp",
+    "wire_kind": "message",
+    "message_class": "kp",
+    "message": {
+     "iv_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "qp",
+  "site": "defpackage/mo.java:184",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "cq",
+  "site": "defpackage/mo.java:186",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "oq",
+  "site": "defpackage/mo.java:188",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 2,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "ec2",
+  "site": "defpackage/mo.java:190",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 2,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "xxa",
+  "site": "defpackage/mo.java:192",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "zxa",
+    "wire_kind": "message",
+    "message_class": "zxa",
+    "message": {
+     "key_uri": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "eya",
+  "site": "defpackage/mo.java:194",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "gya",
+    "wire_kind": "message",
+    "message_class": "gya",
+    "message": {
+     "kek_uri": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "dek_template": {
+      "number": 2,
+      "java_type": "iua",
+      "wire_kind": "message",
+      "message_class": "iua",
+      "message": {
+       "type_url": {
+        "number": 1,
+        "java_type": "String",
+        "wire_kind": "string"
+       },
+       "value": {
+        "number": 2,
+        "java_type": "to1",
+        "wire_kind": "bytes"
+       },
+       "output_prefix_type": {
+        "number": 3,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "f0e",
+        "enum": {
+         "UNKNOWN_PREFIX": 0,
+         "TINK": 1,
+         "LEGACY": 2,
+         "RAW": 3,
+         "CRUNCHY": 4
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "qan",
+  "site": "defpackage/mo.java:196",
+  "method": "mo.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "qs9",
+  "site": "defpackage/sp7.java:154",
+  "method": "sp7.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "at9",
+    "wire_kind": "message",
+    "message_class": "at9",
+    "message": {
+     "hash": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "cq9",
+      "enum": {
+       "UNKNOWN_HASH": 0,
+       "SHA1": 1,
+       "SHA384": 2,
+       "SHA256": 3,
+       "SHA512": 4,
+       "SHA224": 5
+      }
+     },
+     "tag_size": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "un",
+  "site": "defpackage/wn.java:454",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "key_size": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "co",
+    "wire_kind": "message",
+    "message_class": "co",
+    "message": {
+     "tag_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "lo",
+  "site": "defpackage/wn.java:456",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "aes_ctr_key_format": {
+    "number": 1,
+    "java_type": "uo",
+    "wire_kind": "message",
+    "message_class": "uo",
+    "message": {
+     "params": {
+      "number": 1,
+      "java_type": "xo",
+      "wire_kind": "message",
+      "message_class": "xo",
+      "message": {
+       "iv_size": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       }
+      }
+     },
+     "key_size": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "hmac_key_format": {
+    "number": 2,
+    "java_type": "us9",
+    "wire_kind": "message",
+    "message_class": "us9",
+    "message": {
+     "params": {
+      "number": 1,
+      "java_type": "at9",
+      "wire_kind": "message",
+      "message_class": "at9",
+      "message": {
+       "hash": {
+        "number": 1,
+        "java_type": "int",
+        "wire_kind": "enum",
+        "enum_class": "cq9",
+        "enum": {
+         "UNKNOWN_HASH": 0,
+         "SHA1": 1,
+         "SHA384": 2,
+         "SHA256": 3,
+         "SHA512": 4,
+         "SHA224": 5
+        }
+       },
+       "tag_size": {
+        "number": 2,
+        "java_type": "int",
+        "wire_kind": "uint32"
+       }
+      }
+     },
+     "key_size": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     },
+     "version": {
+      "number": 3,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "uo",
+  "site": "defpackage/wn.java:458",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "params": {
+    "number": 1,
+    "java_type": "xo",
+    "wire_kind": "message",
+    "message_class": "xo",
+    "message": {
+     "iv_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_size": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "fp",
+  "site": "defpackage/wn.java:460",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "params": {
+    "number": 1,
+    "java_type": "kp",
+    "wire_kind": "message",
+    "message_class": "kp",
+    "message": {
+     "iv_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_size": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "up",
+  "site": "defpackage/wn.java:462",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "key_size": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "version": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "gq",
+  "site": "defpackage/wn.java:464",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_size": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "rq",
+  "site": "defpackage/wn.java:466",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "key_size": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "version": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "ic2",
+  "site": "defpackage/wn.java:468",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {}
+ },
+ {
+  "class": "us9",
+  "site": "defpackage/wn.java:470",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "params": {
+    "number": 1,
+    "java_type": "at9",
+    "wire_kind": "message",
+    "message_class": "at9",
+    "message": {
+     "hash": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "cq9",
+      "enum": {
+       "UNKNOWN_HASH": 0,
+       "SHA1": 1,
+       "SHA384": 2,
+       "SHA256": 3,
+       "SHA512": 4,
+       "SHA224": 5
+      }
+     },
+     "tag_size": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_size": {
+    "number": 2,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "version": {
+    "number": 3,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "zxa",
+  "site": "defpackage/wn.java:472",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "key_uri": {
+    "number": 1,
+    "java_type": "String",
+    "wire_kind": "string"
+   }
+  }
+ },
+ {
+  "class": "gya",
+  "site": "defpackage/wn.java:474",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "kek_uri": {
+    "number": 1,
+    "java_type": "String",
+    "wire_kind": "string"
+   },
+   "dek_template": {
+    "number": 2,
+    "java_type": "iua",
+    "wire_kind": "message",
+    "message_class": "iua",
+    "message": {
+     "type_url": {
+      "number": 1,
+      "java_type": "String",
+      "wire_kind": "string"
+     },
+     "value": {
+      "number": 2,
+      "java_type": "to1",
+      "wire_kind": "bytes"
+     },
+     "output_prefix_type": {
+      "number": 3,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "f0e",
+      "enum": {
+       "UNKNOWN_PREFIX": 0,
+       "TINK": 1,
+       "LEGACY": 2,
+       "RAW": 3,
+       "CRUNCHY": 4
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "tan",
+  "site": "defpackage/wn.java:476",
+  "method": "wn.x0",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "qs9",
+  "site": "defpackage/ws9.java:111",
+  "method": "ws9.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "params": {
+    "number": 2,
+    "java_type": "at9",
+    "wire_kind": "message",
+    "message_class": "at9",
+    "message": {
+     "hash": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "cq9",
+      "enum": {
+       "UNKNOWN_HASH": 0,
+       "SHA1": 1,
+       "SHA384": 2,
+       "SHA256": 3,
+       "SHA512": 4,
+       "SHA224": 5
+      }
+     },
+     "tag_size": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   },
+   "key_value": {
+    "number": 3,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   }
+  }
+ },
+ {
+  "class": "qn",
+  "site": "defpackage/xn.java:49",
+  "method": "xn.w",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "version": {
+    "number": 1,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   },
+   "key_value": {
+    "number": 2,
+    "java_type": "to1",
+    "wire_kind": "bytes"
+   },
+   "params": {
+    "number": 3,
+    "java_type": "co",
+    "wire_kind": "message",
+    "message_class": "co",
+    "message": {
+     "tag_size": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "uint32"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "h1m",
+  "site": "defpackage/xpf.java:1023",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "gear_guard_video_mode": {
+    "number": 1,
+    "java_type": "e1m",
+    "wire_kind": "message",
+    "message_class": "e1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "d1m",
+      "enum": {
+       "NONE": 0,
+       "EVERYWHERE": 1,
+       "AWAY_FROM_HOME": 2
+      }
+     }
+    }
+   },
+   "gear_guard_video_status": {
+    "number": 2,
+    "java_type": "g1m",
+    "wire_kind": "message",
+    "message_class": "g1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "f1m",
+      "enum": {
+       "NONE": 0,
+       "DISABLED": 1,
+       "ENABLED": 2,
+       "ENGAGED": 3,
+       "FAULTED": 4
+      }
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 4,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "gear_guard_terms_accepted": {
+    "number": 5,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   }
+  }
+ },
+ {
+  "class": "d2m",
+  "site": "defpackage/xpf.java:134",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "drive_mode": {
+    "number": 1,
+    "java_type": "a2m",
+    "wire_kind": "message",
+    "message_class": "a2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "prndl_gear_status": {
+    "number": 2,
+    "java_type": "c2m",
+    "wire_kind": "message",
+    "message_class": "c2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "b2m",
+      "enum": {
+       "NONE": 0,
+       "PARK": 1,
+       "REVERSE": 2,
+       "NEUTRAL": 3,
+       "DRIVE": 4
+      }
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 6,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "vehicle_mileage": {
+    "number": 7,
+    "java_type": "double",
+    "wire_kind": "double"
+   },
+   "limited_accel_cold": {
+    "number": 8,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "limited_regen_cold": {
+    "number": 9,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   }
+  }
+ },
+ {
+  "class": "z1m",
+  "site": "defpackage/xpf.java:169",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "charging_state": {
+    "number": 2,
+    "java_type": "v1m",
+    "wire_kind": "message",
+    "message_class": "v1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "u1m",
+      "enum": {
+       "NONE": 0,
+       "READY": 1,
+       "CONNECTING": 2,
+       "ACTIVE": 3,
+       "COMPLETE": 4,
+       "SCHEDULED": 5,
+       "VEHICLE_ERROR": 6,
+       "STATION_ERROR": 7,
+       "USER_STOPPED": 8,
+       "STATION_STOPPED": 9,
+       "PAYMENT_ERROR": 10,
+       "TLS_ERROR": 11
+      }
+     }
+    }
+   },
+   "charger_status": {
+    "number": 3,
+    "java_type": "t1m",
+    "wire_kind": "message",
+    "message_class": "t1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "charger_derate_status": {
+    "number": 4,
+    "java_type": "s1m",
+    "wire_kind": "message",
+    "message_class": "s1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "range_threshold": {
+    "number": 9,
+    "java_type": "y1m",
+    "wire_kind": "message",
+    "message_class": "y1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "charging_time_estimation_validity_status": {
+    "number": 10,
+    "java_type": "x1m",
+    "wire_kind": "message",
+    "message_class": "x1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 11,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "battery_level": {
+    "number": 12,
+    "java_type": "int",
+    "wire_kind": "int32"
+   },
+   "time_to_end_of_charge": {
+    "number": 13,
+    "java_type": "int",
+    "wire_kind": "int32"
+   },
+   "distance_to_empty": {
+    "number": 14,
+    "java_type": "int",
+    "wire_kind": "int32"
+   },
+   "remote_charging_available": {
+    "number": 15,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "battery_limit": {
+    "number": 16,
+    "java_type": "int",
+    "wire_kind": "int32"
+   }
+  }
+ },
+ {
+  "class": "c1m",
+  "site": "defpackage/xpf.java:267",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "global_lock_status": {
+    "number": 1,
+    "java_type": "r0m",
+    "wire_kind": "message",
+    "message_class": "r0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "q0m",
+      "enum": {
+       "NONE": 0,
+       "UNLOCKED": 1,
+       "LOCKED": 2,
+       "PARTIALLY_UNLOCKED": 3,
+       "FAULT": 4
+      }
+     }
+    }
+   },
+   "fl_door_lock_status": {
+    "number": 2,
+    "java_type": "v0m",
+    "wire_kind": "message",
+    "message_class": "v0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "u0m",
+      "enum": {
+       "NONE": 0,
+       "UNLOCKED": 1,
+       "LOCKED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "fr_door_lock_status": {
+    "number": 3,
+    "java_type": "v0m",
+    "wire_kind": "message",
+    "message_class": "v0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "u0m",
+      "enum": {
+       "NONE": 0,
+       "UNLOCKED": 1,
+       "LOCKED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "rl_door_lock_status": {
+    "number": 4,
+    "java_type": "v0m",
+    "wire_kind": "message",
+    "message_class": "v0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "u0m",
+      "enum": {
+       "NONE": 0,
+       "UNLOCKED": 1,
+       "LOCKED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "rr_door_lock_status": {
+    "number": 5,
+    "java_type": "v0m",
+    "wire_kind": "message",
+    "message_class": "v0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "u0m",
+      "enum": {
+       "NONE": 0,
+       "UNLOCKED": 1,
+       "LOCKED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "fl_door_ajar_status": {
+    "number": 6,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "fr_door_ajar_status": {
+    "number": 7,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "rl_door_ajar_status": {
+    "number": 8,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "rr_door_ajar_status": {
+    "number": 9,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "frunk_ajar_status": {
+    "number": 10,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "tailgate_ajar_status": {
+    "number": 11,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "liftgate_ajar_status": {
+    "number": 12,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "tonneau_cover_ajar_status": {
+    "number": 13,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "side_bin_left_ajar_status": {
+    "number": 14,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "side_bin_right_ajar_status": {
+    "number": 15,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "charge_port_ajar_status": {
+    "number": 16,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "frunk_next_action_status": {
+    "number": 17,
+    "java_type": "p0m",
+    "wire_kind": "message",
+    "message_class": "p0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "o0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN_ALLOWED": 1,
+       "CLOSE_ALLOWED": 2,
+       "OPENING": 3,
+       "CLOSING": 4,
+       "OPEN_NOT_AVAILABLE": 5,
+       "CLOSE_NOT_AVAILABLE": 6,
+       "OPEN_NOT_ALLOWED_FAULTED": 7,
+       "CLOSE_NOT_ALLOWED_FAULTED": 8,
+       "OPEN_ALLOWED_NO_POWER_OPERATION": 9,
+       "CLOSE_NOT_ALLOWED_NO_POWER_OPERATION": 10,
+       "OBSTRUCTED_OPENING_CLOSE_ALLOWED": 11,
+       "OBSTRUCTED_CLOSING_CLOSE_ALLOWED": 12
+      }
+     }
+    }
+   },
+   "tailgate_next_action_status": {
+    "number": 18,
+    "java_type": "z0m",
+    "wire_kind": "message",
+    "message_class": "z0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "y0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN_ALLOWED": 1,
+       "OPENING": 2,
+       "OPEN_NOT_AVAILABLE": 3,
+       "OPEN_NOT_ALLOWED_FAULTED": 4,
+       "STUCK_AJAR_WHILE_OPENING_OPEN_ALLOWED": 5,
+       "OPEN_ALREADY_NO_ACTION_AVAILABLE": 6,
+       "OPEN_ALLOWED_CONFIRM_VEHICLE_ANGLE": 7,
+       "OPEN_ALLOWED_OBSTACLE_DETECTED": 8,
+       "OPEN_ALLOWED_TRAILER_DETECTED": 9
+      }
+     }
+    }
+   },
+   "liftgate_next_action_status": {
+    "number": 19,
+    "java_type": "t0m",
+    "wire_kind": "message",
+    "message_class": "t0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "s0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN_ALLOWED": 1,
+       "CLOSE_ALLOWED": 2,
+       "OPENING": 3,
+       "CLOSING": 4,
+       "OPEN_NOT_AVAILABLE": 5,
+       "CLOSE_NOT_AVAILABLE": 6,
+       "OPEN_NOT_ALLOWED_FAULTED": 7,
+       "CLOSE_NOT_ALLOWED_FAULTED": 8,
+       "OPEN_ALLOWED_NO_POWER_OPERATION": 9,
+       "CLOSE_NOT_ALLOWED_NO_POWER_OPERATION": 10,
+       "OBSTRUCTED_OPENING_CLOSE_ALLOWED": 11,
+       "OBSTRUCTED_CLOSING_CLOSE_ALLOWED": 12,
+       "LOWER_GATE_OPEN_CLOSE_NOT_ALLOWED": 13,
+       "OPENING_PAUSE_NOT_ALLOWED": 14,
+       "CLOSING_PAUSE_NOT_ALLOWED": 15,
+       "OPEN_ALLOWED_OBSTACLE_DETECTED": 16,
+       "OPEN_ALLOWED_TRAILER_DETECTED": 17,
+       "CLOSE_ALLOWED_OBSTACLE_DETECTED": 18,
+       "CLOSE_ALLOWED_TRAILER_DETECTED": 19
+      }
+     }
+    }
+   },
+   "side_bin_left_next_action_status": {
+    "number": 20,
+    "java_type": "x0m",
+    "wire_kind": "message",
+    "message_class": "x0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "w0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN_ALLOWED": 1,
+       "OPENING": 2,
+       "OPEN_NOT_AVAILABLE": 3,
+       "OPEN_NOT_ALLOWED_FAULTED": 4,
+       "STUCK_AJAR_WHILE_OPENING_OPEN_ALLOWED": 5,
+       "OPEN_ALREADY_NO_ACTION_AVAILABLE": 6,
+       "OPEN_ALLOWED_CONFIRM_VEHICLE_ANGLE": 7
+      }
+     }
+    }
+   },
+   "side_bin_right_next_action_status": {
+    "number": 21,
+    "java_type": "x0m",
+    "wire_kind": "message",
+    "message_class": "x0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "w0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN_ALLOWED": 1,
+       "OPENING": 2,
+       "OPEN_NOT_AVAILABLE": 3,
+       "OPEN_NOT_ALLOWED_FAULTED": 4,
+       "STUCK_AJAR_WHILE_OPENING_OPEN_ALLOWED": 5,
+       "OPEN_ALREADY_NO_ACTION_AVAILABLE": 6,
+       "OPEN_ALLOWED_CONFIRM_VEHICLE_ANGLE": 7
+      }
+     }
+    }
+   },
+   "windows_next_action_status": {
+    "number": 22,
+    "java_type": "b1m",
+    "wire_kind": "message",
+    "message_class": "b1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "a1m",
+      "enum": {
+       "NONE": 0,
+       "OPEN_ALLOWED": 1,
+       "CLOSE_ALLOWED": 2,
+       "OPENING": 3,
+       "CLOSING": 4,
+       "MOVING": 5,
+       "OPEN_NOT_AVAILABLE": 6,
+       "CLOSE_NOT_AVAILABLE": 7,
+       "OPEN_NOT_ALLOWED_FAULTED": 8,
+       "CLOSE_NOT_ALLOWED_FAULTED": 9,
+       "OBSTRUCTED_WHILE_CLOSING_CLOSE_ALLOWED": 10,
+       "CLOSE_NOT_ALLOWED_UNCALIBRATED": 11,
+       "OPEN_NOT_ALLOWED_UNCALIBRATED": 12
+      }
+     }
+    }
+   },
+   "window_front_left_ajar_status": {
+    "number": 23,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "window_front_right_ajar_status": {
+    "number": 24,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "window_rear_left_ajar_status": {
+    "number": 25,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "window_rear_right_ajar_status": {
+    "number": 26,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "gear_guard_lock_status": {
+    "number": 31,
+    "java_type": "v0m",
+    "wire_kind": "message",
+    "message_class": "v0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "u0m",
+      "enum": {
+       "NONE": 0,
+       "UNLOCKED": 1,
+       "LOCKED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 32,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "window_front_left_calibrated": {
+    "number": 33,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "window_front_right_calibrated": {
+    "number": 34,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "window_rear_left_calibrated": {
+    "number": 35,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "window_rear_right_calibrated": {
+    "number": 36,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "charge_port_door_next_action_status": {
+    "number": 37,
+    "java_type": "n0m",
+    "wire_kind": "message",
+    "message_class": "n0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "m0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN_ALLOWED": 1,
+       "OPEN_NOT_AVAILABLE": 2,
+       "OPEN_NOT_ALLOWED_FAULTED": 3,
+       "OPENING": 4,
+       "CLOSE_ALLOWED": 5,
+       "OBSTRUCTED_WHILE_OPENING_CLOSE_ALLOWED": 6,
+       "OBSTRUCTED_WHILE_OPENING_OPEN_ALLOWED": 7,
+       "OBSTRUCTED_WHILE_CLOSING_CLOSE_ALLOWED": 8,
+       "CLOSE_NOT_AVAILABLE": 9,
+       "CLOSE_NOT_ALLOWED_FAULTED": 10,
+       "CLOSING": 11
+      }
+     }
+    }
+   },
+   "drop_glass_ajar_status": {
+    "number": 38,
+    "java_type": "l0m",
+    "wire_kind": "message",
+    "message_class": "l0m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k0m",
+      "enum": {
+       "NONE": 0,
+       "OPEN": 1,
+       "CLOSED": 2,
+       "FAULT": 3
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "x2m",
+  "site": "defpackage/xpf.java:677",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "cabin_preconditioning_status": {
+    "number": 1,
+    "java_type": "n2m",
+    "wire_kind": "message",
+    "message_class": "n2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "m2m",
+      "enum": {
+       "NONE": 0,
+       "AVAILABLE": 1,
+       "INITIATE": 2,
+       "ACTIVE_IN_PROGRESS": 3,
+       "ACTIVE_WARNING": 4,
+       "COMPLETE_MAINTAIN": 5,
+       "ERROR_TEMP_NOT_ACHIEVED_WITHIN_TIMEOUT": 6,
+       "ERROR_SOC_TOO_LOW": 7,
+       "ERROR_SYSTEM_FAULT": 8,
+       "UNAVAILABLE": 9,
+       "TIMEOUT": 10
+      }
+     }
+    }
+   },
+   "cabin_preconditioning_type": {
+    "number": 2,
+    "java_type": "p2m",
+    "wire_kind": "message",
+    "message_class": "p2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "o2m",
+      "enum": {
+       "NONE": 0,
+       "OFF": 1,
+       "USER_SELECTED": 2,
+       "SCREEN_PROTECTION": 3,
+       "SCHEDULED": 4
+      }
+     }
+    }
+   },
+   "defrost_defog_status": {
+    "number": 5,
+    "java_type": "r2m",
+    "wire_kind": "message",
+    "message_class": "r2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "streering_wheel_status": {
+    "number": 6,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "seat_heat_status_front_left": {
+    "number": 7,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "seat_heat_status_front_right": {
+    "number": 8,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "seat_heat_status_rear_left": {
+    "number": 9,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "seat_heat_status_rear_right": {
+    "number": 10,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "seat_vent_status_front_left": {
+    "number": 11,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "seat_vent_status_front_right": {
+    "number": 12,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 14,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "cabin_climate_interior_temperature": {
+    "number": 15,
+    "java_type": "int",
+    "wire_kind": "int32"
+   },
+   "cabin_climate_driver_temperature": {
+    "number": 16,
+    "java_type": "double",
+    "wire_kind": "double"
+   },
+   "cabin_climate_cached_setpoint": {
+    "number": 17,
+    "java_type": "double",
+    "wire_kind": "double"
+   },
+   "seat_heat_status_third_row_left": {
+    "number": 18,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "seat_heat_status_third_row_right": {
+    "number": 19,
+    "java_type": "q2m",
+    "wire_kind": "message",
+    "message_class": "q2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "pet_mode_status": {
+    "number": 20,
+    "java_type": "u2m",
+    "wire_kind": "message",
+    "message_class": "u2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "t2m",
+      "enum": {
+       "NONE": 0,
+       "OFF": 1,
+       "ON": 2,
+       "DISABLED": 3,
+       "FAULTED": 4
+      }
+     }
+    }
+   },
+   "pet_mode_temperature_status": {
+    "number": 21,
+    "java_type": "v2m",
+    "wire_kind": "message",
+    "message_class": "v2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "vehicle_in_service": {
+    "number": 22,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "vehicle_in_car_wash": {
+    "number": 23,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "umm_mode_car_costume_availabiity_status": {
+    "number": 24,
+    "java_type": "w2m",
+    "wire_kind": "message",
+    "message_class": "w2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "cgm_car_costume_status": {
+    "number": 25,
+    "java_type": "s2m",
+    "wire_kind": "message",
+    "message_class": "s2m",
+    "message": {
+     "costume": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "hol_celeb_internal_vol_level": {
+    "number": 26,
+    "java_type": "int",
+    "wire_kind": "uint32"
+   }
+  }
+ },
+ {
+  "class": "a3m",
+  "site": "defpackage/xpf.java:786",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "alarm_sound_state": {
+    "number": 1,
+    "java_type": "z2m",
+    "wire_kind": "message",
+    "message_class": "z2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "y2m",
+      "enum": {
+       "NONE": 0,
+       "INACTIVE": 1,
+       "ACTIVE": 2
+      }
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 2,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "h2m",
+  "site": "defpackage/xpf.java:813",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "vehicle_ota_status": {
+    "number": 5,
+    "java_type": "g2m",
+    "wire_kind": "message",
+    "message_class": "g2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "f2m",
+      "enum": {
+       "NONE": 0,
+       "IDLE": 1,
+       "READY_TO_DOWNLOAD": 2,
+       "FAULT": 3,
+       "CONNECTION_LOST": 4,
+       "INSTALL_COUNTDOWN": 5,
+       "PREPARING": 6,
+       "DOWNLOADING": 7,
+       "READY_TO_INSTALL": 8,
+       "SCHEDULED_TO_INSTALL": 9,
+       "AWAITING_INSTALL": 10,
+       "INSTALLING": 11,
+       "INSTALL_SUCCESS": 12,
+       "DOWNLOAD_FAILED": 13,
+       "INSTALL_FAILED": 14
+      }
+     }
+    }
+   },
+   "current_status": {
+    "number": 9,
+    "java_type": "e2m",
+    "wire_kind": "message",
+    "message_class": "e2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 10,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "current_version": {
+    "number": 11,
+    "java_type": "String",
+    "wire_kind": "string"
+   },
+   "current_version_git_hash": {
+    "number": 12,
+    "java_type": "String",
+    "wire_kind": "string"
+   },
+   "available_version": {
+    "number": 13,
+    "java_type": "String",
+    "wire_kind": "string"
+   },
+   "available_version_git_hash": {
+    "number": 14,
+    "java_type": "String",
+    "wire_kind": "string"
+   },
+   "install_duration": {
+    "number": 16,
+    "java_type": "int",
+    "wire_kind": "int32"
+   },
+   "install_progress": {
+    "number": 17,
+    "java_type": "int",
+    "wire_kind": "int32"
+   },
+   "install_ready": {
+    "number": 18,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   }
+  }
+ },
+ {
+  "class": "l2m",
+  "site": "defpackage/xpf.java:892",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "power_state": {
+    "number": 1,
+    "java_type": "k2m",
+    "wire_kind": "message",
+    "message_class": "k2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "j2m",
+      "enum": {
+       "NONE": 0,
+       "SLEEP": 1,
+       "STANDBY": 2,
+       "READY": 3,
+       "GO": 4
+      }
+     }
+    }
+   },
+   "low_voltage_battery_health_status": {
+    "number": 2,
+    "java_type": "i2m",
+    "wire_kind": "message",
+    "message_class": "i2m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 5,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "high_voltage_battery_thermal_event": {
+    "number": 6,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   },
+   "high_voltage_battery_thermal_event_propagation": {
+    "number": 7,
+    "java_type": "boolean",
+    "wire_kind": "bool"
+   }
+  }
+ },
+ {
+  "class": "d3m",
+  "site": "defpackage/xpf.java:925",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "trailer_status": {
+    "number": 1,
+    "java_type": "c3m",
+    "wire_kind": "message",
+    "message_class": "c3m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "b3m",
+      "enum": {
+       "NONE": 0,
+       "NOT_PRESENT": 1,
+       "PRESENT": 2,
+       "PRESENT_WITH_BRAKES": 3,
+       "INVALID": 4
+      }
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 2,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   }
+  }
+ },
+ {
+  "class": "r1m",
+  "site": "defpackage/xpf.java:952",
+  "method": "xpf.e",
+  "base64": false,
+  "topics": [],
+  "caller_topics": {},
+  "registry_topics": {},
+  "fields": {
+   "driver_occupancy_presence": {
+    "number": 1,
+    "java_type": "o1m",
+    "wire_kind": "message",
+    "message_class": "o1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "n1m",
+      "enum": {
+       "NONE": 0,
+       "NOT_PRESENT": 1,
+       "PRESENT": 2
+      }
+     }
+    }
+   },
+   "immobilizer_authorization_status": {
+    "number": 2,
+    "java_type": "q1m",
+    "wire_kind": "message",
+    "message_class": "q1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "p1m",
+      "enum": {
+       "NONE": 0,
+       "NOT_AUTHORIZED": 1,
+       "AUTHORIZED_TO_DRIVE": 2
+      }
+     }
+    }
+   },
+   "btm_lfd_sensor_status": {
+    "number": 3,
+    "java_type": "i1m",
+    "wire_kind": "message",
+    "message_class": "i1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "btm_ic_sensor_status": {
+    "number": 4,
+    "java_type": "i1m",
+    "wire_kind": "message",
+    "message_class": "i1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "btm_oc_sensor_status": {
+    "number": 5,
+    "java_type": "i1m",
+    "wire_kind": "message",
+    "message_class": "i1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "updated_at_timestamp": {
+    "number": 6,
+    "java_type": "j",
+    "wire_kind": "message",
+    "message_class": "j",
+    "message": {
+     "seconds": {
+      "number": 1,
+      "java_type": "long",
+      "wire_kind": "int64"
+     },
+     "nanos": {
+      "number": 2,
+      "java_type": "int",
+      "wire_kind": "int32"
+     }
+    }
+   },
+   "high_security_drive_auth_setting": {
+    "number": 7,
+    "java_type": "j1m",
+    "wire_kind": "message",
+    "message_class": "j1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": null,
+      "enum": null
+     }
+    }
+   },
+   "high_security_drive_auth_req_status": {
+    "number": 8,
+    "java_type": "l1m",
+    "wire_kind": "message",
+    "message_class": "l1m",
+    "message": {
+     "val": {
+      "number": 1,
+      "java_type": "int",
+      "wire_kind": "enum",
+      "enum_class": "k1m",
+      "enum": {
+       "NONE": 0,
+       "NOT_REQUESTED": 1,
+       "REQUESTED": 2
+      }
+     }
+    }
+   }
+  }
+ }
+]

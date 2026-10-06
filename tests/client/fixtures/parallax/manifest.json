@@ -44,6 +44,11 @@
   "file": "charging_session_time_estimation.bin",
   "sha256_12": "f102a87d0826f844"
  },
+ "charging.session.trip_target": {
+  "bytes": 4,
+  "file": "charging_session_trip_target.bin",
+  "sha256_12": "c516541c50fb1d9e"
+ },
  "comfort.cabin.cabin_preconditioning_status": {
   "bytes": 2,
   "file": "comfort_cabin_cabin_preconditioning_status.bin",
