@@ -99,10 +99,9 @@ class TestEntitiesExist:
     def test_fields_back_entities(self) -> None:
         fields = {d.field for d in SENSORS}
         fields |= {d.field for d in BINARY_SENSORS if isinstance(d.field, str)}
-        for field in (
-            "chargeScheduleWindow",
-            "chargeScheduleAmps",
-            "chargeScheduleValid",
-        ):
+        # chargeScheduleValid is decoded but intentionally NOT an entity: the
+        # vehicle goes silent when the schedule is disabled (hardware-verified),
+        # so an "active" sensor could never read off. Only window/amps surface.
+        for field in ("chargeScheduleWindow", "chargeScheduleAmps"):
             assert field in fields
             assert field in PARALLAX_ONLY_FIELDS

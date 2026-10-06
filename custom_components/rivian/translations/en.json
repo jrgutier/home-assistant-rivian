@@ -588,9 +588,6 @@
       "charge_port_state": {
         "name": "Charge Port Door"
       },
-      "charge_schedule_active": {
-        "name": "Charge Schedule Active"
-      },
       "closure_frunk_closed": {
         "name": "Hood"
       },

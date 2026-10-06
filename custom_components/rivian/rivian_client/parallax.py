@@ -2302,11 +2302,17 @@ def decode_charging_schedule_time_window(payload: str) -> dict[str, Any]:
 
     Validity under proto3: a false `is_valid` is the scalar default and is omitted
     from the wire, so field #1 is simply ABSENT on an inactive schedule, never
-    `field1=0`. A non-empty frame with no field #1 is therefore is_valid=False, and
-    the window/amps are surfaced ONLY when the schedule is valid -- otherwise the
-    "active" sensor would latch on and stale window_data would show beside it.
-    Whether the vehicle emits an inactive frame at all (vs. going silent) is the
-    hardware-verify item flagged on this decoder.
+    `field1=0`. A non-empty frame with no field #1 decodes as is_valid=False, and
+    the window/amps are surfaced ONLY when valid.
+
+    chargeScheduleValid is decoded but NOT surfaced as an entity. Hardware verify
+    (2026-10-06, live R1T) settled the open question: when the schedule is disabled
+    the vehicle STOPS sending this topic entirely -- it does not send an inactive
+    frame -- so no is_valid=False ever arrives to decode. An "active" binary sensor
+    could therefore only ever read "on"/stale-on and can't represent "disabled", so
+    it was dropped. The valid=False branch stays as a correctness guard, not a live
+    path. window/amps hold their last value until the next frame (the vehicle's send
+    cadence), which is the expected gap-fill behaviour for these sensors.
     """
     if not payload:
         return {}

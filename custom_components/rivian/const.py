@@ -1941,14 +1941,6 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         device_class=BinarySensorDeviceClass.DOOR,
         on_value=["open", "opening", "in_transition"],
     ),
-    # charging.schedule.time_window #1 is_valid -- whether a charge schedule is
-    # active. Parallax-only bool, ungated; see the sensors block comment.
-    RivianBinarySensorEntityDescription(
-        key="charge_schedule_active",
-        translation_key="charge_schedule_active",
-        field="chargeScheduleValid",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
     RivianBinarySensorEntityDescription(
         key="closure_frunk_closed",
         translation_key="closure_frunk_closed",
@@ -2392,7 +2384,6 @@ PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "cabinVentilationWindowsOpenPercent",
     "cccPassivePermissionStatus",
     "chargeScheduleAmps",
-    "chargeScheduleValid",
     "chargeScheduleWindow",
     "chargingFaultChime",
     "coldRangeImpact",

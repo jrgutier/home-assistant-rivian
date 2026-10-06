@@ -341,7 +341,6 @@ PARALLAX_ONLY_KEYS = (
     "cabinVentilationWindowsOpenPercent",
     "cccPassivePermissionStatus",
     "chargeScheduleAmps",
-    "chargeScheduleValid",
     "chargeScheduleWindow",
     "chargingFaultChime",
     "coldRangeImpact",
@@ -539,10 +538,6 @@ class TestTheParallaxOnlyKeysHaveEntities:
         (
             "otaOneTimeInstallTime",
             "s45 name-match; frame committed (id only, so absent so far)",
-        ),
-        (
-            "chargeScheduleValid",
-            "charging.schedule.time_window; GPS-scrubbed frame committed",
         ),
         ("chargeScheduleAmps", "charging.schedule.time_window; decoded 48 A"),
         (
