@@ -1,9 +1,9 @@
 # f11 sidecar -- see scripts/gates/helpers/citations.py module docstring.
 # Columns: cited-file	anchor	citing-file	citing-line-sha256[:12]	note
 # "anchor" is matched as a literal substring (re.escape()d at load time), not a live regex.
-custom_components/rivian/coordinator.py	self._subscription_keys |= {	custom_components/rivian/coordinator.py	708e4999c71d	_subscription_keys write -- moved when s18 restructured the tire-pressure path
+custom_components/rivian/coordinator.py	self._subscription_keys = (self._subscription_keys - unusable) | usable	custom_components/rivian/coordinator.py	66241d09e0d7	_subscription_keys write -- rewritten in s51 to release a key on an invalid value
 custom_components/rivian/coordinator.py	if k in self._subscription_keys:	custom_components/rivian/coordinator.py	11b5e7cc8ded	shorthand continuation of the :1292 citation two lines above -- the Parallax skip-if-subscribed guard
-custom_components/rivian/coordinator.py	if k == "gnssLocation":	custom_components/rivian/coordinator.py	d53df563fb4f	the gnssLocation unconditional-overwrite branch in _process_parallax_data
+custom_components/rivian/coordinator.py	if k == "gnssLocation":	custom_components/rivian/coordinator.py	542de6a4a558	the gnssLocation unconditional-overwrite branch in _process_parallax_data
 custom_components/rivian/entity.py	field = getattr(self.entity_description, "field", None)	custom_components/rivian/binary_sensor.py	6918f8030ea1	RivianVehicleEntity.available -- entity.py has two `def available`s, this anchor is the base one's body
 custom_components/rivian/const.py	Rivian's gateway rejects the whole subscription on the first unknown field:	custom_components/rivian/rivian_client/const.py	5a3e0b264fcd	the gateway-rejection explanation above PARALLAX_ONLY_FIELDS
 custom_components/rivian/const.py	Rivian's gateway rejects the whole subscription on the first unknown field:	custom_components/rivian/rivian_client/rivian.py	9d7ce40af87c	same target as rivian_client/const.py:231

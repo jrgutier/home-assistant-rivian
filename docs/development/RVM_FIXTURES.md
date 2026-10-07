@@ -98,6 +98,11 @@ both surveys on 2026-09-01 ran against live production with Home Assistant up.
 .venv/bin/python scripts/capture_rvm_frames.py --all <topic-file> --seconds 180 --write
 ```
 
+If it dies with `Timeout while contacting DNS servers`, add `--system-dns`. That
+error is aiodns, which aiohttp prefers when it is installed, timing out on a
+network where the system resolver works; it is not the vehicle or the gateway.
+`scripts/parallax_differential.py --live` takes the same flag.
+
 A parked 180 s survey of all 80 topics returned **51 non-empty, 5 empty, 24
 silent**. Silence is a recorded outcome, not a failure — `ota.user_schedule.
 ota_config` returned 0 bytes across three sessions because no schedule existed.

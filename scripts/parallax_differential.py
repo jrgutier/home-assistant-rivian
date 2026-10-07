@@ -308,10 +308,9 @@ def main() -> int:
     args = parser.parse_args()
     if args.live:
         if args.system_dns:
-            import aiohttp.connector
-            import aiohttp.resolver
+            from f8_probe import use_system_dns
 
-            aiohttp.connector.DefaultResolver = aiohttp.resolver.ThreadedResolver
+            use_system_dns()
         logging.disable(logging.CRITICAL)
         return live(load_old(args.ref), args.live)
 

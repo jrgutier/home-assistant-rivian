@@ -38,6 +38,9 @@ pairs holds different bytes.
 
 Secrets: reads tokens from `.env` and prints none of them.
 
+If it dies with "Timeout while contacting DNS servers", that is aiodns and not
+the network: pass `--system-dns`.
+
 Usage:
     .venv/bin/python scripts/capture_rvm_frames.py --list
     .venv/bin/python scripts/capture_rvm_frames.py --seconds 90
@@ -61,7 +64,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import aiohttp
-from f8_probe import load_env
+from f8_probe import load_env, use_system_dns
 
 from custom_components.rivian.rivian_client import Rivian
 from custom_components.rivian.rivian_client.parallax._wire import (
@@ -341,7 +344,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--write", action="store_true", help="write .bin fixtures for what arrives"
     )
+    parser.add_argument(
+        "--system-dns",
+        action="store_true",
+        help="resolve through the OS instead of aiodns, for a network where "
+        "aiodns times out",
+    )
     args = parser.parse_args()
+    if args.system_dns:
+        use_system_dns()
     if args.all:
         topics = tuple(t.strip() for t in args.all.read_text().split() if t.strip())
     else:
