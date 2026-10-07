@@ -11,14 +11,9 @@ entities that call them are removed.
 from __future__ import annotations
 
 import base64
-import sys
+from enum import StrEnum
 from typing import Protocol
 import uuid
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:
-    from backports.strenum import StrEnum
 
 from .proto import comfort_pb2
 

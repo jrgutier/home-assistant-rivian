@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import asyncio as async_timeout
 import base64
 from collections.abc import Awaitable, Callable, Set as AbstractSet
 import logging
 import socket
-import sys
 import time
-from typing import Any
+from typing import Any, Self
 import uuid
 from warnings import warn
 
@@ -43,14 +43,6 @@ from .proto.vehicle_operation import (
 )
 from .utils import base64_encode, generate_vehicle_command_hmac
 from .ws_monitor import WebSocketMonitor
-
-if sys.version_info >= (3, 11):
-    import asyncio as async_timeout
-    from typing import Self
-else:
-    import async_timeout
-    from typing_extensions import Self
-
 
 _LOGGER = logging.getLogger(__name__)
 
