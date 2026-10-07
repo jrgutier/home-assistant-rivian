@@ -14,12 +14,12 @@ from .const import (
     ATTR_COORDINATOR,
     ATTR_VEHICLE,
     DOMAIN,
-    INVALID_SENSOR_STATES,
     LOCK_STATE_ENTITIES,
+    is_invalid_state,
 )
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianLockEntityDescription
-from .entity import RivianVehicleControlEntity
+from .entity import RivianVehicleControlEntity, vehicle_control_enabled
 from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,8 +30,7 @@ def _usable_closure_values(coordinator: VehicleCoordinator) -> list[Any]:
     return [
         value
         for key in LOCK_STATE_ENTITIES
-        if (value := coordinator.get(key)) is not None
-        and str(value).lower() not in INVALID_SENSOR_STATES
+        if (value := coordinator.get(key)) is not None and not is_invalid_state(value)
     ]
 
 
@@ -93,7 +92,7 @@ async def async_setup_entry(
     entities = [
         RivianLockEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for description in LOCKS
     ]
     async_add_entities(entities)

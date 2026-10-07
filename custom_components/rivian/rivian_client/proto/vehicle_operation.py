@@ -33,8 +33,8 @@ from ..parallax.proto import vehicle_operation_pb2
 _Request = vehicle_operation_pb2.VehicleOperationRequest
 
 
-def _encode_varint(value: int) -> bytes:
-    """Encode an integer as a protobuf varint."""
+def encode_varint(value: int) -> bytes:
+    """Encode a non-negative integer as a protobuf varint."""
     result = bytearray()
     while value > 0x7F:
         result.append((value & 0x7F) | 0x80)
@@ -43,14 +43,19 @@ def _encode_varint(value: int) -> bytes:
     return bytes(result)
 
 
-def _encode_length_delimited(field_number: int, value: bytes) -> bytes:
+def encode_length_delimited(field_number: int, value: bytes) -> bytes:
     """Encode a length-delimited field by hand.
 
-    Nothing in the client calls this. It is here for tests that build a frame
+    Nothing on the send path calls this. It is here for m2v.py's data-channel
+    payload, which has no generated message, and for tests that build a frame
     byte by byte, so that a decoder test does not depend on an encoder to prove
     the decoder decodes.
     """
-    return _encode_varint(field_number << 3 | 2) + _encode_varint(len(value)) + value
+    return encode_varint(field_number << 3 | 2) + encode_varint(len(value)) + value
+
+
+# The name tests/client/test_fork_rvm_decoders.py imports.
+_encode_length_delimited = encode_length_delimited
 
 
 class _Message(ABC):

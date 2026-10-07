@@ -12,7 +12,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSelectEntityDescription
-from .entity import RivianVehicleControlEntity, RivianVehicleEntity
+from .entity import (
+    RivianVehicleControlEntity,
+    RivianVehicleEntity,
+    vehicle_control_enabled,
+)
 from .gear_guard import CAMERAS, gear_guard_camera_options
 from .helpers import vehicle_supports
 from .rivian_client import VehicleCommand
@@ -146,7 +150,7 @@ async def async_setup_entry(
             RivianSelectEntity(coordinators[vehicle_id], entry, description, vehicle)
             for vehicle_id, vehicle in vehicles.items()
             for description in SELECTS
-            if vehicle.get("phone_identity_id")
+            if vehicle_control_enabled(vehicle)
             and vehicle_supports(description, vehicle)
         ]
     )
@@ -161,7 +165,7 @@ async def async_setup_entry(
                 seat_config,
             )
             for vehicle_id, vehicle in vehicles.items()
-            if vehicle.get("phone_identity_id")
+            if vehicle_control_enabled(vehicle)
             for seat_config in FRONT_SEAT_SELECTS
         ]
     )
@@ -169,7 +173,7 @@ async def async_setup_entry(
     entities.extend(
         RivianGearGuardCameraSelect(coordinators[vehicle_id], entry, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         and any(vehicle_supports(d, vehicle) for d in CAMERAS)
     )
 

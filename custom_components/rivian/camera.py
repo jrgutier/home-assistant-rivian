@@ -33,7 +33,11 @@ from .connectivity import ConnectivityState
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import COMMAND_STATE_CONTINUE, VehicleCoordinator
 from .data_classes import RivianCameraEntityDescription
-from .entity import COMMAND_TIMEOUT_SLEEPING, RivianVehicleControlEntity
+from .entity import (
+    COMMAND_TIMEOUT_SLEEPING,
+    RivianVehicleControlEntity,
+    vehicle_control_enabled,
+)
 from .gear_guard import CAMERAS
 from .helpers import vehicle_supports
 from .kvs_signaling import (
@@ -80,7 +84,7 @@ async def async_setup_entry(
     entities = [
         RivianLiveCameraEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for description in CAMERAS
         if vehicle_supports(description, vehicle)
     ]

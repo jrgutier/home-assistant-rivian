@@ -29,8 +29,9 @@ from .const import (
     EVENT_COMMAND_FAILED,
     EVENT_COMMAND_INITIATED,
     EVENT_COMMAND_SUCCESS,
-    INVALID_SENSOR_STATES,
+    RIVIAN_TIMESTAMP_FORMAT,
     VEHICLE_STATE_SUBSCRIPTION_FIELDS,
+    is_invalid_state,
 )
 from .helpers import redact, redact_text
 from .rivian_client import Rivian, VehicleCommand
@@ -640,7 +641,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             new_data["startTime"] = clean["startTime"]
             self._synthetic_start_time = False
         elif not new_data.get("startTime") and clean.get("power", 0) > 0:
-            new_data["startTime"] = now.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+            new_data["startTime"] = now.strftime(RIVIAN_TIMESTAMP_FORMAT)
             self._synthetic_start_time = True
 
         new_data.update(clean)
@@ -1403,7 +1404,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     # Same INVALID_SENSOR_STATES policy as the GraphQL path
                     # (_build_vehicle_info_dict). gnssLocation is already exempt
                     # via the branch above; vehicleMileage has its own guard.
-                    if str(value).lower() in INVALID_SENSOR_STATES:
+                    if is_invalid_state(value):
                         if k in (self.data or {}):
                             vehicle_updates[k] = self.data[k]
                             continue
@@ -1413,7 +1414,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                         # Dropping it here instead was tried and reverted: it
                         # made entities unavailable rather than show a
                         # stale-but-plausible state, which takes the matching
-                        # control down with the sensor (sensor.py:185,
+                        # control down with the sensor (sensor.py:180,
                         # binary_sensor.py:109).
                         self._note_unusable(k, value)
                     # `history` is a set, so an unhashable value (decode_vehicle_wheels
@@ -1484,9 +1485,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         A sibling of _process_new_data on its own subscription (see
         subscribe_for_tire_pressure_updates()'s docstring): merges through the
         same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
-        tyre-pressure names land in _subscription_keys (coordinator.py:1573,
+        tyre-pressure names land in _subscription_keys (coordinator.py:1574,
         provenance -- not liveness), which is what keeps Parallax from
-        overwriting gateway-delivered tyre pressures (:1387).
+        overwriting gateway-delivered tyre pressures (:1388).
 
         Deliberately does NOT touch _last_update_time, _initial or
         _error_count -- those belong to the main vehicleState stream. Letting
@@ -1558,7 +1559,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # Structured fields (gnssLocation, gnssError) have no top-level "value"
         # and claim on the strength of the outer dict alone. gnssLocation MUST
         # stay claimed or _process_parallax_data's unconditional branch
-        # (coordinator.py:1389) starts overwriting real GPS with Parallax's.
+        # (coordinator.py:1390) starts overwriting real GPS with Parallax's.
         usable: set[str] = set()
         unusable: set[str] = set()
         for k, v in items.items():
@@ -1566,7 +1567,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 usable.add(k)
             elif v["value"] is None:
                 continue
-            elif str(v["value"]).lower() in INVALID_SENSOR_STATES:
+            elif is_invalid_state(v["value"]):
                 unusable.add(k)
             else:
                 usable.add(k)
@@ -1623,9 +1624,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # every fresh start. gnssLocation is exempt here for the same reason it
             # is exempt below.
             for key, item in items.items():
-                if key != "gnssLocation" and (
-                    str(item.get("value")).lower() in INVALID_SENSOR_STATES
-                ):
+                if key != "gnssLocation" and is_invalid_state(item.get("value")):
                     self._note_unusable(key, item.get("value"))
             return items
         if not items or prev_items == items:
@@ -1634,7 +1633,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         new_data = prev_items | items
         for key in filter(lambda i: i != "gnssLocation", items):
             value = items[key].get("value")
-            if str(value).lower() in INVALID_SENSOR_STATES:
+            if is_invalid_state(value):
                 if key in prev_items:
                     new_data[key] = prev_items[key]
                 else:

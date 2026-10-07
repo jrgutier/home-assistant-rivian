@@ -18,7 +18,7 @@ from .connectivity import ConnectivityState
 from .const import ATTR_COORDINATOR, ATTR_USER, ATTR_VEHICLE, DOMAIN
 from .coordinator import UserCoordinator, VehicleCoordinator
 from .data_classes import RivianButtonEntityDescription
-from .entity import RivianVehicleControlEntity
+from .entity import RivianVehicleControlEntity, vehicle_control_enabled
 from .rivian_client import VehicleCommand
 
 if TYPE_CHECKING:
@@ -117,7 +117,7 @@ async def async_setup_entry(
     entities = [
         RivianButtonEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for feature, descriptions in BUTTONS.items()
         if feature is None or feature in (vehicle.get("supported_features", []))
         for description in descriptions

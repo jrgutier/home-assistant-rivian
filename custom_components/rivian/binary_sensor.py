@@ -18,7 +18,7 @@ from .const import (
     ATTR_VEHICLE,
     BINARY_SENSORS,
     DOMAIN,
-    INVALID_SENSOR_STATES,
+    is_invalid_state,
 )
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianBinarySensorEntityDescription
@@ -94,7 +94,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             return any(self._get_value(entity_key) in values for entity_key in fields)
         if (val := self._get_value(fields)) is not None:
             # A value the vehicle flags as unusable is not a state -- report
-            # unknown, mirroring sensor.py:208.
+            # unknown, mirroring sensor.py:203.
             #
             # This matters more here than it does for a sensor. A sensor showing
             # "SNA" at least looks wrong; a binary sensor silently resolves it,
@@ -111,7 +111,7 @@ class RivianBinarySensorEntity(RivianVehicleEntity, BinarySensorEntity):
             # being present, and the raw value still flows. That is deliberate:
             # suppressing the value in the coordinator instead was tried twice and
             # reverted, because it takes the matching CONTROL down with it.
-            if str(val).lower() in INVALID_SENSOR_STATES:
+            if is_invalid_state(val):
                 return None
             result = val in self.entity_description.on_values
             return result if not self.entity_description.negate else not result

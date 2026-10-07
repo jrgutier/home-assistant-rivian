@@ -34,9 +34,10 @@ from .const import (
     ATTR_VEHICLE,
     ATTR_WALLBOX,
     DOMAIN,
-    INVALID_SENSOR_STATES,
+    RIVIAN_TIMESTAMP_FORMAT,
     SENSORS,
     WEEK_DAYS_ORDERED,
+    is_invalid_state,
 )
 from .coordinator import DriverKeyCoordinator, VehicleCoordinator, WallboxCoordinator
 from .data_classes import (
@@ -45,6 +46,7 @@ from .data_classes import (
 )
 from .entity import (
     RivianChargingEntity,
+    RivianChargingScheduleEntity,
     RivianEntity,
     RivianVehicleEntity,
     RivianWallboxEntity,
@@ -55,8 +57,6 @@ _LOGGER = logging.getLogger(__name__)
 
 ALL_WEEK_DAYS: Final[frozenset[str]] = frozenset(WEEK_DAYS_ORDERED)
 WEEKDAYS_ONLY: Final[frozenset[str]] = frozenset(WEEK_DAYS_ORDERED[:5])
-
-RIVIAN_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 
 
 async def async_setup_entry(
@@ -126,13 +126,8 @@ CHARGING_SCHEDULE_DAYS_SENSOR = RivianSensorEntityDescription(
 )
 
 
-class RivianChargingScheduleDaysEntity(RivianVehicleEntity, SensorEntity):
+class RivianChargingScheduleDaysEntity(RivianChargingScheduleEntity, SensorEntity):
     """Charging Schedule Days Entity."""
-
-    @property
-    def available(self) -> bool:
-        """Return availability."""
-        return self._available
 
     @property
     def native_value(self) -> str | None:
@@ -191,7 +186,7 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
         # Without this, the branch below appends "SNA" to the entity's own options
         # list, so the vehicle's error code silently becomes a valid state for the
         # life of the process, and the select beside it shows "unknown".
-        if str(val).lower() in INVALID_SENSOR_STATES:
+        if is_invalid_state(val):
             return None
 
         rval = _fn(val) if (_fn := self.entity_description.value_lambda) else val
@@ -205,7 +200,7 @@ class RivianSensorEntity(RivianVehicleEntity, SensorEntity):
         #
         # An earlier revision of this comment claimed a probe "found ZERO cases".
         # That probe simply never fed a lambda the empty string.
-        if str(rval).lower() in INVALID_SENSOR_STATES:
+        if is_invalid_state(rval):
             return None
 
         if self.device_class == SensorDeviceClass.ENUM and rval not in self.options:

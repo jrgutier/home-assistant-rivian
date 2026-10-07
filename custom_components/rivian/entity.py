@@ -84,6 +84,28 @@ class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
         return self.coordinator.get(key)
 
 
+class RivianChargingScheduleEntity(RivianVehicleEntity):
+    """Base class for the charging-schedule entities.
+
+    Skips RivianVehicleEntity's field-presence test: the schedule is read from
+    coordinator.charging_schedule, not from a vehicle state field.
+    """
+
+    @property
+    def available(self) -> bool:
+        """Return availability."""
+        return self._available
+
+
+def vehicle_control_enabled(vehicle: dict[str, Any]) -> bool:
+    """Whether vehicle control is set up: a phone key is enrolled for `vehicle`.
+
+    The creation gate for every control entity. Truthiness, not presence: an
+    empty id is no enrolment.
+    """
+    return bool(vehicle.get("phone_identity_id"))
+
+
 class RivianVehicleControlEntity(RivianVehicleEntity):
     """Base class for Rivian vehicle control entities."""
 

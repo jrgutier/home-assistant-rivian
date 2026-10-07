@@ -21,7 +21,11 @@ from .const import (
 )
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianNumberEntityDescription
-from .entity import RivianVehicleControlEntity, RivianVehicleEntity
+from .entity import (
+    RivianChargingScheduleEntity,
+    RivianVehicleControlEntity,
+    vehicle_control_enabled,
+)
 from .rivian_client import VehicleCommand
 
 NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
@@ -64,7 +68,7 @@ async def async_setup_entry(
     entities = [
         RivianNumberEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for description in NUMBERS
     ]
 
@@ -82,15 +86,10 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class RivianChargingScheduleAmperageEntity(RivianVehicleEntity, NumberEntity):
+class RivianChargingScheduleAmperageEntity(RivianChargingScheduleEntity, NumberEntity):
     """Charging Schedule Amperage Entity."""
 
     entity_description: RivianNumberEntityDescription
-
-    @property
-    def available(self) -> bool:
-        """Return availability."""
-        return self._available
 
     @property
     def native_value(self) -> int | None:

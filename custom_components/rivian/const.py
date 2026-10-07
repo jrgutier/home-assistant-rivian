@@ -93,6 +93,21 @@ CLOSURE_STATE_ENTITIES = {
 INVALID_SENSOR_STATES = {"fault", "signal_not_available", "sna", "undefined"}
 
 
+def is_invalid_state(value: Any) -> bool:
+    """Whether the vehicle reported `value` as one of INVALID_SENSOR_STATES.
+
+    The one spelling of the test for the coordinator's merge paths and the
+    entity platforms, so they cannot disagree about casing or about what a
+    non-string value means.
+    """
+    return str(value).lower() in INVALID_SENSOR_STATES
+
+
+# The gateway's timestamp spelling. Ends in %z, so a strptime with it is
+# tz-aware.
+RIVIAN_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
+
+
 DRIVE_MODE_MAP = {
     "everyday": "All-Purpose",
     "sport": "Sport",
