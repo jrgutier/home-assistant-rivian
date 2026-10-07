@@ -1789,6 +1789,31 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         # Same topic and owner decision as trip_target_soc above.
     ),
+    # comfort.cabin.climate_hold_setting: how long a climate hold is set for.
+    #
+    # The cabin_climate_hold switch WRITES this -- it sets a duration, it does
+    # not turn a hold on -- and until s52 nothing read it back, so pressing the
+    # switch changed no entity at all. The hold status stays `off` with a
+    # duration configured; this sensor is the only place the write shows.
+    # Found the hard way on 2026-10-06, when a hardware check waited five
+    # minutes for the switch to move while the vehicle had echoed 7200 s within
+    # one second (docs/development/PARALLAX_SCHEMAS.md, "Hardware verification").
+    #
+    # Seconds on the wire and in the state, minutes by default on screen. 0
+    # means no hold is set: the vehicle reports that as an empty payload and
+    # the decoder as 0, so the sensor reads 0 rather than unknown.
+    #
+    # Enabled: the topic published on every live run that day, with a fixture
+    # committed. Ungated, like the switch that writes it.
+    RivianSensorEntityDescription(
+        key="climate_hold_duration",
+        translation_key="climate_hold_duration",
+        field="climateHoldDurationSeconds",
+        icon="mdi:timer-cog-outline",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
     # charging.schedule.time_window: the decoder s34 withheld for its GPS field,
     # now shipped from a 3.17.0 app capture with the location zeroed in the
     # fixture and never emitted by the decoder. Parallax-only, ungated. A frame
@@ -2386,6 +2411,7 @@ PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "chargeScheduleAmps",
     "chargeScheduleWindow",
     "chargingFaultChime",
+    "climateHoldDurationSeconds",
     "coldRangeImpact",
     "coldWeatherSocBlue",
     "coldWeatherSocGreen",
