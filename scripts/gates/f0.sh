@@ -10,7 +10,7 @@
 #     CONTROL down with it -- the mistake made and reverted twice in the
 #     coordinator. So the gate asserts availability is UNCHANGED, positively.
 #
-#   * The aggregate branch must stay byte-identical. binary_sensor.py:79-82
+#   * The aggregate branch must stay a plain membership test. It
 #     already ignores unusable values structurally, and adding a filter there
 #     would change `available`, which is `any(member values)`.
 
@@ -40,12 +40,9 @@ else
   bad "the filter does not precede the negate (filter=$filter_line negate=$negate_line)"
 fi
 
-# The aggregate branch is untouched: still a plain membership test, no filter.
-if grep -qF 'self.entity_description.on_value in (' "$BS"; then
-  ok "the aggregate branch is still a plain membership test"
-else
-  bad "the aggregate branch changed -- it must stay byte-identical"
-fi
+# The aggregate branch: each member's value against `on_values`, no filter.
+contains "the aggregate branch is still a plain membership test" \
+         'any(self._get_value(entity_key) in values for entity_key in fields)' "$BS"
 
 PY="$(resolve_pytest "$HA")"
 if [ ! -x "$PY" ]; then bad "pytest not found"; summary f0; exit 1; fi

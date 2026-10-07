@@ -51,6 +51,7 @@ from __future__ import annotations
 import base64
 import binascii
 from datetime import datetime
+from enum import StrEnum
 import functools
 import inspect
 import json
@@ -397,7 +398,7 @@ def record_surface(sha: str) -> None:
             }
             if inspect.isfunction(obj):
                 entry["signature"] = str(inspect.signature(obj))
-            elif issubclass(obj, parallax.StrEnum):
+            elif issubclass(obj, StrEnum):
                 entry["members"] = {member.name: member.value for member in obj}
         elif isinstance(obj, logging.Logger):
             entry = {"kind": "logger", "value": obj.name}
