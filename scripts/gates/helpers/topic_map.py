@@ -34,7 +34,7 @@ def main(paths):
     for p in paths:
         text = Path(p).read_text(errors="replace")
         for body in methods(text):
-            topics = {t for t in TOPIC.findall(body) if t not in {"Companion"}}
+            topics = set(TOPIC.findall(body))
             classes = set(PARSE.findall(body))
             if len(topics) == 1 and classes:
                 out.setdefault(next(iter(topics)), set()).update(classes)

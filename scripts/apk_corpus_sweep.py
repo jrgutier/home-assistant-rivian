@@ -59,61 +59,64 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # The layout IS the cohort evidence, so trees keep their original internal shape:
 # 1.x and 2.0.0_beta carry `sources/`, 2.2.0-2.6.0 carry `java_src/`, and 2.6.1
 # onward carry `jadx/sources/`.
+DUMP_VERSIONS = (
+    "1.0.3",
+    "1.2.1",
+    "1.3.0",
+    "1.3.1",
+    "1.4.0",
+    "1.4.1",
+    "1.5.1",
+    "1.6.0",
+    "1.7.0",
+    "1.7.1",
+    "1.8.0",
+    "1.9.0",
+    "1.10.0",
+    "1.11.0",
+    "1.12.0",
+    "1.13.0",
+    "1.14.0",
+    "1.15.0",
+    "2.0.0_beta",
+    "2.2.0",
+    "2.3.0",
+    "2.4.0",
+    "2.5.0_beta",
+    "2.5.1",
+    "2.6.0",
+    "2.6.1",
+    "2.7.0",
+    "2.8.0",
+    "2.10.0",
+    "2.10.1",
+    "2.19.1",
+    "2.20.0",
+    "2.21.0",
+    "3.0.0",
+    "3.1.0",
+    "3.1.1",
+    "3.3.0",
+    "3.4.0",
+    "3.5.0",
+    "3.5.1",
+    "3.6.0",
+    "3.6.1",
+    "3.7.0",
+    "3.8.0",
+    "3.9.0",
+    "3.10.0",
+    "3.11.0",
+    "3.12.0",
+    "3.12.1",
+    "3.13.0",
+    "3.13.1",
+    "3.14.0",
+    "3.15.0",
+    "3.16.0",
+)
 DUMPS: dict[str, Path] = {
-    "1.0.3": REPO_ROOT / ".apk" / "1.0.3",
-    "1.2.1": REPO_ROOT / ".apk" / "1.2.1",
-    "1.3.0": REPO_ROOT / ".apk" / "1.3.0",
-    "1.3.1": REPO_ROOT / ".apk" / "1.3.1",
-    "1.4.0": REPO_ROOT / ".apk" / "1.4.0",
-    "1.4.1": REPO_ROOT / ".apk" / "1.4.1",
-    "1.5.1": REPO_ROOT / ".apk" / "1.5.1",
-    "1.6.0": REPO_ROOT / ".apk" / "1.6.0",
-    "1.7.0": REPO_ROOT / ".apk" / "1.7.0",
-    "1.7.1": REPO_ROOT / ".apk" / "1.7.1",
-    "1.8.0": REPO_ROOT / ".apk" / "1.8.0",
-    "1.9.0": REPO_ROOT / ".apk" / "1.9.0",
-    "1.10.0": REPO_ROOT / ".apk" / "1.10.0",
-    "1.11.0": REPO_ROOT / ".apk" / "1.11.0",
-    "1.12.0": REPO_ROOT / ".apk" / "1.12.0",
-    "1.13.0": REPO_ROOT / ".apk" / "1.13.0",
-    "1.14.0": REPO_ROOT / ".apk" / "1.14.0",
-    "1.15.0": REPO_ROOT / ".apk" / "1.15.0",
-    "2.0.0_beta": REPO_ROOT / ".apk" / "2.0.0_beta",
-    "2.2.0": REPO_ROOT / ".apk" / "2.2.0",
-    "2.3.0": REPO_ROOT / ".apk" / "2.3.0",
-    "2.4.0": REPO_ROOT / ".apk" / "2.4.0",
-    "2.5.0_beta": REPO_ROOT / ".apk" / "2.5.0_beta",
-    "2.5.1": REPO_ROOT / ".apk" / "2.5.1",
-    "2.6.0": REPO_ROOT / ".apk" / "2.6.0",
-    "2.6.1": REPO_ROOT / ".apk" / "2.6.1",
-    "2.7.0": REPO_ROOT / ".apk" / "2.7.0",
-    "2.8.0": REPO_ROOT / ".apk" / "2.8.0",
-    "2.10.0": REPO_ROOT / ".apk" / "2.10.0",
-    "2.10.1": REPO_ROOT / ".apk" / "2.10.1",
-    "2.19.1": REPO_ROOT / ".apk" / "2.19.1",
-    "2.20.0": REPO_ROOT / ".apk" / "2.20.0",
-    "2.21.0": REPO_ROOT / ".apk" / "2.21.0",
-    "3.0.0": REPO_ROOT / ".apk" / "3.0.0",
-    "3.1.0": REPO_ROOT / ".apk" / "3.1.0",
-    "3.1.1": REPO_ROOT / ".apk" / "3.1.1",
-    "3.3.0": REPO_ROOT / ".apk" / "3.3.0",
-    "3.4.0": REPO_ROOT / ".apk" / "3.4.0",
-    "3.5.0": REPO_ROOT / ".apk" / "3.5.0",
-    "3.5.1": REPO_ROOT / ".apk" / "3.5.1",
-    "3.6.0": REPO_ROOT / ".apk" / "3.6.0",
-    "3.6.1": REPO_ROOT / ".apk" / "3.6.1",
-    "3.7.0": REPO_ROOT / ".apk" / "3.7.0",
-    "3.8.0": REPO_ROOT / ".apk" / "3.8.0",
-    "3.9.0": REPO_ROOT / ".apk" / "3.9.0",
-    "3.10.0": REPO_ROOT / ".apk" / "3.10.0",
-    "3.11.0": REPO_ROOT / ".apk" / "3.11.0",
-    "3.12.0": REPO_ROOT / ".apk" / "3.12.0",
-    "3.12.1": REPO_ROOT / ".apk" / "3.12.1",
-    "3.13.0": REPO_ROOT / ".apk" / "3.13.0",
-    "3.13.1": REPO_ROOT / ".apk" / "3.13.1",
-    "3.14.0": REPO_ROOT / ".apk" / "3.14.0",
-    "3.15.0": REPO_ROOT / ".apk" / "3.15.0",
-    "3.16.0": REPO_ROOT / ".apk" / "3.16.0",
+    version: REPO_ROOT / ".apk" / version for version in DUMP_VERSIONS
 }
 
 # --- command extraction ------------------------------------------------------
@@ -374,13 +377,24 @@ def graphql_field_names(document: str) -> list[str]:
             if token != "__typename":
                 fields.append(token)
         index += 1
-    seen = set()
-    unique: list[str] = []
-    for name in fields:
-        if name not in seen:
-            seen.add(name)
-            unique.append(name)
-    return unique
+    return list(dict.fromkeys(fields))
+
+
+def _wrapper_names(
+    call_re: re.Pattern[str], block: str, constants: dict[str, str]
+) -> list[str]:
+    """Names passed to one wrapper factory in a class block, first-seen order.
+
+    A name is either a string literal or a constant, resolved through
+    `constants` and left as spelled when it is declared nowhere.
+    """
+    names: dict[str, None] = {}
+    for call in call_re.finditer(block):
+        literal, const = call.group("literal"), call.group("const")
+        name = literal if literal is not None else constants.get(const, const)
+        if name:
+            names[name] = None
+    return list(names)
 
 
 def extract_commands(sources: dict[str, str]) -> list[dict]:
@@ -405,13 +419,7 @@ def extract_commands(sources: dict[str, str]) -> list[dict]:
             block = balanced_block(text, brace)
             class_name = match.group(1)
 
-            cloud_names: list[str] = []
-            for call in CLOUD_CALL_RE.finditer(block):
-                literal, const = call.group("literal"), call.group("const")
-                name = literal if literal is not None else constants.get(const, const)
-                if name and name not in cloud_names:
-                    cloud_names.append(name)
-
+            cloud_names = _wrapper_names(CLOUD_CALL_RE, block, constants)
             has_cloud = bool(CLOUD_PRESENT_RE.search(block))
             if has_cloud and not cloud_names:
                 cloud_names = [
@@ -425,12 +433,7 @@ def extract_commands(sources: dict[str, str]) -> list[dict]:
             )
             has_ble = bool(BLE_PRESENT_RE.search(block))
 
-            invalid_names: list[str] = []
-            for call in INVALID_CLOUD_CALL_RE.finditer(block):
-                literal, const = call.group("literal"), call.group("const")
-                name = literal if literal is not None else constants.get(const, const)
-                if name and name not in invalid_names:
-                    invalid_names.append(name)
+            invalid_names = _wrapper_names(INVALID_CLOUD_CALL_RE, block, constants)
             has_invalid = bool(INVALID_CLOUD_PRESENT_RE.search(block))
 
             if cloud_names:
@@ -654,6 +657,19 @@ def _module_sets(path: Path) -> dict[str, set[str]]:
     return env
 
 
+def _module_assignments(path: Path, name: str) -> Iterable[ast.expr | None]:
+    """The value of every module-level assignment to `name` in `path`."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for statement in tree.body:
+        target = None
+        if isinstance(statement, ast.AnnAssign):
+            target = statement.target
+        elif isinstance(statement, ast.Assign) and len(statement.targets) == 1:
+            target = statement.targets[0]
+        if isinstance(target, ast.Name) and target.id == name:
+            yield statement.value
+
+
 def integration_vehicle_state_fields(repo_root: Path) -> set[str]:
     env = _module_sets(repo_root / "custom_components" / "rivian" / "const.py")
     return env["VEHICLE_STATE_API_FIELDS"]
@@ -671,16 +687,7 @@ def integration_rvm_names(repo_root: Path) -> set[str]:
         / "parallax"
         / "__init__.py"
     )
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    for statement in tree.body:
-        target = None
-        if isinstance(statement, ast.AnnAssign):
-            target = statement.target
-        elif isinstance(statement, ast.Assign) and len(statement.targets) == 1:
-            target = statement.targets[0]
-        if not isinstance(target, ast.Name) or target.id != "RVM_DECODERS":
-            continue
-        value = statement.value
+    for value in _module_assignments(path, "RVM_DECODERS"):
         if isinstance(value, ast.Dict):
             return {
                 key.value
@@ -699,16 +706,7 @@ def integration_feature_pairs(repo_root: Path) -> set[tuple[str, str]]:
     64-member app table is comparable to.
     """
     path = repo_root / "tests" / "apk" / "transcription.py"
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    for statement in tree.body:
-        target = None
-        if isinstance(statement, ast.AnnAssign):
-            target = statement.target
-        elif isinstance(statement, ast.Assign) and len(statement.targets) == 1:
-            target = statement.targets[0]
-        if not isinstance(target, ast.Name) or target.id != "VEHICLE_FEATURES":
-            continue
-        value = statement.value
+    for value in _module_assignments(path, "VEHICLE_FEATURES"):
         if isinstance(value, (ast.Tuple, ast.List)):
             pairs: set[tuple[str, str]] = set()
             for element in value.elts:

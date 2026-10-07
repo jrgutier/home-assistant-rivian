@@ -265,12 +265,12 @@ def entity_keys_for_scenario(s: Scenario) -> dict[str, list[str]]:
     Sensors, binary sensors, SELECTS, and cameras go through vehicle_supports.
     Covers and buttons stay dict-key loops.
     """
+    option_codes = list(s.option_codes or [])
     vehicle = {
         "model": s.model,
         "supported_features": list(s.features),  # NOT "features"
-        "option_codes": list(s.option_codes or []),
+        "option_codes": option_codes,
     }
-    option_codes = list(s.option_codes or [])
 
     covers: list[str] = []
     buttons: list[str] = []

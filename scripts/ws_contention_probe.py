@@ -399,7 +399,6 @@ async def main() -> int:
     )
 
     env = load_env()
-    results = []
     async with aiohttp.ClientSession() as session:
         client = Rivian(
             session=session,
@@ -412,10 +411,8 @@ async def main() -> int:
 
         for fn in (arm_3a, arm_3b):
             r = await fn(client, vid)
-            results.append(r)
             print(json.dumps(r, indent=2, default=str))
             verdict, detail = await liveness(a0, w, r["t_close"], baseline)
-            r["liveness"] = verdict
             print(f"  -> {verdict}  {detail}\n")
             if verdict != "LIVENESS OK":
                 print(
@@ -433,10 +430,8 @@ async def main() -> int:
                 return 1
 
         r = await arm_3c(client)
-        results.append(r)
         print(json.dumps(r, indent=2, default=str))
         verdict, detail = await liveness(a0, w, r["t_close"], baseline)
-        r["liveness"] = verdict
         print(f"  -> {verdict}  {detail}\n")
 
     print("=== C6 and C7: UNVERIFIED — arms dropped by ruling 28 ===")

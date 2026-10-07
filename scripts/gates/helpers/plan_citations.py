@@ -76,6 +76,8 @@ citation is not wrong, it is dated, and dated is the intended state.
 
 from __future__ import annotations
 
+from collections import Counter
+from functools import cache
 from pathlib import Path
 import re
 import sys
@@ -157,8 +159,7 @@ def _iter_line_citations(lines: list[str]):
         any_spans = [m.span() for kind, _, m in events if kind == "any"]
         for kind, start, m in events:
             if kind == "any":
-                token = m.group(0).rsplit(":", 1)[0]
-                spec = m.group(0).rsplit(":", 1)[1]
+                token, spec = m.group(0).rsplit(":", 1)
                 if token.endswith(".py"):
                     current_file = token
                     yield i, line, token, spec, False, start
@@ -189,6 +190,15 @@ def _repo_python_files() -> list[Path]:
     ]
 
 
+# One read per cited file per run, not one per citation: every layer below asks
+# the same handful of files for their lines again and again. Nothing in this
+# module writes a .py file, so the cache cannot go stale within a run. Callers
+# must not mutate the returned list.
+@cache
+def _read_lines(path: Path) -> list[str]:
+    return path.read_text(encoding="utf-8", errors="replace").splitlines()
+
+
 def audit_one(plan_path: Path, all_py: list[Path]) -> tuple[int, int]:
     """Returns (total citations, unresolved-or-out-of-bounds count)."""
     text = plan_path.read_text(encoding="utf-8", errors="replace")
@@ -209,14 +219,10 @@ def audit_one(plan_path: Path, all_py: list[Path]) -> tuple[int, int]:
             seen.add(key)
             continue
         _lo, hi = C._spec_to_range(spec)
-        in_bounds = any(
-            hi <= len(p.read_text(encoding="utf-8", errors="replace").splitlines())
-            for p in resolved
-        )
+        in_bounds = any(hi <= len(_read_lines(p)) for p in resolved)
         if not in_bounds:
             counts = ", ".join(
-                f"{p.relative_to(C.REPO_ROOT)}={len(p.read_text(encoding='utf-8', errors='replace').splitlines())}"
-                for p in resolved
+                f"{p.relative_to(C.REPO_ROOT)}={len(_read_lines(p))}" for p in resolved
             )
             print(
                 f"OUT-OF-BOUNDS\t{plan_path.name}:{i}\t{token}:{spec}\t candidates: {counts}"
@@ -306,15 +312,7 @@ BARE_TOKEN_DEFAULTS: dict[str, str] = {
 
 
 def load_plan_anchors(path: Path = PLAN_ANCHORS_TSV) -> tuple[C.AnchorRow, ...]:
-    if not path.is_file():
-        return ()
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip() or line.startswith("#"):
-            continue
-        cited_file, anchor, citing_file, citing_hash, note = line.split("\t", 4)
-        rows.append(C.AnchorRow(cited_file, anchor, citing_file, citing_hash, note))
-    return tuple(rows)
+    return C.load_anchors(path) if path.is_file() else ()
 
 
 def write_plan_anchors(
@@ -358,9 +356,7 @@ def resolve_cited_file_broad(token: str, spec: str, all_py: list[Path]) -> Path 
     def in_bounds(p: Path) -> bool:
         _lo, hi = C._spec_to_range(spec)
         try:
-            return hi <= len(
-                p.read_text(encoding="utf-8", errors="replace").splitlines()
-            )
+            return hi <= len(_read_lines(p))
         except OSError:
             return False
 
@@ -470,7 +466,7 @@ def establish_one(
     if cited_path is None:
         return "needs-human", None, f"cannot resolve cited file {token!r}"
     cited_rel = str(cited_path.relative_to(C.REPO_ROOT))
-    target_lines = cited_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    target_lines = _read_lines(cited_path)
 
     lo, hi = C._spec_to_range(spec)
     for kind, cand in _candidate_tokens(line_text, token, spec, near=near):
@@ -493,45 +489,37 @@ def establish_one(
                 anchor, true_line = cand, in_range
             else:
                 continue  # matched in-range but can't build a file-unique anchor from it
-        elif kind == "sym":
-            sym_line = C.resolve_symbol(cited_path, cand)
-            if sym_line is not None:
-                anchor_line_text = target_lines[sym_line - 1].strip()
-                anchor = (
-                    anchor_line_text
-                    if len(anchor_line_text) >= MIN_ANCHOR_LEN
-                    else cand
-                )
-                if _grep_unique(target_lines, anchor) == sym_line:
-                    true_line = sym_line
-                else:
-                    true_line = _grep_unique(target_lines, cand)
-                    anchor = cand
-                if true_line is None:
-                    continue
-            else:
+        else:
+            # Not in the cited range: the candidate itself, wherever it is
+            # file-unique -- unless it names a symbol whose definition line
+            # makes a stronger anchor.
+            anchor, true_line = cand, None
+            if kind == "sym":
+                sym_line = C.resolve_symbol(cited_path, cand)
+                if sym_line is not None:
+                    sym_text = target_lines[sym_line - 1].strip()
+                    if (
+                        len(sym_text) >= MIN_ANCHOR_LEN
+                        and _grep_unique(target_lines, sym_text) == sym_line
+                    ):
+                        anchor, true_line = sym_text, sym_line
+            if true_line is None:
                 true_line = _grep_unique(target_lines, cand)
-                anchor = cand
-                if true_line is None:
-                    continue
-        else:  # kv, not found in-range
-            true_line = _grep_unique(target_lines, cand)
-            anchor = cand
             if true_line is None:
                 continue
 
+        on_spec = lo <= true_line <= hi
         note = (
             f"established from citing prose ({kind}:{anchor!r}); "
-            f"{'matches cited spec' if lo <= true_line <= hi else f'DRIFTED -- cited :{spec}, real content at :{true_line}'}"
+            f"{'matches cited spec' if on_spec else f'DRIFTED -- cited :{spec}, real content at :{true_line}'}"
         )
         row = C.AnchorRow(
             cited_rel, anchor, plan_path.name, C.line_hash(line_text), note
         )
-        status = "established"
         detail = f"{token}:{spec} -> {kind} {anchor!r} at :{true_line}" + (
-            "" if lo <= true_line <= hi else f" (DRIFT: cited :{spec})"
+            "" if on_spec else f" (DRIFT: cited :{spec})"
         )
-        return status, row, detail
+        return "established", row, detail
 
     # No signal in the citing prose. Fall back to content actually at the
     # cited spec, IF it looks like real content rather than punctuation.
@@ -621,12 +609,10 @@ def check_with_anchors(plan_paths: list[Path]) -> int:
     all_py = _repo_python_files()
     total = 0
     pass_ct = 0
-    fail_ct = 0
-    frozen_ct = 0
+    not_ok: Counter[str] = Counter()  # by tag: a FROZEN is never a FAIL
     unanchored = 0
     for plan_path in plan_paths:
-        frozen = plan_path.name in FROZEN_PLANS
-        fail_tag = "FROZEN" if frozen else "FAIL"
+        fail_tag = "FROZEN" if plan_path.name in FROZEN_PLANS else "FAIL"
         lines = plan_path.read_text(encoding="utf-8", errors="replace").splitlines()
         for i, line, token, spec, _is_shorthand, _start in _iter_line_citations(lines):
             total += 1
@@ -634,21 +620,18 @@ def check_with_anchors(plan_paths: list[Path]) -> int:
             cited_path = resolve_cited_file_broad(token, spec, all_py)
             if cited_path is None:
                 print(f"{fail_tag}\t{loc}\t{token}:{spec}\tcannot resolve cited file")
-                frozen_ct += 1 if frozen else 0
-                fail_ct += 0 if frozen else 1
+                not_ok[fail_tag] += 1
                 continue
             cited_rel = str(cited_path.relative_to(C.REPO_ROOT))
             row = anchors.take(plan_path.name, C.line_hash(line), cited_rel)
             if row is None:
                 unanchored += 1
                 continue
-            target_lines = cited_path.read_text(
-                encoding="utf-8", errors="replace"
-            ).splitlines()
+            anchor_re = re.compile(re.escape(row.anchor))
             hits = [
                 j
-                for j, tl in enumerate(target_lines, 1)
-                if re.search(re.escape(row.anchor), tl)
+                for j, tl in enumerate(_read_lines(cited_path), 1)
+                if anchor_re.search(tl)
             ]
             lo, hi = C._spec_to_range(spec)
             if len(hits) != 1:
@@ -656,8 +639,7 @@ def check_with_anchors(plan_paths: list[Path]) -> int:
                     f"{fail_tag}\t{loc}\t{token}:{spec}\tanchor {row.anchor!r} not "
                     f"uniquely found in {row.cited_file} (hits={len(hits)}) -- {row.note}"
                 )
-                frozen_ct += 1 if frozen else 0
-                fail_ct += 0 if frozen else 1
+                not_ok[fail_tag] += 1
             elif lo <= hits[0] <= hi:
                 print(f"PASS\t{loc}\t{token}:{spec}\tmatches content at :{hits[0]}")
                 pass_ct += 1
@@ -666,8 +648,8 @@ def check_with_anchors(plan_paths: list[Path]) -> int:
                     f"{fail_tag}\t{loc}\t{token}:{spec}\tcites :{spec} but content is "
                     f"now at :{hits[0]} -- {row.note}"
                 )
-                frozen_ct += 1 if frozen else 0
-                fail_ct += 0 if frozen else 1
+                not_ok[fail_tag] += 1
+    fail_ct, frozen_ct = not_ok["FAIL"], not_ok["FROZEN"]
     print(
         f"CENSUS\ttotal={total} pass={pass_ct} fail={fail_ct} "
         f"frozen={frozen_ct} unanchored={unanchored}"
