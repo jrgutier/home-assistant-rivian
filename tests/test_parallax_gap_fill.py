@@ -343,6 +343,7 @@ PARALLAX_ONLY_KEYS = (
     "chargeScheduleAmps",
     "chargeScheduleWindow",
     "chargingFaultChime",
+    "climateHoldDurationSeconds",
     "coldRangeImpact",
     "coldWeatherSocBlue",
     "coldWeatherSocGreen",
@@ -510,6 +511,10 @@ class TestTheParallaxOnlyKeysHaveEntities:
         (
             "chargingFaultChime",
             "s44 decoder; charging.session.notification frame committed, decoded none",
+        ),
+        (
+            "climateHoldDurationSeconds",
+            "s52; climate_hold_setting frame committed; 7200 echoed live 2026-10-06",
         ),
         (
             "tripTargetSoc",

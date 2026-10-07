@@ -110,6 +110,9 @@
       "ccc_passive_permission_status": {
         "name": "Digital Key Passive Entry Permission"
       },
+      "climate_hold_duration": {
+        "name": "Climate Hold Duration"
+      },
       "cellular_antenna_bars": {
         "name": "Cellular Signal Bars"
       },
