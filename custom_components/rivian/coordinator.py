@@ -1504,7 +1504,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         A sibling of _process_new_data on its own subscription (see
         subscribe_for_tire_pressure_updates()'s docstring): merges through the
         same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
-        tyre-pressure names land in _subscription_keys (coordinator.py:1568,
+        tyre-pressure names land in _subscription_keys (coordinator.py:1593,
         provenance -- not liveness), which is what keeps Parallax from
         overwriting gateway-delivered tyre pressures (:1406).
 
@@ -1553,21 +1553,44 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             for k, v in vijson.items()
             if v
         }
-        # Provenance, for the Parallax gap-fill rule in _process_parallax_data.
+        # Provenance, for the Parallax gap-fill rule in _process_parallax_data:
+        # the subscription owns a key only while it is delivering a USABLE value
+        # for it. Three kinds of frame, three outcomes.
         #
-        # Value-based, not "is v truthy" (was `set(items)`, i.e. every key of
-        # the dict just built above): a {"timeStamp": ..., "value": None} frame
-        # is a non-empty dict -- itself truthy -- but supplies nothing usable.
-        # That used to still claim the key here, permanently blocking Parallax
-        # from a field the gateway was never actually delivering. Structured
-        # fields (gnssLocation, gnssError) have no top-level "value" key at all
-        # and keep claiming on the strength of the outer dict alone --
-        # gnssLocation MUST stay claimed or _process_parallax_data's
-        # unconditional branch (coordinator.py:1408) starts overwriting real
-        # GPS with Parallax's.
-        self._subscription_keys |= {
-            k for k, v in items.items() if "value" not in v or v["value"] is not None
-        }
+        # A usable value claims the key, and Parallax is skipped for it.
+        #
+        # {"timeStamp": ..., "value": None} says nothing and changes nothing.
+        # (It is a non-empty dict, so the `if v` above keeps it. Claiming on
+        # that used to block Parallax permanently from a field the gateway was
+        # never delivering.)
+        #
+        # A value in INVALID_SENSOR_STATES RELEASES the key. It is non-null, so
+        # it used to claim -- and then the gateway's `signal_not_available` beat
+        # Parallax's perfectly good `closed`. Seen live on 2026-10-06: after a
+        # restart the gear tunnels and tailgate read unknown for 28 minutes while
+        # the closures frame carrying their state arrived six times and was
+        # discarded each time. Releasing rather than merely not claiming also
+        # covers a key that was valid and then goes invalid: the merge below
+        # keeps the last good value on screen, and without a release nothing
+        # could ever refresh it. The key is claimed again by the next usable
+        # value, so the subscription still wins whenever it has something to say.
+        #
+        # Structured fields (gnssLocation, gnssError) have no top-level "value"
+        # and claim on the strength of the outer dict alone. gnssLocation MUST
+        # stay claimed or _process_parallax_data's unconditional branch
+        # (coordinator.py:1408) starts overwriting real GPS with Parallax's.
+        usable: set[str] = set()
+        unusable: set[str] = set()
+        for k, v in items.items():
+            if "value" not in v:
+                usable.add(k)
+            elif v["value"] is None:
+                continue
+            elif str(v["value"]).lower() in INVALID_SENSOR_STATES:
+                unusable.add(k)
+            else:
+                usable.add(k)
+        self._subscription_keys = (self._subscription_keys - unusable) | usable
 
         if items:
             _LOGGER.debug("Vehicle %s updated: %s", self.vehicle_id, redact(items))
