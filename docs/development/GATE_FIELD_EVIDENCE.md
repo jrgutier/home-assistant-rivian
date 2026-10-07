@@ -5,7 +5,7 @@
 `tests/fixtures/community/PROVENANCE.md` records three community diagnostics
 fixtures gathered to test one premise: that the plan's gate rule — a field
 counts as "reported" when its value is not in `INVALID_SENSOR_STATES =
-{"fault", "signal_not_available", "sna", "undefined"}` (`const.py:89`) — is a
+{"fault", "signal_not_available", "sna", "undefined"}` (`const.py:93`) — is a
 reliable stand-in for "this vehicle has the hardware". Two of those fixtures
 are R1S vehicles reporting all five R1S-group gate fields usable, which looked
 like it settled the question. The third — an R1T — did not, and that result
@@ -57,7 +57,7 @@ lives in `COVERS[None]` with `option_code="TON-P01"`.
 in this set — they have `feature is None` and `option_code is None` and are
 out of scope here (`MODEL_SPECIFIC_ENTITIES.md` covers why).
 
-`sensor.py:184` and `binary_sensor.py:109` both filter on the same
+`sensor.py:179` and `binary_sensor.py:114` both filter on the same
 `INVALID_SENSOR_STATES` set, so "usable" means the same thing on both
 platforms for every field below.
 
@@ -70,7 +70,7 @@ platforms for every field below.
    captured **2026-08-19 12:31 CDT** on beta6. Not a new probe run for this
    file — cited from what the test suite already records:
    `tests/test_lock.py:522-598`, `tests/test_binary_sensor_invalid_states.py:408-435`.
-   Covers the 10-member `LOCK_STATE_ENTITIES` set (`const.py:56-67`), which
+   Covers the 10-member `LOCK_STATE_ENTITIES` set (`const.py:60-71`), which
    includes 6 of the 14 gated fields.
 
 None of the three community fixtures carry raw `*_next_action` data for
@@ -179,22 +179,22 @@ them). Whatever the union rule decides for these three, it is deciding it on
 zero observations, not on a negative finding — this evidence cannot tell
 whether the server ever populates them, on any model.
 
-## Finding 5a — the instrument itself hides flicker (masking at `coordinator.py:1533-1552`)
+## Finding 5a — the instrument itself hides flicker (masking at `coordinator.py:1633-1664`)
 
 Before reading the flat-history observation below at face value, it matters
 that the diagnostics dump is not a raw wire capture — it is the coordinator's
 *masked* state, and the masking is asymmetric by design.
-`VehicleCoordinator._build_vehicle_info_dict` (`coordinator.py:1533-1552`)
+`VehicleCoordinator._build_vehicle_info_dict` (`coordinator.py:1633-1664`)
 folds each update into `self.data`: when an incoming value is one of
 `INVALID_SENSOR_STATES` **and** the field already has a previous entry, the
 whole previous `{"value": ..., "history": ...}` object is substituted in
-unchanged (`coordinator.py:1537-1538`) — the invalid reading is not recorded
+unchanged (`coordinator.py:1637-1638`) — the invalid reading is not recorded
 anywhere, not in `value`, not in `history`. Only a valid reading ever
-extends `history` (`coordinator.py:1552`). The one documented exception is
+extends `history` (`coordinator.py:1662`). The one documented exception is
 the very first update for a field with no prior entry, which is published
-as-is, invalid values included (`coordinator.py:1516-1529`) — that is how a
+as-is, invalid values included (`coordinator.py:1618-1629`) — that is how a
 literal `SNA` was once observed on both rear seat heating sensors at a fresh
-start (comment at `coordinator.py:1521`).
+start (comment at `coordinator.py:1623`).
 
 The consequence for this evidence: **once a field has produced one valid
 reading, ever, every later invalid reading on that field becomes

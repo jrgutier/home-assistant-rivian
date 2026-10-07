@@ -145,7 +145,7 @@ in the rewrite could close those, and only a real Gen 2 capture will.
 | 5 | **CSN** | starts 1, `+= 2` | `-1` sentinel for AUTH_PNONCE; not serialized at all in that branch — `C11162i.java:1167` | **Fatal** |
 | 6 | **vNonce verification** | absent — accepts any non-empty response (`ble_gen2.py:311`) | mandatory `HMAC(key, pNonce‖vNonce)` — `:1302-1314` | **Fatal + security** |
 | 7 | **Response parse** | protobuf varint walk, `tag_byte = message[pos]` single byte | `bytes[0:16]` / `bytes[16:]` — `AbstractC10629c.java:262` | **Fatal** |
-| 8 | **Bonding** | never triggered on Gen 2 path | Gen 1 path does `client.pair()` / Darwin notify (`ble.py:253-259`) | High |
+| 8 | **Bonding** | never triggered on Gen 2 path | Gen 1 path does `client.pair()` / Darwin notify (`ble.py:286-293`) | High |
 | 9 | **Vehicle ID** | *"simplified here"*, skipped (`ble_gen2.py:277`) | validated — `C11162i.java:1727,1765,1776` | High |
 | 10 | **Notifications** | subscribes `ENCRYPTED_DATA_OUT` only; `PLAIN_DATA_OUT` never subscribed | UNPROVEN — see below | Unknown |
 | 11 | **Auth state machine** | `AuthState` 4 states | `EnumC11122B.java:12-15` | ✅ **Correct** |
@@ -160,7 +160,7 @@ in the rewrite could close those, and only a real Gen 2 capture will.
 | | Gen 1 | Gen 2 |
 |---|---|---|
 | Key | `HKDF-SHA256(ECDH, salt=None, info=b"")` — `utils.py:93-99` | identical — `C15277l.java:941-947` |
-| Pairing frame | `phone_nonce ‖ HMAC(key, phone_nonce)` = 48B — `ble.py:243-249` | `pNonce ‖ HMAC(key, pNonce)` = 48B — `AbstractC10624g.java:1160-1169` |
+| Pairing frame | `phone_nonce ‖ HMAC(key, phone_nonce)` = 48B — `ble.py:276-282` | `pNonce ‖ HMAC(key, pNonce)` = 48B — `AbstractC10624g.java:1160-1169` |
 | Characteristics | `AA49565A-…`, `E020A15D-…`, `5249565F-…` | `0823DA14-…`, `29919A3C-…`, `9A69AEFF-…`, `5EAA65C0-…` |
 | vNonce HMAC check | not performed | **required** |
 | Vehicle-ID exchange | own characteristic, compared to `vas_vehicle_id` | folded into the VAS flow |
@@ -172,10 +172,10 @@ exactly what `AbstractC10624g.java:1166` computes.
 ### Post-pairing commands are generation-independent
 
 The integration **never sends commands over BLE**. Grepping `write_gatt_char` across
-`rivian_client/` returns only `ble.py:230,248` and `ble_gen2.py:238,297` — all pairing. Commands
+`rivian_client/` returns only `ble.py:261,279` and `ble_gen2.py:238,297` — all pairing. Commands
 go through the cloud via `generate_vehicle_command_hmac(command, timestamp, …)`
 (`utils.py:79-85`), which signs `command+timestamp` with the *same* HKDF-derived key, and
-`coordinator.py:1979-1988` / `:2043-2053` draw the same enrolled-phone material regardless of
+`coordinator.py:1974-1986` / `:2017-2027` draw the same enrolled-phone material regardless of
 generation.
 
 The APK's `ACTIVE_COMMAND` / `PASSIVE_ENTRY` branches are the app's **BLE** command path — used
@@ -207,7 +207,7 @@ downstream of pairing is already generation-agnostic. It does not need touching.
 
 Items 1, 2 and 5 are exactly what a tester's GATT-discovery dump plus frame trace would settle —
 which is the `beta-enablement` component, and the reason D5 asked for the discovery dump.
-`detect_vehicle_generation()` (`ble.py:88-125`) already enumerates every characteristic and
+`detect_vehicle_generation()` (`ble.py:73-149`) already enumerates every characteristic and
 discards the list.
 
 ---

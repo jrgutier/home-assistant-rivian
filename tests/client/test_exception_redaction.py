@@ -76,7 +76,7 @@ def _rendered(exc: Exception, caplog: pytest.LogCaptureFixture) -> str:
 
 
 class TestFourArgShape:
-    """rivian.py:740 -- err_cls(status, response_json, headers, body)."""
+    """rivian.py:946 -- err_cls(status, response_json, headers, body)."""
 
     def test_password_never_renders(self, caplog) -> None:
         exc = RivianInvalidCredentials(401, RESPONSE_JSON, HEADERS, LOGIN_BODY)
@@ -96,7 +96,7 @@ class TestFourArgShape:
 
 
 class TestFiveArgShape:
-    """rivian.py:741 -- RivianApiException(message, status, json, headers, body).
+    """rivian.py:947 -- RivianApiException(message, status, json, headers, body).
 
     The fallback for every code absent from ERROR_CODE_CLASS_MAP, so it is the
     shape a redaction keyed on argument POSITION would silently miss.
@@ -127,7 +127,7 @@ class TestStillUseful:
         assert "Login" in out
 
     def test_args_1_stays_parseable(self) -> None:
-        # home-assistant-rivian's config_flow.py:236 does exactly this to decide
+        # home-assistant-rivian's config_flow.py:244 does exactly this to decide
         # whether to re-prompt for an OTP. Reshaping args would break the flow.
         exc = RivianInvalidOTP(401, RESPONSE_JSON, HEADERS, OTP_BODY)
         assert (

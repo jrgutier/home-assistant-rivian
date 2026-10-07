@@ -363,7 +363,7 @@ class TestAttributeSurface:
         """THE C1 TEST. Interpretation B is mandatory.
 
         1. _execute_command returns on one frame delivered during the call.
-        2. The call has RETURNED -- entity.py:234 has run, _current_command_id
+        2. The call has RETURNED -- entity.py:282 has run, _current_command_id
            is None.
         3. Only then deliver a second frame.
         4. Then read extra_state_attributes.
@@ -725,7 +725,7 @@ class TestClimateChainedCalls:
         # Live properties couple these: defrost-on forces hvac HEAT, so the
         # three awaits in async_set_temperature are not all taken together.
         # Pin the two conditions independently so the test covers the chain
-        # the plan named (climate.py:121, :129, :132).
+        # the plan named (climate.py:121, :126, :129).
         with (
             patch.object(
                 RivianClimateEntity,

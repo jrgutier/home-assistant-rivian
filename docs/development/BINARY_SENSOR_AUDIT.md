@@ -1,6 +1,6 @@
 # Binary sensor audit against the app's value vocabulary
 
-Read-only analysis. Audits all 35 `RivianBinarySensorEntityDescription` in `const.py:1511+`
+Read-only analysis. Audits all 35 `RivianBinarySensorEntityDescription` in `const.py:1984+`
 against the decompiled app, and the inverse: which of the 127 `RivianSensorEntityDescription`
 should be binary sensors instead.
 
@@ -17,10 +17,10 @@ degrades to an unusable text readout. Nothing recovers this from the sensor side
 
 **But it is mostly a false choice.** Two properties of the existing code make it so:
 
-1. `binary_sensor.py:121-138` already publishes the raw string as a `value` attribute on every
+1. `binary_sensor.py:120-135` already publishes the raw string as a `value` attribute on every
    non-aggregate binary sensor. Richer state is not being destroyed today, only kept out of the
    state machine. `state_attr('binary_sensor.x', 'value')` reads it now.
-2. `data_classes.py:89` types `on_value` as `bool | float | int | str | list[str]`, and
+2. `data_classes.py:84` types `on_value` as `bool | float | int | str | list[str]`, and
    `tests/test_binary_sensor_invalid_states.py:130` already exercises `["open", "ajar"]`. A
    three-state field can stay binary by widening `on_value` — no retyping needed.
 
@@ -121,7 +121,7 @@ Two problems today:
 - The closed value is **`close`**, not `closed`. Confirmed in fixtures (5 occurrences).
 - `opening`, `closing` and `in_transition` all fall to **off**, reported as Closed.
 - Unlike `powerState`, there is **no companion regular sensor** — `chargePortState` appears only
-  at `const.py:1516`. The five-state vocabulary reaches the user nowhere except the `value`
+  at `const.py:1531`. The five-state vocabulary reaches the user nowhere except the `value`
   attribute.
 
 Recommended: keep the binary sensor with `on_value=["open", "opening", "in_transition"]`
@@ -137,7 +137,7 @@ way `powerState` already has both. Do not convert — that would surrender the D
 
 That collapse is correct here: `MOVING` asks one boolean question and `go` is the only value that
 answers it yes. And the richer vocabulary is **already exposed** — `power_state` is a regular
-sensor on the same field at `const.py:701`. Both platforms already exist for this field. Nothing
+sensor on the same field at `const.py:805`. Both platforms already exist for this field. Nothing
 to do; this is the pattern D should copy.
 
 ### F. Tire pressure validity — 4 sensors. **No evidence in the app. Leave alone.**
@@ -228,7 +228,7 @@ temperatures), version strings (`otaAvailableVersion*`), free text (`activeDrive
 ## Not covered
 
 - The aggregate descriptions (`locked_state`, `door_state`, `closure_state`) take a `set` of
-  fields through a different `is_on` path (`binary_sensor.py:86-95`). They are included in the
+  fields through a different `is_on` path (`binary_sensor.py:85-94`). They are included in the
   verdicts above on vocabulary grounds, but the widening has not been traced through that path.
 - Whether the server ever emits `opened` on any field.
 - `RivianCloudConnectionBinarySensor` — not field-driven, out of scope.

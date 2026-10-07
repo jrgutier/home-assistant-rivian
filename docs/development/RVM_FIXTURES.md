@@ -8,7 +8,7 @@ Captured from the live vehicle on 2026-08-18. Fixtures live in
 Two things were learned the hard way and both change the procedure:
 
 1. **The payload does not come back from the mutation.** `sendVehicleOperation`
-   selects only `{ success }` (`rivian.py:825-829`). `prd.json` s08a previously
+   selects only `{ success }` (`rivian.py:1036-1040`). `prd.json` s08a previously
    claimed the four RVMs were "verified-working QUERIES today, so the existing query
    path suffices" — that is false. The payload arrives *only* on the
    `parallaxMessages` websocket subscription.

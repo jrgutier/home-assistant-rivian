@@ -199,7 +199,7 @@ class TestProvenanceIsRecorded:
         the `"value" in v` branch in `_build_vehicle_info_dict` never fires for
         them. They must still enter `_subscription_keys` on the strength of the
         outer dict alone, or `_process_parallax_data`'s unconditional
-        `gnssLocation` branch (coordinator.py:1145) starts overwriting real GPS
+        `gnssLocation` branch (coordinator.py:1390) starts overwriting real GPS
         with Parallax's."""
         coordinator = _coordinator()
         coordinator.data = None
@@ -230,7 +230,7 @@ class TestSubscribingDoesNotBlockParallax:
     """The direct proof for the §D shrink: subscribing to a field does not, by
     itself, claim it for the subscription -- only a DELIVERED, truthy frame
     value does. `_subscription_keys` is fed at `_build_vehicle_info_dict`
-    (coordinator.py:1273) from frames the gateway actually sends, never from the
+    (coordinator.py:1574) from frames the gateway actually sends, never from the
     requested property set, so `batteryCellType`, `coldRangeNotification` and
     `btmOcHardwareFailureStatus` moving out of PARALLAX_ONLY_FIELDS does not by
     itself take Parallax's write path away from them.
@@ -386,7 +386,7 @@ def test_the_parallax_only_keys_are_what_we_think_they_are() -> None:
 
     This does NOT say "if a future story subscribes to one of these, Parallax
     stops writing it automatically" -- that was never true and the shrink is the
-    proof: `_subscription_keys` (coordinator.py:1273) is populated only from
+    proof: `_subscription_keys` (coordinator.py:1574) is populated only from
     frames the gateway actually DELIVERS with a truthy value, never from the
     requested property set, so being named in the subscription document is not
     what claims a key. TestSubscribingDoesNotBlockParallax above is the direct

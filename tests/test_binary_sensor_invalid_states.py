@@ -10,7 +10,7 @@ vehicle has just said it does not know.
 The distinction this file holds onto is `unknown` vs `unavailable`. Returning
 `None` from `is_on` yields `unknown`; it does **not** change availability, which
 `RivianVehicleEntity.available` derives purely from the field being present
-(`entity.py:64-68`). That is deliberate. Making the entity unavailable instead
+(`entity.py:75-80`). That is deliberate. Making the entity unavailable instead
 would take the matching *control* down with it -- the mistake that was made, and
 reverted, in the coordinator twice.
 """
@@ -147,7 +147,7 @@ async def test_usable_values_are_untouched(
 class TestAggregateUnchanged:
     """Aggregate binary sensors must behave EXACTLY as before.
 
-    `binary_sensor.py:79-82` already ignores unusable values structurally -- an
+    `binary_sensor.py:85-94` already ignores unusable values structurally -- an
     aggregate asks whether `on_value` appears among its members, and `"sna"` is
     simply not `"open"`. Adding a filter to that branch would change `available`,
     because the aggregate's availability is `any(member values)`.
@@ -208,7 +208,7 @@ async def test_filter_is_reachable_on_a_first_update_with_no_history(
     """The filter must be exercised by the path that actually publishes SNA.
 
     `VehicleCoordinator._build_vehicle_info_dict` carries a previous good value
-    forward whenever a field reports an unusable one (`coordinator.py:1224-1242`),
+    forward whenever a field reports an unusable one (`coordinator.py:1633-1651`),
     so a field that has *ever* reported well never reaches the binary sensor with
     a bad value. Only the first update -- empty history, no previous data -- passes
     one through. A test built on a hand-made coordinator dict would pass without
@@ -408,7 +408,7 @@ class TestClosureLockAggregateSurvivesLiveSNA:
 
     Read from the live production instance on 2026-08-19 12:31 CDT, on beta6:
     tailgate_lock, tonneau_cover_lock and right_gear_tunnel_lock all `unknown`
-    (their LOCK-class binary sensors already return None per binary_sensor.py:109),
+    (their LOCK-class binary sensors already return None per binary_sensor.py:114),
     while `lock.r1t_closures` read `locked`.
 
     A "return None if ANY member is invalid" shape would make the aggregate

@@ -176,7 +176,7 @@ of the intuitive reading. Applying it, both observations were consistent:
 | after `LOCK_ALL_CLOSURES_FEEDBACK` | `off` | Locked | `locked` | yes |
 
 They cannot disagree by construction. Both read the same `LOCK_STATE_ENTITIES`
-set (`const.py:55`) and are exact complements — `lock.py:26-28` is
+set (`const.py:60`) and are exact complements — `lock.py:57` is
 `not any(v == "unlocked")`, the binary sensor is `"unlocked" in values`
 (`binary_sensor.py:83-86`).
 
@@ -244,9 +244,9 @@ Gear Guard unable to arm — was not merely avoided, it was unreachable.
 a vehicle accepts is a live question". **`CABIN_HVAC_3RD_ROW_REAR_*` is accepted; `CABIN_HVAC_THIRD_ROW_*`
 is rejected.** Identical `params={"level": 0}`, same truck, seconds apart — one variable.
 
-This required adding `--params` to the probe first. `_validate_vehicle_command` (`rivian.py:506-530`)
+This required adding `--params` to the probe first. `_validate_vehicle_command` (`rivian.py:594-633`)
 lists eight `level`-requiring HVAC commands and **omits all four third-row spellings**, while
-`send_vehicle_command`'s docstring (`:576`) says `CABIN_HVAC_*` needs `level`. Without the parameter
+`send_vehicle_command`'s docstring (`:652`) says `CABIN_HVAC_*` needs `level`. Without the parameter
 nothing raises locally and every rejection is uninterpretable — "wrong spelling" and "missing
 parameter" look identical.
 
@@ -266,7 +266,7 @@ halves are wrong as an explanation of these rejections.
   `TWO_FACTOR_DRIVE_ENABLE` and `TWO_FACTOR_DRIVE_DISABLE`. The other five are not marked.
 - The two wrappers differ in `appName` alone — `"rshell"` by default (`VASCommand.java:157-165`)
   versus `""` (`:395-405`). Our client sends no `appName` at all (`send_vehicle_command`,
-  `rivian.py:568-581`). The `appName=""` marker is an app-side construction detail we never
+  `rivian.py:665-680`). The `appName=""` marker is an app-side construction detail we never
   express, so the seven-way rejection is not attributable to the wrapper.
 
 **Nothing is removed on this evidence.** Under Principle -1 a rejection through a possibly-wrong
@@ -387,7 +387,7 @@ Read off the app, 2026-08-19, from the 3.6.0 tree. `C4171i.java:524-554` switche
 states **1, 2, 3, 5** (continue set) and completes on states **0, 4, 6, 7** and anything
 outside 0-7 (terminal set).
 
-`entity.py:196` returns on any integer, so the integration reports a command complete on the
+`entity.py:218` returns on any integer, so the integration reports a command complete on the
 first frame it catches, including the four the app keeps waiting on.
 
 **All five of the f7 latency rows are continue-set frames** — states 5, 2, 2, 2, 2 — so
@@ -490,7 +490,7 @@ background, attributes settle after the call returns, `state_is_lifecycle` flipp
 when the terminal state arrives.
 
 **A property of this control worth recording:** the wake button is **self-extinguishing on success.** At
-`11:06:03.876Z` the truck was awake, so `button.py:44-46`'s `connectivity_state() is SLEEPING` availability went false and
+`11:06:03.876Z` the truck was awake, so `button.py:45-47`'s `connectivity_state() is SLEEPING` availability went false and
 the attributes collapsed to `{"friendly_name": "R1T Wake"}`. Its settled values were recoverable **only**
 from Route A. A Route-B-only run would have lost them — which is the argument for two routes, arriving from
 a direction §6.2 did not anticipate.
@@ -535,14 +535,14 @@ not cited in the ceiling decision.
 The terminal frame carried `responseCode: 264, statusCode: 0`. The entity reported
 **`response_code: null`, `status_code: null`** — verified on both routes.
 
-Cause, traced: `entity.py:155-160`'s live block refreshes only `state_frames_seen`, `state_is_lifecycle`
+Cause, traced: `entity.py:180-185`'s live block refreshes only `state_frames_seen`, `state_is_lifecycle`
 and `final_command_state` from the coordinator record. `response_code` and `status_code` come from
-`_last_command_status`, which `entity.py:209-217` writes **once, from the first frame** — and the first
+`_last_command_status`, which `entity.py:251-257` writes **once, from the first frame** — and the first
 frame is a continue state whose codes are always `None`. The background terminality tracking never
 revisits them.
 
-**The data is already present**: `coordinator.py:1518-1519` keeps `responseCode` and `statusCode` on every
-frame, terminal included. The fix is two lines in the block at `entity.py:155-160`.
+**The data is already present**: `coordinator.py:1864-1865` keeps `responseCode` and `statusCode` on every
+frame, terminal included. The fix is two lines in the block at `entity.py:180-185`.
 
 This defeats the stated purpose of the round-2 decision that added the two attributes — *"`responseCode 288`
 vs `None` is what distinguished a real answer from silence when diagnosing `ae06ee9`"* — because on the
@@ -564,12 +564,12 @@ instrument returning a clean-looking answer without ever having been shown it ca
 
 ## Step 8 — the ceiling decision, from first principles
 
-**Prerequisite was Step 6 only.** Ruling 27 decides this from `entity.py:180`, not from a measurement.
+**Prerequisite was Step 6 only.** Ruling 27 decides this from `entity.py:202`, not from a measurement.
 
 ### The rule, proposed for ratification (§5.1), re-keyed to first-frame latency
 
-The governed quantity is **first-frame arrival**, per `entity.py:180` — the timeout that waits for the
-*"first well-formed frame"* — and `entity.py:227-238`, which returns on the first non-empty
+The governed quantity is **first-frame arrival**, per `entity.py:202` — the timeout that waits for the
+*"first well-formed frame"* — and `entity.py:249-260`, which returns on the first non-empty
 `get_command_state`.
 
 > **The first-frame ceiling — `COMMAND_TIMEOUT_AWAKE` / `COMMAND_TIMEOUT_SLEEPING` in
@@ -605,7 +605,7 @@ remains pinned; it needs both tokens and has only one.
 
 Stated on its ground, as a result and not as silence:
 
-- the ceiling governs **first-frame arrival only** — `entity.py:180`, `:227-238`;
+- the ceiling governs **first-frame arrival only** — `entity.py:202`, `:249-260`;
 - warm-path first-frame latency is **1.224-2.77 s** across five non-wake observations;
 - cold-path first-frame latency is observed at **14.66 s** (`:425-427`), giving the 30 s ceiling **~2.05x**
   headroom over the largest first-frame latency ever observed — *provenance limitation:* that figure is from

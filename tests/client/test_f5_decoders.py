@@ -426,7 +426,7 @@ class TestNetworkState:
         WHO WINS is a separate, still-open question -- see the module-level
         finding in `docs/development/PARALLAX_DECODERS.md` ("field parity
         subscribes the other ten"). Briefly, by the mechanism at
-        `coordinator.py:1144` (`if k in self._subscription_keys: continue`) and
+        `coordinator.py:1388` (`if k in self._subscription_keys: continue`) and
         `coordinator.py:1266-1274` (`_subscription_keys` is fed from delivered
         frames, keyed on the OUTER dict's truthiness, not on whether "value" is
         non-null):

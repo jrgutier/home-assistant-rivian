@@ -84,7 +84,7 @@ class TestVehicleIdReachesTheTrace:
 class TestTraceIsolationBetweenVehicles:
     """One trace per vehicle, because two can pair at once.
 
-    `_pairing` guards a single button ENTITY (button.py:167) and
+    `_pairing` guards a single button ENTITY (button.py:168) and
     `async_setup_entry` builds one pair button PER VEHICLE, so a multi-vehicle
     account can run two pairings concurrently. A shared trace would interleave
     their frames and either one's `reset()` would erase the other's evidence --
