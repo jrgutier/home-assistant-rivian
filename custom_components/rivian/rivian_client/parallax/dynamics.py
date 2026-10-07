@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Final
 
-from .core import RVMDecoder, _fields
+from .core import _TIMESTAMP_FORMAT, RVMDecoder, _fields
 from .proto import dynamics_pb2
 
 TIRE_POSITION_MAP = {
@@ -74,7 +74,7 @@ def decode_gnss(m: dynamics_pb2.Gnss) -> dict[str, Any]:
     """
     result: dict[str, Any] = {}
     if m.HasField("latitude") and m.HasField("longitude"):
-        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+        now_iso = datetime.now(timezone.utc).strftime(_TIMESTAMP_FORMAT)
         result["gnssLocation"] = {
             "latitude": round(m.latitude, 6),
             "longitude": round(m.longitude, 6),

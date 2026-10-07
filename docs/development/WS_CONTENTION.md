@@ -46,7 +46,7 @@ is how the reasoning went wrong.
 
 > Both earlier f8 failures were a single defect in the probe: the callback read
 > `data["data"]["vehicleState"]` while the frame is `{"payload": {"data": {…}}}`, which
-> `coordinator.py:580/:1074/:1223` all unwrap. One level too shallow, so nothing was ever
+> `coordinator.py:591/:1074/:1223` all unwrap. One level too shallow, so nothing was ever
 > parsed and every field reported NOT DELIVERED regardless of what arrived.
 >
 > That defect also produced the H4 contention reading — **the subscription was never silent,
@@ -161,7 +161,7 @@ Two of these misled the original diagnosis — **claim C7, also UNVERIFIED**:
 > "sole subscriber" access bought nothing — see `UNPOPULATED_FIELDS.md` and `759123d`.
 
 **`sendVehicleOperation` does not return the payload.** Its mutation selects only
-`{ success }` (`rivian.py:857-861`), so the RVM payload arrives *only* on the
+`{ success }` (`rivian.py:825-829`), so the RVM payload arrives *only* on the
 `parallaxMessages` subscription. `prd.json` s08a previously claimed the four RVMs
 were "verified-working QUERIES today, so the existing query path suffices"; that
 was false and has been corrected.
@@ -219,7 +219,7 @@ below), not the plan-time OPEN / IN DOUBT predictions.
 | **C6** | `:55-60` close codes 4401 / 4403 / 4408 / 4420 and their meanings | **UNVERIFIED — arms dropped by ruling 28.** Arm 3e would provoke close codes 4401/4403, which `ws_monitor` turns into a permanent silent stop with no self-heal, and the no-harm criteria could not have detected it. | Live-testable in principle; **not this round** |
 | **C7** | `:64-70` 4401 carried no information; malformed token → 4403 in ~0.5 s; valid-but-duplicate → silence | **UNVERIFIED — arms dropped by ruling 28.** Arms 3d/3e would provoke 4401/4403, which `ws_monitor` turns into a permanent silent stop with no self-heal, and the no-harm criteria could not have detected it. | Live-testable in principle; **not this round** |
 | **C8** | `:74-76` *"Fixture capture must run as sole subscriber. `s08a` cannot be done from a dev machine while Home Assistant is running."* | **FALSIFIED.** The claim is that capture *requires* a sole subscriber. Arm 3b: PARALLAX CONCURRENT — sole subscriber NOT required. Full 33-topic RVM set received with production subscribed. LIVENESS OK. | Live, arm 3b — done |
-| **C9** | `:77-81` `sendVehicleOperation` selects only `{ success }`; payload arrives only on `parallaxMessages` | **VERIFIED (SUBSTANCE) — CITATION STALE.** Selection at `rivian.py:857-861`; `:866-870` has no `success` | Static, done — fix three citations |
+| **C9** | `:77-81` `sendVehicleOperation` selects only `{ success }`; payload arrives only on `parallaxMessages` | **VERIFIED (SUBSTANCE) — CITATION STALE.** Selection at `rivian.py:825-829`; `:866-870` has no `success` | Static, done — fix three citations |
 | **C10** | `:83-95` three non-interchangeable identifiers; `phone_id` from `vasPhoneId`; default user query omits `enrolledPhones` | **VERIFIED.** `probe_vehicle_command.py:105`, `:138` | Static, done |
 | **C11** | `:99-104` `ws_monitor.py` distinguishes the codes; 4401/4403 stop the monitor, 4420 is routine | **VERIFIED.** `ws_monitor.py:37` `AUTH_CLOSE_CODES = frozenset({4401, 4403})`, `:41` `TTL_CLOSE_CODE = 4420`, `:165-176` | Static, done |
 | **C12** | `:106-113` reproduction recipe; HA flushes config entries on shutdown so a graceful restart overwrites a hand-edit | **VERIFIED BY USE.** The f8 outage followed exactly this order (`UNPOPULATED_FIELDS.md:121-123`). *Iteration 1 left this row's route column blank; it is classified here; and its own line range was stale — the recipe block is `:106-113`, not `:106-112`.* | Verified by prior use; no re-test |

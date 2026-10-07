@@ -725,7 +725,7 @@ class TestClimateChainedCalls:
         # Live properties couple these: defrost-on forces hvac HEAT, so the
         # three awaits in async_set_temperature are not all taken together.
         # Pin the two conditions independently so the test covers the chain
-        # the plan named (climate.py:124, :129, :132).
+        # the plan named (climate.py:121, :129, :132).
         with (
             patch.object(
                 RivianClimateEntity,

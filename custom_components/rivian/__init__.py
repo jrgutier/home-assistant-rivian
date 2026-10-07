@@ -101,7 +101,7 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
     from homeassistant.components.lovelace.const import LOVELACE_DATA
 
     ll = hass.data.get(LOVELACE_DATA)
-    resources = getattr(ll, "resources", None) if ll is not None else None
+    resources = getattr(ll, "resources", None)
     if resources is None or not hasattr(resources, "async_create_item"):
         return
     await resources.async_get_info()
@@ -259,6 +259,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+def _parse_hhmm(value: str) -> tuple[int, int]:
+    """Split an HH:MM string into (hour, minute); raises on a malformed one."""
+    parts = value.split(":")
+    return int(parts[0]), int(parts[1])
+
+
 async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Set up Rivian services."""
 
@@ -319,13 +325,8 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
         # Parse HH:MM format
         try:
-            start_parts = start_time.split(":")
-            start_hour = int(start_parts[0])
-            start_minute = int(start_parts[1])
-
-            end_parts = end_time.split(":")
-            end_hour = int(end_parts[0])
-            end_minute = int(end_parts[1])
+            start_hour, start_minute = _parse_hhmm(start_time)
+            end_hour, end_minute = _parse_hhmm(end_time)
         except (ValueError, IndexError) as err:
             raise ServiceValidationError(
                 "Invalid time format. Use HH:MM format (e.g., '22:00')"
@@ -435,11 +436,12 @@ async def async_remove_config_entry_device(
     user_coordinator: UserCoordinator = coordinators[ATTR_USER]
     wallbox_coordinator: WallboxCoordinator = coordinators[ATTR_WALLBOX]
 
-    vehicles = user_coordinator.get_vehicles().keys()
-    wallboxes = {x["wallboxId"] for x in wallbox_coordinator.data}
+    known = user_coordinator.get_vehicles().keys() | {
+        x["wallboxId"] for x in wallbox_coordinator.data
+    }
 
     return not any(
         identifier
         for identifier in device_entry.identifiers
-        if identifier[0] == DOMAIN and identifier[1] in vehicles | wallboxes
+        if identifier[0] == DOMAIN and identifier[1] in known
     )

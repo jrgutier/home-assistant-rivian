@@ -34,14 +34,14 @@ from .exceptions import (
     RivianTemporarilyLockedError,
     RivianUnauthenticated,
 )
-from .parallax import PARALLAX_RVMS, ParallaxCommand
+from .parallax import PARALLAX_RVMS, ParallaxCommand, build_climate_hold_command
 from .proto.vehicle_operation import (
     Metadata,
     Operation,
     PhoneInfo,
     VehicleOperationRequest,
 )
-from .utils import generate_vehicle_command_hmac
+from .utils import base64_encode, generate_vehicle_command_hmac
 from .ws_monitor import WebSocketMonitor
 
 if sys.version_info >= (3, 11):
@@ -155,6 +155,17 @@ class Rivian:
         self._subscriptions: dict[str, str] = {}
         self._option_codes_available: bool | None = None
 
+    def _session_headers(self, *, csrf: bool = False) -> dict[str, str]:
+        """BASE_HEADERS plus the session tokens of an authenticated request."""
+        return (
+            BASE_HEADERS
+            | ({"Csrf-Token": self._csrf_token} if csrf else {})
+            | {
+                "A-Sess": self._app_session_token,
+                "U-Sess": self._user_session_token,
+            }
+        )
+
     async def create_csrf_token(self) -> None:
         """Create cross-site-request-forgery (csrf) token."""
         url = GRAPHQL_GATEWAY
@@ -182,7 +193,6 @@ class Rivian:
         headers = BASE_HEADERS | {
             "Csrf-Token": self._csrf_token,
             "A-Sess": self._app_session_token,
-            "Apollographql-Client-Name": APOLLO_CLIENT_NAME,
         }
 
         graphql_json = {
@@ -222,7 +232,6 @@ class Rivian:
         headers = BASE_HEADERS | {
             "Csrf-Token": self._csrf_token,
             "A-Sess": self._app_session_token,
-            "Apollographql-Client-Name": APOLLO_CLIENT_NAME,
         }
 
         graphql_json = {
@@ -258,11 +267,7 @@ class Rivian:
     async def disenroll_phone(self, identity_id: str) -> bool:
         """Disenroll a phone."""
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "Csrf-Token": self._csrf_token,
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers(csrf=True)
         graphql_json = {
             "operationName": "DisenrollPhone",
             "variables": {"attrs": {"enrollmentId": identity_id}},
@@ -291,11 +296,7 @@ class Rivian:
         which can be done via `ble.pair_phone`.
         """
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "Csrf-Token": self._csrf_token,
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers(csrf=True)
         graphql_json = {
             "operationName": "EnrollPhone",
             "variables": {
@@ -319,10 +320,7 @@ class Rivian:
     async def get_drivers_and_keys(self, vehicle_id: str) -> ClientResponse:
         """Get drivers and keys."""
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
 
         graphql_json = {
             "operationName": "DriversAndKeys",
@@ -356,10 +354,7 @@ class Rivian:
         """
         url = GRAPHQL_GATEWAY
 
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
 
         vehicle_fields = "__typename id vin modelYear make model expectedBuildDate plannedBuildDate expectedGeneralAssemblyStartDate actualGeneralAssemblyDate vehicleState { supportedFeatures { __typename name status } }"
         option_codes_fragment = "mobileConfiguration { tonneauOption { optionId optionName } wheelOption { optionId optionName } }"
@@ -442,10 +437,7 @@ class Rivian:
         """
         url = GRAPHQL_GATEWAY
 
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
 
         graphql_json = {
             "operationName": "SupportedFeatures",
@@ -459,11 +451,7 @@ class Rivian:
         """Get registered wallboxes."""
         url = GRAPHQL_CHARGING
 
-        headers = BASE_HEADERS | {
-            "Csrf-Token": self._csrf_token,
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers(csrf=True)
 
         graphql_json = {
             "operationName": "getRegisteredWallboxes",
@@ -477,10 +465,7 @@ class Rivian:
         """Get vehicle command state."""
         url = GRAPHQL_GATEWAY
 
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
 
         graphql_query = "query getVehicleCommand($id: String!) { getVehicleCommand(id: $id) { __typename id command createdAt state responseCode statusCode } }"
 
@@ -509,10 +494,7 @@ class Rivian:
         """
         url = GRAPHQL_GATEWAY
 
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
 
         graphql_query = "query getVehicleImages( $extension: String $resolution: String $versionForVehicle: String $versionForPreOrder: String ) { getVehicleOrderMobileImages( resolution: $resolution extension: $extension version: $versionForPreOrder ) { ...image } getVehicleMobileImages( resolution: $resolution extension: $extension version: $versionForVehicle ) { ...image } } fragment image on VehicleMobileImage { orderId vehicleId url extension resolution size design placement overlays { url overlay zIndex } }"
 
@@ -548,10 +530,7 @@ class Rivian:
     async def get_charging_schedules(self, vehicle_id: str) -> ClientResponse:
         """Get charging schedules for a vehicle."""
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
         graphql_json = {
             "operationName": "getVehicleChargingSchedules",
             "query": "query getVehicleChargingSchedules($vehicleId: String!) {\n  getVehicle(id: $vehicleId) {\n    chargingSchedules {\n      weekDays\n      startTime\n      duration\n      location {\n        latitude\n        longitude\n      }\n      amperage\n      enabled\n    }\n  }\n}",
@@ -564,11 +543,7 @@ class Rivian:
     ) -> ClientResponse:
         """Set charging schedules for a vehicle."""
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "Csrf-Token": self._csrf_token,
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers(csrf=True)
         graphql_json = {
             "operationName": "setChargingSchedules",
             "query": "mutation setChargingSchedules($vehicleId: String!, $chargingSchedules: [InputChargingSchedule!]!) {\n  setChargingSchedules(vehicleId: $vehicleId, chargingSchedules: $chargingSchedules) {\n    __typename\n    success\n  }\n}",
@@ -582,10 +557,7 @@ class Rivian:
     async def get_vehicle_ota_update_details(self, vehicle_id: str) -> ClientResponse:
         """Get vehicle OTA update details."""
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
 
         graphql_query = "query getOTAUpdateDetails($vehicleId:String!){getVehicle(id:$vehicleId){availableOTAUpdateDetails{url version locale}currentOTAUpdateDetails{url version locale}}}"
 
@@ -698,18 +670,14 @@ class Rivian:
         )
 
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "Csrf-Token": self._csrf_token,
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers(csrf=True)
         graphql_json = {
             "operationName": "sendVehicleCommand",
             "variables": {
                 "attrs": {
                     "command": command,
                     "hmac": hmac,
-                    "timestamp": str(timestamp),
+                    "timestamp": timestamp,
                     "vasPhoneId": phone_id,
                     "deviceId": identity_id,
                     "vehicleId": vehicle_id,
@@ -744,7 +712,7 @@ class Rivian:
         `allow_core_fallback=False` to disable it (for a test or probe that
         wants strict, no-retry behaviour). One renamed/unknown field then
         costs a degraded-but-working integration rather than every
-        vehicleState entity going unknown at once (const.py:2369: one
+        vehicleState entity going unknown at once (const.py:2377: one
         unknown name rejects the whole document). This reduces that
         failure's blast radius; it does not eliminate it -- if the renamed
         field is itself one of the 15 core names, the core document is
@@ -1069,13 +1037,10 @@ class Rivian:
             payload=payload,
         )
         request = VehicleOperationRequest(metadata=metadata, operation=operation)
-        request_b64 = base64.b64encode(request.SerializeToString()).decode("utf-8")
+        request_b64 = base64_encode(request.SerializeToString())
 
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
         graphql_query = (
             "mutation SendVehicleOperation($vehicleId:String!,$payload:String!){"
             "sendVehicleOperation(vehicleId:$vehicleId,payload:$payload){"
@@ -1182,8 +1147,6 @@ class Rivian:
             ... )
             >>> print(f"Success: {result['success']}")
         """
-        from .parallax import build_climate_hold_command
-
         cmd = build_climate_hold_command(duration_minutes=duration_minutes)
         return await self.send_parallax_command(vehicle_id, cmd, phone_id)
 
@@ -1310,10 +1273,7 @@ class Rivian:
             0 on success.
         """
         url = GRAPHQL_GATEWAY
-        headers = BASE_HEADERS | {
-            "A-Sess": self._app_session_token,
-            "U-Sess": self._user_session_token,
-        }
+        headers = self._session_headers()
         graphql_query = (
             "mutation parseAndShareLocationToVehicle($str:String!,$vehicleId:String!){"
             "parseAndShareLocationToVehicle(str:$str,vehicleId:$vehicleId){"

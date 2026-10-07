@@ -588,8 +588,6 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
                                 )
                             )
                         )
-        except asyncio.CancelledError:
-            raise
         except Exception as err:  # noqa: BLE001 -- pump must not crash the entity
             _log_session_failure(err, "KVS signaling closed unexpectedly")
         finally:
@@ -640,8 +638,7 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
 
     async def async_will_remove_from_hass(self) -> None:
         """Drop any open live session on unload."""
-        for session_id in list(self._sessions):
-            await self._async_close_session(session_id)
+        await self._async_close_all_sessions()
         await super().async_will_remove_from_hass()
 
 

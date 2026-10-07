@@ -160,6 +160,11 @@ def _charger_status_transform(value: str) -> str:
     return _to_title_case(value)
 
 
+def _level_or_off(value: str) -> str:
+    """Seat / steering-wheel heat and vent levels: `Level_1` -> `Level 1`."""
+    return value.replace("_", " ") if value else "Off"
+
+
 def _epoch_seconds_to_utc(value: Any) -> datetime | None:
     """Epoch seconds -> an aware UTC datetime, or None if it is not one.
 
@@ -225,10 +230,15 @@ def _pet_snapshot_created(snapshot: Any) -> datetime | None:
     return _epoch_seconds_to_utc(snapshot.get("createdAt"))
 
 
-def _pet_snapshot_attributes(snapshot: Any) -> dict[str, Any] | None:
-    if not isinstance(snapshot, dict):
+def _dict_without(value: Any, key: str) -> dict[str, Any] | None:
+    """A decoded dict minus the one key the state already shows, as attributes."""
+    if not isinstance(value, dict):
         return None
-    return {k: v for k, v in snapshot.items() if k != "createdAt"} or None
+    return {k: v for k, v in value.items() if k != key} or None
+
+
+def _pet_snapshot_attributes(snapshot: Any) -> dict[str, Any] | None:
+    return _dict_without(snapshot, "createdAt")
 
 
 def _energy_window_attributes(window: Any) -> dict[str, Any] | None:
@@ -238,9 +248,7 @@ def _energy_window_attributes(window: Any) -> dict[str, Any] | None:
     entities for ten concepts, and the decoder already refused that shape by
     emitting nested dicts instead of flattened keys.
     """
-    if not isinstance(window, dict):
-        return None
-    return {k: v for k, v in window.items() if k != "totalKwh"} or None
+    return _dict_without(window, "totalKwh")
 
 
 SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
@@ -385,7 +393,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="seat_front_left_vent",
@@ -399,7 +407,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="seat_front_right_heat",
@@ -413,7 +421,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="seat_front_right_vent",
@@ -427,7 +435,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="charger_derate_status",
@@ -998,7 +1006,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="seat_rear_left_heat",
@@ -1012,7 +1020,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="seat_rear_right_heat",
@@ -1026,7 +1034,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="limited_accel_cold",
@@ -1550,7 +1558,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     RivianSensorEntityDescription(
         key="seat_third_row_right_heat",
@@ -1565,7 +1573,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Level 2",
             "Level 3",
         ],
-        value_lambda=lambda v: v.replace("_", " ") if v else "Off",
+        value_lambda=_level_or_off,
     ),
     # Liftgate STATE, not the R1S model. Both R1S and R2 are SUVs with a
     # liftgate; an R1T has none. Gated on LIFTGATE_CMD (s19 inverted,

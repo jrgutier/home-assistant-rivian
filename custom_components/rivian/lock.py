@@ -25,6 +25,16 @@ from .rivian_client import VehicleCommand
 _LOGGER = logging.getLogger(__name__)
 
 
+def _usable_closure_values(coordinator: VehicleCoordinator) -> list[Any]:
+    """Values of the closure members that hold a usable (present, valid) state."""
+    return [
+        value
+        for key in LOCK_STATE_ENTITIES
+        if (value := coordinator.get(key)) is not None
+        and str(value).lower() not in INVALID_SENSOR_STATES
+    ]
+
+
 def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
     """True if every usable member is locked; False if any is unlocked.
 
@@ -42,11 +52,7 @@ def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
     does not remove them (const.py:BINARY_SENSORS; "R1" / "R1T").
     None only if no member has a usable value.
     """
-    usable = []
-    for key in LOCK_STATE_ENTITIES:
-        value = coordinator.get(key)
-        if value is not None and str(value).lower() not in INVALID_SENSOR_STATES:
-            usable.append(value)
+    usable = _usable_closure_values(coordinator)
     if not usable:
         return None
     return not any(value == "unlocked" for value in usable)
@@ -62,13 +68,7 @@ def _closure_coverage(coordinator: VehicleCoordinator) -> tuple[int, int]:
     require full coverage before acting on the state; nothing in the integration
     consumes it.
     """
-    usable = sum(
-        1
-        for key in LOCK_STATE_ENTITIES
-        if (value := coordinator.get(key)) is not None
-        and str(value).lower() not in INVALID_SENSOR_STATES
-    )
-    return usable, len(LOCK_STATE_ENTITIES)
+    return len(_usable_closure_values(coordinator)), len(LOCK_STATE_ENTITIES)
 
 
 LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (

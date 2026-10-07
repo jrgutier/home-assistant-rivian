@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Final
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntity
@@ -24,9 +23,6 @@ from .coordinator import VehicleCoordinator
 from .data_classes import RivianNumberEntityDescription
 from .entity import RivianVehicleControlEntity, RivianVehicleEntity
 from .rivian_client import VehicleCommand
-
-_LOGGER = logging.getLogger(__name__)
-
 
 NUMBERS: Final[tuple[RivianNumberEntityDescription, ...]] = (
     RivianNumberEntityDescription(

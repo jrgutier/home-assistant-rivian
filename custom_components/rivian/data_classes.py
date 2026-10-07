@@ -57,10 +57,10 @@ class RivianGateMixin:
 
     feature: the server's `supportedFeatures[].name` string (or several, ANY
         of which counts) -- `vehicle["supported_features"]`
-        (coordinator.py:889), NOT this integration's own group/key names.
+        (coordinator.py:899), NOT this integration's own group/key names.
     option_code: a member of the vehicle's `option_codes` list
-        (`vehicle["option_codes"]`, coordinator.py:898, built by
-        `_extract_option_codes()` at coordinator.py:806). List MEMBERSHIP
+        (`vehicle["option_codes"]`, coordinator.py:906, built by
+        `_extract_option_codes()` at coordinator.py:816). List MEMBERSHIP
         (`in` on the list), not comparing the whole field with `==` --
         confirmed against test_coordinator_base.py's own
         `"TON-P01" in option_codes` assertion, not guessed. `option_codes`

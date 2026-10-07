@@ -1054,7 +1054,7 @@ class TestRemainingApkGaps:
         Every module that names a VehicleCommand must be in the list, or
         _is_wired() silently answers False and the whole catalog reasons from a
         stale premise. coordinator.py is the one deliberate exclusion: its only
-        refs are two WAKE_VEHICLE sends (coordinator.py:1956,1966), which back no
+        refs are two WAKE_VEHICLE sends (coordinator.py:1937,1966), which back no
         entity of their own.
         """
         naming = {

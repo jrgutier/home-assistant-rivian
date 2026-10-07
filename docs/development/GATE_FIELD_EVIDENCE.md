@@ -179,22 +179,22 @@ them). Whatever the union rule decides for these three, it is deciding it on
 zero observations, not on a negative finding — this evidence cannot tell
 whether the server ever populates them, on any model.
 
-## Finding 5a — the instrument itself hides flicker (masking at `coordinator.py:1553-1572`)
+## Finding 5a — the instrument itself hides flicker (masking at `coordinator.py:1533-1552`)
 
 Before reading the flat-history observation below at face value, it matters
 that the diagnostics dump is not a raw wire capture — it is the coordinator's
 *masked* state, and the masking is asymmetric by design.
-`VehicleCoordinator._build_vehicle_info_dict` (`coordinator.py:1553-1572`)
+`VehicleCoordinator._build_vehicle_info_dict` (`coordinator.py:1533-1552`)
 folds each update into `self.data`: when an incoming value is one of
 `INVALID_SENSOR_STATES` **and** the field already has a previous entry, the
 whole previous `{"value": ..., "history": ...}` object is substituted in
-unchanged (`coordinator.py:1557-1558`) — the invalid reading is not recorded
+unchanged (`coordinator.py:1537-1538`) — the invalid reading is not recorded
 anywhere, not in `value`, not in `history`. Only a valid reading ever
-extends `history` (`coordinator.py:1572`). The one documented exception is
+extends `history` (`coordinator.py:1552`). The one documented exception is
 the very first update for a field with no prior entry, which is published
-as-is, invalid values included (`coordinator.py:1536-1549`) — that is how a
+as-is, invalid values included (`coordinator.py:1516-1529`) — that is how a
 literal `SNA` was once observed on both rear seat heating sensors at a fresh
-start (comment at `coordinator.py:1541`).
+start (comment at `coordinator.py:1521`).
 
 The consequence for this evidence: **once a field has produced one valid
 reading, ever, every later invalid reading on that field becomes

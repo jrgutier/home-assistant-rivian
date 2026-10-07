@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Final
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
@@ -17,8 +16,6 @@ from .entity import RivianVehicleControlEntity, RivianVehicleEntity
 from .gear_guard import CAMERAS, gear_guard_camera_options
 from .helpers import vehicle_supports
 from .rivian_client import VehicleCommand
-
-_LOGGER = logging.getLogger(__name__)
 
 LEVEL_MAP = {"Off": "0", "On": "1", "Level_1": "2", "Level_2": "3", "Level_3": "4"}
 LEVELS = ["Off", "Level_1", "Level_2", "Level_3"]

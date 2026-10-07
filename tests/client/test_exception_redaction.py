@@ -76,7 +76,7 @@ def _rendered(exc: Exception, caplog: pytest.LogCaptureFixture) -> str:
 
 
 class TestFourArgShape:
-    """rivian.py:772 -- err_cls(status, response_json, headers, body)."""
+    """rivian.py:740 -- err_cls(status, response_json, headers, body)."""
 
     def test_password_never_renders(self, caplog) -> None:
         exc = RivianInvalidCredentials(401, RESPONSE_JSON, HEADERS, LOGIN_BODY)
@@ -96,7 +96,7 @@ class TestFourArgShape:
 
 
 class TestFiveArgShape:
-    """rivian.py:773 -- RivianApiException(message, status, json, headers, body).
+    """rivian.py:741 -- RivianApiException(message, status, json, headers, body).
 
     The fallback for every code absent from ERROR_CODE_CLASS_MAP, so it is the
     shape a redaction keyed on argument POSITION would silently miss.

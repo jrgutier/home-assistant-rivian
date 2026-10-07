@@ -1,6 +1,6 @@
 # Binary sensor audit against the app's value vocabulary
 
-Read-only analysis. Audits all 35 `RivianBinarySensorEntityDescription` in `const.py:1503+`
+Read-only analysis. Audits all 35 `RivianBinarySensorEntityDescription` in `const.py:1511+`
 against the decompiled app, and the inverse: which of the 127 `RivianSensorEntityDescription`
 should be binary sensors instead.
 
@@ -121,7 +121,7 @@ Two problems today:
 - The closed value is **`close`**, not `closed`. Confirmed in fixtures (5 occurrences).
 - `opening`, `closing` and `in_transition` all fall to **off**, reported as Closed.
 - Unlike `powerState`, there is **no companion regular sensor** — `chargePortState` appears only
-  at `const.py:1508`. The five-state vocabulary reaches the user nowhere except the `value`
+  at `const.py:1516`. The five-state vocabulary reaches the user nowhere except the `value`
   attribute.
 
 Recommended: keep the binary sensor with `on_value=["open", "opening", "in_transition"]`
@@ -137,7 +137,7 @@ way `powerState` already has both. Do not convert — that would surrender the D
 
 That collapse is correct here: `MOVING` asks one boolean question and `go` is the only value that
 answers it yes. And the richer vocabulary is **already exposed** — `power_state` is a regular
-sensor on the same field at `const.py:693`. Both platforms already exist for this field. Nothing
+sensor on the same field at `const.py:701`. Both platforms already exist for this field. Nothing
 to do; this is the pattern D should copy.
 
 ### F. Tire pressure validity — 4 sensors. **No evidence in the app. Leave alone.**

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import time
-import logging
 from typing import Any, Final
 
 from homeassistant.components.time import TimeEntity
@@ -23,8 +22,6 @@ from .const import (
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianTimeEntityDescription
 from .entity import RivianVehicleEntity
-
-_LOGGER = logging.getLogger(__name__)
 
 
 def _get_schedule_time(

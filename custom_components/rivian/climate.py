@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Final
 
 from homeassistant.components.climate import (
@@ -21,8 +20,6 @@ from .coordinator import VehicleCoordinator
 from .data_classes import RivianClimateEntityDescription
 from .entity import RivianVehicleControlEntity
 from .rivian_client import VehicleCommand
-
-_LOGGER = logging.getLogger(__name__)
 
 CLIMATE: Final[RivianClimateEntityDescription] = RivianClimateEntityDescription(
     key="cabin_climate", translation_key="cabin_climate"

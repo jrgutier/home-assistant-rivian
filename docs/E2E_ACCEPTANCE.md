@@ -244,7 +244,7 @@ Gear Guard unable to arm — was not merely avoided, it was unreachable.
 a vehicle accepts is a live question". **`CABIN_HVAC_3RD_ROW_REAR_*` is accepted; `CABIN_HVAC_THIRD_ROW_*`
 is rejected.** Identical `params={"level": 0}`, same truck, seconds apart — one variable.
 
-This required adding `--params` to the probe first. `_validate_vehicle_command` (`rivian.py:524-548`)
+This required adding `--params` to the probe first. `_validate_vehicle_command` (`rivian.py:506-530`)
 lists eight `level`-requiring HVAC commands and **omits all four third-row spellings**, while
 `send_vehicle_command`'s docstring (`:576`) says `CABIN_HVAC_*` needs `level`. Without the parameter
 nothing raises locally and every rejection is uninterpretable — "wrong spelling" and "missing
@@ -266,7 +266,7 @@ halves are wrong as an explanation of these rejections.
   `TWO_FACTOR_DRIVE_ENABLE` and `TWO_FACTOR_DRIVE_DISABLE`. The other five are not marked.
 - The two wrappers differ in `appName` alone — `"rshell"` by default (`VASCommand.java:157-165`)
   versus `""` (`:395-405`). Our client sends no `appName` at all (`send_vehicle_command`,
-  `rivian.py:596-609`). The `appName=""` marker is an app-side construction detail we never
+  `rivian.py:568-581`). The `appName=""` marker is an app-side construction detail we never
   express, so the seven-way rejection is not attributable to the wrapper.
 
 **Nothing is removed on this evidence.** Under Principle -1 a rejection through a possibly-wrong
@@ -541,7 +541,7 @@ and `final_command_state` from the coordinator record. `response_code` and `stat
 frame is a continue state whose codes are always `None`. The background terminality tracking never
 revisits them.
 
-**The data is already present**: `coordinator.py:1538-1539` keeps `responseCode` and `statusCode` on every
+**The data is already present**: `coordinator.py:1518-1519` keeps `responseCode` and `statusCode` on every
 frame, terminal included. The fix is two lines in the block at `entity.py:155-160`.
 
 This defeats the stated purpose of the round-2 decision that added the two attributes — *"`responseCode 288`

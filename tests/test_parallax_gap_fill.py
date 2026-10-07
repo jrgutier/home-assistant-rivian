@@ -199,7 +199,7 @@ class TestProvenanceIsRecorded:
         the `"value" in v` branch in `_build_vehicle_info_dict` never fires for
         them. They must still enter `_subscription_keys` on the strength of the
         outer dict alone, or `_process_parallax_data`'s unconditional
-        `gnssLocation` branch (coordinator.py:1135) starts overwriting real GPS
+        `gnssLocation` branch (coordinator.py:1145) starts overwriting real GPS
         with Parallax's."""
         coordinator = _coordinator()
         coordinator.data = None
@@ -230,7 +230,7 @@ class TestSubscribingDoesNotBlockParallax:
     """The direct proof for the §D shrink: subscribing to a field does not, by
     itself, claim it for the subscription -- only a DELIVERED, truthy frame
     value does. `_subscription_keys` is fed at `_build_vehicle_info_dict`
-    (coordinator.py:1292) from frames the gateway actually sends, never from the
+    (coordinator.py:1273) from frames the gateway actually sends, never from the
     requested property set, so `batteryCellType`, `coldRangeNotification` and
     `btmOcHardwareFailureStatus` moving out of PARALLAX_ONLY_FIELDS does not by
     itself take Parallax's write path away from them.
@@ -239,11 +239,11 @@ class TestSubscribingDoesNotBlockParallax:
     can name a key AND still not supply a usable value for it
     (`{"timeStamp": ..., "value": None}` -- the server selected the field and
     got nothing back). `_build_vehicle_info_dict` filters on the OUTER dict's
-    truthiness only (`if v` at coordinator.py:1289) -- a non-empty dict is
+    truthiness only (`if v` at coordinator.py:1270) -- a non-empty dict is
     truthy regardless of what its "value" key holds -- so today that case is
     wrongly claimed and Parallax is wrongly blocked. That is the second case
     below, and it is written to demonstrate the bug, not to pass: it is expected
-    RED until the value-based provenance fix lands (coordinator.py:1292, wave 3).
+    RED until the value-based provenance fix lands (coordinator.py:1273, wave 3).
     """
 
     NEWLY_SUBSCRIBABLE = (
@@ -272,7 +272,7 @@ class TestSubscribingDoesNotBlockParallax:
         The gateway named the field and wrapped it -- {"timeStamp": ...,
         "value": None} -- but supplied no usable value. This must behave
         identically to the top-level-None case above: the key stays free for
-        Parallax. It does not, because `if v` at coordinator.py:1289 only
+        Parallax. It does not, because `if v` at coordinator.py:1270 only
         checks the OUTER dict's truthiness, and a non-empty dict with
         "value": None is still truthy -- so the key gets claimed anyway and
         Parallax's write is wrongly blocked.
@@ -386,7 +386,7 @@ def test_the_parallax_only_keys_are_what_we_think_they_are() -> None:
 
     This does NOT say "if a future story subscribes to one of these, Parallax
     stops writing it automatically" -- that was never true and the shrink is the
-    proof: `_subscription_keys` (coordinator.py:1292) is populated only from
+    proof: `_subscription_keys` (coordinator.py:1273) is populated only from
     frames the gateway actually DELIVERS with a truthy value, never from the
     requested property set, so being named in the subscription document is not
     what claims a key. TestSubscribingDoesNotBlockParallax above is the direct

@@ -175,7 +175,7 @@ The integration **never sends commands over BLE**. Grepping `write_gatt_char` ac
 `rivian_client/` returns only `ble.py:230,248` and `ble_gen2.py:238,297` — all pairing. Commands
 go through the cloud via `generate_vehicle_command_hmac(command, timestamp, …)`
 (`utils.py:79-85`), which signs `command+timestamp` with the *same* HKDF-derived key, and
-`coordinator.py:1998-2007` / `:2043-2053` draw the same enrolled-phone material regardless of
+`coordinator.py:1979-1988` / `:2043-2053` draw the same enrolled-phone material regardless of
 generation.
 
 The APK's `ACTIVE_COMMAND` / `PASSIVE_ENTRY` branches are the app's **BLE** command path — used
