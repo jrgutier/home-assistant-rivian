@@ -427,16 +427,16 @@ class TestNetworkState:
         finding in `docs/development/PARALLAX_DECODERS.md` ("field parity
         subscribes the other ten"). Briefly, by the mechanism at
         `coordinator.py:1388` (`if k in self._subscription_keys: continue`) and
-        `coordinator.py:1266-1274` (`_subscription_keys` is fed from delivered
-        frames, keyed on the OUTER dict's truthiness, not on whether "value" is
-        non-null):
+        `coordinator.py:1563-1574` (`_subscription_keys` is fed from delivered
+        frames, keyed on whether "value" is usable, not on the outer dict's
+        truthiness):
 
           * gateway delivers a REAL value for the field -> the subscription wins
             outright; this decoder's output for that field is discarded.
-          * gateway NAMES the field but delivers null -> today's `if v` bug
-            claims the key anyway (worker-4's pending value-based-provenance fix,
-            `coordinator.py:1273`), so Parallax is blocked from filling it even
-            though the subscription supplied nothing usable.
+          * gateway NAMES the field but delivers null, or a value in
+            INVALID_SENSOR_STATES -> the key is not claimed (the latter releases
+            it), so Parallax fills it. Before s51 (68f2453) the outer dict's
+            truthiness claimed the key anyway and Parallax was blocked.
           * gateway never names the field in a frame -> Parallax remains the
             only source, exactly as before field parity.
 

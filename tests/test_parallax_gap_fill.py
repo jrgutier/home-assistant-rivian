@@ -238,12 +238,12 @@ class TestSubscribingDoesNotBlockParallax:
     Three cases per field, and the middle one is the one that matters: a frame
     can name a key AND still not supply a usable value for it
     (`{"timeStamp": ..., "value": None}` -- the server selected the field and
-    got nothing back). `_build_vehicle_info_dict` filters on the OUTER dict's
-    truthiness only (`if v` at coordinator.py:1270) -- a non-empty dict is
-    truthy regardless of what its "value" key holds -- so today that case is
-    wrongly claimed and Parallax is wrongly blocked. That is the second case
-    below, and it is written to demonstrate the bug, not to pass: it is expected
-    RED until the value-based provenance fix lands (coordinator.py:1273, wave 3).
+    got nothing back). `_build_vehicle_info_dict` used to filter on the OUTER
+    dict's truthiness only -- a non-empty dict is truthy regardless of what its
+    "value" key holds -- so that case was wrongly claimed and Parallax was
+    wrongly blocked. The second case below was written to demonstrate that bug
+    and was red until s51 (68f2453) made provenance value-based: a wrapped null
+    now claims nothing (coordinator.py:1568).
     """
 
     NEWLY_SUBSCRIBABLE = (
@@ -267,15 +267,15 @@ class TestSubscribingDoesNotBlockParallax:
 
     @pytest.mark.parametrize("field", NEWLY_SUBSCRIBABLE)
     def test_a_wrapped_null_value_does_not_claim_the_key(self, field: str) -> None:
-        """EXPECTED RED until the value-based provenance fix lands.
+        """Red until s51 (68f2453); it pins the value-based provenance fix.
 
         The gateway named the field and wrapped it -- {"timeStamp": ...,
         "value": None} -- but supplied no usable value. This must behave
         identically to the top-level-None case above: the key stays free for
-        Parallax. It does not, because `if v` at coordinator.py:1270 only
-        checks the OUTER dict's truthiness, and a non-empty dict with
-        "value": None is still truthy -- so the key gets claimed anyway and
-        Parallax's write is wrongly blocked.
+        Parallax. It used not to: the claim checked only the OUTER dict's
+        truthiness, and a non-empty dict with "value": None is still truthy,
+        so the key was claimed anyway and Parallax's write was blocked. The
+        claim now reads the inner value (coordinator.py:1568).
         """
         coordinator = _coordinator()
         coordinator.data = None
