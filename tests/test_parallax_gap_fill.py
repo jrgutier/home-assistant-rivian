@@ -228,7 +228,7 @@ class TestProvenanceIsRecorded:
 
 class TestSubscribingDoesNotBlockParallax:
     """The direct proof for the §D shrink: subscribing to a field does not, by
-    itself, claim it for the subscription -- only a DELIVERED, truthy frame
+    itself, claim it for the subscription -- only a DELIVERED, usable frame
     value does. `_subscription_keys` is fed at `_build_vehicle_info_dict`
     (coordinator.py:1574) from frames the gateway actually sends, never from the
     requested property set, so `batteryCellType`, `coldRangeNotification` and
@@ -238,12 +238,7 @@ class TestSubscribingDoesNotBlockParallax:
     Three cases per field, and the middle one is the one that matters: a frame
     can name a key AND still not supply a usable value for it
     (`{"timeStamp": ..., "value": None}` -- the server selected the field and
-    got nothing back). `_build_vehicle_info_dict` used to filter on the OUTER
-    dict's truthiness only -- a non-empty dict is truthy regardless of what its
-    "value" key holds -- so that case was wrongly claimed and Parallax was
-    wrongly blocked. The second case below was written to demonstrate that bug
-    and was red until s51 (68f2453) made provenance value-based: a wrapped null
-    now claims nothing (coordinator.py:1568).
+    got nothing back). That is the second case below, and it claims nothing.
     """
 
     NEWLY_SUBSCRIBABLE = (
@@ -267,15 +262,14 @@ class TestSubscribingDoesNotBlockParallax:
 
     @pytest.mark.parametrize("field", NEWLY_SUBSCRIBABLE)
     def test_a_wrapped_null_value_does_not_claim_the_key(self, field: str) -> None:
-        """Red until s51 (68f2453); it pins the value-based provenance fix.
+        """Pins value-based provenance: a wrapped null claims nothing.
 
         The gateway named the field and wrapped it -- {"timeStamp": ...,
         "value": None} -- but supplied no usable value. This must behave
         identically to the top-level-None case above: the key stays free for
-        Parallax. It used not to: the claim checked only the OUTER dict's
-        truthiness, and a non-empty dict with "value": None is still truthy,
-        so the key was claimed anyway and Parallax's write was blocked. The
-        claim now reads the inner value (coordinator.py:1568).
+        Parallax. `_build_vehicle_info_dict` reads the inner value, not the
+        OUTER dict's truthiness -- a non-empty dict is truthy whatever its
+        "value" key holds, which is how this case was once wrongly claimed.
         """
         coordinator = _coordinator()
         coordinator.data = None
