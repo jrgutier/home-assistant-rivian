@@ -40,11 +40,13 @@ else
   bad "the filter does not precede the negate (filter=$filter_line negate=$negate_line)"
 fi
 
-# The aggregate branch is untouched: still a plain membership test, no filter.
-if grep -qF 'self.entity_description.on_value in (' "$BS"; then
+# The aggregate branch is still a plain membership test, no filter. s53 turned
+# it round -- each member's value against `on_values` -- so this looks for that
+# form, not the `on_value in (` it replaced.
+if grep -qF 'any(self._get_value(entity_key) in values for entity_key in fields)' "$BS"; then
   ok "the aggregate branch is still a plain membership test"
 else
-  bad "the aggregate branch changed -- it must stay byte-identical"
+  bad "the aggregate branch changed -- it must stay a plain membership test"
 fi
 
 PY="$(resolve_pytest "$HA")"
