@@ -113,7 +113,7 @@ Withheld frames are checked by shape only, with invented values (`TestTheS46Capt
 
 | # | topic | ours | APK (3.16.0 class) | live capture | effect |
 |---|---|---|---|---|---|
-| O1 | `charging.session.time_estimation` | reads **field 1** as `timeToEndOfCharge` (`parallax.py:570`) | `o9k`: #1 `validity_flag` enum, **#2 `remaining_minutes`** uint32 | `1040` = #2 = 64 | decoder returns `{}` on every real frame. The sensor's unit is already minutes (`const.py:811`), so reading #2 needs no conversion. bretterer has this right |
+| O1 | `charging.session.time_estimation` | reads **field 1** as `timeToEndOfCharge` (`parallax.py:570`) | `o9k`: #1 `validity_flag` enum, **#2 `remaining_minutes`** uint32 | `1040` = #2 = 64 | decoder returns `{}` on every real frame. The sensor's unit is already minutes (`const.py:873`), so reading #2 needs no conversion. bretterer has this right |
 | O2 | `comfort.cabin.seat_conditioning_status` | reads fields 7–12 as per-seat submessages (`SEAT_STATUS_FIELDS`, `parallax.py:807`) | `c1i`: one repeated #1 `levels` {#1 `instance`, #2 `device` HEAT/VENT, #3 `level` LEVEL1–3} | 9 × #1 {instance, device} | decoder returns `{}` on every real frame. Root cause: fields 7–12 are the layout of **`mtm`**, the vehicle-state *preconditioning* blob (`seat_heat_status_front_left = 7` …), not this topic's message. bretterer is also silent here (wrong enum, see T6) |
 | O3 | `comfort.cabin.cabin_preconditioning_status` | 4 → `active`, **1 and 2 → `initiate`**, everything else → `off` (`parallax.py:560`) | `p22`: 1 INITIATE, **2 ACTIVE**, 3 ACTIVE_WARNING, 4 COMPLETE_MAINTAIN, 5–7 timeout/errors, 8 UNAVAILABLE, 9 TIMEOUT_COMPLETE | `0808` = 8 (UNAVAILABLE) → ours `off`, acceptable | 2 (actually running) reads `initiate`; 3 (running with a warning) reads `off` |
 
@@ -133,7 +133,7 @@ went unnoticed.
 
 | # | topic | ours | APK | effect |
 |---|---|---|---|---|
-| O6 | `comfort.cabin.defrost_defog_status` | 2 → `Defrost`, **anything else → `Off`** (`parallax.py:417`) | `lv5`: 1 DEFOG, 2 DEFROST, 3 DEFOG_DEFROST, 4 OFF | defog (1) and defog+defrost (3) report `Off`. The sensor already has a `Defog` option (`const.py:281`) |
+| O6 | `comfort.cabin.defrost_defog_status` | 2 → `Defrost`, **anything else → `Off`** (`parallax.py:417`) | `lv5`: 1 DEFOG, 2 DEFROST, 3 DEFOG_DEFROST, 4 OFF | defog (1) and defog+defrost (3) report `Off`. The sensor already has a `Defog` option (`const.py:342`) |
 | O7 | `vehicle.power.state` | unknown values default to `standby` (`parallax.py:536`) | `qqf`: 5 VEHICLE_RESET, 6 OTA_UPDATE, 7 SHUTDOWN | an OTA install reads as `standby` |
 | O8 | `gearguard_streaming_daily_limit` | 1 → `undefined`, 3 → `hit` (`_GEAR_GUARD_DAILY_LIMIT`) | `uc5`: 0 UNDEFINED, **1 HIT**, 2 NOT_HIT | a hit limit (1) reads `undefined`; same 3.6.0 offset as O5 |
 | O9 | `energy.high_voltage.battery_state` | reads a `rangeKm` float at `charge_state.#3` (`parallax.py:184`) | `bc1.charge_state` has only #1, #2 | phantom field, never present on the wire. Harmless; ours also leaves #2 cell temperatures, #3 thermal event and #4 power output undecoded |

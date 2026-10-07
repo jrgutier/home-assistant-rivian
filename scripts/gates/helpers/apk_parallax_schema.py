@@ -279,10 +279,15 @@ def call_sites(tree: Tree, enums: dict[str, dict[str, str]]) -> list[dict]:
     )
     topic_ref = re.compile(r"\b(" + "|".join(enums) + r")\.([A-Z][A-Z0-9_]+)\b")
 
+    def named(body: str) -> list[str]:
+        """Every topic `body` names, in source order, repeats kept."""
+        return [enums[e][n] for e, n in topic_ref.findall(body) if n in enums[e]]
+
     def topics(body: str) -> list[str]:
-        return sorted(
-            {enums[e][n] for e, n in topic_ref.findall(body) if n in enums[e]}
-        )
+        return sorted(set(named(body)))
+
+    def where(rel: str, text: str, offset: int) -> str:
+        return f"{rel}:{text.count(chr(10), 0, offset) + 1}"
 
     sites = []
     for rel, text in tree.text.items():
@@ -294,7 +299,7 @@ def call_sites(tree: Tree, enums: dict[str, dict[str, str]]) -> list[dict]:
             name, body, start = tree.enclosing(rel, m.start())
             site = {
                 "class": cls,
-                "site": f"{rel}:{text.count(chr(10), 0, m.start()) + 1}",
+                "site": where(rel, text, m.start()),
                 "method": f"{stem}.{name}",
                 "base64": "Base64.decode" in body,
                 "topics": topics(body),
@@ -307,23 +312,19 @@ def call_sites(tree: Tree, enums: dict[str, dict[str, str]]) -> list[dict]:
                     for c in caller.finditer(text2):
                         _, body2, _ = tree.enclosing(rel2, c.start())
                         for t in topics(body2):
-                            line = text2.count(chr(10), 0, c.start()) + 1
-                            site["caller_topics"].setdefault(t, f"{rel2}:{line}")
+                            site["caller_topics"].setdefault(
+                                t, where(rel2, text2, c.start())
+                            )
             cases = re.findall(r"case (\d+):", body[: m.start() - start])
             if not site["topics"] and name.startswith("invoke") and cases:
                 ctor = re.compile(rf"new {re.escape(stem)}\((?:[^()]*, )?{cases[-1]}\)")
                 for rel2, text2 in tree.text.items():
                     for c in ctor.finditer(text2):
                         _, body2, start2 = tree.enclosing(rel2, c.start())
-                        before = [
-                            enums[e][n]
-                            for e, n in topic_ref.findall(body2[: c.start() - start2])
-                            if n in enums[e]
-                        ]
+                        before = named(body2[: c.start() - start2])
                         if before:
-                            line = text2.count(chr(10), 0, c.start()) + 1
                             site["registry_topics"].setdefault(
-                                before[-1], f"{rel2}:{line}"
+                                before[-1], where(rel2, text2, c.start())
                             )
             sites.append(site)
     return sorted(sites, key=lambda s: s["site"])
@@ -337,32 +338,21 @@ def main(root: Path, version: str, out: Path, wanted: list[str]) -> None:
     schema, unbound = {}, []
     for s in sites:
         if len(s["topics"]) == 1:
-            topic, how, where = s["topics"][0], "direct", s["site"]
+            topic, how, extra = s["topics"][0], "direct", {}
         elif not s["topics"] and len(s["caller_topics"]) == 1:
-            topic, how, where = next(iter(s["caller_topics"])), "via_caller", s["site"]
+            ((topic, at),) = s["caller_topics"].items()
+            how, extra = "via_caller", {"caller_site": at}
         elif not s["topics"] and len(s["registry_topics"]) == 1:
-            topic, how, where = (
-                next(iter(s["registry_topics"])),
-                "lambda_registry",
-                s["site"],
-            )
+            ((topic, at),) = s["registry_topics"].items()
+            how, extra = "lambda_registry", {"registry_site": at}
         else:
             unbound.append({**s, **tree.message(s["class"])})
             continue
         entry = {
             "class": s["class"],
-            "dispatch_site": where,
+            "dispatch_site": s["site"],
             "binding": how,
-            **(
-                {"caller_site": s["caller_topics"][topic]}
-                if how == "via_caller"
-                else {}
-            ),
-            **(
-                {"registry_site": s["registry_topics"][topic]}
-                if how == "lambda_registry"
-                else {}
-            ),
+            **extra,
             "fields": tree.message(s["class"])["fields"],
         }
         schema.setdefault(topic, []).append(entry)

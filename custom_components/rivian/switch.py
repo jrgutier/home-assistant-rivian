@@ -13,7 +13,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianSwitchEntityDescription
-from .entity import RivianVehicleControlEntity, RivianVehicleEntity
+from .entity import (
+    RivianChargingScheduleEntity,
+    RivianVehicleControlEntity,
+    vehicle_control_enabled,
+)
 from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,7 +119,7 @@ async def async_setup_entry(
     entities = [
         RivianSwitchEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for description in SWITCHES
     ]
 
@@ -133,15 +137,10 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class RivianChargingScheduleEnabledEntity(RivianVehicleEntity, SwitchEntity):
+class RivianChargingScheduleEnabledEntity(RivianChargingScheduleEntity, SwitchEntity):
     """Charging Schedule Enabled Entity."""
 
     entity_description: RivianSwitchEntityDescription
-
-    @property
-    def available(self) -> bool:
-        """Return availability."""
-        return self._available
 
     @property
     def is_on(self) -> bool:

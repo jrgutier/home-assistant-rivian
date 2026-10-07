@@ -8,7 +8,7 @@ months, and both were being re-fetched twice a minute.
 
 ## The 900-second cap, and why the number chosen makes it moot
 
-`_set_update_interval` (coordinator.py:86-98) computes
+`_set_update_interval` (coordinator.py:150-162) computes
 
     seconds = min(self._update_interval_seconds * 2**self._error_count, 900)
 
@@ -189,7 +189,7 @@ async def test_capabilities_still_propagate_on_reload(
 
     `async_setup_entry` constructs a fresh UserCoordinator and awaits
     `async_config_entry_first_refresh()` before anything else
-    (__init__.py:75-78), so reloading the entry re-fetches `currentUser`
+    (__init__.py:184-187), so reloading the entry re-fetches `currentUser`
     immediately. This asserts that path exists rather than trusting the interval
     change was harmless.
     """

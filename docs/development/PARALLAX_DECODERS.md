@@ -86,7 +86,7 @@ subscription document on the theory that requesting a field would let
 out of ever filling it — "a subscribed field is recorded in
 `_subscription_keys`, which blocks Parallax's only source for it." That rests
 on a misreading: `_subscription_keys` is populated from frames the gateway
-actually **delivers** (`coordinator.py:1292`), never from the set of fields
+actually **delivers** (`coordinator.py:1574`), never from the set of fields
 *requested* — a subscribed-but-never-delivered field claims nothing, and
 `tests/test_parallax_gap_fill.py::test_falsy_entries_are_not_recorded_as_supplied`
 already pins that distinction. Subscribing to a field is not by itself a claim
@@ -94,7 +94,7 @@ on it.
 
 **Nothing here says the decoders became redundant.** The gap-fill rule only
 discards a Parallax value for a key already claimed by a *delivered* subscription
-frame (`coordinator.py:1134`); until this integration has live evidence that the
+frame (`coordinator.py:1388`); until this integration has live evidence that the
 gateway actually delivers non-null values for these three, the decoders remain
 their working, verified fallback — exactly the same reasoning
 `### UPDATE — field parity subscribes the other ten (T2b)` above applies to the
@@ -225,9 +225,9 @@ test_the_wifi_and_cellular_overlap_with_the_subscription` pins the set); only
 the subscription alone.
 
 **This does not mean the decoder is dead.** The gap-fill rule
-(`coordinator.py:1134`) only discards a Parallax value for a key already in
-`_subscription_keys`, which `_build_vehicle_info_dict` (`coordinator.py:1285-
-1293`) populates from *delivered* frames — keyed on the outer dict's truthiness,
+(`coordinator.py:1388`) only discards a Parallax value for a key already in
+`_subscription_keys`, which `_build_vehicle_info_dict` (`coordinator.py:1530-
+1574`) populates from *delivered* frames — keyed on the outer dict's truthiness,
 not on whether the frame's `"value"` is non-null, which is the separate bug
 worker-4's value-based-provenance fix targets. So each of the ten depends on
 which of three cases the gateway puts it in: delivered with a real value (the
@@ -269,7 +269,7 @@ not belong in a committed file.)
 That is the **first** of the three cases above, not the "named but null" one
 `UNPOPULATED_FIELDS.md`'s tire-pressure precedent suggested by analogy: the
 subscription delivers, `_build_vehicle_info_dict` records the key, and the
-gap-fill rule (`coordinator.py:1134`) discards whatever the f5 decoders would
+gap-fill rule (`coordinator.py:1388`) discards whatever the f5 decoders would
 have produced for these ten. **The f5 `opl`/`vehicle.network.state` decoders
 are now unreachable for these fields** — the subscription wins outright, same
 as it already did for the eleventh, `wifiSignal`.
@@ -341,7 +341,7 @@ subscriptions for the same set.
 
 ### How ours differs
 
-`SUBSCRIBED_RVMS` (`coordinator.py:303-305`) is
+`SUBSCRIBED_RVMS` (`coordinator.py:482-484`) is
 `sorted({*PARALLAX_RVMS, *CHARGING_RVMS} & set(RVM_DECODERS))` — sorted like the
 app's key, and additionally **deduplicated** by set intersection, which the app
 does not need because its input is already a set. We open one subscription for the

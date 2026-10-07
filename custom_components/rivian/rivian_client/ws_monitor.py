@@ -3,22 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import asyncio as async_timeout
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 import inspect
 from json import loads
 import logging
 from random import uniform
-import sys
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from aiohttp import ClientWebSocketResponse, WSMessage, WSMsgType
-
-if sys.version_info >= (3, 11):
-    import asyncio as async_timeout
-else:
-    import async_timeout
 
 if TYPE_CHECKING:
     # Annotation-only. Imported at runtime by upstream 2.1.0, but Home

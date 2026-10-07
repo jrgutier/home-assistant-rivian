@@ -47,20 +47,15 @@ REMOVED = {
 REMOVED_SERVICES = ["rivian.set_geofences"]
 
 
-def build_patterns() -> list[tuple[str, re.Pattern[str]]]:
-    out = []
-    for domain, keys in REMOVED.items():
-        for key in keys:
-            # cabin_ventilation must not match cabin_ventilation_duration, so require
-            # a non-word character (or end) after the key.
-            out.append(
-                (
-                    f"{domain}.*_{key}",
-                    re.compile(rf"\b{domain}\.[a-z0-9_]*{key}(?![a-z0-9_])"),
-                )
-            )
-    for svc in REMOVED_SERVICES:
-        out.append((svc, re.compile(re.escape(svc))))
+def build_patterns() -> list[re.Pattern[str]]:
+    # cabin_ventilation must not match cabin_ventilation_duration, so require a
+    # non-word character (or end) after the key.
+    out = [
+        re.compile(rf"\b{domain}\.[a-z0-9_]*{key}(?![a-z0-9_])")
+        for domain, keys in REMOVED.items()
+        for key in keys
+    ]
+    out += [re.compile(re.escape(svc)) for svc in REMOVED_SERVICES]
     return out
 
 
@@ -101,7 +96,7 @@ def scan(root: Path) -> int:
             text = path.read_text(errors="replace")
         except OSError:
             continue
-        for label, rx in patterns:
+        for rx in patterns:
             for match in set(rx.findall(text)):
                 findings.setdefault(match, []).append(str(path.relative_to(root)))
 

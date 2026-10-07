@@ -43,7 +43,7 @@ tirePressureStatus{FrontLeft,FrontRight,RearLeft,RearRight}
 It was briefly adopted into `VEHICLE_STATE_API_FIELDS` on the strength of that
 misreading, and reverted before anything shipped. Subscribing to a name the
 server does not know is not a harmless experiment: it is what `wheelsInstalled`
-did, and it takes the **entire** subscription down (`const.py:1441-1455`).
+did, and it takes the **entire** subscription down (`const.py:2388-2403`).
 
 So: the four `tirePressureStatus*` are already subscribed and already reporting —
 all four read `OK` live — and the app requests **no** validity field of any kind
@@ -149,12 +149,12 @@ f8 changed none of them.
 
 **What f8 needs before it is re-run:** an instrument that reproduces the integration's subscription
 rather than approximating it — the same property set the coordinator uses
-(`VEHICLE_STATE_API_FIELDS`, `coordinator.py:958`) and the same setup path — verified by the control
+(`VEHICLE_STATE_API_FIELDS`, `coordinator.py:965`) and the same setup path — verified by the control
 delivering before any conclusion is drawn about the five. Bisection logic is written and ready
 (`scripts/f8_probe.py`, committed with this correction; it previously pointed at an ephemeral session directory nobody else could reach); only the subscription setup is wrong.
 
 SUPERSEDED: the instruction above previously named `VEHICLE_STATES_SUBSCRIPTION_PROPERTIES`. That
-is only the client-library default (`rivian_client/rivian.py:626-627`), which the coordinator
+is only the client-library default (`rivian_client/rivian.py:714-715`), which the coordinator
 never uses — it always passes the derived `VEHICLE_STATE_API_FIELDS` set. Following the old name
 would rebuild the wrong instrument and f8 would fail a second time for a second reason.
 
@@ -189,7 +189,7 @@ accepted and empty is exactly the case this document was written to protect.
 ### RETRACTION — both earlier f8 failures were my instrument, and so were two production outages
 
 The probe's callback read `data["data"]["vehicleState"]`. The frame is
-`{"id":…, "type":"next", "payload": {"data": {…}}}`, and `coordinator.py:580`, `:1074` and `:1223`
+`{"id":…, "type":"next", "payload": {"data": {…}}}`, and `coordinator.py:592`, `:1074` and `:1223`
 all unwrap `payload` first. The probe was one level too shallow, so `got` stayed empty **no matter
 what arrived** and every field reported NOT DELIVERED.
 
@@ -258,7 +258,7 @@ core 15  6cb13ac588a6
 
 **This is `CORE_VEHICLE_STATE_FIELDS`'s first live evidence, and it is the one
 that matters most.** The core document is the S1 mitigation
-(`coordinator.py:966`, `:1111`) for "one bad field name rejects the whole
+(`coordinator.py:1106`, `:1243`) for "one bad field name rejects the whole
 subscription": when the main, 137-name document is rejected, the client
 retries with this reduced, 15-name one instead of failing outright. Nothing in
 this repository had, before this run, established that the gateway accepts the

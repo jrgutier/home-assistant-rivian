@@ -62,13 +62,18 @@ def _crlf_sdp(sdp: str) -> str:
     return sdp.replace("\r\n", "\n").replace("\n", "\r\n")
 
 
+def _offer_payload(sdp: str) -> str:
+    """The encoded messagePayload an SDP_OFFER carries for this SDP."""
+    return encode_payload({"type": "offer", "sdp": _crlf_sdp(sdp)})
+
+
 def offer_message(sdp: str, client_id: str) -> dict[str, str]:
     """Viewer SDP_OFFER — `WebRtcMessage.createOfferMessage`."""
     return {
         "action": "SDP_OFFER",
         "recipientClientId": "",
         "senderClientId": client_id,
-        "messagePayload": encode_payload({"type": "offer", "sdp": _crlf_sdp(sdp)}),
+        "messagePayload": _offer_payload(sdp),
     }
 
 
@@ -78,10 +83,7 @@ def offer_exceeds_kvs_limit(sdp: str) -> bool:
     Measures the real encoded payload rather than the SDP length, because the
     CRLF escaping and base64 expansion are what actually decide it.
     """
-    return (
-        len(encode_payload({"type": "offer", "sdp": _crlf_sdp(sdp)}))
-        > KVS_MAX_MESSAGE_PAYLOAD
-    )
+    return len(_offer_payload(sdp)) > KVS_MAX_MESSAGE_PAYLOAD
 
 
 def ice_candidate_message(

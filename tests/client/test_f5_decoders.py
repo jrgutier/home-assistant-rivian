@@ -426,8 +426,8 @@ class TestNetworkState:
         WHO WINS is a separate, still-open question -- see the module-level
         finding in `docs/development/PARALLAX_DECODERS.md` ("field parity
         subscribes the other ten"). Briefly, by the mechanism at
-        `coordinator.py:1134` (`if k in self._subscription_keys: continue`) and
-        `coordinator.py:1285-1293` (`_subscription_keys` is fed from delivered
+        `coordinator.py:1388` (`if k in self._subscription_keys: continue`) and
+        `coordinator.py:1266-1274` (`_subscription_keys` is fed from delivered
         frames, keyed on the OUTER dict's truthiness, not on whether "value" is
         non-null):
 
@@ -435,7 +435,7 @@ class TestNetworkState:
             outright; this decoder's output for that field is discarded.
           * gateway NAMES the field but delivers null -> today's `if v` bug
             claims the key anyway (worker-4's pending value-based-provenance fix,
-            `coordinator.py:1292`), so Parallax is blocked from filling it even
+            `coordinator.py:1273`), so Parallax is blocked from filling it even
             though the subscription supplied nothing usable.
           * gateway never names the field in a frame -> Parallax remains the
             only source, exactly as before field parity.

@@ -177,8 +177,7 @@ def _block_state_machine(lines: list[str]):
     for i, line in enumerate(lines, start=1):
         stripped = line.strip()
         if in_triple:
-            close = in_triple
-            if close in line:
+            if in_triple in line:
                 # crude: assume the block closes on the first occurrence
                 in_triple = None
             yield i, True
@@ -190,16 +189,12 @@ def _block_state_machine(lines: list[str]):
         # OPEN one (typically a docstring opener, possibly closing on the
         # same line)?
         for q in ('"""', "'''"):
-            if q in line:
-                count = line.count(q)
-                if count % 2 == 1:
-                    in_triple = q
-                    yield i, True
-                    break
+            if line.count(q) % 2 == 1:
+                in_triple = q
+                yield i, True
+                break
         else:
             yield i, False
-            continue
-        continue
 
 
 def parse_file(path: Path) -> list[Citation]:

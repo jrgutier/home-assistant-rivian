@@ -145,12 +145,14 @@ is not optional.
 string `vendored+` existed, which is how a marker naming a commit **958 insertions** away from the
 tree it described survived unnoticed.
 
-**Three gates go fully dormant** — every assertion they make needs the sibling:
-`s03`, `s04`, `s08a`.
+**Three gates went fully dormant** — every assertion they made needed the sibling:
+`s03`, `s04`, `s08a`. Since s53 `s04` is no longer fully dormant: it runs one live check before
+the sibling skip (the vendored client must carry no py<3.11 version shim), so a sibling-less run
+reports `1 passed` and still says nothing about the skipped sibling checks.
 
 **Five degrade** — they lose their sibling-comparing assertions and keep the rest:
 `s02` (keeps seven, including repo-wide ruff, pytest, both coverage floors and the HA workflow's
-dev-push trigger check), `s08b` (keeps seven, because `s08b.sh:25` prefers the vendored
+dev-push trigger check), `s08b` (keeps seven, because `s08b.sh:30` prefers the vendored
 `parallax.py`), `s14` (keeps its non-sibling checks), and `f4`/`f5` (each lose exactly one
 byte-identity assertion, 21 → 20).
 

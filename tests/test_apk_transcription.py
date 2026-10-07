@@ -1007,7 +1007,7 @@ _UNPROVEN_GRAPHQL_NAMES: tuple[str, ...] = (
 
 
 def _strip_hash_comments(src: str) -> str:
-    """Drop `#` comments per line. Required: `\\b` matches CLIMATE_HOLD_ON in switch.py:72."""
+    """Drop `#` comments per line. Required: `\\b` matches CLIMATE_HOLD_ON in switch.py:76."""
     return "\n".join(re.sub(r"#.*", "", line) for line in src.splitlines())
 
 
@@ -1054,7 +1054,7 @@ class TestRemainingApkGaps:
         Every module that names a VehicleCommand must be in the list, or
         _is_wired() silently answers False and the whole catalog reasons from a
         stale premise. coordinator.py is the one deliberate exclusion: its only
-        refs are two WAKE_VEHICLE sends (coordinator.py:1956,1966), which back no
+        refs are two WAKE_VEHICLE sends (coordinator.py:1959,1969), which back no
         entity of their own.
         """
         naming = {

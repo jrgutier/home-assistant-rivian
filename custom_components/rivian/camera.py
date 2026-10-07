@@ -33,7 +33,11 @@ from .connectivity import ConnectivityState
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import COMMAND_STATE_CONTINUE, VehicleCoordinator
 from .data_classes import RivianCameraEntityDescription
-from .entity import COMMAND_TIMEOUT_SLEEPING, RivianVehicleControlEntity
+from .entity import (
+    COMMAND_TIMEOUT_SLEEPING,
+    RivianVehicleControlEntity,
+    vehicle_control_enabled,
+)
 from .gear_guard import CAMERAS
 from .helpers import vehicle_supports
 from .kvs_signaling import (
@@ -80,7 +84,7 @@ async def async_setup_entry(
     entities = [
         RivianLiveCameraEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for description in CAMERAS
         if vehicle_supports(description, vehicle)
     ]
@@ -588,8 +592,6 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
                                 )
                             )
                         )
-        except asyncio.CancelledError:
-            raise
         except Exception as err:  # noqa: BLE001 -- pump must not crash the entity
             _log_session_failure(err, "KVS signaling closed unexpectedly")
         finally:
@@ -640,8 +642,7 @@ class RivianLiveCameraEntity(RivianVehicleControlEntity, Camera):
 
     async def async_will_remove_from_hass(self) -> None:
         """Drop any open live session on unload."""
-        for session_id in list(self._sessions):
-            await self._async_close_session(session_id)
+        await self._async_close_all_sessions()
         await super().async_will_remove_from_hass()
 
 

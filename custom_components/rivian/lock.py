@@ -14,15 +14,24 @@ from .const import (
     ATTR_COORDINATOR,
     ATTR_VEHICLE,
     DOMAIN,
-    INVALID_SENSOR_STATES,
     LOCK_STATE_ENTITIES,
+    is_invalid_state,
 )
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianLockEntityDescription
-from .entity import RivianVehicleControlEntity
+from .entity import RivianVehicleControlEntity, vehicle_control_enabled
 from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _usable_closure_values(coordinator: VehicleCoordinator) -> list[Any]:
+    """Values of the closure members that hold a usable (present, valid) state."""
+    return [
+        value
+        for key in LOCK_STATE_ENTITIES
+        if (value := coordinator.get(key)) is not None and not is_invalid_state(value)
+    ]
 
 
 def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
@@ -42,11 +51,7 @@ def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
     does not remove them (const.py:BINARY_SENSORS; "R1" / "R1T").
     None only if no member has a usable value.
     """
-    usable = []
-    for key in LOCK_STATE_ENTITIES:
-        value = coordinator.get(key)
-        if value is not None and str(value).lower() not in INVALID_SENSOR_STATES:
-            usable.append(value)
+    usable = _usable_closure_values(coordinator)
     if not usable:
         return None
     return not any(value == "unlocked" for value in usable)
@@ -62,13 +67,7 @@ def _closure_coverage(coordinator: VehicleCoordinator) -> tuple[int, int]:
     require full coverage before acting on the state; nothing in the integration
     consumes it.
     """
-    usable = sum(
-        1
-        for key in LOCK_STATE_ENTITIES
-        if (value := coordinator.get(key)) is not None
-        and str(value).lower() not in INVALID_SENSOR_STATES
-    )
-    return usable, len(LOCK_STATE_ENTITIES)
+    return len(_usable_closure_values(coordinator)), len(LOCK_STATE_ENTITIES)
 
 
 LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
@@ -93,7 +92,7 @@ async def async_setup_entry(
     entities = [
         RivianLockEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for description in LOCKS
     ]
     async_add_entities(entities)

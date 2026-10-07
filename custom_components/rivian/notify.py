@@ -25,6 +25,23 @@ NAVIGATION_SERVICE_SCHEMA = vol.Schema(
 )
 
 
+def _vehicle_name(vehicle: dict[str, Any]) -> str:
+    """Return the vehicle's display name, falling back to its model."""
+    return vehicle.get("name", vehicle.get("model", "unknown"))
+
+
+def _vin_suffix(vehicle: dict[str, Any]) -> str:
+    """Return the last six VIN characters, which keep service names unique."""
+    return vehicle.get("vin", "")[-6:]
+
+
+def _navigation_service_name(vehicle: dict[str, Any]) -> str:
+    """Return the notify service name for a vehicle's navigation service."""
+    # Sanitize name for service ID (lowercase, replace spaces with underscores)
+    safe_name = _vehicle_name(vehicle).lower().replace(" ", "_")
+    return f"rivian_{safe_name}_{_vin_suffix(vehicle)}_navigation"
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -37,11 +54,8 @@ async def async_setup_entry(
 
     # Register a notification service for each vehicle
     for vehicle_id, vehicle in vehicles.items():
-        vehicle_name = vehicle.get("name", vehicle.get("model", "unknown"))
-        vin_suffix = vehicle.get("vin", "")[-6:]
-        # Sanitize name for service ID (lowercase, replace spaces with underscores)
-        safe_name = vehicle_name.lower().replace(" ", "_")
-        service_name = f"rivian_{safe_name}_{vin_suffix}_navigation"
+        vehicle_name = _vehicle_name(vehicle)
+        service_name = _navigation_service_name(vehicle)
 
         _LOGGER.debug(
             "Registering notify service for vehicle %s: notify.%s",
@@ -84,10 +98,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Remove each vehicle's notification service
     for vehicle in vehicles.values():
-        vehicle_name = vehicle.get("name", vehicle.get("model", "unknown"))
-        vin_suffix = vehicle.get("vin", "")[-6:]
-        safe_name = vehicle_name.lower().replace(" ", "_")
-        service_name = f"rivian_{safe_name}_{vin_suffix}_navigation"
+        service_name = _navigation_service_name(vehicle)
 
         if hass.services.has_service("notify", service_name):
             hass.services.async_remove("notify", service_name)
@@ -116,13 +127,10 @@ class RivianNotificationService:
         self._service_name = service_name
         self._config_entry = config_entry
 
-        vehicle_name = vehicle.get("name", vehicle.get("model", "unknown"))
-        vin_suffix = vehicle.get("vin", "")[-6:]
-
         _LOGGER.debug(
             "Created Rivian notification service for vehicle %s (VIN: ...%s): notify.%s",
-            vehicle_name,
-            vin_suffix,
+            _vehicle_name(vehicle),
+            _vin_suffix(vehicle),
             self._service_name,
         )
 

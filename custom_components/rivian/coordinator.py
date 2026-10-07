@@ -29,8 +29,9 @@ from .const import (
     EVENT_COMMAND_FAILED,
     EVENT_COMMAND_INITIATED,
     EVENT_COMMAND_SUCCESS,
-    INVALID_SENSOR_STATES,
+    RIVIAN_TIMESTAMP_FORMAT,
     VEHICLE_STATE_SUBSCRIPTION_FIELDS,
+    is_invalid_state,
 )
 from .helpers import redact, redact_text
 from .rivian_client import Rivian, VehicleCommand
@@ -96,6 +97,20 @@ def _online_label(value: bool | None) -> str:
     if value is None:
         return "unknown"
     return "online" if value else "offline"
+
+
+def _payload_data(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a subscription frame's payload.data, or None when it has none."""
+    if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+        return None
+    return pdata
+
+
+def _supported_features(vehicle: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return a currentUser vehicle's vehicleState.supportedFeatures entries."""
+    return (
+        vehicle.get("vehicle", {}).get("vehicleState", {}).get("supportedFeatures", [])
+    )
 
 
 class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
@@ -319,6 +334,27 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
             (now or datetime.now(timezone.utc)) - self._subscription_start_time
         ).total_seconds() / 60
 
+    def _log_resubscribe(self) -> None:
+        """Debug-log how long the outgoing subscription lasted and why it is replaced.
+
+        Call only once the (re)subscribe condition has already been met.
+        """
+        if not self._subscription_start_time:
+            return
+        reasons = []
+        if not self.data:
+            reasons.append("no data")
+        if not self.last_update_success:
+            reasons.append("last update failed")
+        if not self._unsub_handler:
+            reasons.append("no active subscription")
+        _LOGGER.debug(
+            self._log_subscription_ended,
+            self.vehicle_id,
+            self._subscription_age_minutes(),
+            ", ".join(reasons),
+        )
+
     # --- subscription frame envelope -------------------------------------
     #
     # Lifted from ChargingCoordinator and VehicleCoordinator, which carried
@@ -328,17 +364,10 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
     # stays per-subclass -- see the format strings each one overrides.
 
     _initial: asyncio.Event
-    _log_backend_error = (
-        "%s subscription received backend error: %s (HTTP %s). "
-        "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription..."
-    )
-    _log_unknown_frame = (
-        "Received an unknown subscription update: %s. "
-        "WebSocket state: %s, subscription age: %.1f min"
-    )
-    _log_too_many_errors = (
-        "Too many errors (%d) on vehicle %s subscription, unsubscribing"
-    )
+    _log_backend_error: str
+    _log_unknown_frame: str
+    _log_too_many_errors: str
+    _log_subscription_ended: str
 
     def _frame_data(self, data: dict[str, Any], now: datetime) -> dict[str, Any] | None:
         """Return the frame's payload.data, or None if the caller must return.
@@ -382,7 +411,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
                     )
                 return None
 
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+        if not (pdata := _payload_data(data)):
             _LOGGER.error(
                 self._log_unknown_frame,
                 data,
@@ -464,8 +493,6 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     """
 
     key = "getLiveSessionData"
-    _unplugged_interval = 15 * 60  # 15 minutes
-    _plugged_interval = 30  # 30 seconds
     _update_interval_seconds = 0  # disabled - data is pushed via Parallax
     _watchdog_timeout = 5 * 60  # 5 minutes
     # Wording for _frame_data's log lines -- see VehicleCoordinator's copy for
@@ -480,6 +507,9 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     )
     _log_too_many_errors = (
         "Too many errors (%d) on charging subscription for vehicle %s, unsubscribing"
+    )
+    _log_subscription_ended = (
+        "Charging subscription for vehicle %s ended after %.1f minutes. Reasons: %s"
     )
 
     def __init__(
@@ -525,25 +555,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
         if not self.data or not self.last_update_success or not self._unsub_handler:
             # Debug: Log why we're (re)subscribing
-            reasons = []
-            if not self.data:
-                reasons.append("no data")
-            if not self.last_update_success:
-                reasons.append("last update failed")
-            if not self._unsub_handler:
-                reasons.append("no active subscription")
-
-            # Track subscription lifecycle
-            if self._subscription_start_time:
-                duration = (
-                    datetime.now(timezone.utc) - self._subscription_start_time
-                ).total_seconds()
-                _LOGGER.debug(
-                    "Charging subscription for vehicle %s ended after %.1f minutes. Reasons: %s",
-                    self.vehicle_id,
-                    duration / 60,
-                    ", ".join(reasons),
-                )
+            self._log_resubscribe()
 
             await self._unsubscribe()
             self._subscription_count += 1
@@ -629,7 +641,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             new_data["startTime"] = clean["startTime"]
             self._synthetic_start_time = False
         elif not new_data.get("startTime") and clean.get("power", 0) > 0:
-            new_data["startTime"] = now.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+            new_data["startTime"] = now.strftime(RIVIAN_TIMESTAMP_FORMAT)
             self._synthetic_start_time = True
 
         new_data.update(clean)
@@ -655,7 +667,6 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """Process new charging data from subscription."""
         # Debug: Track time between updates
         now = datetime.now(timezone.utc)
-        time_since_last = None
         if self._last_update_time:
             time_since_last = (now - self._last_update_time).total_seconds()
             if time_since_last > 60:  # Log if gap > 1 minute
@@ -888,9 +899,7 @@ class UserCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 "name": vehicle["name"],
                 "supported_features": [
                     supported_feature.get("name")
-                    for supported_feature in vehicle.get("vehicle", {})
-                    .get("vehicleState", {})
-                    .get("supportedFeatures", [])
+                    for supported_feature in _supported_features(vehicle)
                     if supported_feature.get("status") == "AVAILABLE"
                 ],
                 "vas_id": (vas := vehicle.get("vas", {})).get("vasVehicleId"),
@@ -936,9 +945,7 @@ class SupportedFeaturesCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         return {
             vehicle["id"]: frozenset(
                 feature["name"]
-                for feature in vehicle.get("vehicle", {})
-                .get("vehicleState", {})
-                .get("supportedFeatures", [])
+                for feature in _supported_features(vehicle)
                 if feature.get("status") == "AVAILABLE"
             )
             for vehicle in self.data.get("vehicles", [])
@@ -957,9 +964,7 @@ class SupportedFeaturesCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         return {
             vehicle["id"]: {
                 feature["name"]: feature["status"]
-                for feature in vehicle.get("vehicle", {})
-                .get("vehicleState", {})
-                .get("supportedFeatures", [])
+                for feature in _supported_features(vehicle)
                 if feature.get("name") and feature.get("status")
             }
             for vehicle in self.data.get("vehicles", [])
@@ -986,6 +991,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     )
     _log_too_many_errors = (
         "Too many errors (%d) on vehicle %s subscription, unsubscribing"
+    )
+    _log_subscription_ended = (
+        "Vehicle %s subscription ended after %.1f minutes. Reasons: %s"
     )
     # S4: its own timeout, not shared with _watchdog_timeout -- the two streams
     # are independent and a shared constant would be a coincidence, not a fact.
@@ -1042,6 +1050,12 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         if unsub := self._unsub_tire_pressure:
             await unsub()
             self._unsub_tire_pressure = None
+        await self._subscribe_tpms(
+            "Tire pressure re-subscription failed for vehicle %s"
+        )
+
+    async def _subscribe_tpms(self, failure_log: str) -> None:
+        """Open the tire-pressure subscription; log and degrade if it is refused."""
         try:
             self._unsub_tire_pressure = (
                 await self.api.subscribe_for_tire_pressure_updates(
@@ -1051,10 +1065,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
             self._tpms_last_update_time = datetime.now(timezone.utc)
         except RivianApiException:
-            _LOGGER.exception(
-                "Tire pressure re-subscription failed for vehicle %s",
-                self.vehicle_id,
-            )
+            _LOGGER.exception(failure_log, self.vehicle_id)
             self._unsub_tire_pressure = None
 
     async def _watchdog_ticks(self) -> None:
@@ -1209,25 +1220,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         await self.get_charging_schedule_data()
         if not self.data or not self.last_update_success or not self._unsub_handler:
             # Debug: Log why we're (re)subscribing
-            reasons = []
-            if not self.data:
-                reasons.append("no data")
-            if not self.last_update_success:
-                reasons.append("last update failed")
-            if not self._unsub_handler:
-                reasons.append("no active subscription")
-
-            # Track subscription lifecycle
-            if self._subscription_start_time:
-                duration = (
-                    datetime.now(timezone.utc) - self._subscription_start_time
-                ).total_seconds()
-                _LOGGER.debug(
-                    "Vehicle %s subscription ended after %.1f minutes. Reasons: %s",
-                    self.vehicle_id,
-                    duration / 60,
-                    ", ".join(reasons),
-                )
+            self._log_resubscribe()
             await self._unsubscribe()
             self._subscription_count += 1
             self._subscription_start_time = datetime.now(timezone.utc)
@@ -1257,22 +1250,11 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # own document, so an unknown field there costs only the 12
             # tyre-pressure entities, not the whole vehicleState. Same
             # degrade-not-abort policy as Parallax below.
-            try:
-                self._unsub_tire_pressure = (
-                    await self.api.subscribe_for_tire_pressure_updates(
-                        vehicle_id=self.vehicle_id,
-                        callback=self._process_tire_pressure_data,
-                    )
-                )
-                self._tpms_last_update_time = datetime.now(timezone.utc)
-            except RivianApiException:
-                _LOGGER.exception(
-                    "Tire pressure subscription failed for vehicle %s; the 12 "
-                    "tyre-pressure entities will be unavailable until it is "
-                    "re-established",
-                    self.vehicle_id,
-                )
-                self._unsub_tire_pressure = None
+            await self._subscribe_tpms(
+                "Tire pressure subscription failed for vehicle %s; the 12 "
+                "tyre-pressure entities will be unavailable until it is "
+                "re-established"
+            )
 
             # Parallax. The RVM list is explicit, DEDUPED and decodable rather than
             # rvms=None: PARALLAX_RVMS and CHARGING_RVMS overlap by five topics, so
@@ -1356,7 +1338,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _process_parallax_data(self, data: dict[str, Any]) -> None:
         """Process incoming Parallax subscription messages."""
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+        if not (pdata := _payload_data(data)):
             return
         px = pdata.get("parallaxMessages")
         if not px:
@@ -1422,7 +1404,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     # Same INVALID_SENSOR_STATES policy as the GraphQL path
                     # (_build_vehicle_info_dict). gnssLocation is already exempt
                     # via the branch above; vehicleMileage has its own guard.
-                    if str(value).lower() in INVALID_SENSOR_STATES:
+                    if is_invalid_state(value):
                         if k in (self.data or {}):
                             vehicle_updates[k] = self.data[k]
                             continue
@@ -1432,7 +1414,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                         # Dropping it here instead was tried and reverted: it
                         # made entities unavailable rather than show a
                         # stale-but-plausible state, which takes the matching
-                        # control down with the sensor (sensor.py:185,
+                        # control down with the sensor (sensor.py:180,
                         # binary_sensor.py:109).
                         self._note_unusable(k, value)
                     # `history` is a set, so an unhashable value (decode_vehicle_wheels
@@ -1461,7 +1443,6 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """Process new data."""
         # Debug: Track time between updates
         now = datetime.now(timezone.utc)
-        time_since_last = None
         if self._last_update_time:
             time_since_last = (now - self._last_update_time).total_seconds()
             if time_since_last > 60:  # Log if gap > 1 minute
@@ -1504,9 +1485,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         A sibling of _process_new_data on its own subscription (see
         subscribe_for_tire_pressure_updates()'s docstring): merges through the
         same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
-        tyre-pressure names land in _subscription_keys (coordinator.py:1593,
+        tyre-pressure names land in _subscription_keys (coordinator.py:1574,
         provenance -- not liveness), which is what keeps Parallax from
-        overwriting gateway-delivered tyre pressures (:1406).
+        overwriting gateway-delivered tyre pressures (:1388).
 
         Deliberately does NOT touch _last_update_time, _initial or
         _error_count -- those belong to the main vehicleState stream. Letting
@@ -1514,7 +1495,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         alone make a dead main subscription look healthy to _watchdog_tick
         for as long as they kept arriving.
         """
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+        if not (pdata := _payload_data(data)):
             _LOGGER.error(
                 "Received an unknown tire pressure subscription update: %s. "
                 "WebSocket state: %s",
@@ -1578,7 +1559,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # Structured fields (gnssLocation, gnssError) have no top-level "value"
         # and claim on the strength of the outer dict alone. gnssLocation MUST
         # stay claimed or _process_parallax_data's unconditional branch
-        # (coordinator.py:1408) starts overwriting real GPS with Parallax's.
+        # (coordinator.py:1390) starts overwriting real GPS with Parallax's.
         usable: set[str] = set()
         unusable: set[str] = set()
         for k, v in items.items():
@@ -1586,7 +1567,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 usable.add(k)
             elif v["value"] is None:
                 continue
-            elif str(v["value"]).lower() in INVALID_SENSOR_STATES:
+            elif is_invalid_state(v["value"]):
                 unusable.add(k)
             else:
                 usable.add(k)
@@ -1643,9 +1624,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             # every fresh start. gnssLocation is exempt here for the same reason it
             # is exempt below.
             for key, item in items.items():
-                if key != "gnssLocation" and (
-                    str(item.get("value")).lower() in INVALID_SENSOR_STATES
-                ):
+                if key != "gnssLocation" and is_invalid_state(item.get("value")):
                     self._note_unusable(key, item.get("value"))
             return items
         if not items or prev_items == items:
@@ -1654,7 +1633,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         new_data = prev_items | items
         for key in filter(lambda i: i != "gnssLocation", items):
             value = items[key].get("value")
-            if str(value).lower() in INVALID_SENSOR_STATES:
+            if is_invalid_state(value):
                 if key in prev_items:
                     new_data[key] = prev_items[key]
                 else:
@@ -1689,7 +1668,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _process_cloud_connection_data(self, data: dict[str, Any]) -> None:
         """Process cloud connection updates."""
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+        if not (pdata := _payload_data(data)):
             _LOGGER.error("Received unknown cloud connection update: %s", data)
             return
 
@@ -1828,7 +1807,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _process_command_state(self, command_id: str, data: dict[str, Any]) -> None:
         """Process command state updates."""
-        if not (payload := data.get("payload")) or not (pdata := payload.get("data")):
+        if not (pdata := _payload_data(data)):
             _LOGGER.error("Received unknown command state update: %s", data)
             return
 
@@ -1908,12 +1887,13 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             "status_code": cmd_state.get("statusCode"),
         }
 
-        if state == "COMPLETED_SUCCESS":
-            self.hass.bus.fire(EVENT_COMMAND_SUCCESS, event_data)
-            # Unsubscribe from this command
-            asyncio.create_task(self._unsubscribe_command_state(command_id))
-        elif state in ["COMPLETED_ERROR", "FAILED"]:
-            self.hass.bus.fire(EVENT_COMMAND_FAILED, event_data)
+        if state in COMMAND_STATE_STRING_TERMINAL:
+            self.hass.bus.fire(
+                EVENT_COMMAND_SUCCESS
+                if state == "COMPLETED_SUCCESS"
+                else EVENT_COMMAND_FAILED,
+                event_data,
+            )
             # Unsubscribe from this command
             asyncio.create_task(self._unsubscribe_command_state(command_id))
 

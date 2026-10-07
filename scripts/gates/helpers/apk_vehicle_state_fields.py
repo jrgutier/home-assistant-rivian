@@ -47,27 +47,30 @@ def _split_top_level(body: str) -> list[str]:
 def _selection_names(body: str, fragments: dict[str, str]) -> set[str]:
     """Depth-1 field names of a selection set, resolving spreads."""
     names: set[str] = set()
-    tokens = _split_top_level(body)
-    i = 0
-    while i < len(tokens):
-        tok = tokens[i]
+    for tok in _split_top_level(body):
         if tok.startswith("..."):
-            spread = tok[3:]
-            if spread in fragments:
-                names |= _selection_names(fragments[spread], fragments)
-            i += 1
-            continue
-        if tok.startswith("{"):
-            # a nested selection set belonging to the previous field; skip
-            i += 1
-            continue
-        if tok == "__typename":
-            i += 1
-            continue
-        # a field; its selection set, if any, is the next token
-        names.add(tok)
-        i += 1
+            if tok[3:] in fragments:
+                names |= _selection_names(fragments[tok[3:]], fragments)
+        # A `{...}` token is the nested selection set of the previous field.
+        elif not tok.startswith("{") and tok != "__typename":
+            names.add(tok)
     return names
+
+
+def _balanced_body(doc: str, start: int) -> str:
+    """The selection set whose opening `{` ends just before `start`.
+
+    Brace-matched, because a lazy regex stops at the first `}`, which is wrong
+    for nested selections.
+    """
+    depth, i = 1, start
+    while depth:
+        if doc[i] == "{":
+            depth += 1
+        elif doc[i] == "}":
+            depth -= 1
+        i += 1
+    return doc[start : i - 1]
 
 
 def fields_for(java_path: Path) -> set[str]:
@@ -75,39 +78,11 @@ def fields_for(java_path: Path) -> set[str]:
     names: set[str] = set()
     for doc in _extract_documents(java):
         fragments = {
-            name: body
-            for name, body in re.findall(
-                r"fragment (\w+) on VehicleState \{(.*?)\}\s*(?=fragment |$)",
-                doc,
-                re.DOTALL,
-            )
+            m.group(1): _balanced_body(doc, m.end())
+            for m in re.finditer(r"fragment (\w+) on VehicleState \{", doc)
         }
-        # Balance the fragment bodies: the lazy regex above stops at the first
-        # `}`, which is wrong for nested selections. Re-extract by brace matching.
-        fragments = {}
-        for m in re.finditer(r"fragment (\w+) on VehicleState \{", doc):
-            start = m.end()
-            depth = 1
-            i = start
-            while depth:
-                if doc[i] == "{":
-                    depth += 1
-                elif doc[i] == "}":
-                    depth -= 1
-                i += 1
-            fragments[m.group(1)] = doc[start : i - 1]
-
         for m in re.finditer(r"vehicleState\(id: \$vehicleID\) \{", doc):
-            start = m.end()
-            depth = 1
-            i = start
-            while depth:
-                if doc[i] == "{":
-                    depth += 1
-                elif doc[i] == "}":
-                    depth -= 1
-                i += 1
-            names |= _selection_names(doc[start : i - 1], fragments)
+            names |= _selection_names(_balanced_body(doc, m.end()), fragments)
     return names
 
 

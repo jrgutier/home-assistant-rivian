@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Final
 
-from .core import RVMDecoder, _name
+from .core import _TIMESTAMP_FORMAT, RVMDecoder, _name
 from .proto import energy_edge_compute_pb2
 
 # EnergyDistribution field number -> key suffix (EnergyDistribution in proto/energy_edge_compute.proto).
@@ -81,8 +81,6 @@ def decode_charging_graph_global(
     segments = []
     for segment in m.segment:
         seg: dict[str, Any] = {}
-        if segment.HasField("soc"):
-            seg["soc"] = segment.soc
         if segment.HasField("power"):
             seg["power"] = round(segment.power, 2)
         if segment.HasField("start_time"):
@@ -105,23 +103,16 @@ def decode_charging_graph_global(
 
     if "start_ms" in first_seg:
         st = datetime.fromtimestamp(first_seg["start_ms"] / 1000, timezone.utc)
-        result["startTime"] = st.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+        result["startTime"] = st.strftime(_TIMESTAMP_FORMAT)
 
-    if active_segments:
-        result["timeElapsed"] = sum(
-            max(0, int((s["end_ms"] - s["start_ms"]) / 1000))
-            for s in active_segments
-            if "end_ms" in s and "start_ms" in s
-        )
-    else:
-        result["timeElapsed"] = 0
+    result["timeElapsed"] = sum(
+        max(0, int((s["end_ms"] - s["start_ms"]) / 1000))
+        for s in active_segments
+        if "end_ms" in s and "start_ms" in s
+    )
 
     latest_segment = segments[-1]
-    if (
-        "power" in latest_segment
-        and latest_segment.get("power", 0) > 0
-        and latest_segment.get("state") != 8
-    ):
+    if latest_segment.get("power", 0) > 0 and latest_segment.get("state") != 8:
         result["power"] = latest_segment["power"]
         result["kilometersChargedPerHour"] = round(result["power"] * 3.5, 1)
     else:
@@ -159,9 +150,9 @@ def decode_parked_energy_distributions(
     for field, key in windows.items():
         distribution = getattr(m, field)
         window: dict[str, float] = {
-            suffix: round(getattr(distribution, _name(distribution, number)), 4)
+            suffix: round(getattr(distribution, name), 4)
             for number, suffix in _ENERGY_DISTRIBUTION.items()
-            if distribution.HasField(_name(distribution, number))
+            if distribution.HasField(name := _name(distribution, number))
         }
         if window:
             result[key] = window

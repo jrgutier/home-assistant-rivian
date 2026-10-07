@@ -13,7 +13,7 @@ whether the five R1S-group compatibility-shim gate fields
 values by real vehicles.
 
 `INVALID_SENSOR_STATES = {"fault", "signal_not_available", "sna", "undefined"}`
-(`custom_components/rivian/const.py:89`).
+(`custom_components/rivian/const.py:93`).
 
 ## VIN handling
 

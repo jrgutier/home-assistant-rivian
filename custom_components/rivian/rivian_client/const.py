@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-import sys
+from enum import StrEnum
 from typing import Final
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:
-    from backports.strenum import StrEnum
 
 LIVE_SESSION_PROPERTIES: Final[set[str]] = {
     "chargerId",
@@ -228,7 +223,7 @@ TIRE_PRESSURE_SUBSCRIPTION_PROPERTIES: Final[frozenset[str]] = frozenset(
 )
 
 # The degraded document retried once when the full vehicleState subscription is
-# rejected: one unknown field kills the whole document (const.py:2369 in
+# rejected: one unknown field kills the whole document (const.py:2392 in
 # the integration), so a single gateway field rename would otherwise take every
 # sensor unknown at once. This ~15-name subset reduces the blast radius of that
 # failure mode without eliminating it -- if the renamed field is itself one of

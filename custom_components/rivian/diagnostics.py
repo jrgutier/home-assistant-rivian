@@ -231,17 +231,19 @@ async def async_get_config_entry_diagnostics(
     # "connected but receiving nothing" is a real and non-obvious state, which
     # is why `subscribed` is reported separately from the data itself.
     # This comment previously justified that with "the gateway allows one active
-    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:898 runs a
-    # single monitor multiplexing rivian.py:155 `_subscriptions`, and
+    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:858 runs a
+    # single monitor multiplexing rivian.py:147 `_subscriptions`, and
     # subscribe_for_vehicle_updates, subscribe_for_parallax_messages and
     # subscribe_for_cloud_connection in coordinator.py open three concurrent on
     # one u-sess every day. The diagnostic is still worth reporting; the reason
     # given for it was false. See docs/development/WS_CONTENTION.md, claim C1s.
+    rvms_requested = sorted({*PARALLAX_RVMS, *CHARGING_RVMS})
+    rvms_decodable = sorted(RVM_DECODERS)
     parallax = {
         vehicle_id: {
             "subscribed": coor._unsub_parallax is not None,
-            "rvms_requested": sorted({*PARALLAX_RVMS, *CHARGING_RVMS}),
-            "rvms_decodable": sorted(RVM_DECODERS),
+            "rvms_requested": rvms_requested,
+            "rvms_decodable": rvms_decodable,
         }
         for vehicle_id, coor in vehicle_coordinators.items()
     }

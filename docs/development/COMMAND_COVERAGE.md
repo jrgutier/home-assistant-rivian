@@ -84,7 +84,7 @@ different extraction.
 
 The `appName=""` half of the claim does not survive either. The two wrappers differ in
 `appName` alone — `"rshell"` by default (`VASCommand.java:157-165`) versus `""` — and
-`send_vehicle_command` (`rivian.py:596-609`) sends no `appName` field at all. The
+`send_vehicle_command` (`rivian.py:666-680`) sends no `appName` field at all. The
 invalid-wrapper grouping is a real property *of the app*; it is not a property our client's
 requests can express, so it does not explain the f7 rejections.
 
@@ -145,8 +145,8 @@ those two; it does not make these four sendable on this VAS path.
 **The third-row spelling question is settled.** `CABIN_HVAC_3RD_ROW_REAR_LEFT/RIGHT_SEAT_HEAT` are
 accepted; `CABIN_HVAC_THIRD_ROW_LEFT/RIGHT_SEAT_HEAT` are rejected. One variable: identical
 `params={"level": 0}`, same vehicle, seconds apart. Sending them without `level` is uninterpretable —
-`_validate_vehicle_command` (`rivian.py:524-548`) omits all four third-row spellings from its
-`level`-requiring list while the `send_vehicle_command` docstring (`:576`) says `CABIN_HVAC_*` needs
+`_validate_vehicle_command` (`rivian.py:594-632`) omits all four third-row spellings from its
+`level`-requiring list while the `send_vehicle_command` docstring (`:652`) says `CABIN_HVAC_*` needs
 one, so nothing raises locally and a rejection cannot be told from a missing parameter.
 
 **All seven `generateInvalidCloudDataWrapper` commands were rejected identically**
@@ -226,7 +226,7 @@ above and `tests/test_apk_transcription.py`'s `INVALID_WRAPPER_COMMANDS` guard
 tests — now with a second, independent rejection on file.
 
 **State is not the same as control.** `pet_mode_temperature_status`
-(`custom_components/rivian/const.py:692`) and `pet_mode_status` (`:699`) already
+(`custom_components/rivian/const.py:763`) and `pet_mode_status` (`:770`) already
 exist as sensors, so pet comfort *state* is surfaced regardless of this result.
 What remains unavailable is the *write* side, not visibility into the feature.
 
@@ -305,7 +305,7 @@ decompile artifacts under `docs/development/apk/` do not name them.
 
 **Climate-hold VAS is the same class as `ACTIVATE_EXTERNAL_SOUND`:** gateway
 accept, then a vehicle-level decline. The working write remains Parallax
-(`switch.py:69-93`). Hold state did not change. Already-at-parity stays.
+(`switch.py:73-97`). Hold state did not change. Already-at-parity stays.
 
 **Gear Guard lock is the same class as `HONK_AND_FLASH_LIGHTS` / `PET_COMFORT_ON`:**
 gateway `CONFLICT` with no command id, on a session that accepted other commands
@@ -461,7 +461,7 @@ offered the button either.
 **What this does NOT establish.** These flags gate the app's UI. Nothing in the
 tree shows the VAS command path itself consulting them, so a firmware-side
 explanation for the inertness is not excluded. And an absent flag is not proof of
-an absent capability — `coordinator.py:916` records `TONNEAU_CMD` appearing in no
+an absent capability — `coordinator.py:925` records `TONNEAU_CMD` appearing in no
 vehicle's `supportedFeatures` while both tonneau commands physically move the
 cover, and `helpers.py:30-42` records this same R1T advertising none of
 `LIFTGATE_CMD`, `FRUNK_NXT_ACT` or `HEATED_SEATS` while all three work. Per-VIN

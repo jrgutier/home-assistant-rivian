@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianCoverEntityDescription
-from .entity import RivianVehicleControlEntity
+from .entity import RivianVehicleControlEntity, vehicle_control_enabled
 from .next_action_states import (
     ChargePortDoorNextActionState,
     FrunkNextActionState,
@@ -55,6 +55,17 @@ NEXT_ACTION_MAPPING: Final[
     "charge_port": ("closureChargePortDoorNextAction", ChargePortDoorNextActionState),
     "windows": ("windowsNextAction", WindowsNextActionState),
 }
+
+# (predicate method on the next-action enum, state attribute set when it holds).
+# Not every enum class defines every predicate, hence the hasattr at the use site.
+NEXT_ACTION_CONDITION_FLAGS: Final[tuple[tuple[str, str], ...]] = (
+    ("is_faulted", "faulted"),
+    ("is_obstructed", "obstructed"),
+    ("has_trailer_detected", "trailer_detected"),
+    ("has_obstacle_detected", "obstacle_detected"),
+    ("needs_calibration", "needs_calibration"),
+    ("needs_vehicle_angle_confirmation", "vehicle_angle_confirmation_needed"),
+)
 
 COVERS: Final[dict[str | None, tuple[RivianCoverEntityDescription, ...]]] = {
     None: (
@@ -150,7 +161,7 @@ async def async_setup_entry(
     entities = [
         RivianCoverEntity(coordinators[vehicle_id], entry, description, vehicle)
         for vehicle_id, vehicle in vehicles.items()
-        if vehicle.get("phone_identity_id")
+        if vehicle_control_enabled(vehicle)
         for feature, descriptions in COVERS.items()
         if feature is None or feature in (vehicle.get("supported_features", []))
         for description in descriptions
@@ -234,35 +245,9 @@ class RivianCoverEntity(RivianVehicleControlEntity, CoverEntity):
             attrs["next_action"] = next_action.value.replace("_", " ").title()
 
             # Add specific condition flags
-            if hasattr(next_action, "is_faulted") and next_action.is_faulted():
-                attrs["faulted"] = True
-
-            if hasattr(next_action, "is_obstructed") and next_action.is_obstructed():
-                attrs["obstructed"] = True
-
-            if (
-                hasattr(next_action, "has_trailer_detected")
-                and next_action.has_trailer_detected()
-            ):
-                attrs["trailer_detected"] = True
-
-            if (
-                hasattr(next_action, "has_obstacle_detected")
-                and next_action.has_obstacle_detected()
-            ):
-                attrs["obstacle_detected"] = True
-
-            if (
-                hasattr(next_action, "needs_calibration")
-                and next_action.needs_calibration()
-            ):
-                attrs["needs_calibration"] = True
-
-            if (
-                hasattr(next_action, "needs_vehicle_angle_confirmation")
-                and next_action.needs_vehicle_angle_confirmation()
-            ):
-                attrs["vehicle_angle_confirmation_needed"] = True
+            for method, attr in NEXT_ACTION_CONDITION_FLAGS:
+                if hasattr(next_action, method) and getattr(next_action, method)():
+                    attrs[attr] = True
 
         return attrs
 

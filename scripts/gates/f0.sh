@@ -24,15 +24,15 @@ T="$HA/tests/test_binary_sensor_invalid_states.py"
 have_path "binary_sensor.py present" "$BS"
 have_path "the f0 test module exists" "$T"
 
-contains "binary_sensor.py imports INVALID_SENSOR_STATES" \
-         'INVALID_SENSOR_STATES' "$BS"
+contains "binary_sensor.py imports is_invalid_state" \
+         'is_invalid_state,' "$BS"
 contains "binary_sensor.py filters on it" \
-         'str(val).lower() in INVALID_SENSOR_STATES' "$BS"
+         'is_invalid_state(val)' "$BS"
 
 # The filter must precede the negation. `not False` is True, so filtering after
 # the negate turns an unusable value into a confident True on every negated
 # description -- a silent inversion that no count-based check would see.
-filter_line=$(grep -n 'str(val).lower() in INVALID_SENSOR_STATES' "$BS" | head -1 | cut -d: -f1)
+filter_line=$(grep -n 'is_invalid_state(val)' "$BS" | head -1 | cut -d: -f1)
 negate_line=$(grep -n 'entity_description.negate' "$BS" | head -1 | cut -d: -f1)
 if [ -n "$filter_line" ] && [ -n "$negate_line" ] && [ "$filter_line" -lt "$negate_line" ]; then
   ok "the filter runs BEFORE the negate (line $filter_line < $negate_line)"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import time
-import logging
 from typing import Any, Final
 
 from homeassistant.components.time import TimeEntity
@@ -22,9 +21,7 @@ from .const import (
 )
 from .coordinator import VehicleCoordinator
 from .data_classes import RivianTimeEntityDescription
-from .entity import RivianVehicleEntity
-
-_LOGGER = logging.getLogger(__name__)
+from .entity import RivianChargingScheduleEntity
 
 
 def _get_schedule_time(
@@ -104,15 +101,10 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class RivianChargingScheduleTimeEntity(RivianVehicleEntity, TimeEntity):
+class RivianChargingScheduleTimeEntity(RivianChargingScheduleEntity, TimeEntity):
     """Charging Schedule Time Entity."""
 
     entity_description: RivianTimeEntityDescription
-
-    @property
-    def available(self) -> bool:
-        """Return availability."""
-        return self._available
 
     @property
     def native_value(self) -> time | None:

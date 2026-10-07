@@ -32,6 +32,10 @@ _LOGGER = logging.getLogger(__package__)
 
 _M = TypeVar("_M", bound=Message)
 
+# The gateway's timestamp format, for the decoders that emit a time the way the
+# GraphQL path does. sensor.py parses these strings with the same format.
+_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
+
 
 class RVMDecoder:
     """Registry of RVM topic -> (message class, payload decoder)."""

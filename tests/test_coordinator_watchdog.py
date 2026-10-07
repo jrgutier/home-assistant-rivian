@@ -723,7 +723,7 @@ class TestTheWatchdogDoesNotBlockStartup:
         WARNING [homeassistant.bootstrap] Setup timed out for bootstrap waiting on
         {<Task pending name='None Rivian (Unofficial) rivian ...'
           coro=<RivianDataUpdateCoordinator._start_watchdog.<locals>._watchdog_loop()
-          running at custom_components/rivian/coordinator.py:231>
+          running at custom_components/rivian/coordinator.py:245>
         INFO  Home Assistant initialized in 327.59s
 
     Measured on the author's production instance after upgrading: five and a half

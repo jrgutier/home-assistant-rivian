@@ -322,6 +322,15 @@ async def pair_phone_gen2(
             state = AuthState.PID_PNONCE_SENT
             _trace(lambda: trace.record_state(state.name))
 
+            def _unconsumed(skip_first_of: str | None = None):
+                """Every (channel, frame) the handshake did not act on."""
+                for chan, handler in handlers.items():
+                    frames = handler.frames
+                    if chan == skip_first_of:
+                        frames = frames[1:]
+                    for extra in frames:
+                        yield chan, extra
+
             def _record_unconsumed(note: str, skip_first_of: str | None = None) -> None:
                 """Record every frame the handshake did not act on.
 
@@ -336,16 +345,12 @@ async def pair_phone_gen2(
                 fragmentation is UNPROVEN item 3. Recording the leftovers is what
                 makes them tellable apart from a single tester report.
                 """
-                for chan, handler in handlers.items():
-                    frames = handler.frames
-                    if chan == skip_first_of:
-                        frames = frames[1:]
-                    for extra in frames:
-                        _trace(
-                            lambda c=chan, d=extra: trace.record_frame(
-                                "notify", _OUT_UUIDS[c], d, note=f"channel={c} {note}"
-                            )
+                for chan, extra in _unconsumed(skip_first_of):
+                    _trace(
+                        lambda c=chan, d=extra: trace.record_frame(
+                            "notify", _OUT_UUIDS[c], d, note=f"channel={c} {note}"
                         )
+                    )
 
             result = await _wait_for_first_frame(handlers, AUTH_TIMEOUT)
             if result is None:
@@ -447,15 +452,14 @@ async def pair_phone_gen2(
             # GEN2_BLE_DELTA.md's UNPROVEN item 2 hypothesises the encrypted
             # channel may carry only post-auth traffic, which makes that exact
             # frame the evidence most likely to disprove §3.4.
-            for name, handler in handlers.items():
-                for extra in handler.frames[1:] if name == channel else handler.frames:
-                    _LOGGER.warning(
-                        "Gen 2: unexpected frame on the %s channel after "
-                        "authentication (%d bytes) -- SIGNED_PARAMS_SENT may be "
-                        "real after all",
-                        name,
-                        len(extra),
-                    )
+            for name, extra in _unconsumed(skip_first_of=channel):
+                _LOGGER.warning(
+                    "Gen 2: unexpected frame on the %s channel after "
+                    "authentication (%d bytes) -- SIGNED_PARAMS_SENT may be "
+                    "real after all",
+                    name,
+                    len(extra),
+                )
             _record_unconsumed("post-auth (unexpected)", skip_first_of=channel)
 
             _trace(lambda: trace.record_attempt_outcome("authenticated"))
