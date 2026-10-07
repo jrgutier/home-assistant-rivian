@@ -110,6 +110,21 @@ def load_env():
     return env
 
 
+def use_system_dns() -> None:
+    """Make aiohttp resolve through the OS instead of aiodns.
+
+    aiohttp picks aiodns when it is installed, and on some networks aiodns
+    times out ("Timeout while contacting DNS servers") while the system
+    resolver answers at once -- seen on the development Mac on 2026-10-06, with
+    curl reaching the same host. Every session created after this call uses the
+    threaded resolver. Call it before the first ClientSession.
+    """
+    import aiohttp.connector
+    import aiohttp.resolver
+
+    aiohttp.connector.DefaultResolver = aiohttp.resolver.ThreadedResolver
+
+
 def _report_field(name: str, raw) -> None:
     """Print one field's delivery, descending into structured fields.
 
