@@ -1,0 +1,89 @@
+name: Release Build
+
+# Manual only, the stable twin of pre-release.yaml: same checks, same zip, same
+# scan, but published as a full release and marked "Latest".
+#
+# release.yaml cannot do this job. It fires on `release: published`, so it needs
+# a person to publish the release first, and a release created by GITHUB_TOKEN
+# does not trigger other workflows at all. Without this workflow the only full
+# releases were ones published by hand, which is how v1.4.2-beta14 -- a beta --
+# became the repository's "Latest".
+on:
+  workflow_dispatch:
+
+jobs:
+  build_and_release:
+    name: Build and create release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get current version from manifest
+        id: current_version
+        run: |
+          VERSION=$(jq -r '.version' custom_components/rivian/manifest.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Refuse to re-cut an existing tag
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag $VERSION already exists. Bump the version in a PR before releasing."
+            exit 1
+          fi
+          echo "Releasing $VERSION"
+
+      - name: Refuse a pre-release version
+        # A beta published here would be offered to every HACS user and shown as
+        # "Latest"; betas go through pre-release.yaml.
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$VERSION is not a plain X.Y.Z version. Use the Pre-Release Build workflow for betas."
+            exit 1
+          fi
+
+      - name: Check the two version strings agree
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          CONST=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' custom_components/rivian/const.py)
+          if [ -n "$CONST" ] && [ "$CONST" != "$VERSION" ]; then
+            echo "::error::manifest.json says $VERSION but const.py says $CONST"
+            exit 1
+          fi
+
+      - name: Create zip package
+        # Allow-list, not a bare recursive zip; see pre-release.yaml.
+        run: |
+          cd custom_components/rivian
+          zip -q -r ../../rivian.zip ./ \
+            -i '*.py' '*.json' '*.js' '*.graphql' '*.proto' '*.yaml' 'py.typed' 'brand/*.png'
+          cd ../..
+          unzip -l rivian.zip | tail -1
+
+      - name: Scan the artifact
+        # Runs before the release step, so a dirty artifact fails the build instead
+        # of being published and withdrawn. Same script release.yaml and
+        # scripts/gates/s12b.sh use.
+        run: bash scripts/scan_artifact.sh rivian.zip
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.current_version.outputs.version }}
+          name: "${{ steps.current_version.outputs.version }}"
+          body: |
+            ### Installation via HACS
+            1. Add this repository as a custom repository in HACS
+            2. Install the Rivian integration
+            3. Restart Home Assistant
+          files: rivian.zip
+          prerelease: false
+          make_latest: "true"
+          generate_release_notes: true
