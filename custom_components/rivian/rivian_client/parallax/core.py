@@ -1,22 +1,3 @@
-"""The decoder registry and the helpers every topic module shares.
-
-A decoder is written against a parsed message:
-
-    @RVMDecoder.register(body_pb2.TrailerState, "body.trailer.state")
-    def decode_trailer_state(m: body_pb2.TrailerState) -> dict[str, Any]: ...
-
-and `register` hands back what the rest of the integration has always called: a
-function taking the base64 payload off the subscription and returning a dict,
-`{}` when there is nothing to report. Everything a decoder used to repeat --
-the empty-payload check, base64, parsing, and swallowing a bad frame so it
-cannot take the subscription down -- lives in that wrapper, once.
-
-The registry is modelled on bretterer/rivian-python-client PR 205. It differs in
-what `register` returns: upstream's decoders are called with a message, these
-with the payload string, because that is the interface this integration's
-callers and tests already use.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -26,20 +7,14 @@ from typing import Any, ClassVar, TypeVar
 
 from google.protobuf.message import Message
 
-# The package's logger, not this module's: every topic module logs here, and the
-# name is what log configuration and caplog filters key on.
 _LOGGER = logging.getLogger(__package__)
 
 _M = TypeVar("_M", bound=Message)
 
-# The gateway's timestamp format, for the decoders that emit a time the way the
-# GraphQL path does. sensor.py parses these strings with the same format.
 _TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 
 
 class RVMDecoder:
-    """Registry of RVM topic -> (message class, payload decoder)."""
-
     decoders: ClassVar[dict[str, Callable[[str], dict[str, Any]]]] = {}
     messages: ClassVar[dict[str, type[Message]]] = {}
 
@@ -51,22 +26,6 @@ class RVMDecoder:
         empty_payload: bool = False,
         skip_empty_message: bool = False,
     ) -> Callable[[Callable[[_M], dict[str, Any]]], Callable[[str], dict[str, Any]]]:
-        """Register the decorated function as the decoder for `rvms`.
-
-        Returns the payload-taking function that replaces it.
-
-        `empty_payload`: the decoder is run on an empty payload too. proto3
-        encodes a message of all defaults as nothing, so for some topics no
-        bytes is a statement -- "no hold is set", "neither mode is on" --
-        and the decoder reports it. Without this an empty payload is `{}`.
-
-        `skip_empty_message`: `{}` when a non-empty payload decodes to no bytes
-        at all (base64 padding and nothing else). It matters only for the two
-        decoders that report defaults for whatever arrived; they said nothing
-        about such a payload before s49 and still do. No vehicle sends one.
-
-        Raises `ValueError` if a topic already has a decoder.
-        """
 
         def wrap(
             func: Callable[[_M], dict[str, Any]],
@@ -83,11 +42,8 @@ class RVMDecoder:
                     _LOGGER.debug("Failed to decode %s payload", rvms[0], exc_info=True)
                     return {}
 
-            # Not functools.wraps: that would advertise the message-taking
-            # signature, and this function takes the payload.
             decode.__name__ = func.__name__
             decode.__qualname__ = func.__qualname__
-            decode.__doc__ = func.__doc__
             decode.__module__ = func.__module__
 
             for rvm in rvms:
@@ -105,26 +61,12 @@ class RVMDecoder:
 
 
 def _name(message: Message, number: int) -> str:
-    """The schema's name for field `number` of `message`.
-
-    For the vocabularies that are keyed by field number (`_WIFI_SPEC`,
-    `_ENERGY_DISTRIBUTION`, ...): the number stays in one place, the schema.
-    """
     return message.DESCRIPTOR.fields_by_number[number].name
 
 
 def _fields(
     message: Message, spec: dict[str, tuple[str, dict[int, str] | None]]
 ) -> dict[str, Any]:
-    """Report the fields of `message` that were sent, under their output names.
-
-    `spec` maps field name -> (output key, value map). Every field named must be
-    declared `optional`, so "sent as zero" and "not sent" stay different. A None
-    map passes the value through; a map that has no entry for the value drops
-    the field rather than inventing a name -- an unmapped enum value is new
-    firmware, and guessing at it is how "SNA" became a valid sensor option once
-    already.
-    """
     result: dict[str, Any] = {}
     for field, (key, mapping) in spec.items():
         if not message.HasField(field):

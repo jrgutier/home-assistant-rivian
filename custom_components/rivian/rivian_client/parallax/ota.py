@@ -1,5 +1,3 @@
-"""Decoders for `ota.*` topics: the deployment state and install schedules."""
-
 from __future__ import annotations
 
 from typing import Any, Final
@@ -32,17 +30,12 @@ _OTA_CURRENT_STATUS: Final[dict[int, str]] = {
 
 
 def _gql_case(name: str) -> str:
-    """READY_TO_INSTALL -> Ready_To_Install, the GraphQL path's casing."""
     return "_".join(word.capitalize() for word in name.lower().split("_"))
 
 
 def _ota_version(
     version: ota_pb2.DeploymentState.Version, prefix: str
 ) -> dict[str, Any]:
-    """The app's software version message, as the gateway's field names.
-
-    software_version_id has no gateway field.
-    """
     suffixes = {
         "version_string": "",
         "version_year": "Year",
@@ -58,13 +51,6 @@ def _ota_version(
 
 
 def _ota_progress(progress: ota_pb2.DeploymentState.Progress) -> dict[str, Any]:
-    """`ota_progress` as the gateway's ota* fields.
-
-    install_ready is a bool the app turns into the gateway's own strings,
-    "ota_available" / "ota_not_available" (FOLLOWUP_S45.md, uf7.java:1778).
-    proto3 omits False, so a progress message without it is not ready.
-    progress_percent is a oneof member in the app, so it is sent even at 0.
-    """
     out: dict[str, Any] = {
         "otaInstallReady": "ota_available"
         if progress.install_ready
@@ -85,22 +71,6 @@ def _ota_progress(progress: ota_pb2.DeploymentState.Progress) -> dict[str, Any]:
 
 @RVMDecoder.register(ota_pb2.DeploymentState, "ota.deployment.state")
 def decode_ota_deployment_state(m: ota_pb2.DeploymentState) -> dict[str, Any]:
-    """Decode ota.deployment.state -- `r1e` (bound, 3.16.0).
-
-    Repeated #1 `softwares`, one per category; only FIRMWARE feeds the ota*
-    fields (HD maps and vehicle config have none). Within it: #2 the installed
-    version, #4 `available_ota` with its own #2 version and #5 progress.
-
-    Values use the gateway's casing (`Ready_To_Install`), which update.py
-    compares against. Fields the app has no unit or vocabulary for -- install
-    time, duration, OTA type -- are not emitted.
-
-    Returns dict with keys, each only when sent:
-        - otaCurrentVersion, otaCurrentVersionYear/Week/Number/GitHash
-        - otaAvailableVersion, otaAvailableVersionYear/Week/Number/GitHash
-        - otaStatus, otaCurrentStatus, otaDownloadProgress, otaInstallProgress,
-          otaInstallReady ("ota_available" / "ota_not_available")
-    """
     for deployment in m.deployment:
         if deployment.software_category != _OTA_SOFTWARE_CATEGORY_FIRMWARE:
             continue
@@ -118,14 +88,6 @@ def decode_ota_deployment_state(m: ota_pb2.DeploymentState) -> dict[str, Any]:
 
 @RVMDecoder.register(ota_pb2.VehicleOtaState, "ota.ota_state.vehicle_ota_state")
 def decode_vehicle_ota_state(m: ota_pb2.VehicleOtaState) -> dict[str, Any]:
-    """Decode ota.ota_state.vehicle_ota_state (name-match: `ugm`).
-
-    #1 id (string), #2 install_time_epoch (Timestamp). The capture carries only
-    the id, the literal "VehicleOTAState", so it decodes to {}.
-
-    Returns dict with keys:
-        - otaOneTimeInstallTime: int (epoch seconds), when sent
-    """
     if m.scheduled_install.HasField("seconds"):
         return {"otaOneTimeInstallTime": m.scheduled_install.seconds}
     return {}
@@ -137,15 +99,6 @@ def decode_vehicle_ota_state(m: ota_pb2.VehicleOtaState) -> dict[str, Any]:
     empty_payload=True,
 )
 def decode_ota_config(m: ota_pb2.OtaConfig) -> dict[str, Any]:
-    """Decode ota.user_schedule.ota_config (name-match: `rfe`).
-
-    Repeated #1 schedules {#1 id, #2 isenabled, #3 repeatsdaily {#1 startsatmin,
-    #2 geofence {#1 location}}, #4 singleoccurrence {#1 startsatutc}}.
-
-    Returns dict with keys:
-        - otaInstallSchedules: list[dict] -- enabled, and either
-          dailyStartMinute (minutes after midnight) or startsAt (epoch seconds)
-    """
     schedules: list[dict[str, Any]] = []
     for schedule in m.schedule:
         entry: dict[str, Any] = {"enabled": schedule.enabled}
@@ -153,8 +106,6 @@ def decode_ota_config(m: ota_pb2.OtaConfig) -> dict[str, Any]:
             entry["dailyStartMinute"] = schedule.repeats_daily.starts_at
         if schedule.single_occurrence.HasField("starts_at"):
             starts_at = schedule.single_occurrence.starts_at
-            # None when the time has not been picked yet: the key says a
-            # one-time install exists, the value says it has no time.
             entry["startsAt"] = (
                 starts_at.seconds if starts_at.HasField("seconds") else None
             )

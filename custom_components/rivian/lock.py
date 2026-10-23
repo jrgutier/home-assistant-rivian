@@ -1,8 +1,5 @@
-"""Support for Rivian lock entities."""
-
 from __future__ import annotations
 
-import logging
 from typing import Any, Final
 
 from homeassistant.components.lock import LockEntity
@@ -22,11 +19,8 @@ from .data_classes import RivianLockEntityDescription
 from .entity import RivianVehicleControlEntity, vehicle_control_enabled
 from .rivian_client import VehicleCommand
 
-_LOGGER = logging.getLogger(__name__)
-
 
 def _usable_closure_values(coordinator: VehicleCoordinator) -> list[Any]:
-    """Values of the closure members that hold a usable (present, valid) state."""
     return [
         value
         for key in LOCK_STATE_ENTITIES
@@ -35,22 +29,6 @@ def _usable_closure_values(coordinator: VehicleCoordinator) -> list[Any]:
 
 
 def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
-    """True if every usable member is locked; False if any is unlocked.
-
-    Invalid members are ignored rather than treated as locked. `not any(v ==
-    "unlocked")` over the whole set reports a confident Locked while this
-    truck's tailgate, tonneau and right gear tunnel hold
-    `signal_not_available` (live 2026-08-19 12:31 CDT). Returning None if any
-    member is invalid would make `lock.r1t_closures` unknown here -- MEASURED at
-    ~105 s on one of three observed boots (unknown at 12:29:52, off by 12:31:37;
-    the 12:41 and 13:10 boots went straight to off). An earlier version of this
-    docstring said "permanently", which the recorder does not support. The shape
-    still stands: unknown at startup takes the matching control down with the
-    sensor. What it does NOT justify is treating the alternative as catastrophic:
-    those three are genuine R1T closures, so model-scoping the member set
-    does not remove them (const.py:BINARY_SENSORS; "R1" / "R1T").
-    None only if no member has a usable value.
-    """
     usable = _usable_closure_values(coordinator)
     if not usable:
         return None
@@ -58,15 +36,6 @@ def _closures_are_locked(coordinator: VehicleCoordinator) -> bool | None:
 
 
 def _closure_coverage(coordinator: VehicleCoordinator) -> tuple[int, int]:
-    """(usable members, total members) behind the aggregate.
-
-    The aggregate ignores invalid members, so it can report a confident `locked`
-    while a member whose true state is `unlocked` reads `signal_not_available`.
-    On this R1T three of ten members read SNA live (2026-08-19), so that is the
-    normal case rather than an edge one. Exposing the count lets an automation
-    require full coverage before acting on the state; nothing in the integration
-    consumes it.
-    """
     return len(_usable_closure_values(coordinator)), len(LOCK_STATE_ENTITIES)
 
 
@@ -84,7 +53,6 @@ LOCKS: Final[tuple[RivianLockEntityDescription, ...]] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the lock entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -99,24 +67,14 @@ async def async_setup_entry(
 
 
 class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
-    """Representation of a Rivian lock entity."""
-
     entity_description: RivianLockEntityDescription
 
     @property
     def is_locked(self) -> bool | None:
-        """Return true if the lock is locked."""
         return self.entity_description.is_locked(self.coordinator)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose how much of the closure set the state actually rests on.
-
-        `is_locked` ignores members holding an invalid value, so `locked` can be
-        reported while a member that is genuinely unlocked reads
-        signal_not_available. An automation acting on this entity cannot
-        otherwise tell a full reading from a partial one.
-        """
         attrs = dict(super().extra_state_attributes or {})
         if self.entity_description.key == "closures":
             usable, total = _closure_coverage(self.coordinator)
@@ -125,38 +83,16 @@ class RivianLockEntity(RivianVehicleControlEntity, LockEntity):
             attrs["state_is_partial"] = usable < total
         return attrs
 
-    # The command/fallback/else dispatch below is repeated in cover.py, lock.py and
-    # switch.py, and the repetition is deliberate. Lifting it onto
-    # RivianVehicleControlEntity was built and measured (s25): a 3-argument
-    # _dispatch_command helper returning False for "neither defined" came to a NET
-    # +7 lines, because the helper costs more than the four lines each call site
-    # saves. It also introduces a silent-failure mode this form cannot have -- a
-    # caller that forgets to check the return value drops a vehicle command with no
-    # log at all. Explicit here beats shared.
     async def async_lock(self, **kwargs: Any) -> None:
-        """Lock the lock."""
-        if self.entity_description.command_lock:
-            await self._execute_command(
-                self.entity_description.command_lock,
-                self.entity_description.command_lock_params,
-            )
-        elif self.entity_description.lock:
-            await self.entity_description.lock(self.coordinator)
-        else:
-            _LOGGER.error(
-                "Lock %s has neither command_lock nor lock defined", self.entity_id
-            )
+        await self._run_action(
+            self.entity_description.command_lock,
+            self.entity_description.command_lock_params,
+            self.entity_description.lock,
+        )
 
     async def async_unlock(self, **kwargs: Any) -> None:
-        """Unlock the lock."""
-        if self.entity_description.command_unlock:
-            await self._execute_command(
-                self.entity_description.command_unlock,
-                self.entity_description.command_unlock_params,
-            )
-        elif self.entity_description.unlock:
-            await self.entity_description.unlock(self.coordinator)
-        else:
-            _LOGGER.error(
-                "Lock %s has neither command_unlock nor unlock defined", self.entity_id
-            )
+        await self._run_action(
+            self.entity_description.command_unlock,
+            self.entity_description.command_unlock_params,
+            self.entity_description.unlock,
+        )

@@ -1,5 +1,3 @@
-"""Rivian (Unofficial)"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -32,7 +30,6 @@ DOMAIN = "rivian"
 VERSION = "1.6.1"
 ISSUE_URL = "https://github.com/jrgutier/home-assistant-rivian/issues"
 
-# Attributes
 ATTR_API = "api"
 ATTR_COORDINATOR = "coordinator"
 ATTR_SUPPORTED_FEATURES = "supported_features"
@@ -40,7 +37,6 @@ ATTR_USER = "user"
 ATTR_VEHICLE = "vehicle"
 ATTR_WALLBOX = "wallbox"
 
-# Config properties
 CONF_ACCESS_TOKEN = "access_token"
 CONF_OTP = "otp"
 CONF_REFRESH_TOKEN = "refresh_token"
@@ -48,7 +44,6 @@ CONF_USER_SESSION_TOKEN = "user_session_token"
 CONF_VEHICLE_CONTROL = "vehicle_control"
 CONF_VEHICLE_IMAGE_STYLE = "vehicle_image_style"
 
-# Event names
 EVENT_COMMAND_INITIATED = f"{DOMAIN}_command_initiated"
 EVENT_COMMAND_SUCCESS = f"{DOMAIN}_command_success"
 EVENT_COMMAND_FAILED = f"{DOMAIN}_command_failed"
@@ -86,25 +81,13 @@ CLOSURE_STATE_ENTITIES = {
     "closureTonneauClosed",
 }
 
-# Compared as str(value).lower() in coordinator.py, so entries are lowercase.
-# "sna" is the vehicle's own abbreviation for signal-not-available: a live boot
-# showed the rear seat heating sensors reporting a literal "SNA", which this set
-# was meant to suppress and did not, because it only listed the long form.
 INVALID_SENSOR_STATES = {"fault", "signal_not_available", "sna", "undefined"}
 
 
 def is_invalid_state(value: Any) -> bool:
-    """Whether the vehicle reported `value` as one of INVALID_SENSOR_STATES.
-
-    The one spelling of the test for the coordinator's merge paths and the
-    entity platforms, so they cannot disagree about casing or about what a
-    non-string value means.
-    """
     return str(value).lower() in INVALID_SENSOR_STATES
 
 
-# The gateway's timestamp spelling. Ends in %z, so a strptime with it is
-# tz-aware.
 RIVIAN_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 
 
@@ -132,26 +115,15 @@ GEAR_STATUS_MAP = {
 }
 
 
-# Tokens str.title() would render "Ac"/"Soc" but the Rivian app renders uppercase.
-# Sourced from the APK's own display strings, not taste: EnumC2614Z spells
-# CHARGING_ERROR_AC_ADAPTER_USED_ON_DC as "AC adapter on DC", and "SOC"/"SNA"
-# appear uppercase there too. Deliberately absent is SD -- the same enum spells
-# ACTIVELY_CHARGING_SD_COMPENSATION "Charging Sd Compensation", so .title() is
-# already APK-correct for it. Anything added here MUST also be respelled in every
-# `options` list that can carry it, or the option becomes unreachable and
-# sensor.py logs an error and appends the emitted value at runtime -- the exact
-# defect this set was introduced to fix. TestEnumOptionsAreReachable enforces that.
 _ACRONYMS: Final[frozenset[str]] = frozenset({"AC", "DC", "SOC", "SNA"})
+_MIN_WIFI_FREQ_MHZ: Final = 1000
+
+
+def _wifi_freq_mhz(v: int | None) -> int | None:
+    return v if v is not None and v >= _MIN_WIFI_FREQ_MHZ else None
 
 
 def _to_title_case(value: str) -> str:
-    """Convert snake_case to Title Case with spaces, preserving known acronyms.
-
-    Examples:
-        trailer_present -> Trailer Present
-        not_defined -> Not Defined
-        error_soc_low -> Error SOC Low
-    """
     if not value:
         return ""
     return " ".join(
@@ -161,42 +133,18 @@ def _to_title_case(value: str) -> str:
 
 
 def _charger_status_transform(value: str) -> str:
-    """Transform charger status API values to enum names.
-
-    Examples:
-        chrgr_sts_not_connected -> Not Connected
-        chrgr_sts_connected_no_chrg -> Connected No Chrg
-    """
     if not value:
         return "NA"
-    # Handle the chrgr_sts_ prefix
     if value.startswith("chrgr_sts_"):
         value = value.replace("chrgr_sts_", "")
     return _to_title_case(value)
 
 
 def _level_or_off(value: str) -> str:
-    """Seat / steering-wheel heat and vent levels: `Level_1` -> `Level 1`."""
     return value.replace("_", " ") if value else "Off"
 
 
 def _epoch_seconds_to_utc(value: Any) -> datetime | None:
-    """Epoch seconds -> an aware UTC datetime, or None if it is not one.
-
-    `SensorDeviceClass.TIMESTAMP` requires a timezone-AWARE datetime; handed a
-    bare int Home Assistant rejects the state, so the conversion has to happen
-    here rather than in the decoder.
-
-    Converts, never corrects. `decode_gear_guard_streaming_daily_limit`
-    (rivian_client/parallax/) emits the vehicle's number verbatim, including
-    the captured frame's value that sits in the PAST relative to its capture
-    date, and `tests/test_parallax_s34_decoders.py` pins that verbatim
-    behaviour deliberately. Rebasing it to "next midnight" here would assert
-    semantics the frame does not establish.
-
-    `bool` is excluded explicitly because `isinstance(True, int)` is True and
-    would silently render 1970-01-01.
-    """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     try:
@@ -206,22 +154,12 @@ def _epoch_seconds_to_utc(value: Any) -> datetime | None:
 
 
 def _energy_window_total(window: Any) -> float | None:
-    """A parked-energy window's own `totalKwh`, never a sum of its parts.
-
-    `decode_parked_energy_distributions` emits ten measurements per window and
-    the vehicle sends `totalKwh` among them, so summing thermal + outlets +
-    system would be recomputing a number we were given -- and would silently
-    disagree with it whenever a component is absent. The park-session window in
-    the committed fixture omits `outletsKwh` entirely, which is exactly that
-    case.
-    """
     if not isinstance(window, dict):
         return None
     return window.get("totalKwh")
 
 
 def _list_length(value: Any) -> int | None:
-    """A decoded list as its length; the list itself rides as attributes."""
     return len(value) if isinstance(value, list) else None
 
 
@@ -230,7 +168,6 @@ def _list_attributes(value: Any) -> dict[str, Any] | None:
 
 
 def _ota_schedule_state(schedules: Any) -> str | None:
-    """`daily` / `once` for the first enabled schedule, else `none`."""
     if not isinstance(schedules, list):
         return None
     for entry in schedules:
@@ -246,7 +183,6 @@ def _pet_snapshot_created(snapshot: Any) -> datetime | None:
 
 
 def _dict_without(value: Any, key: str) -> dict[str, Any] | None:
-    """A decoded dict minus the one key the state already shows, as attributes."""
     if not isinstance(value, dict):
         return None
     return {k: v for k, v in value.items() if k != key} or None
@@ -257,12 +193,6 @@ def _pet_snapshot_attributes(snapshot: Any) -> dict[str, Any] | None:
 
 
 def _energy_window_attributes(window: Any) -> dict[str, Any] | None:
-    """The other nine measurements of a parked-energy window.
-
-    Attributes rather than entities: three windows x ten measurements is thirty
-    entities for ten concepts, and the decoder already refused that shape by
-    emitting nested dicts instead of flattened keys.
-    """
     return _dict_without(window, "totalKwh")
 
 
@@ -341,7 +271,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Fault",
             "Defog",
             "Defrost",
-            # CABIN_DEFROST_DEFOG_LEVEL_DEFOG_DEFROST (3), both at once; s43
             "Defog Defrost",
             "Off",
         ],
@@ -388,10 +317,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Error System Fault",
             "Timeout Temperature Not Achieved",
             "Unavailable",
-            # decode_preconditioning (rivian_client/parallax/) now emits the
-            # app's whole CABIN_PRECONDITIONING_STATE, which is the list above
-            # (s43). "Off" is no longer emitted -- the app has no such state --
-            # but stays so existing history does not read as an unknown option.
             "Off",
         ],
         value_lambda=lambda v: _to_title_case(v) if v else "Undefined",
@@ -581,10 +506,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         ],
         value_lambda=_to_title_case,
     ),
-    # DISABLED, deliberately. Populated (reads `true`) and not duplicated by
-    # anything, unlike the ota_* block below -- but it is a one-time consent
-    # flag that changes once in the life of the vehicle. Recorded here because
-    # it previously carried no reason at all.
     RivianSensorEntityDescription(
         key="gear_guard_video_terms_accepted",
         translation_key="gear_guard_video_terms_accepted",
@@ -594,16 +515,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         entity_registry_enabled_default=False,
         value_lambda=_to_title_case,
     ),
-    # The twelve ota_* version-component sensors below ship DISABLED because
-    # update.rivian_* already carries all of it and carries it better:
-    # installed_version, latest_version, the year/week/number attributes, a
-    # release-notes URL and an install button, with device_class=update. See
-    # update.py:71-93. Enabling these would add twelve worse duplicates of one
-    # good entity.
-    #
-    # They are populated -- otaCurrentVersion reads 2026.23.0 on the owner's
-    # R1T -- so "no data" is NOT the reason, and the reason was previously
-    # written down nowhere at all, which is what made this need investigating.
     RivianSensorEntityDescription(
         key="ota_available_version",
         translation_key="ota_available_version",
@@ -812,14 +723,11 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Standby",
             "Ready",
             "Go",
-            # VEHICLE_POWER_MODE 5-7 in the app (`qqf`); decoded since s43
             "Vehicle Reset",
             "Ota Update",
             "Shutdown",
             "Unknown",
         ],
-        # See charge_port_status above: the raw check in sensor.py makes an
-        # invalid-value guard here unreachable.
         value_lambda=lambda v: _to_title_case(v) if v else "Unknown",
     ),
     RivianSensorEntityDescription(
@@ -828,8 +736,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         field="chargePortState",
         icon="mdi:ev-plug-ccs2",
         device_class=SensorDeviceClass.ENUM,
-        # No "Fault": `sensor.py` resolves anything in INVALID_SENSOR_STATES
-        # to None BEFORE the options check, so "Fault" can never be a state.
         options=[
             "Open",
             "Close",
@@ -838,9 +744,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
             "Closing",
             "Unknown",
         ],
-        # No invalid-value guard here: sensor.py resolves every spelling in
-        # INVALID_SENSOR_STATES to None on the RAW value, before this runs.
-        # The empty-value branch is still needed -- "" reaches the lambda.
         value_lambda=lambda v: _to_title_case(v) if v else "Unknown",
     ),
     RivianSensorEntityDescription(
@@ -1065,69 +968,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:snowflake-thermometer",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # The f5 block of the fields Parallax is the ONLY source for.
-    #
-    # NO COUNT IN THIS HEADING, deliberately. It read "the nine fields" while
-    # PARALLAX_ONLY_FIELDS held seven, which is the fifth wrong count this
-    # repository has recorded, and s40 would have made it wrong again: that set
-    # now holds 18 names across 17 sensors and one binary sensor, of which this
-    # block is the f5 subset. Derive it -- `len(PARALLAX_ONLY_FIELDS)` -- rather
-    # than trusting a number written in prose beside it.
-    #
-    # The f5 decoders read these out of the app's protobuf messages, and the
-    # vehicleState subscription never names them -- so without a description
-    # here they would be decoded into the coordinator and read by nothing.
-    # That is exactly what happened when the gap-fill rule landed: fourteen
-    # new decoders, and not one new entity. s40 closed the same gap for the
-    # four s34 decoders; see the block at the end of SENSORS.
-    #
-    # In this block five ship ENABLED and THREE disabled -- "four disabled" was
-    # another stale count, left behind when btmOcHardwareFailureStatus moved out
-    # to the subscription -- and the line between them is
-    # whether the message is PROVEN TO ARRIVE -- not whether a field happened
-    # to hold a value in one diagnostics snapshot. A snapshot criterion flips
-    # with the weather: knownLocation reads `home` because the truck is parked
-    # at home, and coldRangeNotification reads `normal_range` because it is not
-    # cold.
-    #
-    # Arrival is only witnessable where a sibling field of the SAME message is
-    # unsubscribed. coordinator.py discards any Parallax key the subscription
-    # also supplies, so for most of these an absent value cannot be told apart
-    # from the RVM never arriving at all. Of the five RVMs behind these nine,
-    # exactly one is witnessed: security.access.vas_fault, because
-    # vasAccessCanFaulted arrived populated and neither of its fields is
-    # subscribed.
-    #
-    # A NOTE ON WHAT ABSENCE MEANS, because an earlier version of this comment
-    # got it wrong in the other direction. Proto3 omits zero values, but that
-    # only implies "healthy" where healthy IS zero. It is not, for the vas
-    # pair: _SECURE_ELEMENT_FAULTED_MAP and _ACCESS_CAN_FAULTED_MAP start at
-    # 1 = no_failure and have no 0 entry at all. vasAccessCanFaulted arrived AS
-    # no_failure -- an explicit non-zero value -- so a healthy secure element
-    # should have sent one too. Its absence means the field was left unset,
-    # i.e. UNSPECIFIED. Unknown, not healthy. The zero-means-healthy reading
-    # holds only for _HARDWARE_FAILURE_MAP, where 0 IS "unspecified".
-    # REVERSED (field-parity release). The three points below justified
-    # entity_registry_enabled_default=False and a raw name for one release;
-    # both were an artefact of how this field arrived, not of the field
-    # itself, and both are now stale.
-    #
-    # btmOcHardwareFailureStatus is IN the app's own vehicleState document
-    # (sh/C19779dc.java:59) and is now subscribed alongside its five
-    # siblings (PARALLAX_ONLY_FIELDS shrunk 10 -> 7; see the comment there).
-    # The "can never report healthy" / _HARDWARE_FAILURE_MAP-only vocabulary
-    # was true only of the Parallax decode path: that decoder is proto3, and
-    # proto3 omits a zero value on the wire, so the ENABLED->0 case never
-    # arrived through it. The vehicleState subscription is not proto3 -- it
-    # is the same gateway document its siblings already read `dtc_not_set`
-    # from -- so this field now gets the same vocabulary as btm_ff/btm_rf/
-    # btm_ic/btm_rfd/btm_lfd and the naming/vocabulary objections both fall
-    # away with it. The Parallax decoder and _HARDWARE_FAILURE_MAP stay as a
-    # fallback source; they are simply no longer this field's only one.
-    # ENABLED. Its message is proven to arrive (see above), and a fault
-    # sensor is worthless unless armed BEFORE the fault -- Home Assistant
-    # does not backfill, so a disabled entity records nothing at the moment
-    # one fires. It currently reads unknown; that is honest, not healthy.
     RivianSensorEntityDescription(
         key="vas_secure_element_faulted",
         translation_key="vas_secure_element_faulted",
@@ -1135,8 +975,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:key-alert",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # ENABLED. The witness: this arrived populated as no_failure, which is
-    # what proves security.access.vas_fault reaches us at all.
     RivianSensorEntityDescription(
         key="vas_access_can_faulted",
         translation_key="vas_access_can_faulted",
@@ -1144,17 +982,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:key-alert",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # DISABLED. The stated reason was "arrival UNWITNESSED -- an absent value
-    # cannot be told apart from the decoder never firing". CORRECTED 2026-09-02:
-    # the frame arrives; security.access.passive_entry_debug is a committed
-    # fixture and decode_passive_entry_debug returns {} on it.
-    #
-    # CORRECTED AGAIN (s43): that {} is right, not a decoder bug. The app's
-    # message (`jre`, bound, 3.16.0) has the fail reason on field 1 and
-    # send_lock_fail_notification (SNA/TRUE/FALSE) on field 2. The capture
-    # carries only field 2 = FALSE, i.e. no failure to report -- proto3 omits a
-    # fail reason of 0. So this populates only when an unlock actually fails,
-    # and stays disabled because on most installs that is never.
     RivianSensorEntityDescription(
         key="passive_entry_unlock_fail_reason",
         translation_key="passive_entry_unlock_fail_reason",
@@ -1163,12 +990,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
-    # DISABLED: arrival UNWITNESSED. Its message has no unsubscribed sibling,
-    # so an absent value cannot be told apart from the decoder never firing.
-    # The arming argument that enabled vas_secure_element_faulted applies only
-    # where delivery is proven; here it is not, and an entity that may never
-    # populate on any vehicle loses to the clutter it adds to every install.
-    # The RVM arrival counters in diagnostics settle this.
     RivianSensorEntityDescription(
         key="secure_immobilizer_status",
         translation_key="secure_immobilizer_status",
@@ -1177,12 +998,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
-    # DISABLED: arrival UNWITNESSED. Its message has no unsubscribed sibling,
-    # so an absent value cannot be told apart from the decoder never firing.
-    # The arming argument that enabled vas_secure_element_faulted applies only
-    # where delivery is proven; here it is not, and an entity that may never
-    # populate on any vehicle loses to the clutter it adds to every install.
-    # The RVM arrival counters in diagnostics settle this.
     RivianSensorEntityDescription(
         key="consecutive_alarm_disabled_notification",
         translation_key="consecutive_alarm_disabled_notification",
@@ -1191,8 +1006,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
-    # ENABLED. A static hardware fact, present in every sample to date --
-    # which is n=1, one 2022 R1T.
     RivianSensorEntityDescription(
         key="battery_cell_type",
         translation_key="battery_cell_type",
@@ -1200,17 +1013,12 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:battery-heart-variant",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # ENABLED. User-facing, and one of only two of the nine with no
-    # entity_category. `normal_range` today; the value worth having is the
-    # cold one.
     RivianSensorEntityDescription(
         key="cold_range_notification",
         translation_key="cold_range_notification",
         field="coldRangeNotification",
         icon="mdi:snowflake-alert",
     ),
-    # ENABLED. User-facing. Reads unknown where the owner has configured no
-    # known locations in the Rivian app, which is an honest state.
     RivianSensorEntityDescription(
         key="known_location",
         translation_key="known_location",
@@ -1273,17 +1081,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         ],
         value_lambda=_to_title_case,
     ),
-    # The 25 fields the app's document has and this integration did not read
-    # (field-parity release, §E). 21 direct descriptions plus the 4-way split
-    # of gnssError below; batteryCellType, btmOcHardwareFailureStatus and
-    # coldRangeNotification are NOT here -- they already have descriptions
-    # above and only gained a second (subscribed) source.
-    #
-    # NO device_class=ENUM anywhere in this group. sensor.py appends an
-    # unrecognised value to the entity's `options` list permanently for the
-    # life of the process (observed live for cabinPreconditioningStatus and
-    # both rear seat heaters) -- promote a field once a live boot has
-    # recorded its real vocabulary, not before.
     RivianSensorEntityDescription(
         key="cellular_antenna_bars",
         translation_key="cellular_antenna_bars",
@@ -1305,7 +1102,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:signal",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # Mirrors wifi_signal above field-for-field.
     RivianSensorEntityDescription(
         key="cellular_signal_strength",
         translation_key="cellular_signal_strength",
@@ -1322,14 +1118,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:wifi-strength-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # FREQUENCY/MHz: the 2026-08-22 live probe recorded `wifiFreq = 5200`,
-    # settling it as a `5200`-style MHz reading rather than a `2`/`5` band
-    # selector -- `wifiLinkSpeed = 260` on its sibling independently
-    # confirmed Mbps the same run. Evidence is n=1 (one vehicle, one
-    # moment), and a unit is not reversible once HA statistics have
-    # recorded it, so value_lambda guards against a band-index reading
-    # slipping through as a bogus "5 MHz": below ~1000 is not a frequency,
-    # and reads as unknown instead of corrupting long-run history.
     RivianSensorEntityDescription(
         key="wifi_freq",
         translation_key="wifi_freq",
@@ -1339,11 +1127,8 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfFrequency.MEGAHERTZ,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_lambda=lambda v: v if v is not None and v >= 1000 else None,
+        value_lambda=_wifi_freq_mhz,
     ),
-    # DATA_RATE / Mbps: Android's WifiInfo.getLinkSpeed(), which this field
-    # almost certainly mirrors, is documented in Mbps. Flagged for live
-    # confirmation same as wifi_freq.
     RivianSensorEntityDescription(
         key="wifi_link_speed",
         translation_key="wifi_link_speed",
@@ -1382,8 +1167,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:wifi-lock-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # User-facing: what the trip planner set as its target, mirroring
-    # battery_limit's PERCENTAGE-with-no-device_class shape above.
     RivianSensorEntityDescription(
         key="charging_trip_target_soc",
         translation_key="charging_trip_target_soc",
@@ -1441,7 +1224,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:cog-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # User-facing, beside trailer_status above.
     RivianSensorEntityDescription(
         key="rear_hitch_status",
         translation_key="rear_hitch_status",
@@ -1455,11 +1237,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:map-marker",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # gnssError has no `value` key -- it is
-    # {timeStamp, positionVertical, positionHorizontal, speed, bearing} -- so
-    # it becomes four descriptions, dotted through coordinator.get(), rather
-    # than one. All four share one `last_update` (sensor.py looks it up by
-    # the envelope key, not the leaf) since they describe one arrival.
     RivianSensorEntityDescription(
         key="gnss_error_position_vertical",
         translation_key="gnss_error_position_vertical",
@@ -1590,11 +1367,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         ],
         value_lambda=_level_or_off,
     ),
-    # Liftgate STATE, not the R1S model. Both R1S and R2 are SUVs with a
-    # liftgate; an R1T has none. Gated on LIFTGATE_CMD (s19 inverted,
-    # accepted): optional-hardware state is created only when the live
-    # flag is present. Third-row seat heaters above are separately gated
-    # on HEATED_SEATS_THIRD so an R2 with LIFTGATE_CMD does not grow them.
     RivianSensorEntityDescription(
         key="closure_liftgate_next_action",
         translation_key="closure_liftgate_next_action",
@@ -1628,44 +1400,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         ],
         value_lambda=_to_title_case,
     ),
-    # -- s40: entities for the four s34 Parallax decoders. ------------------
-    #
-    # decode_cabin_ventilation_setting, decode_gear_guard_streaming_consent,
-    # decode_gear_guard_streaming_daily_limit and
-    # decode_parked_energy_distributions (rivian_client/parallax/) have been
-    # decoding on the live vehicle since s34 and were read by NOTHING. That is
-    # the same state the gap-fill rule left the f5 decoders in -- fourteen new
-    # decoders and not one new entity -- and it is why the Parallax-only block
-    # above exists at all.
-    #
-    # ALL ENABLED by default, under the rule that block states: the line is
-    # whether the MESSAGE is PROVEN TO ARRIVE, not whether a field happened to
-    # hold a value in one snapshot. Each of the four RVMs has a frame captured
-    # off this project's own truck, committed under
-    # tests/client/fixtures/parallax/ and asserted value-by-value in
-    # tests/test_parallax_s34_decoders.py. That is stronger evidence than the
-    # argument that enabled vas_secure_element_faulted, which rested on a
-    # sibling field of the same message.
-    #
-    # Gated on the app's own supportedFeatures flags, read from
-    # docs/development/apk/VehicleFeature.java, not guessed:
-    # AUTO_VENT("AUTO_VENT") at :54, GEAR_GUARD_STREAMING("V_GGVS") at :38,
-    # PARKED_ENERGY_MONITOR("ENRG_MONTR_PARK") at :43. Gating costs no new
-    # code: `feature` is a RivianGateMixin field and sensor.py already filters
-    # every description through vehicle_supports().
-    #
-    # NONE of these names may reach the subscription. They are Parallax-decoded
-    # names the gateway does not know, and ONE unknown name kills the WHOLE
-    # vehicleState document -- the wheelsInstalled failure. PARALLAX_ONLY_FIELDS
-    # below carries all eleven for that reason.
-    #
-    # WHAT THE FIXTURE ACTUALLY CARRIED, so the next reader does not mistake
-    # "unavailable" for a defect: comfort.cabin.cabin_ventilation_setting is a
-    # TWO-BYTE frame holding field 1 only. Its four optional fields (mode, both
-    # open percentages, duration) were absent, and proto3 omission means unset,
-    # not zero -- so those four entities read unavailable until the vehicle
-    # sends a configured vent session. The message arriving is what these ship
-    # on; the fields are optional within it.
     RivianSensorEntityDescription(
         key="cabin_ventilation_mode",
         translation_key="cabin_ventilation_mode",
@@ -1701,13 +1435,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         state_class=SensorStateClass.MEASUREMENT,
     ),
-    # No `options`/ENUM on the two gear-guard vocabularies, matching the
-    # Parallax-only block above rather than the ENUM sensors: the decoder emits
-    # the app's own snake_case constants and there is no APK display-string
-    # source for a Title Case respelling. `undefined`, one of the daily-limit
-    # arms, is in INVALID_SENSOR_STATES, so sensor.py resolves it to unknown
-    # before any options check would run -- which is the honest rendering for it
-    # anyway.
     RivianSensorEntityDescription(
         key="gear_guard_streaming_consent",
         translation_key="gear_guard_streaming_consent",
@@ -1734,10 +1461,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_lambda=_epoch_seconds_to_utc,
     ),
-    # THREE parked-energy sensors, one per window, each reading its own
-    # `totalKwh`. The other nine measurements ride along as attributes; see
-    # _energy_window_attributes.
-    #
     # Deliberately NOT device_class=ENERGY. Home Assistant restricts that class
     # to state_class TOTAL / TOTAL_INCREASING (sensor's own
     # DEVICE_CLASS_STATE_CLASSES), i.e. to meters, and a rolling 24-hour window
@@ -1779,11 +1502,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         value_lambda=_energy_window_total,
         attributes_lambda=_energy_window_attributes,
     ),
-    # -- s44: the two new keys from the five APK-bound charging/OTA decoders.
-    # The rest of what those decoders emit (batteryLimit, chargerDerateStatus,
-    # remoteChargingAvailable, ota*) feeds entities that already exist. Both
-    # topics are Parallax-only, so these names are in PARALLAX_ONLY_FIELDS and
-    # never reach the subscription. Ungated: no VehicleFeature names either.
     RivianSensorEntityDescription(
         key="charging_fault_chime",
         translation_key="charging_fault_chime",
@@ -1798,10 +1516,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         field="tripTargetSoc",
         icon="mdi:battery-arrow-up",
         native_unit_of_measurement=PERCENTAGE,
-        # ENABLED although arrival is UNWITNESSED -- no trip_target frame has
-        # been captured off the truck. The owner's decision (s45): the topic is
-        # bound in the app, which outranks the witnessed-arrival rule here. It
-        # reads unavailable until the vehicle sends one.
     ),
     RivianSensorEntityDescription(
         key="trip_target_time_remaining",
@@ -1810,24 +1524,7 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         icon="mdi:timer-outline",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.MINUTES,
-        # Same topic and owner decision as trip_target_soc above.
     ),
-    # comfort.cabin.climate_hold_setting: how long a climate hold is set for.
-    #
-    # The cabin_climate_hold switch WRITES this -- it sets a duration, it does
-    # not turn a hold on -- and until s52 nothing read it back, so pressing the
-    # switch changed no entity at all. The hold status stays `off` with a
-    # duration configured; this sensor is the only place the write shows.
-    # Found the hard way on 2026-10-06, when a hardware check waited five
-    # minutes for the switch to move while the vehicle had echoed 7200 s within
-    # one second (docs/development/PARALLAX_SCHEMAS.md, "Hardware verification").
-    #
-    # Seconds on the wire and in the state, minutes by default on screen. 0
-    # means no hold is set: the vehicle reports that as an empty payload and
-    # the decoder as 0, so the sensor reads 0 rather than unknown.
-    #
-    # Enabled: the topic published on every live run that day, with a fixture
-    # committed. Ungated, like the switch that writes it.
     RivianSensorEntityDescription(
         key="climate_hold_duration",
         translation_key="climate_hold_duration",
@@ -1837,12 +1534,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTime.SECONDS,
         suggested_unit_of_measurement=UnitOfTime.MINUTES,
     ),
-    # charging.schedule.time_window: the decoder s34 withheld for its GPS field,
-    # now shipped from a 3.17.0 app capture with the location zeroed in the
-    # fixture and never emitted by the decoder. Parallax-only, ungated. A frame
-    # is committed, so these are enabled. The window string is preformatted by
-    # the decoder ("HH:MM-HH:MM"); start/end/duration/day fields are decoded but
-    # not surfaced.
     RivianSensorEntityDescription(
         key="charge_schedule_window",
         translation_key="charge_schedule_window",
@@ -1858,14 +1549,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # -- s45: name-matched topics (rivian_client/parallax/; PARALLAX_SCHEMAS.md).
-    # s46's capture witnessed favoriteGeofences, trip_progress and ota_config
-    # arriving (the first two withheld as carrying places, the third empty), so
-    # their entities are enabled; the topics that stayed silent are not.
-    # Ungated: no VehicleFeature name is known for any of them. Enabled only
-    # where a frame of the topic is committed under tests/client/fixtures/
-    # parallax/; the rest are disabled until one is witnessed (owner decision).
-    # body.windows.states and comfort.user_modes.state feed existing entities.
     RivianSensorEntityDescription(
         key="hvac_set_temperature",
         translation_key="hvac_set_temperature",
@@ -1875,8 +1558,6 @@ SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
     ),
-    # energy_edge_compute.graphs.cold_weather_soc (`jx3`): captured, so enabled.
-    # What "green" and "blue" mean is not in the app; the names are its own.
     RivianSensorEntityDescription(
         key="cold_weather_soc_green",
         translation_key="cold_weather_soc_green",
@@ -2240,11 +1921,6 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         field="alarmSoundStatus",
         icon="mdi:alarm-light",
         device_class=BinarySensorDeviceClass.SOUND,
-        # Both spellings. `SoundAlarm` is {ACTIVE, INACTIVE,
-        # SIGNAL_NOT_AVAILABLE}, but the sensor this replaced carried a
-        # value_lambda mapping "true"/"false" as well, so the field has been
-        # seen carrying booleans. Dropping either spelling would report a
-        # sounding alarm as silent.
         on_value=["active", "true"],
     ),
     RivianBinarySensorEntityDescription(
@@ -2270,9 +1946,6 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         icon="mdi:progress-check",
         device_class=BinarySensorDeviceClass.UPDATE,
         entity_category=EntityCategory.DIAGNOSTIC,
-        # The wire strings are "ota_available" / "ota_not_available"; the app
-        # maps exactly those (FOLLOWUP_S45.md, xqm.java:1312-1318). It never
-        # compares against "available", so the old on_value never fired.
         on_value="ota_available",
     ),
     RivianBinarySensorEntityDescription(
@@ -2330,9 +2003,6 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         device_class=BinarySensorDeviceClass.LOCK,
         on_value="unlocked",
     ),
-    # Liftgate binary state, same LIFTGATE_CMD gate as the next-action
-    # sensor above. s19 inverted, accepted: liftgate STATE is optional
-    # hardware, created only when the live flag is present.
     RivianBinarySensorEntityDescription(
         key="closure_liftgate_closed",
         translation_key="closure_liftgate_closed",
@@ -2349,20 +2019,6 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         device_class=BinarySensorDeviceClass.LOCK,
         on_value="unlocked",
     ),
-    # s40. The ONE field the captured comfort.cabin.cabin_ventilation_setting
-    # frame actually carried -- two bytes, field 1, `True` -- so this is the
-    # cabin-vent entity with a live value behind it rather than an optional
-    # field waiting for a vent session.
-    #
-    # A binary_sensor and not a sensor because the decoder emits a real `bool`:
-    # as a sensor its state would render "True"/"False", which is neither
-    # translatable nor a state vocabulary. Same AUTO_VENT gate as the four
-    # cabin-vent sensors, and binary_sensor.py filters through the same
-    # vehicle_supports() call, so this costs no code either.
-    #
-    # `on_value` is left at its default `True`: `RivianBinarySensorEntityDescription
-    # .on_values` normalises it to `[True]` and the decoded value is the bool
-    # itself, not one of the string vocabularies the other descriptions match.
     RivianBinarySensorEntityDescription(
         key="cabin_ventilation_enabled",
         translation_key="cabin_ventilation_enabled",
@@ -2370,7 +2026,6 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
         feature="AUTO_VENT",
         icon="mdi:air-filter",
     ),
-    # s45, vehicle_access.state.passive_entry (`fre` #1). No frame captured.
     RivianBinarySensorEntityDescription(
         key="passive_entry_bluetooth_in_ccc",
         translation_key="passive_entry_bluetooth_in_ccc",
@@ -2381,49 +2036,11 @@ BINARY_SENSORS: Final[tuple[RivianBinarySensorEntityDescription, ...]] = (
     ),
 )
 
-# Fields a sensor reads but the GraphQL VehicleState type does not have, or that
-# are declared by the schema but must never be requested in a subscription
-# document.
-#
-# The wire lists just below (VEHICLE_STATE_SUBSCRIPTION_FIELDS and
-# TIRE_PRESSURE_SUBSCRIPTION_FIELDS) used to be one set, DERIVED from every
-# sensor's `field`. That meant any sensor fed by Parallax rather than by the
-# vehicle-state subscription silently added its field to the subscription query.
 # Rivian's gateway rejects the whole subscription on the first unknown field:
 #
 #   {"type":"error","payload":[{"message":
 #     "Cannot query field \"wheelsInstalled\" on type \"VehicleState\"."}]}
 #
-# and the subscription then delivers nothing at all -- no battery level, no
-# odometer, no tire pressures. Every test passed, because no test speaks to the
-# real gateway; it took a live boot to see it.
-#
-# wheelsInstalled is computed by decode_vehicle_wheels (rivian_client/parallax/)
-# from the vehicle.wheels.vehicle_wheels RVM, so excluding it here costs nothing:
-# the sensor still reads it out of the coordinator, which Parallax populates.
-#
-# Shrunk 10 -> 7 (batteryCellType, coldRangeNotification and
-# btmOcHardwareFailureStatus removed): all three are in the app's own
-# vehicleState document (sh/C19779dc.java:59) and are schema-declared, so
-# subscribing to them is exactly what the app does. The reason they were
-# excluded -- "a subscribed field is recorded in
-# VehicleCoordinator._subscription_keys, which blocks Parallax's only source for
-# it" -- rests on a misreading: `_subscription_keys` is populated from frames the
-# gateway actually DELIVERS, never from the set of fields requested, and
-# `test_parallax_gap_fill.py::test_falsy_entries_are_not_recorded_as_supplied`
-# already pins that. The remainder have no such document to point to.
-#
-# "post-shrink seven" is what this line used to say. It was true for exactly one
-# story: s40 added eleven, so the set is 18 and any count written here goes
-# stale the next time a decoder gets an entity. Read `len(PARALLAX_ONLY_FIELDS)`.
-#
-# s40 added eleven more: the keys behind the four s34 decoders' entities (see
-# the s40 block at the end of SENSORS, plus cabin_ventilation_enabled in
-# BINARY_SENSORS). Nothing else the s34 decoders emit is listed -- membership
-# here means "a description reads this", not "a decoder emits this", and
-# `tests/test_parallax_gap_fill.py::TestTheParallaxOnlyKeysHaveEntities`
-# parametrizes off the same tuple that pins this set, so a key with no entity
-# fails there.
 PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "cabinVentilationDurationMinutes",
     "cabinVentilationEnabled",
@@ -2465,13 +2082,6 @@ PARALLAX_ONLY_FIELDS: Final[set[str]] = {
     "wheelsInstalled",
 }
 
-# The app's own vehicleState subscription document, transcribed field-for-field
-# from com.rivian.android.consumer/java_src/sh/C19779dc.java:59 (operationName
-# "vehicleState") by parsing the GraphQL selection set by brace depth -- not
-# hand-typed. 127 scalar-shaped fields plus 2 structured ones (gnssLocation,
-# gnssError); geoLocation is selected as `{ value timeStamp }` and is
-# scalar-shaped like the rest. Zero duplicates, zero tirePressure* names -- the
-# app requests those separately (see TIRE_PRESSURE_SUBSCRIPTION_FIELDS below).
 APP_VEHICLE_STATE_FIELDS: Final[frozenset[str]] = frozenset(
     {
         "activeDriverName",
@@ -2606,10 +2216,6 @@ APP_VEHICLE_STATE_FIELDS: Final[frozenset[str]] = frozenset(
     }
 )
 
-# Fields this integration reads that are not in the app's own document:
-# batteryCapacity and brakeFluidLow feed existing sensors, and the six
-# ota{Current,Available}Version{Year,Week,Number} fields feed the update
-# entity's version-string parsing. Disjoint from APP_VEHICLE_STATE_FIELDS.
 EXTRA_VEHICLE_STATE_FIELDS: Final[frozenset[str]] = frozenset(
     {
         "batteryCapacity",
@@ -2623,20 +2229,10 @@ EXTRA_VEHICLE_STATE_FIELDS: Final[frozenset[str]] = frozenset(
     }
 )
 
-# The main vehicleState subscription document -- THE WIRE. Guarded by the same
-# subtraction that used to sit on VEHICLE_STATE_API_FIELDS: that symbol is
-# labelled below as never sent as a document, so subtracting from it protected
-# nothing. This is where the guard belongs, because this is what
-# coordinator.py sends.
 VEHICLE_STATE_SUBSCRIPTION_FIELDS: Final[frozenset[str]] = (
     APP_VEHICLE_STATE_FIELDS | EXTRA_VEHICLE_STATE_FIELDS
-) - PARALLAX_ONLY_FIELDS  # 137, the wire
+) - PARALLAX_ONLY_FIELDS
 
-# The TPMS subscription document -- THE WIRE. The app's own 8 names, transcribed
-# from com.rivian.android.consumer/java_src/sh/C19721Z9.java:59 (operationName
-# "tirePressureState" at :81), plus our 4 tirePressureStatusValid* names
-# (gateway.graphql:884-895) -- already accepted on today's wire but not
-# requested by this APK build.
 TIRE_PRESSURE_SUBSCRIPTION_FIELDS: Final[frozenset[str]] = (
     frozenset(
         {
@@ -2655,20 +2251,11 @@ TIRE_PRESSURE_SUBSCRIPTION_FIELDS: Final[frozenset[str]] = (
         }
     )
     - PARALLAX_ONLY_FIELDS
-)  # 12, the wire
+)
 
-# The union of both documents. Kept under its historical name because eight test
-# modules and several scripts import it -- but it is NEVER sent as a document;
-# coordinator.py and the TPMS subscribe send the two WIRE symbols above. The
-# subtraction on those two symbols is inert today: (APP | EXTRA | TPMS) and
-# PARALLAX_ONLY_FIELDS do not intersect, so this union already excludes nothing
-# PARALLAX_ONLY_FIELDS would have removed. It stays anyway -- not because it is
-# load-bearing today, but because it is what stops the next person adding a name
-# like knownLocation to one of the literal lists above without noticing it is
-# Parallax-only.
 VEHICLE_STATE_API_FIELDS: Final[frozenset[str]] = (
     VEHICLE_STATE_SUBSCRIPTION_FIELDS | TIRE_PRESSURE_SUBSCRIPTION_FIELDS
-)  # 149, never sent as a document
+)
 
 
 CHARGING_STATE_KEYS: Final[frozenset[str]] = frozenset(
@@ -2705,8 +2292,8 @@ CHARGING_SCHEDULE_AMPERAGE_MINIMUM: Final[int] = 8
 CHARGING_SCHEDULE_AMPERAGE_MAXIMUM: Final[int] = 48
 CHARGING_SCHEDULE_AMPERAGE_STEP: Final[int] = 2
 
-DEFAULT_CHARGING_SCHEDULE_START: Final[int] = 1320  # 10:00 PM
-DEFAULT_CHARGING_SCHEDULE_DURATION: Final[int] = 480  # 8 hours
+DEFAULT_CHARGING_SCHEDULE_START: Final[int] = 22 * MINUTES_PER_HOUR
+DEFAULT_CHARGING_SCHEDULE_DURATION: Final[int] = 8 * MINUTES_PER_HOUR
 DEFAULT_CHARGING_SCHEDULE_AMPERAGE: Final[int] = 48
 DEFAULT_CHARGING_SCHEDULE: Final[dict[str, Any]] = {
     "startTime": DEFAULT_CHARGING_SCHEDULE_START,

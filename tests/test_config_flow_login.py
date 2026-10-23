@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.rivian.config_flow import RivianFlowHandler
+from custom_components.rivian.rivian_client import Rivian
 from custom_components.rivian.rivian_client.exceptions import RivianUnauthenticated
 from homeassistant.core import HomeAssistant
 
@@ -27,15 +28,15 @@ def flow(hass: HomeAssistant) -> RivianFlowHandler:
 
 
 def _client(*, otp_needed=False, authenticate=None, validate_otp=None) -> MagicMock:
-    api = MagicMock()
+    api = MagicMock(spec=Rivian)
     api.create_csrf_token = AsyncMock()
     api.authenticate = AsyncMock(side_effect=authenticate)
     api.validate_otp = AsyncMock(side_effect=validate_otp)
     api.close = AsyncMock()
-    api._otp_needed = otp_needed
-    api._access_token = "access"
-    api._refresh_token = "refresh"
-    api._user_session_token = "session"
+    api.otp_needed = otp_needed
+    api.access_token = "access"
+    api.refresh_token = "refresh"
+    api.user_session_token = "session"
     return api
 
 
@@ -134,7 +135,7 @@ class TestOtpStep:
 
     async def test_a_missing_token_after_otp_reports_communication(self, flow) -> None:
         api = _client()
-        api._access_token = None
+        api.access_token = None
         flow._rivian = api
         flow._data = {"username": USERNAME}
         with patch.object(

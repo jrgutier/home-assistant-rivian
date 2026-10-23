@@ -20,7 +20,7 @@ is modelling a protocol that does not exist.
 
 **And the Gen 2 crypto is the same crypto Gen 1 already implements correctly in this repo.**
 `ble_gen2.py` reimplemented key derivation from scratch and dropped the HKDF step that
-`utils.py:93-99` — thirty lines away, on the working Gen 1 path — already had right. Every
+`utils.py:75-80` — thirty lines away, on the working Gen 1 path — already had right. Every
 Gen 2 HMAC is therefore computed under the wrong key, which alone guarantees pairing failure
 regardless of framing.
 
@@ -142,15 +142,15 @@ in the rewrite could close those, and only a real Gen 2 capture will.
 
 | # | Area | Our code | APK ground truth | Severity |
 |---|---|---|---|---|
-| 1 | **Key derivation** | `ble_gen2.py:145` returns raw ECDH output — *"already 32 bytes for P-256"* | `HKDF-SHA256(Z, salt=None, info=b"", L=32)` — `C15277l.java:941-947` | **Fatal.** Wrong key ⇒ every HMAC wrong |
+| 1 | **Key derivation** | `ble_gen2.py:107` returns raw ECDH output — *"already 32 bytes for P-256"* | `HKDF-SHA256(Z, salt=None, info=b"", L=32)` — `C15277l.java:941-947` | **Fatal.** Wrong key ⇒ every HMAC wrong |
 | 2 | **Wire format** | hand-rolled protobuf, `ble_gen2_proto.py` entire | fixed-size LE `ByteBuffer` — `AbstractC10624g.java:1157` | **Fatal.** Wrong protocol |
 | 3 | **Pairing frame** | protobuf `{csn, {phone_id}, {phone_nonce}}` | `pNonce(16) ‖ HMAC(key,pNonce)(32)`, 48B — `:1160-1169` | **Fatal** |
 | 4 | **HMAC input** | `protobuf ‖ csn(BE32) ‖ phoneId(16) ‖ pNonce(16) ‖ vNonce` — `ble_gen2_proto.py:214-222` | `pNonce ‖ vNonce ‖ csn(LE32) ‖ payload` — `:1181-1186`. Order, endianness and membership all differ; `phoneId` is **not** in the APK's input | **Fatal** |
 | 5 | **CSN** | starts 1, `+= 2` | `-1` sentinel for AUTH_PNONCE; not serialized at all in that branch — `C11162i.java:1167` | **Fatal** |
-| 6 | **vNonce verification** | absent — accepts any non-empty response (`ble_gen2.py:311`) | mandatory `HMAC(key, pNonce‖vNonce)` — `:1302-1314` | **Fatal + security** |
+| 6 | **vNonce verification** | absent — accepts any non-empty response (`ble_gen2.py`) | mandatory `HMAC(key, pNonce‖vNonce)` — `:1302-1314` | **Fatal + security** |
 | 7 | **Response parse** | protobuf varint walk, `tag_byte = message[pos]` single byte | `bytes[0:16]` / `bytes[16:]` — `AbstractC10629c.java:262` | **Fatal** |
-| 8 | **Bonding** | never triggered on Gen 2 path | Gen 1 path does `client.pair()` / Darwin notify (`ble.py:286-293`) | High |
-| 9 | **Vehicle ID** | *"simplified here"*, skipped (`ble_gen2.py:277`) | validated — `C11162i.java:1727,1765,1776` | High |
+| 8 | **Bonding** | never triggered on Gen 2 path | Gen 1 path does `client.pair()` / Darwin notify (`ble.py:193-200`) | High |
+| 9 | **Vehicle ID** | *"simplified here"*, skipped (`ble_gen2.py`) | validated — `C11162i.java:1727,1765,1776` | High |
 | 10 | **Notifications** | subscribes `ENCRYPTED_DATA_OUT` only; `PLAIN_DATA_OUT` never subscribed | UNPROVEN — see below | Unknown |
 | 11 | **Auth state machine** | `AuthState` 4 states | `EnumC11122B.java:12-15` | ✅ **Correct** |
 | 12 | **Pubkey validation** | 130 hex chars, `"04"` prefix | `AbstractC14833a.java:96-99` | ✅ **Correct** |
@@ -163,23 +163,23 @@ in the rewrite could close those, and only a real Gen 2 capture will.
 
 | | Gen 1 | Gen 2 |
 |---|---|---|
-| Key | `HKDF-SHA256(ECDH, salt=None, info=b"")` — `utils.py:93-99` | identical — `C15277l.java:941-947` |
-| Pairing frame | `phone_nonce ‖ HMAC(key, phone_nonce)` = 48B — `ble.py:276-282` | `pNonce ‖ HMAC(key, pNonce)` = 48B — `AbstractC10624g.java:1160-1169` |
+| Key | `HKDF-SHA256(ECDH, salt=None, info=b"")` — `utils.py:75-80` | identical — `C15277l.java:941-947` |
+| Pairing frame | `phone_nonce ‖ HMAC(key, phone_nonce)` = 48B — `ble.py:183-189` | `pNonce ‖ HMAC(key, pNonce)` = 48B — `AbstractC10624g.java:1160-1169` |
 | Characteristics | `AA49565A-…`, `E020A15D-…`, `5249565F-…` | `0823DA14-…`, `29919A3C-…`, `9A69AEFF-…`, `5EAA65C0-…` |
 | vNonce HMAC check | not performed | **required** |
 | Vehicle-ID exchange | own characteristic, compared to `vas_vehicle_id` | folded into the VAS flow |
 
 **The Gen 1 and Gen 2 pairing frames are byte-for-byte identical in construction.** Gen 1's
-`generate_ble_command_hmac(phone_nonce, vehicle_key, private_key)` (`utils.py:71-76`) computes
+`generate_ble_command_hmac(phone_nonce, vehicle_key, private_key)` (`utils.py:56-60`) computes
 exactly what `AbstractC10624g.java:1166` computes.
 
 ### Post-pairing commands are generation-independent
 
 The integration **never sends commands over BLE**. Grepping `write_gatt_char` across
-`rivian_client/` returns only `ble.py:261,279` and `ble_gen2.py:238,297` — all pairing. Commands
+`rivian_client/` returns only `ble.py:195,213` and `ble_gen2.py:290,317` — all pairing. Commands
 go through the cloud via `generate_vehicle_command_hmac(command, timestamp, …)`
-(`utils.py:79-85`), which signs `command+timestamp` with the *same* HKDF-derived key, and
-`coordinator.py:1974-1986` / `:2017-2027` draw the same enrolled-phone material regardless of
+(`utils.py:63-68`), which signs `command+timestamp` with the *same* HKDF-derived key, and
+`coordinator.py:1374-1386` / `:1407-1417` draw the same enrolled-phone material regardless of
 generation.
 
 The APK's `ACTIVE_COMMAND` / `PASSIVE_ENTRY` branches are the app's **BLE** command path — used
@@ -211,7 +211,7 @@ downstream of pairing is already generation-agnostic. It does not need touching.
 
 Items 1, 2 and 5 are exactly what a tester's GATT-discovery dump plus frame trace would settle —
 which is the `beta-enablement` component, and the reason D5 asked for the discovery dump.
-`detect_vehicle_generation()` (`ble.py:73-149`) already enumerates every characteristic and
+`detect_vehicle_generation()` (`ble.py:62-126`) already enumerates every characteristic and
 discards the list.
 
 ---

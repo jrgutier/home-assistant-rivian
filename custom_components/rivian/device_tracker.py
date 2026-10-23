@@ -1,5 +1,3 @@
-"""Rivian (Unofficial) Tracker"""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -23,7 +21,6 @@ LOCATION_DESCRIPTION = RivianTrackerEntityDescription(
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the device tracker entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, Any] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -39,8 +36,6 @@ async def async_setup_entry(
 
 
 class RivianDeviceEntity(RivianVehicleEntity, TrackerEntity):
-    """A class representing a Rivian device."""
-
     entity_description: RivianTrackerEntityDescription
 
     def __init__(
@@ -50,7 +45,6 @@ class RivianDeviceEntity(RivianVehicleEntity, TrackerEntity):
         description: RivianTrackerEntityDescription,
         vehicle: dict[str, Any],
     ) -> None:
-        """Create a Rivian device tracker entity."""
         super().__init__(coordinator, config_entry, description, vehicle)
         self._attribute = "gnssLocation"
         self._tracker_data = (
@@ -59,31 +53,26 @@ class RivianDeviceEntity(RivianVehicleEntity, TrackerEntity):
 
     @property
     def force_update(self) -> bool:
-        """Disable forced updated since we are polling via the coordinator updates."""
         return False
 
     @property
     def latitude(self) -> float | None:
-        """Return latitude value of the device."""
         if not self._tracker_data:
             return None
         return self._tracker_data.get("latitude")
 
     @property
     def longitude(self) -> float | None:
-        """Return longitude value of the device."""
         if not self._tracker_data:
             return None
         return self._tracker_data.get("longitude")
 
     @property
     def source_type(self) -> SourceType:
-        """Return the source type, eg gps or router, of the device."""
         return SourceType.GPS
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
-        """Return the state attributes of the device."""
         if not self._tracker_data:
             return None
         return {
@@ -92,7 +81,6 @@ class RivianDeviceEntity(RivianVehicleEntity, TrackerEntity):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Respond to a DataUpdateCoordinator update."""
         if not (data := self.coordinator.data):
             return
         if not (entity := data.get(self._attribute)):

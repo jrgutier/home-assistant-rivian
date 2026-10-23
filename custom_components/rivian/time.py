@@ -1,5 +1,3 @@
-"""Support for Rivian time entities."""
-
 from __future__ import annotations
 
 from datetime import time
@@ -27,7 +25,6 @@ from .entity import RivianChargingScheduleEntity
 def _get_schedule_time(
     coordinator: VehicleCoordinator, is_end_time: bool = False
 ) -> time:
-    """Get start or end time from schedule coordinator."""
     sched = coordinator.charging_schedule
     start_mins = sched.get("startTime", DEFAULT_CHARGING_SCHEDULE_START)
     if is_end_time:
@@ -45,7 +42,6 @@ def _get_schedule_time(
 async def _async_set_schedule_time(
     coordinator: VehicleCoordinator, value: time, is_end_time: bool = False
 ) -> None:
-    """Set start or end time for schedule."""
     sched = await coordinator.get_charging_schedule_data()
     start_mins = sched.get("startTime", DEFAULT_CHARGING_SCHEDULE_START)
     target_mins = value.hour * MINUTES_PER_HOUR + value.minute
@@ -85,7 +81,6 @@ TIME_ENTITIES: Final[tuple[RivianTimeEntityDescription, ...]] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the time entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -102,15 +97,11 @@ async def async_setup_entry(
 
 
 class RivianChargingScheduleTimeEntity(RivianChargingScheduleEntity, TimeEntity):
-    """Charging Schedule Time Entity."""
-
     entity_description: RivianTimeEntityDescription
 
     @property
     def native_value(self) -> time | None:
-        """Return native time value."""
         return self.entity_description.value_fn(self.coordinator)
 
     async def async_set_value(self, value: time) -> None:
-        """Set time value."""
         await self.entity_description.set_fn(self.coordinator, value)

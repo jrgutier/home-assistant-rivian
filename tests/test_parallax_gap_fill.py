@@ -26,17 +26,7 @@ import pytest
 from custom_components.rivian.const import INVALID_SENSOR_STATES
 from custom_components.rivian.coordinator import VehicleCoordinator
 
-
-def _coordinator() -> MagicMock:
-    coordinator = MagicMock(spec=VehicleCoordinator)
-    coordinator.data = {}
-    coordinator._subscription_keys = set()
-    coordinator._rvm_arrivals = {}
-    coordinator._note_unusable = MagicMock()
-    coordinator.charging_coordinator = MagicMock()
-    coordinator.vehicle_id = "veh-1"
-    coordinator.async_set_updated_data = MagicMock()
-    return coordinator
+from tests.doubles import vehicle_coordinator_double
 
 
 def _parallax(coordinator: MagicMock, rvm: str, decoded: dict) -> dict:
@@ -64,7 +54,7 @@ def _parallax(coordinator: MagicMock, rvm: str, decoded: dict) -> dict:
 class TestSubscriptionWins:
     def test_parallax_does_not_overwrite_a_subscribed_field(self) -> None:
         """The whole point. gearStatus drives a Gear Change automation."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator._subscription_keys = {"gearStatus"}
         coordinator.data = {"gearStatus": {"value": "park", "history": {"park"}}}
 
@@ -77,7 +67,7 @@ class TestSubscriptionWins:
     def test_a_parallax_only_field_is_written(self) -> None:
         """The subscription never names vasAccessCanFaulted, so Parallax is its
         only source and must not be blocked."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator._subscription_keys = {"gearStatus"}
 
         result = _parallax(
@@ -93,7 +83,7 @@ class TestSubscriptionWins:
         and then freeze forever, because Parallax's own first write makes it
         present.
         """
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         first = _parallax(
             coordinator,
             "security.access.vas_fault",
@@ -121,7 +111,7 @@ class TestSubscriptionWins:
         coverage, so this keeps it with a made-up topic and made-up field names
         that cannot be mistaken for real Rivian fields.
         """
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator._subscription_keys = {
             "syntheticSubscribedFieldA",
             "syntheticSubscribedFieldB",
@@ -147,7 +137,7 @@ class TestSubscriptionWins:
     def test_the_subscription_reclaims_a_field_parallax_had_filled(self) -> None:
         """If the subscription starts carrying a field, it takes it over and
         Parallax stops writing it."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = _parallax(
             coordinator, "dynamics.vehicle.gear", {"gearStatus": "drive"}
         )
@@ -165,7 +155,7 @@ class TestSubscriptionWins:
 
 class TestProvenanceIsRecorded:
     def test_building_the_subscription_dict_records_its_keys(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = None
 
         VehicleCoordinator._build_vehicle_info_dict(
@@ -182,7 +172,7 @@ class TestProvenanceIsRecorded:
         """`_build_vehicle_info_dict` drops falsy values, so a field the server
         named but did not fill must not count as supplied -- otherwise Parallax
         would be blocked from a field nothing is providing."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = None
 
         VehicleCoordinator._build_vehicle_info_dict(
@@ -201,7 +191,7 @@ class TestProvenanceIsRecorded:
         outer dict alone, or `_process_parallax_data`'s unconditional
         `gnssLocation` branch (coordinator.py:1390) starts overwriting real GPS
         with Parallax's."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = None
 
         VehicleCoordinator._build_vehicle_info_dict(
@@ -252,7 +242,7 @@ class TestSubscribingDoesNotBlockParallax:
         """The gateway named the field and returned nothing for it at all --
         the ordinary "not delivered this frame" case. Parallax must remain
         free to supply it."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = None
         VehicleCoordinator._build_vehicle_info_dict(coordinator, {field: None})
         assert field not in coordinator._subscription_keys
@@ -271,7 +261,7 @@ class TestSubscribingDoesNotBlockParallax:
         OUTER dict's truthiness -- a non-empty dict is truthy whatever its
         "value" key holds, which is how this case was once wrongly claimed.
         """
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = None
         VehicleCoordinator._build_vehicle_info_dict(
             coordinator, {field: {"timeStamp": "t0", "value": None}}
@@ -285,7 +275,7 @@ class TestSubscribingDoesNotBlockParallax:
     def test_a_real_value_claims_the_key_and_blocks_parallax(self, field: str) -> None:
         """The ordinary case once these three are genuinely subscribed and
         delivering: the subscription value wins and Parallax is skipped."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = None
         VehicleCoordinator._build_vehicle_info_dict(
             coordinator, {field: {"timeStamp": "t0", "value": "gateway"}}
@@ -606,7 +596,7 @@ class TestTheParallaxOnlyKeysHaveEntities:
 
     def test_a_decoded_value_actually_reaches_the_coordinator(self) -> None:
         """End to end for one of them, through the real merge."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         result = _parallax(
             coordinator,
             "security.access.immobilizer_state",
@@ -631,7 +621,7 @@ class TestRvmArrivalCounters:
         all of them. Count after that loop and this topic -- one of the exact ones
         the counter exists to witness -- registers as never having arrived.
         """
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator._subscription_keys = {
             "btmFfHardwareFailureStatus",
             "btmIcHardwareFailureStatus",
@@ -649,21 +639,21 @@ class TestRvmArrivalCounters:
         assert coordinator._rvm_arrivals["security.access.btm"] == 1
 
     def test_repeated_arrivals_accumulate(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         for _ in range(3):
             _parallax(coordinator, "dynamics.vehicle.gear", {"gearStatus": "park"})
         assert coordinator._rvm_arrivals["dynamics.vehicle.gear"] == 3
 
     def test_a_topic_that_never_arrives_is_simply_absent(self) -> None:
         """Absent from the map, not zero -- so "never delivered" is readable."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         _parallax(coordinator, "dynamics.vehicle.gear", {"gearStatus": "park"})
         assert "security.access.immobilizer_state" not in coordinator._rvm_arrivals
 
     def test_an_undecodable_payload_still_counts_as_arrival(self) -> None:
         """Arrival and decodability are different questions, and conflating them
         would hide a topic that lands but decodes to nothing."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         _parallax(coordinator, "security.alarm.state", {})
         assert coordinator._rvm_arrivals["security.alarm.state"] == 1
 
@@ -686,7 +676,7 @@ class TestRvmArrivalCounters:
         assert "coordinator._rvm_arrivals" not in source
 
     def test_the_accessor_reports_never_delivered_as_absent(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         _parallax(coordinator, "dynamics.vehicle.gear", {"gearStatus": "park"})
         # coordinator is MagicMock(spec=VehicleCoordinator), so plain attribute
         # access would return a Mock rather than run the real property -- reach
@@ -719,7 +709,7 @@ class TestParallaxInvalidStateFilter:
 
     @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
     def test_invalid_with_previous_keeps_the_previous(self, invalid: str) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = {
             _PARALLAX_ONLY_KEY: {"value": "on", "history": {"on"}},
         }
@@ -733,7 +723,7 @@ class TestParallaxInvalidStateFilter:
 
     @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
     def test_invalid_with_no_previous_is_passed_through(self, invalid: str) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
 
         result = _parallax(
             coordinator, _PARALLAX_ONLY_RVM, {_PARALLAX_ONLY_KEY: invalid}
@@ -744,7 +734,7 @@ class TestParallaxInvalidStateFilter:
 
     @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
     def test_gnss_location_invalid_value_is_exempt(self, invalid: str) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
 
         result = _parallax(coordinator, "gnss.location", {"gnssLocation": invalid})
 
@@ -753,7 +743,7 @@ class TestParallaxInvalidStateFilter:
 
     def test_gnss_location_is_passed_through_unwrapped(self) -> None:
         """The gnssLocation branch assigns clean[k] raw, without the wrapper."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         gnss = {"latitude": 1.0, "longitude": 2.0}
 
         result = _parallax(coordinator, "gnss.location", {"gnssLocation": gnss})
@@ -762,7 +752,7 @@ class TestParallaxInvalidStateFilter:
         coordinator._note_unusable.assert_not_called()
 
     def test_vehicle_mileage_increase_is_still_accepted(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = {"vehicleMileage": {"value": 1000, "history": {1000}}}
 
         result = _parallax(
@@ -773,7 +763,7 @@ class TestParallaxInvalidStateFilter:
 
     def test_vehicle_mileage_decrease_is_still_rejected(self) -> None:
         """The filter must not short-circuit the oscillation guard."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = {"vehicleMileage": {"value": 1000, "history": {1000}}}
 
         result = _parallax(
@@ -785,7 +775,7 @@ class TestParallaxInvalidStateFilter:
     @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
     def test_a_subscribed_invalid_value_is_still_skipped(self, invalid: str) -> None:
         """The gap-fill rule outranks the filter: the subscription owns the key."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator._subscription_keys = {"gearStatus"}
         coordinator.data = {"gearStatus": {"value": "park", "history": {"park"}}}
 

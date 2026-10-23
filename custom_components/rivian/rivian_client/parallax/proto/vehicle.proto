@@ -1,30 +1,12 @@
-// vehicle.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.vehicle;
 
 
-// vehicle.profiles.active_user -- the active driver's profile id (as in
-// device_table.vas_keyper.devices). Changes with the key that unlocks.
 message ActiveUserProfile {
   optional string active_user_profile_id = 1;
 }
 
-// vehicle.power.state
 message VehiclePowerState {
   optional PowerState state = 1;
 }
@@ -40,30 +22,26 @@ enum PowerState {
   POWER_SHUTDOWN = 7;
 }
 
-// vehicle.wheels.vehicle_wheels
 message VehicleWheels {
   repeated Wheel wheel = 1;
 
   message Wheel {
-    uint64 wheel_package = 1;              // app: int32
+    uint64 wheel_package = 1;
     uint64 tire_odometer = 2;              // meters
     int64 saved_tire_odometer_delta = 3;   // meters; only on an uninstalled wheel
     uint64 odometer_at_last_rotation = 4;  // meters
     int64 saved_odometer_at_last_rotation_delta = 5; // meters; ditto
     uint64 rotation_reminder_interval = 6; // meters
     bool is_installed = 7;
-    // 8 updated_at {int64 seconds = 1} -- undeclared.
-    uint64 tires = 9;                      // app: int32
+    uint64 tires = 9;
     uint64 current_odometer = 10;          // meters
   }
 }
 
-// vehicle.network.state and vehicle.setting.network (same shape).
 // Signals are dBm; -255 means no reading.
 message NetworkState {
-  ActiveInterface active_interface = 1; // the default link
-  // 2 repeated InterfaceStatus interfaces -- undeclared.
-  ConnectivityLevel connectivity_level = 3; // the default link's quality
+  ActiveInterface active_interface = 1;
+  ConnectivityLevel connectivity_level = 3;
   Wifi wifi = 4;
   Cellular cellular = 5;
 
@@ -93,11 +71,10 @@ message NetworkState {
     optional WpaStatus wpa_status = 1;
     ConnStatus conn_status = 2;
     optional bytes ssid = 3;
-    // 4 bssid, 5 mac_address, 6 repeated IpAddress ip_addresses -- undeclared.
     optional ConnectivityLevel antenna_bars = 7;
-    optional uint64 signal = 8;     // dBm; app: int32
-    optional uint64 link_speed = 9; // app: int32
-    optional uint64 freq = 10;      // app: int32
+    optional uint64 signal = 8;     // dBm
+    optional uint64 link_speed = 9;
+    optional uint64 freq = 10;
     int32 bandwidth = 11;
     optional WifiSecurity secure_status = 12;
     Ternary secured = 13;
@@ -132,7 +109,7 @@ message NetworkState {
     optional bytes carrier = 1;
     optional bytes mode = 2;    // e.g. "LTE"
     optional ConnectivityLevel antenna_bars = 3;
-    optional uint64 signal_strength = 4; // dBm; app: int32
+    optional uint64 signal_strength = 4; // dBm
   }
 }
 

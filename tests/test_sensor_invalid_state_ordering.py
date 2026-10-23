@@ -113,6 +113,15 @@ class TestOrderingMatchesBinarySensor:
         assert description.value_lambda("sna") == "SNA"
         assert _native_value(description, "sna") is None
 
+    def test_the_post_lambda_check_catches_a_prefixed_fault(self) -> None:
+        """`chrgr_sts_fault` passes the raw check and only becomes invalid after.
+
+        The lambda strips the prefix and renders "Fault", which IS in `options`,
+        so without the second check the entity would report a fault code as a
+        state.
+        """
+        assert _native_value(DESCRIPTIONS["charger_status"], "chrgr_sts_fault") is None
+
     def test_the_empty_value_branch_is_still_load_bearing(self) -> None:
         """`""` passes the raw check, so the lambda's `if v` still matters.
 

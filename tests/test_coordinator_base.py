@@ -3,9 +3,14 @@
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock
 
+import aiohttp
 import pytest
 
-from custom_components.rivian.coordinator import UserCoordinator, WallboxCoordinator
+from custom_components.rivian.coordinator import (
+    UserCoordinator,
+    VehicleCoordinator,
+    WallboxCoordinator,
+)
 from custom_components.rivian.rivian_client.exceptions import (
     RivianApiException,
     RivianApiRateLimitError,
@@ -182,14 +187,16 @@ class TestRivianDataUpdateCoordinatorBase:
         assert result == {"userId": "test_user"}
         assert coordinator._error_count == 1
 
-    async def test_async_update_data_handles_unknown_exception(
+    async def test_async_update_data_handles_a_client_error(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
     ) -> None:
-        """Test that unknown exception returns existing data."""
+        """Test that a transport error returns existing data."""
         mock_client = MagicMock()
-        mock_client.get_user_information = AsyncMock(side_effect=ValueError("Unknown"))
+        mock_client.get_user_information = AsyncMock(
+            side_effect=aiohttp.ClientError("reset")
+        )
 
         coordinator = UserCoordinator(
             hass=hass,
@@ -201,6 +208,60 @@ class TestRivianDataUpdateCoordinatorBase:
         result = await coordinator._async_update_data()
 
         assert result == {"userId": "test_user"}
+        assert coordinator._error_count == 1
+
+    @pytest.mark.parametrize("error", [AttributeError, KeyError, TypeError, ValueError])
+    async def test_a_data_error_keeps_stale_data_and_backs_off(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        caplog: pytest.LogCaptureFixture,
+        error: type[Exception],
+    ) -> None:
+        """Malformed data is transient like a transport error: keep the stale
+        data, back off, and log redacted text with no traceback to render."""
+        mock_client = MagicMock()
+        mock_client.get_user_information = AsyncMock(
+            side_effect=error("bad A-Sess=tok0123456789abcdefghijklmnop")
+        )
+
+        coordinator = UserCoordinator(
+            hass=hass,
+            config_entry=mock_config_entry,
+            client=mock_client,
+        )
+        coordinator.data = {"userId": "test_user"}
+
+        result = await coordinator._async_update_data()
+
+        assert result == {"userId": "test_user"}
+        assert coordinator._error_count == 1
+        assert "tok0123456789abcdefghijklmnop" not in caplog.text
+        assert all(record.exc_info is None for record in caplog.records)
+
+    async def test_an_unknown_exception_fails_the_update_redacted(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+    ) -> None:
+        """HA logs an UpdateFailed by its message alone, so the token must not
+        survive into it; the failure still counts toward backoff."""
+        mock_client = MagicMock()
+        mock_client.get_user_information = AsyncMock(
+            side_effect=RuntimeError("bad A-Sess=tok0123456789abcdefghijklmnop")
+        )
+
+        coordinator = UserCoordinator(
+            hass=hass,
+            config_entry=mock_config_entry,
+            client=mock_client,
+        )
+        coordinator.data = {"userId": "test_user"}
+
+        with pytest.raises(UpdateFailed) as err:
+            await coordinator._async_update_data()
+
+        assert "tok0123456789abcdefghijklmnop" not in str(err.value)
         assert coordinator._error_count == 1
 
     async def test_async_update_data_raises_on_error_with_no_data(
@@ -832,3 +893,26 @@ class TestOtaReleaseNotesUrl:
 
         with pytest.raises(KeyError):
             await coordinator.get_ota_release_notes_url()
+
+
+def test_vehicle_subscription_log_lines_are_pinned() -> None:
+    """Operators grep the live host for these lines.
+
+    CHANGES_SUMMARY.md and WEBSOCKET_STALENESS_FIX.md tell them to search for
+    "subscription received backend error", so a rewording breaks their search
+    without failing anything else.
+    """
+    assert VehicleCoordinator._log_backend_error == (
+        "Vehicle %s subscription received backend error: %s (HTTP %s). "
+        "Subscription #%d age: %.1f min, WebSocket state: %s. Restarting subscription..."
+    )
+    assert VehicleCoordinator._log_unknown_frame == (
+        "Received an unknown subscription update: %s. "
+        "WebSocket state: %s, subscription age: %.1f min"
+    )
+    assert VehicleCoordinator._log_too_many_errors == (
+        "Too many errors (%d) on vehicle %s subscription, unsubscribing"
+    )
+    assert VehicleCoordinator._log_subscription_ended == (
+        "Vehicle %s subscription ended after %.1f minutes. Reasons: %s"
+    )

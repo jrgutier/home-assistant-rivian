@@ -1,5 +1,3 @@
-"""Websocket helpers for Gear Guard live: ICE prefetch, hold, SWITCH_CAMERA."""
-
 from __future__ import annotations
 
 import base64
@@ -39,13 +37,6 @@ async def ws_gear_guard_prepare(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Hand the browser real KVS ICE servers before it builds its peer.
-
-    camera/webrtc/get_client_config runs before the offer, so on a cold entity
-    it has no relay to report and the viewer ends up with host candidates the
-    vehicle cannot reach. This starts the vehicle session first, then answers
-    exactly as that command would; the offer that follows reuses the session.
-    """
     entity = _live_entity(hass, msg["entity_id"])
     if entity is None:
         connection.send_error(
@@ -53,9 +44,6 @@ async def ws_gear_guard_prepare(
         )
         return
     await entity.async_prepare_live()
-    # Answer in camera/webrtc/get_client_config's own shape, via the same
-    # @final wrapper, so a prepared viewer and an unprepared one get the same
-    # thing -- including any ICE servers the user registered with HA.
     connection.send_result(
         msg["id"], entity.async_get_webrtc_client_configuration().to_frontend_dict()
     )
@@ -74,7 +62,6 @@ async def ws_gear_guard_hold(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Custom card is using the data channel; skip VAS teardown on picker change."""
     entity = _live_entity(hass, msg["entity_id"])
     if entity is None:
         connection.send_error(
@@ -97,7 +84,6 @@ async def ws_gear_guard_switch_payload(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """APK SWITCH_CAMERA protobuf for the browser data channel."""
     try:
         payload = encode_switch_camera(msg["camera"], str(uuid4()))
     except ValueError as err:
@@ -111,7 +97,6 @@ async def ws_gear_guard_switch_payload(
 
 @callback
 def async_setup_camera_ws(hass: HomeAssistant) -> None:
-    """Register Gear Guard live websocket commands once."""
     key = f"{DOMAIN}_camera_ws"
     if hass.data.get(key):
         return

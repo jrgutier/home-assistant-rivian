@@ -1,32 +1,14 @@
-// holiday_celebration.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.holiday_celebration;
 
 
-// holiday_celebration.car_costume.holiday_celebration_enabled
-// Unmapped.
 message HolidayCelebrationEnabled {}
 
-// holiday_celebration.car_costume.settings -- int enum types unknown.
 message CarCostumeSettings {
-  optional uint64 celebration_sound_volume = 1; // app: uint32
+  optional uint64 celebration_sound_volume = 1;
   optional bool interior_music_enabled = 2;
-  optional uint64 interior_music_type = 3; // app: uint32
+  optional uint64 interior_music_type = 3;
   int32 motion_exterior_light_sound_effect = 4;
   optional bool interior_light_show_enabled = 6;
   optional bool interior_overhead_lights_enabled = 7;
@@ -41,17 +23,13 @@ enum CostumeEffectTrigger {
   COSTUME_EFFECT_TRIGGER_MOTION = 2;
 }
 
-// holiday_celebration.car_costume.state -- enum types unknown.
 message CarCostumeState {
   int32 car_costume_availability = 1;
   int32 costume_theme = 2;
   optional bool motion_trigger_detected = 3;
-  // 4 costume_start_time {int64 seconds, int32 nanos} -- undeclared.
   int32 active_costume_effect = 6;
 }
 
-// holiday_celebration.mobile_vehicle_settings.halloween_celebration_settings
-// Names from the app.
 message HalloweenCelebrationSettings {
   CostumeTheme costume_theme = 1;
   Int32Value sound_volume = 2;

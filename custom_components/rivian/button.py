@@ -1,5 +1,3 @@
-"""Support for Rivian button entities."""
-
 from __future__ import annotations
 
 import asyncio
@@ -19,17 +17,9 @@ from .const import ATTR_COORDINATOR, ATTR_USER, ATTR_VEHICLE, DOMAIN
 from .coordinator import UserCoordinator, VehicleCoordinator
 from .data_classes import RivianButtonEntityDescription
 from .entity import RivianVehicleControlEntity, vehicle_control_enabled
-from .rivian_client import VehicleCommand
+from .rivian_client import VehicleCommand, ble as rivian_ble, ble_trace
 
 if TYPE_CHECKING:
-    # Annotation-only, all three. None of these ship with Home Assistant core:
-    # bleak and home_assistant_bluetooth belong to the bluetooth integration, and
-    # homeassistant.components.bluetooth pulls in homeassistant.components.usb,
-    # whose aiousbwatcher and serialx are likewise absent from core's metadata.
-    # Importing any of them at module scope takes the whole button platform down
-    # -- including the wake and pairing buttons -- on a system where the bluetooth
-    # integration was never set up. Verified: the artifact load test installs only
-    # what manifest.json declares, and this module was the one that failed it.
     from bleak import BLEDevice
     from home_assistant_bluetooth import BluetoothServiceInfoBleak
 
@@ -69,13 +59,6 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
             ),
             command=VehicleCommand.OPEN_LIFTGATE_UNLATCH_TAILGATE,
         ),
-        # The dedicated tailgate command, as opposed to the combined one above
-        # which opens the liftgate AND unlatches the tailgate. Both are ordinary
-        # generateCloudDataWrapper commands in the app (VASCommand.UnlatchTailgate).
-        #
-        # Disabled by default because it MOVES A CLOSURE and has not been actuated
-        # on the vehicle yet -- f7 does that. Shipping it enabled would put an
-        # untested opener one tap away.
         RivianButtonEntityDescription(
             key="open_tailgate",
             translation_key="open_tailgate",
@@ -87,12 +70,6 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
         ),
     ),
     "LIFTGATE_CMD": (
-        # Same reasoning, and the same default. cover.liftgate already opens the
-        # liftgate via the combined command; this is the dedicated one.
-        #
-        # The gate string stays LIFTGATE_CMD, which is a real VehicleFeature
-        # featureName. This R1T structurally cannot report it, and that is NOT
-        # evidence the flag is dead -- it is the tonneau inference reversed.
         RivianButtonEntityDescription(
             key="open_liftgate",
             translation_key="open_liftgate",
@@ -109,7 +86,6 @@ BUTTONS: Final[dict[str | None, tuple[RivianButtonEntityDescription, ...]]] = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the button entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -141,58 +117,43 @@ async def async_setup_entry(
 
 
 class RivianButtonEntity(RivianVehicleControlEntity, ButtonEntity):
-    """Representation of a Rivian button entity."""
-
     entity_description: RivianButtonEntityDescription
 
     async def async_press(self) -> None:
-        """Press the button."""
-        if self.entity_description.command:
-            # Use new command state tracking
-            await self._execute_command(
-                self.entity_description.command,
-                self.entity_description.command_params,
-            )
-        elif self.entity_description.press_fn:
-            # Legacy support for press_fn
-            await self.entity_description.press_fn(self.coordinator)
-        else:
-            _LOGGER.error(
-                "Button %s has neither command nor press_fn defined", self.entity_id
-            )
+        await self._run_action(
+            self.entity_description.command,
+            self.entity_description.command_params,
+            self.entity_description.press_fn,
+        )
 
 
 GEN2_MAX_ATTEMPTS = 3
 
 
 class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
-    """Representation of a Rivian pair phone button entity."""
-
     _pairing: bool = False
 
     async def async_press(self) -> None:
-        """Press the button."""
         if self._pairing:
             raise HomeAssistantError(
                 "Either a pairing process is currently under way or pairing is already complete. Please try again later"
             )
 
         self._pairing = True
+        paired = False
+        try:
+            paired = await self._pair()
+        finally:
+            self._pairing = paired
 
-        # Imported here, not at module scope: rivian_client.ble re-raises when
-        # bleak is missing, which would otherwise break the import of this whole
-        # platform rather than just this one button.
+    async def _pair(self) -> bool:
         try:
             from homeassistant.components import bluetooth
             from homeassistant.components.bluetooth import BluetoothScanningMode
-
-            from .rivian_client import ble as rivian_ble, ble_trace
         except ImportError as err:
-            self._pairing = False
             raise HomeAssistantError(
-                "Bluetooth support is unavailable: neither the 'bleak' library nor "
-                "Home Assistant's bluetooth integration could be imported. Phone "
-                "pairing requires both."
+                "Phone pairing needs Home Assistant's bluetooth integration, "
+                "which could not be imported."
             ) from err
 
         entry_data = self.hass.data[DOMAIN][self._config_entry.entry_id]
@@ -240,7 +201,7 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                         service_info.name, service_info.service_uuids, vas_uuid
                     ),
                 )
-            except Exception as ex:  # noqa: BLE001
+            except (TimeoutError, RuntimeError) as ex:
                 _LOGGER.error(
                     "%s not found%s",
                     rivian_ble.DEVICE_LOCAL_NAME,
@@ -248,11 +209,6 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 )
                 return None
 
-        # ONE trace per press, not per retry: reset() here, before the loop, so
-        # every attempt this press makes lands in the same trace. start_attempt()
-        # below marks each attempt's boundary within it -- resetting per attempt
-        # instead would destroy the informative early failure and keep only the
-        # least useful last one (see ble_trace.py's module docstring).
         trace = ble_trace.get_trace(self.coordinator.vehicle_id)
         trace.reset()
 
@@ -260,7 +216,6 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
             trace.start_attempt()
             if platform.system() == "Linux":
                 _LOGGER.debug("Making sure BT controller can be paired")
-                # TODO: find out how BT proxy presents itself to avoid invalid warnings
                 if not await rivian_ble.set_bluez_pairable(search_result[0]):
                     _LOGGER.warning(
                         "Couldn't set BT controller to pairable, phone pairing may fail"
@@ -288,35 +243,25 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                     )
                     self._available = False
                     self.async_write_ha_state()
-                    return
+                    return True
                 _LOGGER.warning(
                     "Unable to validate pairing was successful. "
                     "If the vehicle shows that your phone key is ready, then vehicle controls will be enabled shortly. "
                     "You may also manually reload the integration to force a refresh. "
                     "Otherwise, you will need to try the pairing process again."
                 )
-                self._pairing = False
-                return
+                return False
             # Gen 2 gets a few tries: its private address rotates, and HA can
             # hand back a cached advert from an address the vehicle has dropped.
-            # The scan callback never offers a tried address again.
             if search_result[1] and (
                 search_result[2] != 2 or len(trace.attempts) >= GEN2_MAX_ATTEMPTS
             ):
-                # we found the appropriate key but pairing didn't work, so no need to continue
                 break
 
         _LOGGER.debug("Unable to complete pairing")
         if trace.generation == 2:
-            # Gen 2 only, deliberately: Gen 1 works today, its failures are
-            # ordinary user error (wrong vehicle, "Set Up" not selected), and
-            # a beta-feedback card there would train people to ignore it.
-            # trace.generation, not a redetect: pair_phone_gen2 sets it as
-            # soon as it starts, at zero extra BLE cost -- pair_phone's own
-            # return value is otherwise just True/False either generation.
             async_create_gen2_pairing_issue(self.hass, self.coordinator.vehicle_id)
-        self._pairing = False
+        return False
 
     def _handle_driver_update(self) -> None:
-        """Handle driver update."""
-        # This is purposefully blank to keep from disabling the entity pending BLE pairing
+        pass

@@ -1,8 +1,5 @@
-"""Support for Rivian switch entities."""
-
 from __future__ import annotations
 
-import logging
 from typing import Any, Final
 
 from homeassistant.components.switch import SwitchEntity
@@ -20,9 +17,6 @@ from .entity import (
 )
 from .rivian_client import VehicleCommand
 
-_LOGGER = logging.getLogger(__name__)
-
-# The vehicle's own default hold length; writing 0 clears the hold.
 DEFAULT_CLIMATE_HOLD_MINUTES: Final[int] = 120
 
 
@@ -31,7 +25,6 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         key="alarm",
         translation_key="alarm",
         icon="mdi:alarm-light",
-        # Unknown, not off: any value outside {true, false} (binary_sensor.py:114).
         is_on=lambda coor: {"true": True, "false": False}.get(
             coor.get("alarmSoundStatus")
         ),
@@ -70,29 +63,13 @@ SWITCHES: Final[tuple[RivianSwitchEntityDescription, ...]] = (
         command_on=VehicleCommand.CABIN_HVAC_STEERING_HEAT,
         command_on_params={"level": 1},
     ),
-    # Cabin climate hold. State comes from the DECODED Parallax
-    # comfort.cabin.climate_hold_status; the write goes through
-    # comfort.cabin.climate_hold_setting, which is the only Parallax write the
-    # server accepts. The older VehicleCommand.CLIMATE_HOLD_ON/OFF path is no
-    # longer used -- keeping the read and the write on one source is what avoids
-    # the two-writer conflict seen in ChargingCoordinator.
     RivianSwitchEntityDescription(
         key="cabin_climate_hold",
         translation_key="cabin_climate_hold",
         icon="mdi:hvac",
-        # Reads the DECODED Parallax status rather than the GraphQL cabinHoldStatus.
-        # Both are populated -- cabinHoldStatus IS in VEHICLE_STATE_API_FIELDS -- so
-        # this is a deliberate choice, not a repair: the write below goes through
-        # Parallax, and reading the matching Parallax field keeps one source behind
-        # both halves. Splitting them is what produced the two-writer conflict in
-        # ChargingCoordinator. cabinHoldStatus still backs its own sensor.
-        # Unknown, not off: the decoder also emits unspecified / unavailable /
-        # fault (comfort.py:35). Same policy as binary_sensor.py:114.
         is_on=lambda coor: {"on": True, "off": False}.get(
             coor.get("climateHoldStatus")
         ),
-        # Writes through comfort.cabin.climate_hold_setting -- the one Parallax
-        # write the server accepts. Verified live: 08ac02 == 300s, and 0 clears.
         turn_on=lambda coor: coor.async_set_climate_hold(DEFAULT_CLIMATE_HOLD_MINUTES),
         turn_off=lambda coor: coor.async_set_climate_hold(0),
     ),
@@ -111,7 +88,6 @@ CHARGING_SCHEDULE_ENABLED_SWITCH = RivianSwitchEntityDescription(
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the switch entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -123,7 +99,6 @@ async def async_setup_entry(
         for description in SWITCHES
     ]
 
-    # Upstream 1.5.3b5: one charging-schedule switch per vehicle, no pairing needed.
     for vehicle_id, vehicle in vehicles.items():
         entities.append(
             RivianChargingScheduleEnabledEntity(
@@ -138,66 +113,36 @@ async def async_setup_entry(
 
 
 class RivianChargingScheduleEnabledEntity(RivianChargingScheduleEntity, SwitchEntity):
-    """Charging Schedule Enabled Entity."""
-
     entity_description: RivianSwitchEntityDescription
 
     @property
     def is_on(self) -> bool:
-        """Return True if entity is on."""
         return self.entity_description.is_on(self.coordinator)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the entity on."""
         await self.entity_description.turn_on(self.coordinator)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn the entity off."""
         await self.entity_description.turn_off(self.coordinator)
 
 
 class RivianSwitchEntity(RivianVehicleControlEntity, SwitchEntity):
-    """Representation of a Rivian switch entity."""
-
     entity_description: RivianSwitchEntityDescription
 
     @property
     def is_on(self) -> bool:
-        """Return True if entity is on."""
         return self.entity_description.is_on(self.coordinator)
 
-    # The command/fallback/else dispatch below is repeated in cover.py, lock.py and
-    # switch.py, and the repetition is deliberate. Lifting it onto
-    # RivianVehicleControlEntity was built and measured (s25): a 3-argument
-    # _dispatch_command helper returning False for "neither defined" came to a NET
-    # +7 lines, because the helper costs more than the four lines each call site
-    # saves. It also introduces a silent-failure mode this form cannot have -- a
-    # caller that forgets to check the return value drops a vehicle command with no
-    # log at all. Explicit here beats shared.
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn the entity off."""
-        if self.entity_description.command_off:
-            await self._execute_command(
-                self.entity_description.command_off,
-                self.entity_description.command_off_params,
-            )
-        elif self.entity_description.turn_off:
-            await self.entity_description.turn_off(self.coordinator)
-        else:
-            _LOGGER.error(
-                "Switch %s has neither command_off nor turn_off defined", self.entity_id
-            )
+        await self._run_action(
+            self.entity_description.command_off,
+            self.entity_description.command_off_params,
+            self.entity_description.turn_off,
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the entity on."""
-        if self.entity_description.command_on:
-            await self._execute_command(
-                self.entity_description.command_on,
-                self.entity_description.command_on_params,
-            )
-        elif self.entity_description.turn_on:
-            await self.entity_description.turn_on(self.coordinator)
-        else:
-            _LOGGER.error(
-                "Switch %s has neither command_on nor turn_on defined", self.entity_id
-            )
+        await self._run_action(
+            self.entity_description.command_on,
+            self.entity_description.command_on_params,
+            self.entity_description.turn_on,
+        )

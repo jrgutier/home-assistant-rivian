@@ -301,40 +301,48 @@ class TestRivianPairPhoneButtonEntity:
         with pytest.raises(HomeAssistantError):
             await entity.async_press()
 
-    async def test_handle_driver_update(
+    async def test_the_pair_button_stays_available_when_unpaired(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
         mock_vehicle_paired: dict,
     ) -> None:
-        """Test _handle_driver_update does nothing (intentionally blank)."""
+        """Every other control goes unavailable when the driver feed reports
+        isPaired False. The pair button exists for exactly that state."""
         coordinator = MagicMock(spec=VehicleCoordinator)
         coordinator.hass = hass
-
-        description = ButtonEntityDescription(key="pair", translation_key="pair")
+        coordinator.vehicle_id = "test_vehicle_123"
+        coordinator.drivers_coordinator = MagicMock()
+        coordinator.drivers_coordinator.get_device_details.return_value = {
+            "isPaired": False
+        }
+        user = MagicMock()
+        user.get_enrolled_phone_data.return_value = (
+            "phone",
+            {"test_vehicle_123": "test_phone_id"},
+        )
+        hass.data[DOMAIN] = {
+            mock_config_entry.entry_id: {ATTR_COORDINATOR: {ATTR_USER: user}}
+        }
 
         entity = RivianPairPhoneButtonEntity(
             coordinator=coordinator,
             config_entry=mock_config_entry,
-            description=description,
+            description=ButtonEntityDescription(key="pair", translation_key="pair"),
             vehicle=mock_vehicle_paired,
         )
+        entity.hass = hass
+        entity._handle_driver_update()
 
-        # Should not raise any error
-        result = entity._handle_driver_update()
-
-        # Should return None (method is intentionally blank)
-        assert result is None
+        assert entity._available is True
 
 
-class TestPairButtonWithoutBleak:
-    """bleak is not part of Home Assistant's Requires-Dist -- it belongs to the
-    bluetooth integration -- so it can genuinely be absent.
-
-    The import therefore lives inside the press handler, not at module scope:
-    rivian_client.ble re-raises on a missing bleak, which at module scope would
-    take down the WHOLE button platform, including this pairing button. Pressing
-    it must report the problem instead.
+class TestPairButtonWithoutBluetooth:
+    """bleak is a manifest requirement, so rivian_client.ble imports it at
+    module scope. Home Assistant's bluetooth integration is not: its own
+    requirements reach homeassistant.components.usb, which HA core does not
+    ship, so it stays a lazy import inside the press handler and a missing
+    one must be reported rather than take the platform down.
     """
 
     def _entity(self, hass: HomeAssistant, mock_config_entry: ConfigEntry):
@@ -355,78 +363,40 @@ class TestPairButtonWithoutBleak:
         )
 
     @staticmethod
-    def _hide_ble(monkeypatch) -> None:
-        """Make `from .rivian_client import ble` raise ImportError.
+    def _hide_bluetooth(monkeypatch) -> None:
+        """Make `from homeassistant.components import bluetooth` raise ImportError.
 
-        Patching sys.modules alone is not enough, and fails ONLY in a full run:
-        once any test has imported the submodule, Python binds it as an attribute
-        on the package, and `from pkg import name` resolves that attribute without
-        ever consulting sys.modules. tests/client/test_ble.py imports it at module
-        level, so the attribute has to go too. This was a genuinely
-        order-dependent test until it did.
+        sys.modules alone is not enough once the submodule has been imported:
+        `from pkg import name` then resolves the package attribute without
+        consulting sys.modules, so the attribute has to go too.
         """
         import sys
 
-        import custom_components.rivian.rivian_client as pkg
+        import homeassistant.components as pkg
 
-        monkeypatch.setitem(
-            sys.modules, "custom_components.rivian.rivian_client.ble", None
-        )
-        if hasattr(pkg, "ble"):
-            monkeypatch.delattr(pkg, "ble")
+        monkeypatch.setitem(sys.modules, "homeassistant.components.bluetooth", None)
+        if hasattr(pkg, "bluetooth"):
+            monkeypatch.delattr(pkg, "bluetooth")
 
-    async def test_press_reports_a_clear_error_when_bleak_is_missing(
+    async def test_press_reports_a_clear_error_when_bluetooth_is_missing(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry, monkeypatch
     ) -> None:
         entity = self._entity(hass, mock_config_entry)
-        self._hide_ble(monkeypatch)
-        with pytest.raises(HomeAssistantError, match="Bluetooth support"):
+        self._hide_bluetooth(monkeypatch)
+        with pytest.raises(HomeAssistantError, match="bluetooth integration") as err:
             await entity.async_press()
+        assert "bleak" not in str(err.value)
 
     async def test_a_failed_import_does_not_wedge_the_button(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry, monkeypatch
     ) -> None:
         """_pairing must be released, or the button stays permanently 'in progress'
-        and the user can never retry after installing bleak."""
+        and the user can never retry once bluetooth is set up."""
         entity = self._entity(hass, mock_config_entry)
-        self._hide_ble(monkeypatch)
+        self._hide_bluetooth(monkeypatch)
         with pytest.raises(HomeAssistantError):
             await entity.async_press()
         assert entity._pairing is False
-
-    def test_the_platform_imports_bleak_only_for_type_checking(self) -> None:
-        """BLEDevice is used in one annotation, so it must live under
-        TYPE_CHECKING. A runtime import would take the platform down wherever
-        bleak is absent -- including the pairing button needed to fix that."""
-        import ast
-        import pathlib
-
-        tree = ast.parse(pathlib.Path("custom_components/rivian/button.py").read_text())
-        runtime, guarded = [], []
-        for node in tree.body:
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
-                runtime.append(node)
-            elif (
-                isinstance(node, ast.If)
-                and getattr(node.test, "id", "") == "TYPE_CHECKING"
-            ):
-                guarded.extend(
-                    n for n in node.body if isinstance(n, (ast.Import, ast.ImportFrom))
-                )
-
-        def modules(nodes):
-            out = set()
-            for n in nodes:
-                if isinstance(n, ast.ImportFrom) and n.module:
-                    out.add(n.module.split(".")[0])
-                elif isinstance(n, ast.Import):
-                    out.update(a.name.split(".")[0] for a in n.names)
-            return out
-
-        assert "bleak" not in modules(runtime), "bleak is imported at runtime"
-        assert "bleak" in modules(guarded), (
-            "the BLEDevice annotation import went missing"
-        )
 
 
 class TestPairingSequence:
@@ -438,6 +408,14 @@ class TestPairingSequence:
     the CONTROL FLOW: when the loop stops, when it retries, and whether the button
     is left usable afterwards.
     """
+
+    @pytest.fixture(autouse=True)
+    def _no_system_bus(self):
+        with patch(
+            "custom_components.rivian.rivian_client.ble.set_bluez_pairable",
+            AsyncMock(return_value=True),
+        ):
+            yield
 
     def _entity(self, hass: HomeAssistant, mock_config_entry: ConfigEntry):
         coordinator = MagicMock(spec=VehicleCoordinator)
@@ -771,6 +749,32 @@ class TestPairingSequence:
             await entity.async_press()
         pair.assert_awaited_once()
         assert entity._pairing is False
+
+    async def test_a_pair_that_raises_releases_the_button(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """A corrupt stored key makes pair_phone raise; the next press must
+        retry rather than be refused as already under way."""
+        entity, _ = self._entity(hass, mock_config_entry)
+        service_info = MagicMock()
+        service_info.name = "Rivian Phone Key"
+        service_info.address = "AA:BB"
+        service_info.device = MagicMock()
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+        pair = AsyncMock(side_effect=ValueError("bad key"))
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch("custom_components.rivian.rivian_client.ble.pair_phone", pair),
+        ):
+            with pytest.raises(ValueError):
+                await entity.async_press()
+            assert entity._pairing is False
+            with pytest.raises(ValueError):
+                await entity.async_press()
+        assert pair.await_count == 2
 
 
 class TestTheWakeButtonIsUsableWhenAsleep:

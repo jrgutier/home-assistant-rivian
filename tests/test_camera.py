@@ -9,6 +9,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiohttp import ClientConnectionError, WSMsgType
+import pytest
 from webrtc_models import RTCIceCandidateInit
 
 from custom_components.rivian.camera import (
@@ -29,6 +30,7 @@ from custom_components.rivian.kvs_signaling import (
     encode_payload,
 )
 from custom_components.rivian.rivian_client import VehicleCommand
+from custom_components.rivian.rivian_client.exceptions import RivianApiException
 from custom_components.rivian.select import (
     RivianGearGuardCameraSelect,
     async_setup_entry as select_setup,
@@ -210,6 +212,27 @@ async def test_offer_sends_master_session_with_camera_left(
         {"camera": "left"},
     )
     assert any(getattr(m, "code", None) == "webrtc_offer_failed" for m in messages)
+
+
+async def test_an_unexpected_offer_error_reaches_the_viewer(
+    hass: HomeAssistant,
+    mock_config_entry: ConfigEntry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An error outside the expected set must still answer the viewer and
+    close the session, logged by type alone with no traceback."""
+    coordinator = _hass_entry(hass, mock_config_entry, _vehicle())
+    coordinator.send_vehicle_command = AsyncMock(
+        side_effect=RuntimeError("wss://secret.example/signed")
+    )
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    messages: list = []
+    await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
+    assert any(getattr(m, "code", None) == "webrtc_offer_failed" for m in messages)
+    assert entity._sessions == {}
+    assert "RuntimeError" in caplog.text
+    assert "secret.example" not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records)
 
 
 async def test_failed_vas_does_not_wait_full_config_timeout(
@@ -616,6 +639,18 @@ async def test_offer_refuses_when_unavailable(
     await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
     coordinator.send_vehicle_command.assert_not_called()
     assert any(getattr(m, "code", None) == "webrtc_offer_failed" for m in messages)
+
+
+async def test_an_api_failure_ends_the_offer_with_an_error(
+    hass: HomeAssistant, mock_config_entry: ConfigEntry
+) -> None:
+    coordinator = _hass_entry(hass, mock_config_entry, _vehicle())
+    coordinator.send_vehicle_command = AsyncMock(side_effect=RivianApiException("x"))
+    entity = _live_entity(hass, mock_config_entry, coordinator, _vehicle())
+    messages: list = []
+    await entity.async_handle_async_webrtc_offer("v=0", "sess-1", messages.append)
+    assert any(getattr(m, "code", None) == "webrtc_offer_failed" for m in messages)
+    assert "sess-1" not in entity._sessions
 
 
 async def test_ws_connect_error_does_not_log_signed_url(

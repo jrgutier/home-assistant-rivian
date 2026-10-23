@@ -23,20 +23,20 @@ from custom_components.rivian.const import (
 from custom_components.rivian.coordinator import (
     SupportedFeaturesCoordinator,
     UserCoordinator,
-    VehicleCoordinator,
     WallboxCoordinator,
 )
 from custom_components.rivian.diagnostics import async_get_config_entry_diagnostics
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from tests.doubles import vehicle_coordinator_double
+
 
 def _base_entry_data(features_coordinator, static_vehicles: dict | None = None) -> dict:
     user_coordinator = MagicMock(spec=UserCoordinator)
     user_coordinator.data = {"userId": "user_123"}
 
-    vehicle_coordinator = MagicMock(spec=VehicleCoordinator, rvm_arrivals={})
-    vehicle_coordinator._unsub_parallax = None
+    vehicle_coordinator = vehicle_coordinator_double()
     vehicle_coordinator.data = {"vin": "VIN1"}
     vehicle_coordinator.charging_coordinator = MagicMock()
     vehicle_coordinator.charging_coordinator.data = {}

@@ -264,6 +264,13 @@ def test_parse_signaling_event_skips_junk() -> None:
     assert parse_signaling_event(bad) is None
 
 
+def test_parse_signaling_event_skips_a_non_object_inner_payload() -> None:
+    raw = json.dumps(["not", "an", "object"], separators=(",", ":")).encode()
+    payload = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+    event = json.dumps({"messageType": "SDP_ANSWER", "messagePayload": payload})
+    assert parse_signaling_event(event) is None
+
+
 def test_ice_servers_from_config_skips_junk() -> None:
     assert ice_servers_from_config(None) == []
     assert ice_servers_from_config(["stun:x", {}, {"url": ""}]) == []

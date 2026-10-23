@@ -27,6 +27,8 @@ from custom_components.rivian.coordinator import SUBSCRIBED_RVMS, VehicleCoordin
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfTime
 
+from tests.doubles import vehicle_coordinator_double
+
 TOPIC = "comfort.cabin.climate_hold_setting"
 FIELD = "climateHoldDurationSeconds"
 
@@ -34,18 +36,6 @@ FIELD = "climateHoldDurationSeconds"
 def _description():
     (found,) = [d for d in SENSORS if d.field == FIELD]
     return found
-
-
-def _coordinator() -> MagicMock:
-    coordinator = MagicMock(spec=VehicleCoordinator)
-    coordinator.data = {}
-    coordinator._subscription_keys = set()
-    coordinator._rvm_arrivals = {}
-    coordinator._note_unusable = MagicMock()
-    coordinator.charging_coordinator = MagicMock()
-    coordinator.vehicle_id = "veh-1"
-    coordinator.async_set_updated_data = MagicMock()
-    return coordinator
 
 
 def _deliver(coordinator: MagicMock, raw: bytes) -> dict:
@@ -106,17 +96,17 @@ class TestTheValue:
     def test_a_frame_becomes_the_number_of_seconds(
         self, frame: str, seconds: int
     ) -> None:
-        data = _deliver(_coordinator(), bytes.fromhex(frame))
+        data = _deliver(vehicle_coordinator_double(), bytes.fromhex(frame))
         assert data[FIELD]["value"] == seconds
         assert type(data[FIELD]["value"]) is int
 
     def test_no_hold_reads_zero_not_unknown(self) -> None:
         """An empty payload is the vehicle saying "none", which is an answer."""
-        data = _deliver(_coordinator(), b"")
+        data = _deliver(vehicle_coordinator_double(), b"")
         assert FIELD in data
         assert data[FIELD]["value"] == 0
 
     def test_clearing_a_hold_replaces_the_old_duration(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double()
         coordinator.data = _deliver(coordinator, bytes.fromhex("08a038"))
         assert _deliver(coordinator, b"")[FIELD]["value"] == 0

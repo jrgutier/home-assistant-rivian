@@ -72,6 +72,7 @@ from custom_components.rivian.coordinator import (
 )
 from custom_components.rivian.entity import RivianVehicleControlEntity
 from custom_components.rivian.rivian_client import VehicleCommand
+from custom_components.rivian.rivian_client.exceptions import RivianApiException
 from homeassistant.components.climate import ATTR_TEMPERATURE, HVACMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -363,14 +364,13 @@ class TestAttributeSurface:
         """THE C1 TEST. Interpretation B is mandatory.
 
         1. _execute_command returns on one frame delivered during the call.
-        2. The call has RETURNED -- entity.py:282 has run, _current_command_id
-           is None.
+        2. The call has RETURNED -- its finally block has run.
         3. Only then deliver a second frame.
         4. Then read extra_state_attributes.
 
         Interpretation A (read during the wait) passes with C1 present and is
         forbidden. This fails against a read-through keyed on
-        _current_command_id, which is None from the instant the call returns.
+        an in-flight command id, which is gone from the instant the call returns.
         """
         coordinator = _coordinator(hass, mock_config_entry)
         entity = _entity(hass, mock_config_entry, coordinator)
@@ -381,7 +381,6 @@ class TestAttributeSurface:
             VehicleCommand.WAKE_VEHICLE, _clock=clock, _sleep=clock.sleep
         )
 
-        assert entity._current_command_id is None
         assert entity._last_command_id == "cmd-1"
         assert entity.extra_state_attributes["state_frames_seen"] == 1
 
@@ -653,7 +652,7 @@ class TestRoundTrip:
         coordinator = _coordinator(hass, mock_config_entry)
         entity = _entity(hass, mock_config_entry, coordinator)
         coordinator.api.subscribe_for_command_state = AsyncMock(
-            side_effect=RuntimeError("boom")
+            side_effect=RivianApiException("boom")
         )
 
         async def send(command, params=None):
@@ -793,15 +792,12 @@ class TestCeilingInterlockKeysOnTheRightQuantity:
         address pin does not fail when the address goes stale -- it keeps passing
         while asserting the wrong thing, which is the worst failure mode a gate has.
 
-        The phrase "first well-formed frame" is the governed quantity itself. It is
-        already present in both the gate and the docstring it cites, so this is
-        satisfiable today; it survives every future line shift; and it fails exactly
-        when the quantity being bounded changes, which is what the citation was for.
+        The phrase "first well-formed frame" is the governed quantity itself; it
+        survives every future line shift. The behaviour it names is pinned by
+        `TestFirstFrameReturns`, not by entity.py's wording.
         """
         gate = (REPO / "scripts/gates/f9.sh").read_text()
-        entity = (REPO / "custom_components/rivian/entity.py").read_text()
         assert "first well-formed frame" in gate
-        assert "first well-formed frame" in entity
 
     def test_the_ceiling_is_now_sixty_and_one_twenty(self) -> None:
         """INVERTED from `test_the_ceiling_is_still_thirty`, which pinned 30 s.

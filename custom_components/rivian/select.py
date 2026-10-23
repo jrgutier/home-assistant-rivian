@@ -1,5 +1,3 @@
-"""Support for Rivian select entities."""
-
 from __future__ import annotations
 
 from typing import Any, Final
@@ -34,12 +32,9 @@ SEAT_CLIMATE_OPTIONS = [
 ]
 
 
-# Mapping for combined seat heat/cool controls
-# Maps option names to (command, level) tuples
 def get_seat_command_and_level(
     option: str, is_left_seat: bool
 ) -> tuple[VehicleCommand, int]:
-    """Get the appropriate command and level for a seat climate option."""
     heat_command = (
         VehicleCommand.CABIN_HVAC_LEFT_SEAT_HEAT
         if is_left_seat
@@ -52,7 +47,7 @@ def get_seat_command_and_level(
     )
 
     option_map = {
-        "Off": (heat_command, 0),  # Can use either command for off
+        "Off": (heat_command, 0),
         "Heat Level 1": (heat_command, 2),
         "Heat Level 2": (heat_command, 3),
         "Heat Level 3": (heat_command, 4),
@@ -115,7 +110,6 @@ SELECTS: Final[tuple[RivianSelectEntityDescription, ...]] = (
 )
 
 
-# Front seat combined heat/cool entities use a custom entity class
 FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
     {
         "key": "seat_front_left_heat_vent",
@@ -137,14 +131,12 @@ FRONT_SEAT_SELECTS: Final[list[dict[str, Any]]] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the select entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
 
     entities = []
 
-    # Add regular select entities (rear seats)
     entities.extend(
         [
             RivianSelectEntity(coordinators[vehicle_id], entry, description, vehicle)
@@ -155,7 +147,6 @@ async def async_setup_entry(
         ]
     )
 
-    # Add front seat combined heat/cool entities
     entities.extend(
         [
             RivianFrontSeatSelectEntity(
@@ -181,23 +172,17 @@ async def async_setup_entry(
 
 
 class RivianSelectEntity(RivianVehicleControlEntity, SelectEntity):
-    """Representation of a Rivian select entity."""
-
     entity_description: RivianSelectEntityDescription
 
     @property
     def current_option(self) -> str | None:
-        """Return the selected entity option to represent the entity state."""
         return self._get_value(self.entity_description.field)
 
     async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
         await self.entity_description.select(self.coordinator, LEVEL_MAP[option])
 
 
 class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
-    """Representation of a Rivian front seat combined heat/cool select entity."""
-
     _attr_options = SEAT_CLIMATE_OPTIONS
 
     def __init__(
@@ -207,12 +192,10 @@ class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
         vehicle: dict[str, Any],
         seat_config: dict[str, Any],
     ) -> None:
-        """Initialize the front seat select entity."""
         self._heat_field = seat_config["heat_field"]
         self._cool_field = seat_config["cool_field"]
         self._is_left = seat_config["is_left"]
 
-        # Create a minimal entity description for the parent class
         description = SelectEntityDescription(
             key=seat_config["key"],
             translation_key=seat_config.get("translation_key"),
@@ -222,36 +205,29 @@ class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        """Return the selected entity option to represent the entity state."""
         heat_value = self._get_value(self._heat_field)
         cool_value = self._get_value(self._cool_field)
 
-        # Map level values to option names
-        # "Off", "Level_1", "Level_2", "Level_3"
         level_to_option = {
             "Level_1": "1",
             "Level_2": "2",
             "Level_3": "3",
         }
 
-        # Check if heat is active
         if heat_value and heat_value != "Off":
             level = level_to_option.get(heat_value)
             if level:
                 return f"Heat Level {level}"
 
-        # Check if cool is active
         if cool_value and cool_value != "Off":
             level = level_to_option.get(cool_value)
             if level:
                 return f"Cool Level {level}"
 
-        # Default to Off
         return "Off"
 
     @property
     def icon(self) -> str:
-        """Return dynamic icon based on current state."""
         current = self.current_option
         if current and current.startswith("Heat"):
             return "mdi:car-seat-heater"
@@ -261,7 +237,6 @@ class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
             return "mdi:car-seat"
 
     async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
         command, level = get_seat_command_and_level(option, self._is_left)
         await self.coordinator.send_vehicle_command(
             command=command,
@@ -270,15 +245,12 @@ class RivianFrontSeatSelectEntity(RivianVehicleControlEntity, SelectEntity):
 
 
 class RivianGearGuardCameraSelect(RivianVehicleEntity, SelectEntity):
-    """Pick which vehicle camera a live session starts on."""
-
     def __init__(
         self,
         coordinator: VehicleCoordinator,
         entry: ConfigEntry,
         vehicle: dict[str, Any],
     ) -> None:
-        """Construct the Gear Guard camera selector."""
         description = SelectEntityDescription(
             key="gear_guard_camera",
             translation_key="gear_guard_camera",
@@ -292,14 +264,12 @@ class RivianGearGuardCameraSelect(RivianVehicleEntity, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        """Return the camera the next live session will request."""
         current = getattr(self.coordinator, "gear_guard_camera", None)
         if isinstance(current, str) and current in self.options:
             return current
         return self.options[0] if self.options else None
 
     async def async_select_option(self, option: str) -> None:
-        """Remember the camera; live view picks it up on the next offer."""
         if option not in self.options:
             return
         self.coordinator.gear_guard_camera = option

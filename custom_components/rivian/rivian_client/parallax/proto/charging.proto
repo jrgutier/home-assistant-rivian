@@ -1,43 +1,24 @@
-// charging.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.charging;
 
 
-// charging.schedule.time_window
 // Empty when no schedule is set. The window is its current/next
 // occurrence, not its recurrence; duration is 10080 for an all-week window.
 message ScheduleTimeWindow {
-  bool enabled = 1; // the app's is_valid
+  bool enabled = 1;
   Window window = 2;
 
   message Window {
     optional uint64 start_time = 1; // minutes after local midnight
     optional uint64 end_time = 2;   // minutes after local midnight
     optional uint64 duration = 3;   // minutes
-    optional uint64 amps = 4;       // current limit
-    // 5 location {double latitude, longitude} -- undeclared, and deliberately:
-    // it is the owner's home. Nothing here reads it and nothing should.
-    optional uint64 start_day = 6;  // day of week, as sent
+    optional uint64 amps = 4;
+    optional uint64 start_day = 6;
     optional uint64 end_day = 7;
   }
 }
 
-// charging.session.notification
 message SessionNotification {
   int32 unexpected_stop_reason = 1;
   ChargerDerateStatus derate_status = 2;
@@ -79,8 +60,6 @@ enum FaultChime {
   FAULT_CHIME_CHARGING_DISABLED_NOT_PARKED = 10;
 }
 
-// charging.session.remote_command -- whether a remote start (charge now) is
-// available.
 message SessionRemoteCommand {
   StartAvailability start_available = 1;
 }
@@ -91,19 +70,16 @@ enum StartAvailability {
   START_AVAILABILITY_TRUE = 2;
 }
 
-// charging.session.soc_slider
 message SocSlider {
-  optional uint64 soc_limit = 1; // percent; app: int32
+  optional uint64 soc_limit = 1; // percent
 }
 
-// charging.session.trip_target -- the app's `d5l`.
 message TripTarget {
   uint64 soc = 1; // percent; a trip target exists only when this is 1-100
   optional uint64 time_estimate = 2; // minutes
-  int32 status = 3; // no enum in any app version
+  int32 status = 3;
 }
 
-// charging.smart_charging.settings -- not seen yet; the app's likely schema.
 message SmartChargingSettings {
   repeated ReadyByTime ready_by_times = 1;
   bool clean_energy_enabled = 2;
@@ -115,12 +91,10 @@ message SmartChargingSettings {
   }
 }
 
-// charging.smart_charging.smart_charging_info -- not seen yet; the app's
-// likely schema.
 message SmartChargingInfo {
   ResumeTime resume_time = 1;
   SmartChargingNotification notification = 2;
-  int32 schedule_type = 3; // enum type unknown
+  int32 schedule_type = 3;
 
   message ResumeTime {
     int64 seconds = 1;
@@ -147,17 +121,14 @@ enum SmartChargingNotification {
   SMART_CHARGING_NOTIFICATION_CLEAN_ENERGY_FORECAST_UNAVAILABLE_OR_INCOMPLETE = 4;
 }
 
-// charging.smart_charging.weighted_charging_forecast -- unmapped.
 message WeightedChargingForecast {}
 
-// charging.session.status
 message SessionStatus {
   optional ConnectionState connection_state = 1;
   optional ChargingState charging_state = 2;
-  optional uint64 evse_type = 3; // enum type unknown
+  optional uint64 evse_type = 3;
 }
 
-// The app's PlugConnectionStatus.
 enum ConnectionState {
   CONNECTION_STATE_INIT = 0;
   CONNECTION_STATE_DISCONNECTED = 1; // unplugged
@@ -195,11 +166,10 @@ enum ChargingState {
   CHARGING_SMART_CHARGING_ACTIVE = 25;
 }
 
-// charging.session.time_estimation
 // Minutes to the charge limit; empty (zero) when not charging.
 message TimeEstimation {
   TimeEstimationValidity validity = 1;
-  uint64 estimated_time_remaining = 2; // minutes; app: uint32
+  uint64 estimated_time_remaining = 2; // minutes
 }
 
 enum TimeEstimationValidity {
@@ -209,13 +179,11 @@ enum TimeEstimationValidity {
   TIME_ESTIMATION_VALIDITY_PACK_DISCHARGING = 3;
 }
 
-// charging.energy.state
-// The states match charging.session.status, give or take a message.
 message EnergyState {
   ChargingState charging_state = 1;
-  optional ChargerStatus charger_status = 2; // inferred
-  optional int32 field_3 = 3; // unknown
-  string field_10 = 10; // unknown
+  optional ChargerStatus charger_status = 2;
+  optional int32 field_3 = 3;
+  string field_10 = 10;
   ConnectionState connection_state = 11;
 }
 
@@ -226,7 +194,6 @@ enum ChargerStatus {
   CHARGER_STATUS_CONNECTED_CHARGING = 3;
 }
 
-// charging.session.power -- live charging power; empty when not charging.
 message SessionPower {
   float power = 1; // kW
 }

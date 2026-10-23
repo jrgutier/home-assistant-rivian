@@ -17,10 +17,10 @@ degrades to an unusable text readout. Nothing recovers this from the sensor side
 
 **But it is mostly a false choice.** Two properties of the existing code make it so:
 
-1. `binary_sensor.py:120-135` already publishes the raw string as a `value` attribute on every
+1. `binary_sensor.py:86-100` already publishes the raw string as a `value` attribute on every
    non-aggregate binary sensor. Richer state is not being destroyed today, only kept out of the
    state machine. `state_attr('binary_sensor.x', 'value')` reads it now.
-2. `data_classes.py:84` types `on_value` as `bool | float | int | str | list[str]`, and
+2. `data_classes.py:41` types `on_value` as `bool | float | int | str | list[str]`, and
    `tests/test_binary_sensor_invalid_states.py:130` already exercises `["open", "ajar"]`. A
    three-state field can stay binary by widening `on_value` — no retyping needed.
 
@@ -228,7 +228,7 @@ temperatures), version strings (`otaAvailableVersion*`), free text (`activeDrive
 ## Not covered
 
 - The aggregate descriptions (`locked_state`, `door_state`, `closure_state`) take a `set` of
-  fields through a different `is_on` path (`binary_sensor.py:85-94`). They are included in the
+  fields through a different `is_on` path (`binary_sensor.py:76-78`). They are included in the
   verdicts above on vocabulary grounds, but the widening has not been traced through that path.
 - Whether the server ever emits `opened` on any field.
 - `RivianCloudConnectionBinarySensor` — not field-driven, out of scope.

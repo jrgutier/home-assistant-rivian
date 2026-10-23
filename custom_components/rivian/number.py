@@ -1,5 +1,3 @@
-"""Support for Rivian number entities."""
-
 from __future__ import annotations
 
 from typing import Any, Final
@@ -60,7 +58,6 @@ CHARGING_SCHEDULE_AMPERAGE_NUMBER = RivianNumberEntityDescription(
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the number entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -72,7 +69,6 @@ async def async_setup_entry(
         for description in NUMBERS
     ]
 
-    # Upstream 1.5.3b5: charging-schedule amperage, one per vehicle, no pairing.
     for vehicle_id, vehicle in vehicles.items():
         entities.append(
             RivianChargingScheduleAmperageEntity(
@@ -87,32 +83,24 @@ async def async_setup_entry(
 
 
 class RivianChargingScheduleAmperageEntity(RivianChargingScheduleEntity, NumberEntity):
-    """Charging Schedule Amperage Entity."""
-
     entity_description: RivianNumberEntityDescription
 
     @property
     def native_value(self) -> int | None:
-        """Return native value."""
         sched = self.coordinator.charging_schedule
         val = sched.get("amperage", DEFAULT_CHARGING_SCHEDULE_AMPERAGE)
         return int(val) if val is not None else None
 
     async def async_set_native_value(self, value: float) -> None:
-        """Set new value."""
         await self.entity_description.set_fn(self.coordinator, value)
 
 
 class RivianNumberEntity(RivianVehicleControlEntity, NumberEntity):
-    """Representation of a Rivian number entity."""
-
     entity_description: RivianNumberEntityDescription
 
     @property
     def native_value(self) -> float | None:
-        """Return the value reported by the number."""
         return self._get_value(self.entity_description.field)
 
     async def async_set_native_value(self, value: float) -> None:
-        """Set new value."""
         await self.entity_description.set_fn(self.coordinator, value)

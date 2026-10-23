@@ -1,7 +1,6 @@
-"""Rivian entities."""
-
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 import logging
 from typing import Any, Final, TypeVar
 
@@ -15,31 +14,27 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .connectivity import ConnectivityState
 from .const import ATTR_COORDINATOR, ATTR_USER, DOMAIN
 from .coordinator import (
+    SEND_COMMAND_ERRORS,
     ChargingCoordinator,
     RivianDataUpdateCoordinator,
     UserCoordinator,
     VehicleCoordinator,
     WallboxCoordinator,
 )
+from .rivian_client import VehicleCommand
 
 _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T", bound=RivianDataUpdateCoordinator)
 
-# The app's CLOUD-path give-up timeouts, selected on the derived connectivity state
-# at C5332Z.java:821; declared at C5332Z.java:242 (60000L) and :254 (120000L).
 COMMAND_TIMEOUT_AWAKE: Final = 60
 COMMAND_TIMEOUT_SLEEPING: Final = 120
 
 
 class RivianEntity(CoordinatorEntity[T]):
-    """Base class for Rivian entities."""
-
     _attr_has_entity_name = True
 
 
 class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
-    """Base class for Rivian vehicle entities."""
-
     def __init__(
         self,
         coordinator: VehicleCoordinator,
@@ -47,7 +42,6 @@ class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
         description: EntityDescription,
         vehicle: dict[str, Any],
     ) -> None:
-        """Construct a Rivian vehicle entity."""
         super().__init__(coordinator)
         self._config_entry = config_entry
         self.entity_description = description
@@ -57,10 +51,6 @@ class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
         self._available = True
 
         name = vehicle.get("name")
-        # The third and widest site. DeviceInfo is built for EVERY platform, so an
-        # unguarded vehicle["model"] fails device registration everywhere, not
-        # merely in the two entity comprehensions. A device must also always have
-        # a name; None is not one, hence the fall through to the VIN.
         model = vehicle.get("model")
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, vin), (DOMAIN, vehicle["id"])},
@@ -73,42 +63,26 @@ class RivianVehicleEntity(RivianEntity[VehicleCoordinator]):
 
     @property
     def available(self) -> bool:
-        """Return the availability of the entity."""
         field = getattr(self.entity_description, "field", None)
         if field and self._get_value(field) is None:
             return False
         return self._available
 
     def _get_value(self, key: str) -> Any | None:
-        """Get a data value from the coordinator."""
         return self.coordinator.get(key)
 
 
 class RivianChargingScheduleEntity(RivianVehicleEntity):
-    """Base class for the charging-schedule entities.
-
-    Skips RivianVehicleEntity's field-presence test: the schedule is read from
-    coordinator.charging_schedule, not from a vehicle state field.
-    """
-
     @property
     def available(self) -> bool:
-        """Return availability."""
         return self._available
 
 
 def vehicle_control_enabled(vehicle: dict[str, Any]) -> bool:
-    """Whether vehicle control is set up: a phone key is enrolled for `vehicle`.
-
-    The creation gate for every control entity. Truthiness, not presence: an
-    empty id is no enrolment.
-    """
     return bool(vehicle.get("phone_identity_id"))
 
 
 class RivianVehicleControlEntity(RivianVehicleEntity):
-    """Base class for Rivian vehicle control entities."""
-
     def __init__(
         self,
         coordinator: VehicleCoordinator,
@@ -116,22 +90,13 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         description: EntityDescription,
         vehicle: dict[str, Any],
     ) -> None:
-        """Construct a Rivian vehicle control entity."""
         super().__init__(coordinator, config_entry, description, vehicle)
         self._command_in_progress: str | None = None
-        self._current_command_id: str | None = None
         self._last_command_id: str | None = None
         self._last_command_status: dict[str, Any] = {}
 
     @property
     def available(self) -> bool:
-        """Return the availability of the entity."""
-        # A sleeping vehicle is not "online", and every control used to be gated on
-        # that -- including the wake button, whose entire job is to bring it back.
-        # The Rivian app gates on three states and disables controls only when
-        # OFFLINE (C1611c.java:141-158 derives them; C7407k.java:112-118 shows only
-        # Offline blocks). Sleeping falls through to the remaining four gates, which
-        # all read cached data and so keep working while the vehicle sleeps.
         if self.coordinator.connectivity_state() is ConnectivityState.OFFLINE:
             return False
         if not (super().available and self._get_value("gearStatus") == "park"):
@@ -150,10 +115,6 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return entity specific state attributes."""
-        # Seeded so both codes are readable before any command. Appending them
-        # inside the _last_command_status block leaves them absent until the
-        # first send, which is the state f7 has to inspect.
         attrs = {
             "response_code": None,
             "status_code": None,
@@ -173,10 +134,6 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                     "status_code": self._last_command_status.get("status_code"),
                 }
             )
-        # _last_command_id, NOT _current_command_id: the `finally` of
-        # _execute_command clears the latter, and the values below only exist
-        # AFTER the call has returned. Gating on _current_command_id makes
-        # every one of them permanently read its seed.
         if self._last_command_id and (
             live := self.coordinator.get_command_state(self._last_command_id)
         ):
@@ -194,20 +151,6 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         _clock=None,
         _sleep=None,
     ) -> dict[str, Any] | None:
-        """Execute a vehicle command with state tracking.
-
-        Args:
-            command: The VehicleCommand to execute
-            params: Optional command parameters
-            timeout: Seconds to wait for the first well-formed frame. Defaults to
-                the connectivity state's ceiling -- 120 s while SLEEPING, else 60 s
-                -- because a sleeping vehicle's first frame arrives behind a wake
-                that is dispatched but never awaited. An explicit value still wins.
-            _clock, _sleep: test seams; default to the loop clock and asyncio.sleep
-
-        Returns:
-            Command state dict of the first well-formed frame, None on timeout
-        """
         import asyncio
 
         from homeassistant.util import dt as dt_util
@@ -215,8 +158,6 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         clock = _clock or asyncio.get_event_loop().time
         sleep = _sleep or asyncio.sleep
 
-        # Resolved once, here, and never inside the loop: re-resolving mid-command
-        # would let a wake landing halfway through shorten the wait it was granted.
         if timeout is None:
             timeout = (
                 COMMAND_TIMEOUT_SLEEPING
@@ -224,12 +165,10 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                 else COMMAND_TIMEOUT_AWAKE
             )
 
-        # Set executing state
         self._command_in_progress = command.value
         self.async_write_ha_state()
 
         try:
-            # Send command and get ID
             command_id = await self.coordinator.send_vehicle_command(command, params)
 
             if not command_id:
@@ -238,13 +177,8 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
                 )
                 return None
 
-            self._current_command_id = command_id
             self._last_command_id = command_id
 
-            # Return on the first well-formed frame. _process_command_state
-            # refuses to write a record on a malformed payload or a null state,
-            # so presence in _command_states is the arrival of a real answer.
-            # Terminality is tracked on the coordinator, in the background.
             start_time = clock()
             while (clock() - start_time) < timeout:
                 if cmd_state := self.coordinator.get_command_state(command_id):
@@ -259,7 +193,6 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
 
                 await sleep(0.5)
 
-            # Timeout reached -- zero well-formed frames
             _LOGGER.warning(
                 "Command %s (ID: %s) timed out after %s seconds with zero well-formed frames",
                 command,
@@ -273,17 +206,25 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
             }
             return None
 
-        except Exception as ex:  # noqa: BLE001 -- command boundary: failures are surfaced to the caller as None, not raised
+        except SEND_COMMAND_ERRORS as ex:
             _LOGGER.error("Error executing command %s: %s", command, ex)
             return None
         finally:
-            # Clear executing state
             self._command_in_progress = None
-            self._current_command_id = None
             self.async_write_ha_state()
 
+    async def _run_action(
+        self,
+        command: VehicleCommand | None,
+        params: dict[str, Any] | None,
+        fallback: Callable[[VehicleCoordinator], Awaitable[Any]] | None,
+    ) -> None:
+        if command:
+            await self._execute_command(command, params)
+        else:
+            await fallback(self.coordinator)
+
     def _handle_driver_update(self) -> None:
-        """Handle driver update."""
         entry_data = self.hass.data[DOMAIN][self._config_entry.entry_id]
         user: UserCoordinator = entry_data[ATTR_COORDINATOR][ATTR_USER]
         phone_info = user.get_enrolled_phone_data(
@@ -295,7 +236,6 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
         self._available = device["isPaired"]
 
     async def async_added_to_hass(self) -> None:
-        """When entity is added to hass."""
         self._handle_driver_update()
         await super().async_added_to_hass()
         self.async_on_remove(
@@ -306,15 +246,12 @@ class RivianVehicleControlEntity(RivianVehicleEntity):
 
 
 class RivianChargingEntity(RivianEntity[ChargingCoordinator]):
-    """Base class for Rivian charging entities."""
-
     def __init__(
         self,
         coordinator: ChargingCoordinator,
         description: EntityDescription,
         vin: str,
     ) -> None:
-        """Initialize the entity."""
         super().__init__(coordinator)
         self.entity_description = description
         self.vin = vin
@@ -324,15 +261,12 @@ class RivianChargingEntity(RivianEntity[ChargingCoordinator]):
 
 
 class RivianWallboxEntity(RivianEntity[WallboxCoordinator]):
-    """Base class for Rivian wallbox entities."""
-
     def __init__(
         self,
         coordinator: WallboxCoordinator,
         description: EntityDescription,
         wallbox: dict[str, Any],
     ) -> None:
-        """Construct a Rivian wallbox entity."""
         super().__init__(coordinator)
         self.entity_description = description
         self.wallbox = wallbox
@@ -349,7 +283,6 @@ class RivianWallboxEntity(RivianEntity[WallboxCoordinator]):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
         wallbox = next(
             (
                 wallbox

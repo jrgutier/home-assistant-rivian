@@ -1,28 +1,12 @@
-// dynamics.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.dynamics;
 
 
-// dynamics.vehicle.drive_mode
 message DriveMode {
   optional DriveModeValue mode = 1;
-  optional uint64 limited_accel_cold = 8; // app: bool
-  optional uint64 limited_regen_cold = 9; // app: bool
+  optional uint64 limited_accel_cold = 8;
+  optional uint64 limited_regen_cold = 9;
 }
 
 enum DriveModeValue {
@@ -44,7 +28,6 @@ enum DriveModeValue {
   DRIVE_MODE_WINTER = 15;
 }
 
-// dynamics.vehicle.gear
 message Gear {
   optional GearValue gear = 1; // GEAR_NOT_DEFINED (0) is reported when sent
 }
@@ -57,14 +40,12 @@ enum GearValue {
   GEAR_DRIVE = 4;
 }
 
-// dynamics.vehicle.gnss -- the doubles carry float32 precision.
 message Gnss {
   optional double latitude = 1;
   optional double longitude = 2;
   optional double altitude = 3; // meters
   float speed = 4; // m/s
   float bearing = 5; // degrees
-  // The gateway's gnssError, in the same units.
   float position_horizontal_error = 6; // meters
   float position_vertical_error = 7;   // meters
   float speed_error = 8;               // m/s
@@ -72,7 +53,6 @@ message Gnss {
   int64 time = 10; // epoch ms (Unix, or GPS on some vehicles); the whole fix
 }
 
-// dynamics.vehicle.location
 message KnownLocation {
   optional KnownLocationValue location = 1;
 }
@@ -84,14 +64,12 @@ enum KnownLocationValue {
   KNOWN_LOCATION_WORK = 3;
 }
 
-// dynamics.vehicle.odometer
 message Odometer {
-  optional uint64 distance = 1; // km; app: int64
+  optional uint64 distance = 1; // km
 }
 
-// dynamics.vehicle.range
 message Range {
-  optional uint64 distance_to_empty = 1; // km; app: int32
+  optional uint64 distance_to_empty = 1; // km
   optional RangeThreshold threshold = 2;
   optional TemperatureImpact temperature_impact = 3;
 }
@@ -111,9 +89,8 @@ enum TemperatureImpact {
   TEMPERATURE_COLD_IMPACT = 3;
 }
 
-// dynamics.tires.state
 message TiresState {
-  int32 tpms_monitor_status = 1; // enum type unknown
+  int32 tpms_monitor_status = 1;
 
   message Tire {
     TirePosition pos = 1;
@@ -141,10 +118,9 @@ enum TirePressureStatus {
   TIRE_PRESSURE_STATUS_WARNING_PUNCTURE = 4;
 }
 
-// dynamics.vehicle.efficiency
 message Efficiency {
   optional int32 efficiency = 1; // Wh/km; used for the parked-energy ranges
-  optional int32 field_2 = 2; // unmapped; same scale
+  optional int32 field_2 = 2;
   repeated History history = 3;
 
   message History {
@@ -153,18 +129,14 @@ message Efficiency {
   }
 }
 
-// dynamics.vehicle.mass_estimate
 message MassEstimate {
   optional int32 mass = 1; // kg
 }
 
-// dynamics.brakes.fluid_level
 message BrakeFluidLevel {
   BrakeFluidLow fluid_low = 1;
 }
 
-// Best guess: the app's FluidLevelLow values (the gateway's brakeFluidLow),
-// numbered like the other SNA / false / true enums.
 enum BrakeFluidLow {
   BRAKE_FLUID_LOW_SIGNAL_NOT_AVAILABLE = 0;
   BRAKE_FLUID_LOW_INACTIVE = 1;

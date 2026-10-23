@@ -1,16 +1,3 @@
-"""Kinesis Video Streams WebRTC signaling, as the Rivian app speaks it.
-
-Send shape is `WebRtcMessage` (`action` + base64 `messagePayload`).
-Receive shape is `Event` (`messageType` + base64 `messagePayload`).
-APK: `WebRtcMessage.java` createOfferMessage / createIceCandidateMessage
-and `Event.java` parseSdpEvent / parseIceCandidate.
-
-Outgoing Base64 uses Android flags 11 (URL_SAFE | NO_WRAP | NO_PADDING).
-Incoming payloads may be either alphabet; decode both.
-
-Do not log `endpoint`, `channelArn`, ICE credentials, or signed URLs.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -25,7 +12,6 @@ _KVS_HOST = re.compile(r"^[a-z0-9-]+\.kinesisvideo\.[a-z0-9-]+-\d+\.amazonaws\.c
 
 
 def new_client_id() -> str:
-    """KVS viewer client id (X-Amz-ClientId)."""
     return str(uuid4())
 
 
@@ -38,13 +24,11 @@ KVS_MAX_MESSAGE_PAYLOAD: Final = 10000
 
 
 def encode_payload(obj: dict[str, Any]) -> str:
-    """Base64-encode a signaling inner payload the way the app does."""
     raw = json.dumps(obj, separators=(",", ":")).encode()
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 
 def decode_payload(payload: str) -> dict[str, Any]:
-    """Decode a KVS messagePayload, either alphabet, with or without padding."""
     pad = "=" * ((4 - len(payload) % 4) % 4)
     padded = payload + pad
     try:
@@ -58,17 +42,14 @@ def decode_payload(payload: str) -> dict[str, Any]:
 
 
 def _crlf_sdp(sdp: str) -> str:
-    """WebRTC SDP uses CRLF; the app rewrites before wrapping JSON."""
     return sdp.replace("\r\n", "\n").replace("\n", "\r\n")
 
 
 def _offer_payload(sdp: str) -> str:
-    """The encoded messagePayload an SDP_OFFER carries for this SDP."""
     return encode_payload({"type": "offer", "sdp": _crlf_sdp(sdp)})
 
 
 def offer_message(sdp: str, client_id: str) -> dict[str, str]:
-    """Viewer SDP_OFFER — `WebRtcMessage.createOfferMessage`."""
     return {
         "action": "SDP_OFFER",
         "recipientClientId": "",
@@ -78,11 +59,6 @@ def offer_message(sdp: str, client_id: str) -> dict[str, str]:
 
 
 def offer_exceeds_kvs_limit(sdp: str) -> bool:
-    """Whether this SDP would overflow a KVS signaling frame once encoded.
-
-    Measures the real encoded payload rather than the SDP length, because the
-    CRLF escaping and base64 expansion are what actually decide it.
-    """
     return len(_offer_payload(sdp)) > KVS_MAX_MESSAGE_PAYLOAD
 
 
@@ -93,7 +69,6 @@ def ice_candidate_message(
     client_id: str,
     recipient_client_id: str,
 ) -> dict[str, str]:
-    """ICE_CANDIDATE — `UriUtilsKt.getIceCandidatePayload` + WebRtcMessage."""
     inner: dict[str, Any] = {
         "candidate": candidate,
         "sdpMid": sdp_mid or "",
@@ -108,7 +83,6 @@ def ice_candidate_message(
 
 
 def parse_signaling_event(raw: str) -> dict[str, Any] | None:
-    """Parse an incoming KVS Event. None if it is not a signaling message."""
     if "messagePayload" not in raw:
         return None
     try:
@@ -133,12 +107,10 @@ def parse_signaling_event(raw: str) -> dict[str, Any] | None:
 
 
 def _kvs_signaling_host_ok(host: str | None) -> bool:
-    """KVS signaling hosts look like v-….kinesisvideo.<region>.amazonaws.com."""
     return bool(host) and _KVS_HOST.fullmatch(host.lower()) is not None
 
 
 def signaling_ws_url(endpoint: str, channel_arn: str, client_id: str) -> str:
-    """Connect to the signed KVS endpoint. Do not log the result."""
     url = endpoint.strip()
     if url.startswith("https://"):
         url = "wss://" + url[len("https://") :]
@@ -167,7 +139,6 @@ def signaling_ws_url(endpoint: str, channel_arn: str, client_id: str) -> str:
 
 
 def client_id_from_endpoint(endpoint: str) -> str | None:
-    """Use the ClientId KVS already bound into a signed URL, if any."""
     parsed = urlparse(endpoint.strip())
     for key, values in parse_qs(parsed.query, keep_blank_values=True).items():
         if key.lower() == "x-amz-clientid" and values and values[0]:
@@ -175,18 +146,11 @@ def client_id_from_endpoint(endpoint: str) -> str | None:
     return None
 
 
-# KVS omits ttl on some entries; five minutes is what its own SDK assumes.
 DEFAULT_ICE_TTL: Final = 300
-# Stop handing out TURN credentials this long before KVS expires them.
 ICE_EXPIRY_MARGIN: Final = 30
 
 
 def ice_ttl_from_config(ice_servers: list[Any] | None) -> int:
-    """Shortest `ttl` KVS gave us, in seconds.
-
-    The TURN username carries its own expiry epoch and the credential stops
-    working at it, so a cached server list is only reusable for this long.
-    """
     return min(
         (
             int(server["ttl"])
@@ -200,16 +164,10 @@ def ice_ttl_from_config(ice_servers: list[Any] | None) -> int:
 
 
 def ice_usable_seconds(ice_servers: list[Any] | None) -> int:
-    """How long these servers may be handed out, margin already taken off.
-
-    Callers cache against this rather than the raw ttl so the arithmetic that
-    decides when a KVS credential dies stays next to the ttl it comes from.
-    """
     return max(0, ice_ttl_from_config(ice_servers) - ICE_EXPIRY_MARGIN)
 
 
 def ice_servers_from_config(ice_servers: list[Any] | None) -> list[dict[str, Any]]:
-    """Shape GraphQL iceServers for RTCIceServer without copying secrets out."""
     out: list[dict[str, Any]] = []
     if not ice_servers:
         return out

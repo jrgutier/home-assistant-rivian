@@ -1,5 +1,3 @@
-"""Decoders for `security.*` topics: alarm, Gear Guard video, access faults."""
-
 from __future__ import annotations
 
 from typing import Any, Final
@@ -7,14 +5,12 @@ from typing import Any, Final
 from .core import RVMDecoder, _fields
 from .proto import security_pb2
 
-# security.alarm.state -- SoundAlarmStatus
 _ALARM_SOUND_MAP: Final[dict[int, str]] = {
     1: "false",
     2: "true",
     3: "signal_not_available",
 }
 
-# security.video_monitoring.state
 _VIDEO_MONITORING_STATUS_MAP: Final[dict[int, str]] = {
     1: "disabled",
     2: "enabled",
@@ -30,13 +26,11 @@ _TOS_ACCEPTANCE_MAP: Final[dict[int, str]] = {
     2: "accepted",
 }
 
-# security.access.btm -- HardwareFailureDtcStatus, one enum shared by six fields
 _HARDWARE_FAILURE_MAP: Final[dict[int, str]] = {
     0: "unspecified",
     1: "set",
 }
 
-# security.access.vas_fault
 _SECURE_ELEMENT_FAULTED_MAP: Final[dict[int, str]] = {
     1: "no_failure",
     2: "lost_communication",
@@ -50,7 +44,6 @@ _ACCESS_CAN_FAULTED_MAP: Final[dict[int, str]] = {
     2: "failure",
 }
 
-# security.access.passive_entry_debug -- PassiveEntryUnlockFailReason
 _PASSIVE_ENTRY_FAIL_MAP: Final[dict[int, str]] = {
     1: "not_in_park",
     2: "at_home_disable",
@@ -67,8 +60,6 @@ _PASSIVE_ENTRY_FAIL_MAP: Final[dict[int, str]] = {
     13: "slept_immediate",
 }
 
-# security.access.immobilizer_state -- SecureImmoStatus. Note 0 is a REAL value
-# here ("not assigned"), not the usual UNSPECIFIED sentinel.
 _IMMOBILIZER_MAP: Final[dict[int, str]] = {
     0: "not_assigned",
     1: "not_authorized",
@@ -78,15 +69,6 @@ _IMMOBILIZER_MAP: Final[dict[int, str]] = {
 
 @RVMDecoder.register(security_pb2.AlarmState, "security.alarm.state")
 def decode_alarm_state(m: security_pb2.AlarmState) -> dict[str, Any]:
-    """Decode security.alarm.state.
-
-    Returns dict with keys:
-        - alarmSoundStatus: str ("true" / "false" / "signal_not_available")
-
-    The strings are the subscription's own vocabulary, which the sensor's
-    value_lambda turns into Active/Inactive. signal_not_available is in
-    INVALID_SENSOR_STATES, so it reports as unknown rather than as Inactive.
-    """
     return _fields(
         m,
         {
@@ -104,13 +86,6 @@ def decode_alarm_state(m: security_pb2.AlarmState) -> dict[str, Any]:
     "security.video_monitoring.state",
 )
 def decode_video_monitoring(m: security_pb2.VideoMonitoringState) -> dict[str, Any]:
-    """Decode security.video_monitoring.state.
-
-    Returns dict with keys:
-        - gearGuardVideoStatus: str
-        - gearGuardVideoMode: str
-        - gearGuardVideoTermsAccepted: str
-    """
     return _fields(
         m,
         {
@@ -123,16 +98,6 @@ def decode_video_monitoring(m: security_pb2.VideoMonitoringState) -> dict[str, A
 
 @RVMDecoder.register(security_pb2.Btm, "security.access.btm")
 def decode_btm_diagnosis(m: security_pb2.Btm) -> dict[str, Any]:
-    """Decode security.access.btm.
-
-    Returns dict with keys:
-        - btmFfHardwareFailureStatus, btmIcHardwareFailureStatus,
-          btmLfdHardwareFailureStatus, btmRfHardwareFailureStatus,
-          btmRfdHardwareFailureStatus, btmOcHardwareFailureStatus: str
-
-    Six of the ten fields share one enum. Fields 7-10 are separate error counters
-    with no enum of their own, are not in the spec below, and so are dropped.
-    """
     return _fields(
         m,
         {
@@ -148,15 +113,6 @@ def decode_btm_diagnosis(m: security_pb2.Btm) -> dict[str, Any]:
 
 @RVMDecoder.register(security_pb2.VasFault, "security.access.vas_fault")
 def decode_vas_fault(m: security_pb2.VasFault) -> dict[str, Any]:
-    """Decode security.access.vas_fault.
-
-    Returns dict with keys:
-        - vasSecureElementFaulted: str
-        - vasAccessCanFaulted: str
-
-    Both are declared in the gateway schema and neither is subscribed, so this
-    topic is the only source for them.
-    """
     return _fields(
         m,
         {
@@ -171,11 +127,6 @@ def decode_vas_fault(m: security_pb2.VasFault) -> dict[str, Any]:
     "security.access.passive_entry_debug",
 )
 def decode_passive_entry_debug(m: security_pb2.PassiveEntryDebug) -> dict[str, Any]:
-    """Decode security.access.passive_entry_debug.
-
-    Returns dict with keys:
-        - passiveEntryUnlockFailReason: str
-    """
     return _fields(
         m, {"reason": ("passiveEntryUnlockFailReason", _PASSIVE_ENTRY_FAIL_MAP)}
     )
@@ -186,13 +137,4 @@ def decode_passive_entry_debug(m: security_pb2.PassiveEntryDebug) -> dict[str, A
     "security.access.immobilizer_state",
 )
 def decode_immobilizer_state(m: security_pb2.ImmobilizerState) -> dict[str, Any]:
-    """Decode security.access.immobilizer_state.
-
-    Returns dict with keys:
-        - secureImmobilizerStatus: str
-
-    No gateway field carries this, so it backs no entity yet -- it is decoded so
-    the topic stops being an unknown one, and so an entity can be added against
-    observed values rather than against a guess.
-    """
     return _fields(m, {"status": ("secureImmobilizerStatus", _IMMOBILIZER_MAP)})

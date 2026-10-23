@@ -1085,11 +1085,9 @@ class TestRemainingApkGaps:
         assert not _is_wired("ENABLE_GEAR_GUARD", sources)
         assert not _is_wired("DISABLE_GEAR_GUARD", sources)
 
-    def test_climate_hold_comment_is_not_wiring(self) -> None:
+    def test_climate_hold_on_off_is_not_wired(self) -> None:
         raw = (REPO / "custom_components/rivian/switch.py").read_text()
         stripped = _strip_hash_comments(raw)
-        assert re.search(r"VehicleCommand\.CLIMATE_HOLD_ON\b", raw)
-        assert not re.search(r"VehicleCommand\.CLIMATE_HOLD_ON\b", stripped)
         assert not _is_wired("CLIMATE_HOLD_ON", stripped)
         assert not _is_wired("CLIMATE_HOLD_OFF", stripped)
 

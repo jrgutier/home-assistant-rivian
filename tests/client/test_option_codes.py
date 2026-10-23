@@ -11,6 +11,8 @@ get_user_information() docstring.
 
 from __future__ import annotations
 
+import asyncio
+
 import aiohttp
 from aiohttp.web import json_response
 from aresponses import ResponsesMockServer
@@ -130,5 +132,58 @@ async def test_a_classified_error_does_not_retry(
         assert len(calls) == 1
         # Neither branch of get_user_information ran to completion, so the
         # flag is untouched from its post-__init__ default.
+        assert rivian.option_codes_available() is None
+        await rivian.close()
+
+
+async def test_a_coded_internal_server_error_retries_without_the_fragment(
+    aresponses: ResponsesMockServer,
+) -> None:
+    """A schema rejection can arrive coded INTERNAL_SERVER_ERROR rather than
+    uncoded; it must still fall back, or setup loops on the extended query."""
+    calls: list[str] = []
+
+    async def handler(request: aiohttp.web.Request):
+        calls.append(await request.text())
+        if len(calls) == 1:
+            return json_response(error_response("INTERNAL_SERVER_ERROR"))
+        return json_response(USER_INFORMATION_RESPONSE)
+
+    aresponses.add(HOST, PATH, "POST", response=handler, repeat=2)
+    async with aiohttp.ClientSession():
+        rivian = Rivian(
+            csrf_token="token", app_session_token="token", user_session_token="token"
+        )
+        response = await rivian.get_user_information()
+        assert response.status == 200
+        assert len(calls) == 2
+        assert "mobileConfiguration" not in calls[1]
+        assert rivian.option_codes_available() is False
+        await rivian.close()
+
+
+async def test_a_timeout_does_not_retry_without_the_fragment(
+    aresponses: ResponsesMockServer,
+) -> None:
+    """A timeout says nothing about the fragment. Retrying it would record
+    option codes as unavailable on a network blip and double the wait."""
+    calls: list[str] = []
+
+    async def handler(request: aiohttp.web.Request):
+        calls.append(await request.text())
+        await asyncio.sleep(1)
+        return json_response(USER_INFORMATION_RESPONSE)
+
+    aresponses.add(HOST, PATH, "POST", response=handler, repeat=2)
+    async with aiohttp.ClientSession():
+        rivian = Rivian(
+            csrf_token="token",
+            app_session_token="token",
+            user_session_token="token",
+            request_timeout=0.05,
+        )
+        with pytest.raises(RivianApiException, match="Timeout"):
+            await rivian.get_user_information()
+        assert len(calls) == 1
         assert rivian.option_codes_available() is None
         await rivian.close()

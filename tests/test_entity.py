@@ -211,7 +211,6 @@ class TestRivianVehicleControlEntity:
         )
 
         assert entity._command_in_progress is None
-        assert entity._current_command_id is None
         assert entity._last_command_status == {}
 
     async def test_unavailable_when_offline(

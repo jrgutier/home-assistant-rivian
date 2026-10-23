@@ -1,24 +1,8 @@
-// body.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.body;
 
 
-// body.closures.states
 message ClosuresState {
   message Closure {
     ClosureId id = 1;
@@ -26,7 +10,7 @@ message ClosuresState {
     int32 open_position_percent = 3;
     // Unset on doors and windows; briefly GENERAL while re-reporting.
     ClosureFault fault = 4;
-    optional WindowsNextAction windows_next_action = 5; // on GROUP_WINDOWS
+    optional WindowsNextAction windows_next_action = 5;
 
     // One field per closure type. Briefly SNA / not-available while the
     // vehicle re-reports after an app command.
@@ -35,7 +19,7 @@ message ClosuresState {
     optional SideBinNextAction side_bin_next_action = 8;
     optional TailgateNextAction tailgate_next_action = 9;
     optional ChargePortDoorNextAction charge_port_door_next_action = 10;
-    int32 tonneau_next_action = 11; // enum type unknown
+    int32 tonneau_next_action = 11;
   }
   repeated Closure closure = 1;
 }
@@ -70,7 +54,6 @@ enum ClosureState {
   CLOSURE_STATE_CLOSING = 5;
 }
 
-// body.locks.states
 message LocksState {
   message Lock {
     LockId id = 1;
@@ -113,7 +96,6 @@ enum LockFault {
   LOCK_FAULT_FAULTED = 1;
 }
 
-// body.windows.states -- the app's `zzn` (name-match, not a dispatch binding).
 message WindowsState {
   repeated Window window = 1;
 
@@ -138,7 +120,6 @@ enum CalibrationStatus {
   CALIBRATION_STATUS_NOT_CALIBRATED = 2;
 }
 
-// body.trailer.state
 message TrailerState {
   optional TrailerPresence presence = 1;
   RearHitchStatus rear_hitch_status = 2;
@@ -266,13 +247,10 @@ enum WindowsNextAction {
   WINDOWS_OPEN_NOT_ALLOWED_UNCALIBRATED = 12;
 }
 
-// body.wipers.fluid_level
 message WiperFluidLevel {
   WiperFluidState state = 2;
 }
 
-// Best guess: the app's FluidLevelState values (the gateway's
-// wiperFluidState), numbered in the app's normal | low | empty order.
 enum WiperFluidState {
   WIPER_FLUID_STATE_UNSPECIFIED = 0;
   WIPER_FLUID_STATE_NORMAL = 1;

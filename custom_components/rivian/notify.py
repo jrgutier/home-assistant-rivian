@@ -1,5 +1,3 @@
-"""Support for Rivian notify platform to send navigation destinations."""
-
 from __future__ import annotations
 
 import logging
@@ -17,7 +15,6 @@ from .rivian_client import Rivian
 
 _LOGGER = logging.getLogger(__name__)
 
-# Service schema for navigation service
 NAVIGATION_SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("message"): cv.string,
@@ -26,18 +23,14 @@ NAVIGATION_SERVICE_SCHEMA = vol.Schema(
 
 
 def _vehicle_name(vehicle: dict[str, Any]) -> str:
-    """Return the vehicle's display name, falling back to its model."""
     return vehicle.get("name", vehicle.get("model", "unknown"))
 
 
 def _vin_suffix(vehicle: dict[str, Any]) -> str:
-    """Return the last six VIN characters, which keep service names unique."""
     return vehicle.get("vin", "")[-6:]
 
 
 def _navigation_service_name(vehicle: dict[str, Any]) -> str:
-    """Return the notify service name for a vehicle's navigation service."""
-    # Sanitize name for service ID (lowercase, replace spaces with underscores)
     safe_name = _vehicle_name(vehicle).lower().replace(" ", "_")
     return f"rivian_{safe_name}_{_vin_suffix(vehicle)}_navigation"
 
@@ -47,12 +40,10 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Rivian notify platform from a config entry."""
     entry_data = hass.data[DOMAIN][entry.entry_id]
     client: Rivian = entry_data[ATTR_API]
     vehicles: dict[str, dict[str, Any]] = entry_data[ATTR_VEHICLE]
 
-    # Register a notification service for each vehicle
     for vehicle_id, vehicle in vehicles.items():
         vehicle_name = _vehicle_name(vehicle)
         service_name = _navigation_service_name(vehicle)
@@ -63,7 +54,6 @@ async def async_setup_entry(
             service_name,
         )
 
-        # Create and register the notification service
         notification_service = RivianNotificationService(
             hass=hass,
             client=client,
@@ -73,7 +63,6 @@ async def async_setup_entry(
             config_entry=entry,
         )
 
-        # Register the service with Home Assistant with schema
         hass.services.async_register(
             "notify",
             service_name,
@@ -89,14 +78,12 @@ async def async_setup_entry(
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload notify services for this entry."""
     entry_data = hass.data[DOMAIN].get(entry.entry_id)
     if not entry_data:
         return True
 
     vehicles: dict[str, dict[str, Any]] = entry_data[ATTR_VEHICLE]
 
-    # Remove each vehicle's notification service
     for vehicle in vehicles.values():
         service_name = _navigation_service_name(vehicle)
 
@@ -108,8 +95,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 class RivianNotificationService:
-    """Implementation of Rivian notification service for sending navigation destinations."""
-
     def __init__(
         self,
         hass: HomeAssistant,
@@ -119,7 +104,6 @@ class RivianNotificationService:
         service_name: str,
         config_entry: ConfigEntry,
     ) -> None:
-        """Initialize the service."""
         self.hass = hass
         self._client = client
         self._vehicle_id = vehicle_id
@@ -135,14 +119,6 @@ class RivianNotificationService:
         )
 
     async def async_send_message(self, call: ServiceCall) -> None:
-        """Send a navigation destination to the Rivian vehicle.
-
-        This is called directly as a Home Assistant service.
-
-        Args:
-            call: The service call containing the message parameter
-
-        """
         message = call.data.get("message", "")
 
         if not message:
@@ -156,13 +132,11 @@ class RivianNotificationService:
                 message,
             )
 
-            # Call the Rivian API to send the location
             result = await self._client.send_location_to_vehicle(
                 location_str=message,
                 vehicle_id=self._vehicle_id,
             )
 
-            # Check result - 0 indicates success
             result_code = result.get("publishResponse", {}).get("result")
             if result_code == 0:
                 _LOGGER.info(
@@ -177,7 +151,7 @@ class RivianNotificationService:
                     result_code,
                 )
 
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             _LOGGER.exception(
                 "Error sending navigation destination to vehicle %s",
                 self._vehicle.get("name", self._vehicle_id),

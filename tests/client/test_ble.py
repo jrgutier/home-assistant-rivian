@@ -143,9 +143,8 @@ class TestSetBluezPairable:
             patch.dict(
                 "sys.modules",
                 {
-                    "dbus_fast": MagicMock(),
                     "dbus_fast.aio": MagicMock(
-                        MessageBus=MagicMock(side_effect=RuntimeError("no bus"))
+                        MessageBus=MagicMock(side_effect=FileNotFoundError("no bus"))
                     ),
                 },
             ),

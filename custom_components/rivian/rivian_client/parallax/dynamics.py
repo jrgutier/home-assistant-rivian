@@ -1,5 +1,3 @@
-"""Decoders for `dynamics.*` topics: gear, drive mode, range, tires, location."""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -8,6 +6,8 @@ from typing import Any, Final
 from .core import _TIMESTAMP_FORMAT, RVMDecoder, _fields
 from .proto import dynamics_pb2
 
+_METRES_PER_KM: Final = 1000
+
 TIRE_POSITION_MAP = {
     1: "FrontLeft",
     2: "FrontRight",
@@ -15,7 +15,6 @@ TIRE_POSITION_MAP = {
     4: "RearRight",
 }
 
-# dynamics.vehicle.gear -- Gear
 _GEAR_MAP: Final[dict[int, str]] = {
     0: "not_defined",
     1: "park",
@@ -24,7 +23,6 @@ _GEAR_MAP: Final[dict[int, str]] = {
     4: "drive",
 }
 
-# dynamics.vehicle.drive_mode -- DriveMode
 _DRIVE_MODE_MAP: Final[dict[int, str]] = {
     1: "init_mode",
     2: "everyday",
@@ -43,7 +41,6 @@ _DRIVE_MODE_MAP: Final[dict[int, str]] = {
     15: "winter",
 }
 
-# dynamics.vehicle.range -- RangeThreshold and TemperatureRangeImpact
 _RANGE_THRESHOLD_MAP: Final[dict[int, str]] = {
     1: "normal",
     2: "low",
@@ -56,7 +53,6 @@ _TEMPERATURE_IMPACT_MAP: Final[dict[int, str]] = {
     3: "cold_impact",
 }
 
-# dynamics.vehicle.location -- KnownLocation
 _KNOWN_LOCATION_MAP: Final[dict[int, str]] = {
     1: "unknown",
     2: "home",
@@ -66,12 +62,6 @@ _KNOWN_LOCATION_MAP: Final[dict[int, str]] = {
 
 @RVMDecoder.register(dynamics_pb2.Gnss, "dynamics.vehicle.gnss")
 def decode_gnss(m: dynamics_pb2.Gnss) -> dict[str, Any]:
-    """Decode dynamics.vehicle.gnss.
-
-    Returns dict with keys:
-        - gnssLocation: {"latitude": float, "longitude": float, "timeStamp": str}
-        - gnssAltitude: float (meters)
-    """
     result: dict[str, Any] = {}
     if m.HasField("latitude") and m.HasField("longitude"):
         now_iso = datetime.now(UTC).strftime(_TIMESTAMP_FORMAT)
@@ -87,23 +77,15 @@ def decode_gnss(m: dynamics_pb2.Gnss) -> dict[str, Any]:
 
 @RVMDecoder.register(dynamics_pb2.Odometer, "dynamics.vehicle.odometer")
 def decode_odometer(m: dynamics_pb2.Odometer) -> dict[str, Any]:
-    """Decode dynamics.vehicle.odometer.
-
-    Returns dict with keys:
-        - vehicleMileage: float (meters)
-    """
-    # Value is distance in km; HA expects meters
-    return {"vehicleMileage": m.distance * 1000} if m.HasField("distance") else {}
+    return (
+        {"vehicleMileage": m.distance * _METRES_PER_KM}
+        if m.HasField("distance")
+        else {}
+    )
 
 
 @RVMDecoder.register(dynamics_pb2.TiresState, "dynamics.tires.state")
 def decode_tires(m: dynamics_pb2.TiresState) -> dict[str, Any]:
-    """Decode dynamics.tires.state.
-
-    Returns dict with keys:
-        - tirePressureFrontLeft, tirePressureFrontRight, etc. (bar)
-        - tirePressureStatusFrontLeft, etc. ("OK")
-    """
     result: dict[str, Any] = {}
     for tire in m.tire:
         if tire.pos not in TIRE_POSITION_MAP:
@@ -113,33 +95,20 @@ def decode_tires(m: dynamics_pb2.TiresState) -> dict[str, Any]:
             result[f"tirePressure{suffix}"] = round(tire.pressure, 2)
         if tire.HasField("status"):
             result[f"tirePressureStatus{suffix}"] = (
-                "OK" if tire.status == 1 else "Warning"
+                "OK"
+                if tire.status == dynamics_pb2.TIRE_PRESSURE_STATUS_NORMAL
+                else "Warning"
             )
     return result
 
 
 @RVMDecoder.register(dynamics_pb2.Gear, "dynamics.vehicle.gear")
 def decode_gear(m: dynamics_pb2.Gear) -> dict[str, Any]:
-    """Decode dynamics.vehicle.gear.
-
-    Returns dict with keys:
-        - gearStatus: str
-    """
     return _fields(m, {"gear": ("gearStatus", _GEAR_MAP)})
 
 
 @RVMDecoder.register(dynamics_pb2.DriveMode, "dynamics.vehicle.drive_mode")
 def decode_drive_mode(m: dynamics_pb2.DriveMode) -> dict[str, Any]:
-    """Decode dynamics.vehicle.drive_mode.
-
-    Returns dict with keys:
-        - driveMode: str
-        - limitedAccelCold: bool
-        - limitedRegenCold: bool
-
-    Fields 8 and 9, not 2 and 3. The message skips 2-7 outright, which is the kind
-    of thing a hand-guessed layout gets wrong and a transcription does not.
-    """
     return _fields(
         m,
         {
@@ -152,13 +121,6 @@ def decode_drive_mode(m: dynamics_pb2.DriveMode) -> dict[str, Any]:
 
 @RVMDecoder.register(dynamics_pb2.Range, "dynamics.vehicle.range")
 def decode_range(m: dynamics_pb2.Range) -> dict[str, Any]:
-    """Decode dynamics.vehicle.range.
-
-    Returns dict with keys:
-        - distanceToEmpty: int (km -- the sensor's own unit, so no conversion)
-        - rangeThreshold: str
-        - coldRangeNotification: str
-    """
     return _fields(
         m,
         {
@@ -171,12 +133,4 @@ def decode_range(m: dynamics_pb2.Range) -> dict[str, Any]:
 
 @RVMDecoder.register(dynamics_pb2.KnownLocation, "dynamics.vehicle.location")
 def decode_known_location(m: dynamics_pb2.KnownLocation) -> dict[str, Any]:
-    """Decode dynamics.vehicle.location.
-
-    Returns dict with keys:
-        - knownLocation: str ("unknown" / "home" / "work")
-
-    Distinct from dynamics.vehicle.gnss, which carries coordinates. This is the
-    vehicle's own coarse classification and backs no gateway field.
-    """
     return _fields(m, {"location": ("knownLocation", _KNOWN_LOCATION_MAP)})

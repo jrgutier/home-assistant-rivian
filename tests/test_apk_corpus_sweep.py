@@ -274,6 +274,17 @@ class TestIntegrationSetsAreParsedNotImported:
         assert len(sweep.integration_feature_pairs(root)) == 64
         assert sweep.integration_charging_fields(root)
 
+    def test_the_sweep_reads_exactly_the_decoders_the_runtime_has(self) -> None:
+        """RVM_DECODERS must stay a dict literal with string keys.
+
+        The sweep parses it without importing Home Assistant. A `dict(...)`
+        call, a `**` merge or a computed key reads as missing or short here,
+        and the corpus delta silently moves.
+        """
+        from custom_components.rivian.rivian_client.parallax import RVM_DECODERS
+
+        assert sweep.integration_rvm_names(sweep.REPO_ROOT) == set(RVM_DECODERS)
+
 
 def _result(version: str, sensors: dict, commands: list | None = None) -> dict:
     return {

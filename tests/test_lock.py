@@ -384,67 +384,6 @@ async def test_async_setup_entry_no_phone_identity(
     assert len(entities_added) == 0
 
 
-class TestRivianLockEntityErrorPaths:
-    """Test RivianLockEntity error paths."""
-
-    async def test_async_lock_no_command_or_function(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-        mock_vehicle_paired: dict,
-    ) -> None:
-        """Test async_lock with neither command nor function defined."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.hass = hass
-        coordinator.data = {}
-
-        # Create description with neither command nor function
-        description = RivianLockEntityDescription(
-            key="test_lock",
-            translation_key="test_lock",
-            is_locked=lambda coord: False,
-            # No command_lock or lock function
-        )
-
-        entity = RivianLockEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=mock_vehicle_paired,
-        )
-
-        # Should log error but not raise
-        await entity.async_lock()
-
-    async def test_async_unlock_no_command_or_function(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-        mock_vehicle_paired: dict,
-    ) -> None:
-        """Test async_unlock with neither command nor function defined."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.hass = hass
-        coordinator.data = {}
-
-        description = RivianLockEntityDescription(
-            key="test_lock",
-            translation_key="test_lock",
-            is_locked=lambda coord: False,
-            # No command_unlock or unlock function
-        )
-
-        entity = RivianLockEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=mock_vehicle_paired,
-        )
-
-        # Should log error but not raise
-        await entity.async_unlock()
-
-
 # Live 2026-08-19 12:31 CDT on the production R1T. The three LOCK-device-class
 # binary sensors already return None for signal_not_available (f0); lock.py
 # used to report a confident Locked over the same inputs.
