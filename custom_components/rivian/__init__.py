@@ -1,5 +1,3 @@
-"""Rivian (Unofficial)"""
-
 from __future__ import annotations
 
 import logging
@@ -64,11 +62,6 @@ PLATFORMS: list[Platform] = [
     Platform.UPDATE,
 ]
 
-# Gen 2 (2025+) BLE phone-key pairing is beta: there is no Gen 2 hardware to test
-# against, so a failed pairing attempt is reported by asking the tester to press
-# a button, exactly like every other repairs issue -- nothing is sent off the
-# instance automatically. The issue links to a prefilled GitHub issue-forms
-# template that asks for the (already redacted) diagnostics download.
 GEN2_PAIRING_ISSUE_URL = (
     "https://github.com/jrgutier/home-assistant-rivian/issues/new"
     "?template=gen2_beta.yml"
@@ -76,7 +69,6 @@ GEN2_PAIRING_ISSUE_URL = (
 
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
-    """Serve the Gear Guard Lovelace card and register it as a resource."""
     key = f"{DOMAIN}_frontend"
     if hass.data.get(key):
         return
@@ -97,7 +89,6 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
 
 
 async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None:
-    """Lovelace storage-mode dashboards load custom cards from resources."""
     from homeassistant.components.lovelace.const import LOVELACE_DATA
 
     ll = hass.data.get(LOVELACE_DATA)
@@ -122,25 +113,10 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
 
 
 def _gen2_pairing_issue_id(vehicle_id: str) -> str:
-    """Build the issue-registry id for a vehicle's Gen 2 pairing issue.
-
-    Keyed per vehicle_id (not per config entry) so a multi-vehicle account
-    doesn't have one vehicle's successful pairing clear another's still-open
-    failure report, and not by VIN/vas_vehicle_id/BLE MAC, which are
-    resolvable to a physical vehicle and must not appear in the issue
-    registry (see helpers.TO_REDACT and the diagnostics redaction rules).
-    """
     return f"gen2_pairing_failed_{vehicle_id}"
 
 
 def async_create_gen2_pairing_issue(hass: HomeAssistant, vehicle_id: str) -> None:
-    """Raise a repairs issue after a Gen 2 phone-key pairing attempt fails.
-
-    Mirrors the 2fa_missing pattern above: local-only, not auto-fixable, and
-    cleared with async_delete_gen2_pairing_issue once pairing succeeds. The
-    `learn_more_url` is the only place this points off-instance, and it is a
-    link the user clicks themselves -- nothing is posted automatically.
-    """
     async_create_issue(
         hass,
         DOMAIN,
@@ -154,12 +130,10 @@ def async_create_gen2_pairing_issue(hass: HomeAssistant, vehicle_id: str) -> Non
 
 
 def async_delete_gen2_pairing_issue(hass: HomeAssistant, vehicle_id: str) -> None:
-    """Clear a vehicle's Gen 2 pairing-failure issue, e.g. after it pairs."""
     async_delete_issue(hass, DOMAIN, _gen2_pairing_issue_id(vehicle_id))
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Load the saved entries."""
     _LOGGER.info(
         "Rivian integration is starting under version %s. Please report issues at %s",
         VERSION,
@@ -173,10 +147,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await client.create_csrf_token()
     except Exception as err:
-        # create_csrf_token makes an HTTP call, so err can be a transport exception
-        # carrying a signed URL or a header dump -- built without going through
-        # RivianApiException's redacting constructor. exc_info would render it
-        # verbatim, so it is dropped here on purpose rather than by oversight.
         _LOGGER.error("Could not update Rivian Data: %s", redact_text(str(err)))
         await client.close()
         raise ConfigEntryNotReady("Error communicating with API") from err
@@ -226,13 +196,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     await wallbox_coordinator.async_config_entry_first_refresh()
 
-    # The SupportedFeatures feed is purely observational (see
-    # SupportedFeaturesCoordinator's docstring) -- never
-    # async_config_entry_first_refresh(), which would raise
-    # ConfigEntryNotReady and fail integration setup over a capability feed.
-    # async_refresh() swallows its own failure and just leaves .data None;
-    # the embedded supportedFeatures fallback already in `vehicles` above
-    # (via UserCoordinator.get_vehicles()) covers that case.
     features_coordinator = SupportedFeaturesCoordinator(
         hass=hass, config_entry=entry, client=client
     )
@@ -253,68 +216,54 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
-    # Register services
     await async_setup_services(hass, entry)
 
     return True
 
 
 def _parse_hhmm(value: str) -> tuple[int, int]:
-    """Split an HH:MM string into (hour, minute); raises on a malformed one."""
     parts = value.split(":")
     return int(parts[0]), int(parts[1])
 
 
 async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Set up Rivian services."""
 
     def get_vehicle_coordinator_from_device(
         device_id: str,
     ) -> tuple[VehicleCoordinator, str]:
-        """Get vehicle coordinator and vehicle_id from device ID."""
         device_registry = dr.async_get(hass)
         device_entry = device_registry.async_get(device_id)
 
         if not device_entry:
             raise ServiceValidationError(f"Device {device_id} not found")
 
-        # Find the vehicle_id from device identifiers
-        vehicle_id = None
-        for identifier in device_entry.identifiers:
-            # A VIN is 17 characters; a vehicle ID is a longer UUID-ish string.
-            if identifier[0] == DOMAIN and len(identifier[1]) > 17:
-                vehicle_id = identifier[1]
-                break
-
-        if not vehicle_id:
-            raise ServiceValidationError(
-                f"Could not find vehicle ID for device {device_id}"
-            )
-
-        # Get the coordinator
         entry_data = hass.data[DOMAIN][entry.entry_id]
         vehicle_coordinators: dict[str, VehicleCoordinator] = entry_data[
             ATTR_COORDINATOR
         ][ATTR_VEHICLE]
 
-        coordinator = vehicle_coordinators.get(vehicle_id)
-        if not coordinator:
+        vehicle_id = next(
+            (
+                i
+                for d, i in device_entry.identifiers
+                if d == DOMAIN and i in vehicle_coordinators
+            ),
+            None,
+        )
+        if vehicle_id is None:
             raise ServiceValidationError(
-                f"Vehicle coordinator not found for vehicle {vehicle_id}"
+                f"Could not find a vehicle for device {device_id}"
             )
 
-        return coordinator, vehicle_id
+        return vehicle_coordinators[vehicle_id], vehicle_id
 
     async def set_charging_schedule(call: ServiceCall) -> None:
-        """Handle set_charging_schedule service call."""
-        # Get device from target
         if not call.data.get("device_id"):
             raise ServiceValidationError("No device specified")
 
         device_id = call.data["device_id"]
         coordinator, vehicle_id = get_vehicle_coordinator_from_device(device_id)
 
-        # Parse time strings (HH:MM format)
         start_time = call.data.get("start_time")
         end_time = call.data.get("end_time")
         start_day = call.data.get("start_day", 0)
@@ -323,7 +272,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if not start_time or not end_time:
             raise ServiceValidationError("Both start_time and end_time are required")
 
-        # Parse HH:MM format
         try:
             start_hour, start_minute = _parse_hhmm(start_time)
             end_hour, end_minute = _parse_hhmm(end_time)
@@ -332,7 +280,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 "Invalid time format. Use HH:MM format (e.g., '22:00')"
             ) from err
 
-        # Validate values
         if not (0 <= start_hour <= 23 and 0 <= start_minute <= 59):
             raise ServiceValidationError("Invalid start_time values")
         if not (0 <= end_hour <= 23 and 0 <= end_minute <= 59):
@@ -352,7 +299,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 end_day,
             )
 
-            # Call the Parallax command
             result = await coordinator.send_parallax_command(
                 "set_charging_schedule",
                 start_hour=start_hour,
@@ -377,7 +323,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 f"Failed to set charging schedule: {err}"
             ) from err
 
-    # Register services only once (check if already registered)
     if not hass.services.has_service(DOMAIN, "set_charging_schedule"):
         hass.services.async_register(
             DOMAIN,
@@ -389,7 +334,6 @@ async def async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     api: Rivian = hass.data[DOMAIN][entry.entry_id][ATTR_API]
@@ -398,7 +342,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
 
-        # Unregister services only if this is the last config entry
         if not hass.data[DOMAIN] and hass.services.has_service(
             DOMAIN, "set_charging_schedule"
         ):
@@ -409,7 +352,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle removal of an entry."""
     if public_key := entry.options.get("public_key"):
         client = get_rivian_api_from_entry(hass, entry)
         coordinator = UserCoordinator(
@@ -424,14 +366,12 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
 ) -> bool:
-    """Remove a config entry from a device."""
     coordinators = hass.data[DOMAIN][config_entry.entry_id][ATTR_COORDINATOR]
     user_coordinator: UserCoordinator = coordinators[ATTR_USER]
     wallbox_coordinator: WallboxCoordinator = coordinators[ATTR_WALLBOX]

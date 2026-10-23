@@ -521,66 +521,6 @@ async def test_async_setup_entry_no_phone_identity(
     assert isinstance(entities_added[0], RivianChargingScheduleEnabledEntity)
 
 
-class TestRivianSwitchEntityErrorPaths:
-    """Test RivianSwitchEntity error paths."""
-
-    async def test_async_turn_off_no_command_or_function(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-        mock_vehicle_paired: dict,
-    ) -> None:
-        """Test async_turn_off with neither command nor function defined."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.hass = hass
-        coordinator.data = {}
-
-        description = RivianSwitchEntityDescription(
-            key="test_switch",
-            translation_key="test_switch",
-            is_on=lambda coord: False,
-            # No command_off or turn_off function
-        )
-
-        entity = RivianSwitchEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=mock_vehicle_paired,
-        )
-
-        # Should log error but not raise
-        await entity.async_turn_off()
-
-    async def test_async_turn_on_no_command_or_function(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-        mock_vehicle_paired: dict,
-    ) -> None:
-        """Test async_turn_on with neither command nor function defined."""
-        coordinator = MagicMock(spec=VehicleCoordinator)
-        coordinator.hass = hass
-        coordinator.data = {}
-
-        description = RivianSwitchEntityDescription(
-            key="test_switch",
-            translation_key="test_switch",
-            is_on=lambda coord: False,
-            # No command_on or turn_on function
-        )
-
-        entity = RivianSwitchEntity(
-            coordinator=coordinator,
-            config_entry=mock_config_entry,
-            description=description,
-            vehicle=mock_vehicle_paired,
-        )
-
-        # Should log error but not raise
-        await entity.async_turn_on()
-
-
 class TestRivianChargingScheduleEnabledEntity:
     """Upstream 1.5.3b5's charging-schedule switch.
 

@@ -25,23 +25,13 @@ import pytest
 from custom_components.rivian.const import INVALID_SENSOR_STATES
 from custom_components.rivian.coordinator import VehicleCoordinator
 
+from tests.doubles import vehicle_coordinator_double
+
 STUCK_ON_THE_HOST = (
     "closureSideBinLeftClosed",
     "closureSideBinRightClosed",
     "closureTailgateClosed",
 )
-
-
-def _coordinator() -> MagicMock:
-    coordinator = MagicMock(spec=VehicleCoordinator)
-    coordinator.data = None
-    coordinator._subscription_keys = set()
-    coordinator._rvm_arrivals = {}
-    coordinator._note_unusable = MagicMock()
-    coordinator.charging_coordinator = MagicMock()
-    coordinator.vehicle_id = "veh-1"
-    coordinator.async_set_updated_data = MagicMock()
-    return coordinator
 
 
 def _subscription(coordinator: MagicMock, frame: dict) -> None:
@@ -86,7 +76,7 @@ class TestTheIncident:
     def test_parallax_fills_a_key_the_subscription_only_called_unavailable(
         self, field: str
     ) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(coordinator, {field: _wrapped("signal_not_available")})
         assert field not in coordinator._subscription_keys
 
@@ -98,7 +88,7 @@ class TestTheIncident:
         self, field: str
     ) -> None:
         """The frunk and doors on the same frame: valid, claimed, untouched."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(
             coordinator,
             {
@@ -116,21 +106,21 @@ class TestTheIncident:
 class TestEveryInvalidState:
     @pytest.mark.parametrize("invalid", sorted(INVALID_SENSOR_STATES))
     def test_does_not_claim(self, invalid: str) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(coordinator, {"closureTailgateClosed": _wrapped(invalid)})
         assert "closureTailgateClosed" not in coordinator._subscription_keys
 
     @pytest.mark.parametrize("invalid", ["SNA", "Signal_Not_Available", "UNDEFINED"])
     def test_whatever_its_casing(self, invalid: str) -> None:
         """The entities compare case-insensitively; provenance must agree."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(coordinator, {"closureTailgateClosed": _wrapped(invalid)})
         assert "closureTailgateClosed" not in coordinator._subscription_keys
 
 
 class TestTheSubscriptionStillWins:
     def test_a_usable_value_claims_and_blocks_parallax(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(coordinator, {"closureTailgateClosed": _wrapped("open")})
         assert "closureTailgateClosed" in coordinator._subscription_keys
 
@@ -139,7 +129,7 @@ class TestTheSubscriptionStillWins:
 
     def test_a_usable_value_takes_the_key_back_from_parallax(self) -> None:
         """Invalid, Parallax fills, then the gateway finds its voice."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(
             coordinator, {"closureTailgateClosed": _wrapped("signal_not_available")}
         )
@@ -160,7 +150,7 @@ class TestAKeyThatGoesInvalidIsReleased:
     ) -> None:
         """Valid, then invalid. The merge keeps the last good value on screen;
         without a release nothing could ever update it again."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(coordinator, {"closureTailgateClosed": _wrapped("closed")})
         _subscription(
             coordinator, {"closureTailgateClosed": _wrapped("signal_not_available")}
@@ -172,7 +162,7 @@ class TestAKeyThatGoesInvalidIsReleased:
         assert coordinator.data["closureTailgateClosed"]["value"] == "open"
 
     def test_an_invalid_value_never_replaces_what_parallax_supplied(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(
             coordinator, {"closureTailgateClosed": _wrapped("signal_not_available")}
         )
@@ -185,18 +175,18 @@ class TestAKeyThatGoesInvalidIsReleased:
 
 class TestWhatDidNotChange:
     def test_a_null_value_neither_claims_nor_releases(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(coordinator, {"gearStatus": _wrapped("park")})
         _subscription(coordinator, {"gearStatus": _wrapped(None)})
         assert "gearStatus" in coordinator._subscription_keys
 
-        fresh = _coordinator()
+        fresh = vehicle_coordinator_double(data=None)
         _subscription(fresh, {"gearStatus": _wrapped(None)})
         assert "gearStatus" not in fresh._subscription_keys
 
     def test_structured_fields_still_claim_without_a_value_key(self) -> None:
         """gnssLocation must stay claimed, or Parallax overwrites real GPS."""
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(
             coordinator,
             {
@@ -207,7 +197,7 @@ class TestWhatDidNotChange:
         assert {"gnssLocation", "gnssError"} <= coordinator._subscription_keys
 
     def test_an_unrelated_frame_releases_nothing(self) -> None:
-        coordinator = _coordinator()
+        coordinator = vehicle_coordinator_double(data=None)
         _subscription(coordinator, {"gearStatus": _wrapped("park")})
         _subscription(coordinator, {"driveMode": _wrapped("signal_not_available")})
         assert "gearStatus" in coordinator._subscription_keys

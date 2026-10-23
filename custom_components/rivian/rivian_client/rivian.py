@@ -1,5 +1,3 @@
-"""Asynchronous Python client for the Rivian API."""
-
 from __future__ import annotations
 
 import asyncio as async_timeout
@@ -27,6 +25,7 @@ from .exceptions import (
     RivianApiRateLimitError,
     RivianBadRequestError,
     RivianDataError,
+    RivianGraphQLError,
     RivianInvalidCredentials,
     RivianInvalidOTP,
     RivianPhoneLimitReachedError,
@@ -50,7 +49,6 @@ GRAPHQL_GATEWAY = GRAPHQL_BASEPATH + "/gateway/graphql"
 GRAPHQL_CHARGING = GRAPHQL_BASEPATH + "/chrg/user/graphql"
 GRAPHQL_WEBSOCKET = "wss://api.rivian.com/gql-consumer-subscriptions/graphql"
 
-# 3.15.0 dj8.java:19 — Gear Guard live-stream signaling config.
 GEAR_GUARD_LIVE_CONFIG_QUERY = (
     "subscription gearGuardRemoteConfig($vehicleId: String!, "
     "$commandId: String!) { gearGuardLiveConfig(vehicleId: "
@@ -96,7 +94,7 @@ ERROR_CODE_CLASS_MAP: dict[str, type[RivianApiException]] = {
     "BAD_CURRENT_PASSWORD": RivianInvalidCredentials,
     "BAD_REQUEST_ERROR": RivianBadRequestError,
     "DATA_ERROR": RivianDataError,
-    "INTERNAL_SERVER_ERROR": RivianApiException,
+    "INTERNAL_SERVER_ERROR": RivianGraphQLError,
     "RATE_LIMIT": RivianApiRateLimitError,
     "SESSION_MANAGER_ERROR": RivianTemporarilyLockedError,
     "UNAUTHENTICATED": RivianUnauthenticated,
@@ -104,7 +102,6 @@ ERROR_CODE_CLASS_MAP: dict[str, type[RivianApiException]] = {
 
 
 def send_deprecation_warning(old_name: str, new_name: str) -> None:  # pragma: no cover
-    """Send a deprecation warning."""
     message = f"{old_name} has been deprecated in favor of {new_name}, the alias will be removed in the future"
     warn(
         message,
@@ -115,8 +112,6 @@ def send_deprecation_warning(old_name: str, new_name: str) -> None:  # pragma: n
 
 
 class Rivian:
-    """Main class for the Rivian API Client"""
-
     def __init__(
         self,
         request_timeout: int = 10,
@@ -146,8 +141,23 @@ class Rivian:
         self._subscriptions: dict[str, str] = {}
         self._option_codes_available: bool | None = None
 
+    @property
+    def access_token(self) -> str:
+        return self._access_token
+
+    @property
+    def refresh_token(self) -> str:
+        return self._refresh_token
+
+    @property
+    def user_session_token(self) -> str:
+        return self._user_session_token
+
+    @property
+    def otp_needed(self) -> bool:
+        return self._otp_needed
+
     def _session_headers(self, *, csrf: bool = False) -> dict[str, str]:
-        """BASE_HEADERS plus the session tokens of an authenticated request."""
         return (
             BASE_HEADERS
             | ({"Csrf-Token": self._csrf_token} if csrf else {})
@@ -158,7 +168,6 @@ class Rivian:
         )
 
     async def create_csrf_token(self) -> None:
-        """Create cross-site-request-forgery (csrf) token."""
         url = GRAPHQL_GATEWAY
 
         headers = {**BASE_HEADERS}
@@ -178,7 +187,6 @@ class Rivian:
         self._app_session_token = csrf_data["appSessionToken"]
 
     async def authenticate(self, username: str, password: str) -> None:
-        """Authenticate against the Rivian GraphQL API with Username and Password"""
         url = GRAPHQL_GATEWAY
 
         headers = BASE_HEADERS | {
@@ -209,15 +217,10 @@ class Rivian:
     async def authenticate_graphql(
         self, username: str, password: str
     ) -> None:  # pragma: no cover
-        """### DEPRECATED (use `authenticate` instead)
-
-        Authenticate against the Rivian GraphQL API with Username and Password.
-        """
         send_deprecation_warning("authenticate_graphql", "authenticate")
         return await self.authenticate(username=username, password=password)
 
     async def validate_otp(self, username: str, otp_code: str) -> None:
-        """Validates OTP against the Rivian GraphQL API with Username, OTP Code, and OTP Token"""
         url = GRAPHQL_GATEWAY
 
         headers = BASE_HEADERS | {
@@ -248,15 +251,10 @@ class Rivian:
     async def validate_otp_graphql(
         self, username: str, otpCode: str
     ) -> None:  # pragma: no cover
-        """### DEPRECATED (use `validate_otp` instead)
-
-        Validates OTP against the Rivian GraphQL API with Username, OTP Code, and OTP Token.
-        """
         send_deprecation_warning("validate_otp_graphql", "validate_otp")
         return await self.validate_otp(username=username, otp_code=otpCode)
 
     async def disenroll_phone(self, identity_id: str) -> bool:
-        """Disenroll a phone."""
         url = GRAPHQL_GATEWAY
         headers = self._session_headers(csrf=True)
         graphql_json = {
@@ -268,7 +266,7 @@ class Rivian:
         response = await self.__graphql_query(headers, url, graphql_json)
         if response.status == 200:
             data = await response.json()
-            return data.get("data", {}).get("disenrollPhone", {}).get("success")
+            return ((data.get("data") or {}).get("disenrollPhone") or {}).get("success")
         return False
 
     async def enroll_phone(
@@ -279,13 +277,6 @@ class Rivian:
         device_name: str,
         public_key: str,
     ) -> bool:
-        """Enroll a phone.
-
-        To generate a public/private key for enrollment, use the `utils.generate_key_pair` function.
-        The private key will need to be retained to sign commands sent via the `send_vehicle_command` method.
-        To enable vehicle control, the phone will then also need to be paired locally via BLE,
-        which can be done via `ble.pair_phone`.
-        """
         url = GRAPHQL_GATEWAY
         headers = self._session_headers(csrf=True)
         graphql_json = {
@@ -304,12 +295,11 @@ class Rivian:
         response = await self.__graphql_query(headers, url, graphql_json)
         if response.status == 200:
             data = await response.json()
-            if data.get("data", {}).get("enrollPhone", {}).get("success"):
+            if ((data.get("data") or {}).get("enrollPhone") or {}).get("success"):
                 return True
         return False
 
     async def get_drivers_and_keys(self, vehicle_id: str) -> ClientResponse:
-        """Get drivers and keys."""
         url = GRAPHQL_GATEWAY
         headers = self._session_headers()
 
@@ -324,25 +314,6 @@ class Rivian:
     async def get_user_information(
         self, include_phones: bool = False
     ) -> ClientResponse:
-        """Get user information.
-
-        S19: the vehicle fragment also asks for `mobileConfiguration {
-        tonneauOption wheelOption }`, which is how the app learns a vehicle's
-        factory option codes (`java_src/.../UserVehicle.java:616-618` gates the
-        powered tonneau with `tonneauOptionId.contains(TONNEAU_POWER_OPTION_ID)`
-        -- substring, not equality; `get_vehicles()` in coordinator.py builds
-        `option_codes` for that same containment check, never `==`).
-
-        This rides on `getUserInfo`, which is setup-critical -- folding it in here
-        instead of a separate `vehicleOrders` query costs zero extra round trips
-        but means a schema drift in either new field would otherwise take the
-        whole login down with it. So: try the extended fragment first; if the
-        gateway rejects it, retry ONCE with the base fragment (no
-        mobileConfiguration) and let setup succeed without option codes rather
-        than not at all. `option_codes_available` records which one won so
-        get_vehicles()/diagnostics can tell "asked and got none" (accepted,
-        empty) apart from "never asked" (rejected, retried).
-        """
         url = GRAPHQL_GATEWAY
 
         headers = self._session_headers()
@@ -375,20 +346,7 @@ class Rivian:
             )
             self._option_codes_available = True
             return response
-        except RivianApiException as ex:
-            # Narrow on purpose: RATE_LIMIT, UNAUTHENTICATED, DATA_ERROR,
-            # SESSION_MANAGER_ERROR and the rest of ERROR_CODE_CLASS_MAP are all
-            # RivianApiException SUBCLASSES and must propagate immediately --
-            # retrying a rate limit or an auth failure with a smaller query is
-            # nonsensical and would double the damage. `type(ex) is
-            # RivianApiException` (not isinstance) matches only the fallback raise
-            # for a response the map has no class for -- which is what an unknown
-            # field name in the query produces. INTERNAL_SERVER_ERROR also maps to
-            # the bare class, so a genuine 500 retries once too; that costs one
-            # extra request, not a wrong result, so it is accepted rather than
-            # disambiguated further.
-            if type(ex) is not RivianApiException:
-                raise
+        except RivianGraphQLError:
             _LOGGER.warning(
                 "getUserInfo: mobileConfiguration option-code fragment rejected; "
                 "retrying once without it"
@@ -399,33 +357,9 @@ class Rivian:
             )
 
     def option_codes_available(self) -> bool | None:
-        """Whether the last getUserInfo response included option codes.
-
-        True once the extended (mobileConfiguration) fragment has been
-        accepted; False after a rejection forced the fallback retry; None
-        before get_user_information() has ever been called. Mirrors
-        subscription_document()'s three-state signal so diagnostics can tell
-        "never asked" apart from "asked and rejected".
-        """
         return self._option_codes_available
 
     async def get_supported_features(self) -> ClientResponse:
-        """Get the SupportedFeatures feed: every vehicle's capability list.
-
-        The app fetches this as its own standalone query rather than relying
-        on the supportedFeatures fragment embedded in getUserInfo's
-        vehicleState (get_user_information above, `vehicles_fragment`).
-        operationName "SupportedFeatures", sent byte-identical to
-        com.rivian.android.consumer/java_src/sh/C19514J9.java:48 as given by
-        the caller -- that decompile tree is not checked into this repo and
-        was not present in the environment this method was written in, so
-        the query below could not be independently verified against it.
-
-        `status` is documented as taking only AVAILABLE or UPDATE_FIRMWARE.
-        This is one additive capability signal among several, never a
-        filter: feature absence here is not evidence of absent capability
-        (see coordinator.py's SupportedFeaturesCoordinator docstring).
-        """
         url = GRAPHQL_GATEWAY
 
         headers = self._session_headers()
@@ -439,7 +373,6 @@ class Rivian:
         return await self.__graphql_query(headers, url, graphql_json)
 
     async def get_registered_wallboxes(self) -> ClientResponse:
-        """Get registered wallboxes."""
         url = GRAPHQL_CHARGING
 
         headers = self._session_headers(csrf=True)
@@ -453,7 +386,6 @@ class Rivian:
         return await self.__graphql_query(headers, url, graphql_json)
 
     async def get_vehicle_command_state(self, command_id: str) -> ClientResponse:
-        """Get vehicle command state."""
         url = GRAPHQL_GATEWAY
 
         headers = self._session_headers()
@@ -476,13 +408,6 @@ class Rivian:
         vehicle_version: str | None = None,
         preorder_version: str | None = None,
     ) -> ClientResponse:
-        """Get vehicle images.
-
-        Known parameter values:
-          - extension: `png`, `webp`
-          - resolution: `@1x`, `@2x`, `@3x` (for png); `hdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi` (for webp)
-          - vehicle_version/preorder_version: `1`, `2` (all other values return v1 images)
-        """
         url = GRAPHQL_GATEWAY
 
         headers = self._session_headers()
@@ -502,24 +427,7 @@ class Rivian:
 
         return await self.__graphql_query(headers, url, graphql_json)
 
-    # get_vehicle_state was deleted by f4.
-    #
-    # It had no caller: coordinator.py's VehicleCoordinator._fetch_data raises
-    # NotImplementedError("Polling VehicleState no longer allowed") because vehicle
-    # state arrives over the subscription, and nothing else called it.
-    #
-    # It was also an unsound oracle. A field valid on the subscription and rejected
-    # by the poll is not an invalid field, it is the wrong channel -- so answering
-    # "does the server know this name?" with this method gave the wrong answer.
-    #
-    # If it is ever revived, fix this first: the elif branch called
-    # `properties.difference_update(...)` on the caller's own set, stripping eleven
-    # names -- including all four tire pressures -- from whatever was passed in.
-    # (It never reached the module-level VEHICLE_STATE_PROPERTIES: that assignment
-    # is in the `if` branch and the mutation in the `elif`.)
-
     async def get_charging_schedules(self, vehicle_id: str) -> ClientResponse:
-        """Get charging schedules for a vehicle."""
         url = GRAPHQL_GATEWAY
         headers = self._session_headers()
         graphql_json = {
@@ -532,7 +440,6 @@ class Rivian:
     async def set_charging_schedules(
         self, vehicle_id: str, schedules: list[dict[str, Any]]
     ) -> ClientResponse:
-        """Set charging schedules for a vehicle."""
         url = GRAPHQL_GATEWAY
         headers = self._session_headers(csrf=True)
         graphql_json = {
@@ -546,7 +453,6 @@ class Rivian:
         return await self.__graphql_query(headers, url, graphql_json)
 
     async def get_vehicle_ota_update_details(self, vehicle_id: str) -> ClientResponse:
-        """Get vehicle OTA update details."""
         url = GRAPHQL_GATEWAY
         headers = self._session_headers()
 
@@ -563,7 +469,6 @@ class Rivian:
     async def get_live_charging_session(
         self, vin: str, properties: set[str] | None = None
     ) -> ClientResponse:
-        """Get live charging session data."""
         if not properties:
             properties = LIVE_SESSION_PROPERTIES
 
@@ -593,7 +498,6 @@ class Rivian:
     def _validate_vehicle_command(
         self, command: VehicleCommand | str, params: dict[str, Any] | None = None
     ) -> None:
-        """Validate certian vehicle command/param combos."""
         if command == VehicleCommand.CHARGING_LIMITS and not (
             params
             and isinstance((limit := params.get("SOC_limit")), int)
@@ -641,17 +545,6 @@ class Rivian:
         *,
         params: dict[str, Any] | None = None,
     ) -> str | None:
-        """Send a command to the vehicle.
-
-        To generate a public/private key for commands, use the `utils.generate_key_pair` function.
-        The public key will first need to be enrolled via the `enroll_phone` method, otherwise commands will fail.
-
-        Certain commands may require additional details via the `params` mapping.
-        Some known examples include:
-          - `CABIN_HVAC_*`: params = {"level": 0..4} where 0 is off, 1 is on, 2 is low/level_1, 3 is medium/level_2 and 4 is high/level_3
-          - `CABIN_PRECONDITIONING_SET_TEMP`: params = {"HVAC_set_temp": "deg_C"} where `deg_C` is a string value between 16 and 29 or 0/63.5 for LO/HI, respectively
-          - `CHARGING_LIMITS`: params = {"SOC_limit": 50..100}
-        """
         self._validate_vehicle_command(command, params)
 
         command = str(command)
@@ -681,7 +574,7 @@ class Rivian:
         response = await self.__graphql_query(headers, url, graphql_json)
         if response.status == 200:
             data = await response.json()
-            if status := data.get("data", {}).get("sendVehicleCommand", {}):
+            if status := (data.get("data") or {}).get("sendVehicleCommand"):
                 return status.get("id")
         return None
 
@@ -693,23 +586,6 @@ class Rivian:
         *,
         allow_core_fallback: bool = True,
     ) -> Callable | None:
-        """Open a web socket connection to receive updates.
-
-        S1 mitigation, default ON: a subscription the gateway rejects is
-        retried ONCE against CORE_VEHICLE_STATE_FIELDS (~15 names) before the
-        failure is raised -- regardless of whether `properties` was left to
-        its default or supplied explicitly, because the whole point of this
-        mitigation is to survive a caller-supplied field set going bad. Pass
-        `allow_core_fallback=False` to disable it (for a test or probe that
-        wants strict, no-retry behaviour). One renamed/unknown field then
-        costs a degraded-but-working integration rather than every
-        vehicleState entity going unknown at once (const.py:2392: one
-        unknown name rejects the whole document). This reduces that
-        failure's blast radius; it does not eliminate it -- if the renamed
-        field is itself one of the 15 core names, the core document is
-        rejected identically and this still raises. Which document ended up
-        live is readable afterwards via `subscription_document(vehicle_id)`.
-        """
         if not properties:
             properties = VEHICLE_STATES_SUBSCRIPTION_PROPERTIES
 
@@ -740,7 +616,6 @@ class Rivian:
         callback: Callable[[dict[str, Any]], None],
         properties: AbstractSet[str],
     ) -> Callable | None:
-        """The single-attempt body subscribe_for_vehicle_updates() retries."""
         payload = {
             "operationName": "VehicleState",
             "query": f"subscription VehicleState($vehicleID: String!) {{ vehicleState(id: $vehicleID) {self._build_vehicle_state_fragment(properties)} }}",
@@ -751,22 +626,6 @@ class Rivian:
         )
 
     def subscription_document(self, vehicle_id: str) -> str | None:
-        """Which vehicleState document is live for `vehicle_id`.
-
-        "full" or "core" once subscribe_for_vehicle_updates() has succeeded
-        for that vehicle; None before that -- and None is NOT the same as
-        "core": it means no successful subscribe has happened yet (never
-        connected, or still connecting). Diagnostics must not collapse the
-        two, or a never-connected vehicle would read as merely degraded.
-        This is the S1 fallback's signal for the coordinator/diagnostics to
-        report which document is live (see subscribe_for_vehicle_updates()'s
-        docstring).
-
-        Backed by `self._subscriptions`, declared in `__init__` but unwritten
-        since the client was vendored in (s07) -- this method is its first
-        reader and `subscribe_for_vehicle_updates()` its first writer, so
-        there is no prior semantics for either to preserve.
-        """
         return self._subscriptions.get(vehicle_id)
 
     async def subscribe_for_tire_pressure_updates(
@@ -775,30 +634,6 @@ class Rivian:
         callback: Callable[[dict[str, Any]], None],
         properties: AbstractSet[str] | None = None,
     ) -> Callable | None:
-        """Open a web socket connection to receive tyre-pressure updates.
-
-        A sibling of subscribe_for_vehicle_updates(), on its own subscription
-        because that is what the app itself does: its "tirePressureState"
-        operation (com.rivian.android.consumer/java_src/sh/C19721Z9.java:59,
-        operationName at :81) selects only the 8 tirePressure* names, none of
-        which appear in its main vehicleState document. Both subscriptions
-        select the SAME root -- vehicleState(id:) -- which is what lets the
-        coordinator merge their frames into one vehicle_info dict.
-
-        The split halves the blast radius of the S1 failure mode
-        (subscribe_for_vehicle_updates()'s docstring): an unknown field name
-        in THIS document costs the 12 tyre-pressure entities, not every
-        vehicleState entity, because the gateway rejects each document
-        independently.
-
-        Observation, deliberately not "fixed": subscribe_for_vehicle_updates()
-        sends operationName "VehicleState" for a document also named
-        "vehicleState" -- the gateway tolerates the mismatch today. This
-        method instead sends the app's own operation name, "tirePressureState",
-        byte-identical to C19721Z9.java. The two methods are inconsistent with
-        each other on purpose: this one matches what the app actually sends,
-        the older one is left alone because nothing suggests the gateway cares.
-        """
         if not properties:
             properties = TIRE_PRESSURE_SUBSCRIPTION_PROPERTIES
 
@@ -817,7 +652,6 @@ class Rivian:
         callback: Callable[[dict[str, Any]], None],
         rvms: list[str] | None = None,
     ) -> Callable[[], Awaitable[None]] | None:
-        """Open a web socket connection to receive Parallax message updates."""
         if not rvms:
             rvms = PARALLAX_RVMS
 
@@ -838,7 +672,6 @@ class Rivian:
         )
 
     async def _ws_connect(self) -> ClientWebSocketResponse[bool]:
-        """Initiate a websocket connection."""
 
         async def connection_init(websocket: ClientWebSocketResponse[bool]) -> None:
             await websocket.send_json(
@@ -872,15 +705,6 @@ class Rivian:
         log_message: str,
         *log_args: Any,
     ) -> Callable | None:
-        """Connect, wait for the ack, and start `payload`'s subscription.
-
-        The single body every subscribe_for_* shares. The except pair is the
-        point: a RivianApiException is re-raised UNCHANGED so the coordinator's
-        per-type handling (expired token, unauthenticated, rate limit) still
-        sees the specific subclass rather than the base class; anything else
-        becomes a RivianApiException, because returning None here made a dead
-        subscription indistinguishable from a healthy one at every call site.
-        """
         try:
             await self._ws_connect()
             assert self._ws_monitor
@@ -897,7 +721,6 @@ class Rivian:
     async def __graphql_query(
         self, headers: dict[str, str], url: str, body: dict[str, Any]
     ) -> ClientResponse:
-        """Execute and return arbitrary graphql query."""
         if self._session is None:
             self._session = aiohttp.ClientSession()
             self._close_session = True
@@ -913,6 +736,7 @@ class Rivian:
                     json=body,
                     headers=headers,
                 )
+                response_json = await response.json()
         except TimeoutError as exception:
             raise RivianApiException(
                 "Timeout occurred while connecting to Rivian API."
@@ -921,8 +745,16 @@ class Rivian:
             raise RivianApiException(
                 "Error occurred while communicating with Rivian."
             ) from exception
+        except ValueError as exception:
+            raise RivianApiException(
+                "Rivian returned a response that is not valid JSON."
+            ) from exception
 
-        response_json = await response.json()
+        if not isinstance(response_json, dict):
+            raise RivianApiException(
+                "Rivian returned a response that is not a JSON object."
+            )
+
         if errors := response_json.get("errors"):
             for error in errors:
                 if extensions := error.get("extensions"):
@@ -943,7 +775,7 @@ class Rivian:
                         )
                     if err_cls := ERROR_CODE_CLASS_MAP.get(code):
                         raise err_cls(response.status, response_json, headers, body)
-            raise RivianApiException(
+            raise RivianGraphQLError(
                 "Error occurred while reading the graphql response from Rivian.",
                 response.status,
                 response_json,
@@ -953,20 +785,6 @@ class Rivian:
 
         return response
 
-    # ------------------------------------------------------------------
-    # Parallax write path and subscriptions carried over from this fork.
-    #
-    # Upstream 2.1.0 is Parallax read-only: it decodes telemetry but has no way
-    # to send an operation, and it lacks the charging/cloud/command-state
-    # subscriptions and the navigation share. Everything below is the half
-    # upstream does not have, ported onto its plain-string transport.
-    #
-    # The gql DSL is gone. Of the 13 methods carried over, 11 never touched it
-    # (the subscriptions already spoke raw aiohttp, and the Parallax setters just
-    # delegate to send_parallax_command); only send_vehicle_operation and
-    # send_location_to_vehicle were DSL and are rewritten as plain queries here.
-    # ------------------------------------------------------------------
-
     async def send_vehicle_operation(
         self,
         vehicle_id: str,
@@ -975,48 +793,8 @@ class Rivian:
         phone_id: bytes,
         request_id: str | None = None,
     ) -> dict:
-        """Send a vehicle operation via sendVehicleOperation mutation.
-
-        This is the newer mutation used by the iOS app for climate hold and other
-        RVM (Remote Vehicle Module) operations. It requires phone enrollment.
-
-        Args:
-            vehicle_id: Vehicle ID (format: "01-XXXXXXXX")
-            rvm_type: RVM type string (e.g., "comfort.cabin.climate_hold_setting")
-            payload: Serialized protobuf payload for the operation
-            phone_id: 16-byte phone identifier from enrollment (UUID bytes)
-            request_id: Optional request UUID (generated if not provided)
-            operation_type: Operation type (1 = SET/write, 0 = GET/read)
-
-        Returns:
-            dict with 'success' (bool) key
-
-        Raises:
-            RivianApiException: For network or API errors
-            RivianUnauthenticated: If authentication is invalid
-
-        Example:
-            >>> from rivian.parallax import encode_climate_hold_setting
-            >>> # Get phone_id from enrollment -- 16 RAW BYTES, not the string
-            >>> user_info = await client.get_user_information(include_phones=True)
-            >>> phone_id_str = user_info["enrolledPhones"][0]["vas"]["vasPhoneId"]
-            >>> import uuid
-            >>> phone_id = uuid.UUID(phone_id_str).bytes
-            >>> # Build payload (2 hours -> 08a038)
-            >>> payload = encode_climate_hold_setting(7200)
-            >>> # Send operation
-            >>> result = await client.send_vehicle_operation(
-            ...     vehicle_id="01-276948064",
-            ...     rvm_type="comfort.cabin.climate_hold_setting",
-            ...     payload=payload,
-            ...     phone_id=phone_id
-            ... )
-            >>> print(f"Success: {result['success']}")
-        """
-        # Determine operation type based on payload - empty payload = GET, otherwise SET
         op_type = 0 if not payload else 1
 
-        # Build VehicleOperationRequest
         phone_info = PhoneInfo(version=1, phone_id=phone_id)
         metadata = Metadata(
             phone_info=phone_info,
@@ -1024,7 +802,7 @@ class Rivian:
         )
         operation = Operation(
             rvm_type=rvm_type,
-            operation_type=op_type,  # 0 = GET, 1 = SET
+            operation_type=op_type,
             payload=payload,
         )
         request = VehicleOperationRequest(metadata=metadata, operation=operation)
@@ -1045,7 +823,7 @@ class Rivian:
 
         response = await self.__graphql_query(headers, url, graphql_json)
         data = await response.json()
-        return data.get("data", {}).get("sendVehicleOperation", {}) or {}
+        return (data.get("data") or {}).get("sendVehicleOperation") or {}
 
     async def send_parallax_command(
         self,
@@ -1053,43 +831,12 @@ class Rivian:
         parallax_cmd: ParallaxCommand,
         phone_id: bytes,
     ) -> dict:
-        """Send a Parallax command to a vehicle via sendVehicleOperation.
-
-        Parallax commands use the sendVehicleOperation mutation which wraps
-        the protobuf payload with phone enrollment info. This requires
-        Bluetooth pairing to have been completed.
-
-        Args:
-            vehicle_id: Vehicle ID (format: "01-XXXXXXXX")
-            parallax_cmd: ParallaxCommand instance with RVM type and payload
-            phone_id: 16-byte phone identifier from enrollment
-
-        Returns:
-            dict with 'success' (bool) key
-
-        Raises:
-            RivianApiException: For network or API errors
-            RivianUnauthenticated: If authentication is invalid
-
-        Example:
-            >>> from rivian.parallax import build_climate_hold_command
-            >>> # Get phone_id from enrollment
-            >>> user_info = await client.get_user_information(include_phones=True)
-            >>> phone_id_hex = user_info["enrolledPhones"][0]["vas"]["vasPhoneId"]
-            >>> phone_id = bytes.fromhex(phone_id_hex)
-            >>> # Send command
-            >>> cmd = build_climate_hold_command(duration_minutes=120)
-            >>> result = await client.send_parallax_command("01-276948064", cmd, phone_id)
-            >>> print(f"Success: {result['success']}")
-        """
-        # Decode the base64 payload from ParallaxCommand
         payload = (
             base64.b64decode(parallax_cmd.payload_b64)
             if parallax_cmd.payload_b64
             else b""
         )
 
-        # Use sendVehicleOperation which wraps payload with phone info
         return await self.send_vehicle_operation(
             vehicle_id=vehicle_id,
             rvm_type=str(parallax_cmd.rvm),
@@ -1103,41 +850,6 @@ class Rivian:
         phone_id: bytes,
         duration_minutes: int = 120,
     ) -> dict:
-        """Set climate hold via sendVehicleOperation.
-
-        RVM: comfort.cabin.climate_hold_setting
-
-        Args:
-            vehicle_id: Vehicle ID (format: "01-XXXXXXXX")
-            phone_id: 16-byte phone identifier from enrollment
-                (uuid.UUID(vasPhoneId).bytes)
-            duration_minutes: Hold duration in minutes
-
-        Returns:
-            dict with success status
-
-        Note:
-            ClimateHoldSetting carries exactly one field, hold_time_duration_seconds
-            -- confirmed on the wire as 08a038 (7200s). `enabled` and `temp_celsius`
-            parameters used to be accepted here and silently discarded; temp_celsius
-            was even validated, so a caller could get a RivianBadRequestError for a
-            value that was never sent. Both are removed rather than kept for
-            "API compatibility" with behaviour that never existed. Enable state and
-            target temperature are controlled through separate vehicle commands.
-
-        Example:
-            >>> # Get phone_id from enrollment
-            >>> user_info = await client.get_user_information(include_phones=True)
-            >>> phone_id_hex = user_info["enrolledPhones"][0]["vas"]["vasPhoneId"]
-            >>> phone_id = bytes.fromhex(phone_id_hex)
-            >>> # Set climate hold for 8 hours
-            >>> result = await client.set_climate_hold(
-            ...     vehicle_id="01-276948064",
-            ...     phone_id=phone_id,
-            ...     duration_minutes=480,
-            ... )
-            >>> print(f"Success: {result['success']}")
-        """
         cmd = build_climate_hold_command(duration_minutes=duration_minutes)
         return await self.send_parallax_command(vehicle_id, cmd, phone_id)
 
@@ -1146,15 +858,6 @@ class Rivian:
         vehicle_id: str,
         callback: Callable[[dict[str, Any]], None],
     ) -> Callable | None:
-        """Open a web socket connection to receive real-time charging session updates.
-
-        Args:
-            vehicle_id: The vehicle ID to subscribe to
-            callback: Function called when subscription data is received
-
-        Returns:
-            Unsubscribe function or None if connection fails
-        """
         payload = {
             "operationName": "ChargingSession",
             "query": "subscription ChargingSession($vehicleID: String!) { chargingSession(vehicleId: $vehicleID) { chartData { soc powerKW startTime endTime timeEstimationValidityStatus vehicleChargerState } liveData { powerKW kilometersChargedPerHour rangeAddedThisSession totalChargedEnergy timeElapsed timeRemaining price currency isFreeSession vehicleChargerState startTime } } }",
@@ -1172,15 +875,6 @@ class Rivian:
         vehicle_id: str,
         callback: Callable[[dict[str, Any]], None],
     ) -> Callable | None:
-        """Open a web socket connection to receive vehicle cloud connectivity updates.
-
-        Args:
-            vehicle_id: The vehicle ID to subscribe to
-            callback: Function called when subscription data is received
-
-        Returns:
-            Unsubscribe function or None if connection fails
-        """
         payload = {
             "operationName": "VehicleCloudConnection",
             "query": "subscription VehicleCloudConnection($vehicleID: String!) { vehicleCloudConnection(id: $vehicleID) { isOnline lastSync } }",
@@ -1198,15 +892,6 @@ class Rivian:
         command_id: str,
         callback: Callable[[dict[str, Any]], None],
     ) -> Callable | None:
-        """Open a web socket connection to receive real-time vehicle command state updates.
-
-        Args:
-            command_id: The command ID to subscribe to
-            callback: Function called when subscription data is received
-
-        Returns:
-            Unsubscribe function or None if connection fails
-        """
         payload = {
             "operationName": "VehicleCommandState",
             "query": "subscription VehicleCommandState($id: String!) { vehicleCommandState(id: $id) { __typename id command createdAt state responseCode statusCode } }",
@@ -1222,13 +907,6 @@ class Rivian:
         command_id: str,
         callback: Callable[[dict[str, Any]], None],
     ) -> Callable | None:
-        """Subscribe to the app's Gear Guard live-stream signaling config.
-
-        Exact document: 3.15.0 `dj8.java:19` (`gearGuardRemoteConfig` /
-        `gearGuardLiveConfig`). Frame carries KVS WebRTC signaling
-        (`endpoint`, `channelArn`, `role`, `iceServers`). Callers must not
-        log those fields; they are session credentials.
-        """
         payload = {
             "operationName": "gearGuardRemoteConfig",
             "query": GEAR_GUARD_LIVE_CONFIG_QUERY,
@@ -1247,22 +925,6 @@ class Rivian:
         location_str: str,
         vehicle_id: str,
     ) -> dict[str, Any]:
-        """Send a location or address to the vehicle's navigation system.
-
-        Requires neither phone enrollment nor HMAC signing -- it is cloud-only and
-        fire-and-forget. Success means Rivian's cloud accepted the message, not
-        that the vehicle received it; the vehicle picks the destination up when it
-        next connects.
-
-        Args:
-            location_str: Address ("123 Main St, Springfield, IL") or
-                "latitude,longitude" ("40.7128,-74.0060").
-            vehicle_id: Vehicle to send the location to.
-
-        Returns:
-            The parseAndShareLocationToVehicle payload; publishResponse.result is
-            0 on success.
-        """
         url = GRAPHQL_GATEWAY
         headers = self._session_headers()
         graphql_query = (
@@ -1278,31 +940,21 @@ class Rivian:
 
         response = await self.__graphql_query(headers, url, graphql_json)
         data = await response.json()
-        return data.get("data", {}).get("parseAndShareLocationToVehicle", {}) or {}
+        return (data.get("data") or {}).get("parseAndShareLocationToVehicle") or {}
 
     async def close(self) -> None:
-        """Close open client session."""
         if self._ws_monitor:
             await self._ws_monitor.close()
         if self._session and self._close_session:
             await self._session.close()
 
     async def __aenter__(self) -> Self:
-        """Async enter.
-        Returns:
-            The Rivian object.
-        """
         return self
 
     async def __aexit__(self, *_exc_info) -> None:
-        """Async exit.
-        Args:
-            _exc_info: Exec type.
-        """
         await self.close()
 
     def _build_vehicle_state_fragment(self, properties: AbstractSet[str]) -> str:
-        """Build GraphQL vehicle state fragment from properties."""
         frag = " ".join(
             f"{p} {TEMPLATE_MAP.get(p, VALUE_TEMPLATE)}" for p in properties
         )

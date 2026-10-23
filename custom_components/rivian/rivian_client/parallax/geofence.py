@@ -1,5 +1,3 @@
-"""Decoders for `geofence.*` topics."""
-
 from __future__ import annotations
 
 from typing import Any, Final
@@ -16,13 +14,6 @@ _GEOFENCE_TYPE: Final[dict[int, str]] = {0: "custom", 1: "home", 2: "work"}
     empty_payload=True,
 )
 def decode_favorite_geofences(m: geofence_pb2.FavoriteGeofences) -> dict[str, Any]:
-    """Decode geofence.geofence_service.favoriteGeofences (name-match: `wq7`).
-
-    Repeated #1 favorites {#1 type (0 CUSTOM, 1 HOME, 2 WORK), #2 name}.
-
-    Returns dict with keys:
-        - favoriteGeofences: list[{"type": str, "name": str}]
-    """
     return {
         "favoriteGeofences": [
             {

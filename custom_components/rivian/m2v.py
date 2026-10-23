@@ -1,10 +1,3 @@
-"""APK M2V data-channel commands (Gear Guard live).
-
-PeerCommunicationManager.switchCameraViaDataChannel encodes
-M2V.command (ef9) with uuid, commandName=SWITCH_CAMERA (1), camera enum.
-Wrapped as e1n field 1 (COMMAND). Binary DataChannel send.
-"""
-
 from __future__ import annotations
 
 from .rivian_client.proto.vehicle_operation import (
@@ -25,7 +18,6 @@ M2V_COMMAND_NAME_SWITCH_CAMERA = 1
 
 
 def encode_switch_camera(camera: str, command_uuid: str) -> bytes:
-    """Return the APK SWITCH_CAMERA data-channel payload."""
     cam = GGVS_CAMERA.get(camera)
     if cam is None:
         raise ValueError(f"unknown Gear Guard camera: {camera}")

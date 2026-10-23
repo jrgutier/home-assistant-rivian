@@ -1,5 +1,3 @@
-"""Rivian vehicle image entity."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -28,7 +26,6 @@ from .entity import RivianEntity
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up Rivian vehicle images using config entry."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, Any] = data[ATTR_VEHICLE]
     client = data[ATTR_COORDINATOR][ATTR_USER].api
@@ -54,8 +51,6 @@ async def async_setup_entry(
 
 
 class RivianVehicleImageEntity(RivianEntity, ImageEntity):
-    """Rivian vehicle image entity."""
-
     _attr_content_type = "image/png"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -65,7 +60,6 @@ class RivianVehicleImageEntity(RivianEntity, ImageEntity):
         vin: str,
         data: dict[str, str],
     ) -> None:
-        """Initialize the entity."""
         super().__init__(coordinator)
         ImageEntity.__init__(self, coordinator.hass)
 
@@ -76,5 +70,4 @@ class RivianVehicleImageEntity(RivianEntity, ImageEntity):
 
     @property
     def image_last_updated(self) -> datetime | None:
-        """The time when the image was last updated."""
         return self.coordinator.last_updated

@@ -1,36 +1,18 @@
-// comfort.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.comfort;
 
 
-// comfort.cabin.hvac_settings_status
 // Requested set point; 63.5 ("HI") while defrost runs.
 message HvacSettingsStatus {
   optional float target_temperature = 1; // °C
 }
 
-// comfort.user_modes.state
 message UserModesState {
   // MODE_STATUS, not bool: the app's enum has no OFF member, so "not on" is 0
   // and only 1 is on.
   ModeStatus in_service = 1;
   ModeStatus car_wash_mode = 2;
-  // Enum types unknown.
   int32 pet_mode = 3;
   int32 camp_mode = 4;
   int32 transport_mode = 5;
@@ -43,7 +25,6 @@ message UserModesState {
   }
 }
 
-// comfort.cabin.cabin_preconditioning_status
 message CabinPreconditioningStatus {
   PreconditioningStatus status = 1;
   PreconditioningType type = 2;
@@ -70,18 +51,12 @@ enum PreconditioningType {
   PRECONDITIONING_TYPE_AUTO_CABIN_VENTILATION = 4;
 }
 
-// comfort.cabin.cabin_temperatures
 message CabinTemperatures {
-  // 1 repeated ZoneTemperature temperatures {int32 seat, float temperature} --
-  // undeclared.
   optional float exterior_temperature = 2; // °C
   optional float interior_temperature = 3; // °C
-  // The app's interior display temperature: the set point, same as
-  // HvacSettingsStatus's target. Not sent by every vehicle.
   optional float driver_set_point = 4; // °C
 }
 
-// comfort.cabin.cabin_ventilation_setting
 message CabinVentilationSetting {
   optional bool auto_cabin_ventilation_enabled = 1;
   optional string mode = 2; // "AUTO" | "MANUAL" | "OFF"
@@ -90,15 +65,13 @@ message CabinVentilationSetting {
   optional uint64 duration_minutes = 5;
 }
 
-// comfort.cabin.climate_hold_setting
 // The one message this integration also SENDS. Not optional, on purpose: a
 // zero duration has to serialise to nothing, which is how the vehicle itself
 // reports "no hold".
 message ClimateHoldSetting {
-  uint64 hold_time_duration_seconds = 1; // app: int32
+  uint64 hold_time_duration_seconds = 1;
 }
 
-// comfort.cabin.climate_hold_status
 message ClimateHoldStatus {
   optional ClimateHoldStatusValue status = 1;
   optional ClimateHoldAvailability availability = 2;
@@ -132,7 +105,6 @@ enum ClimateHoldUnavailabilityReason {
   CLIMATE_HOLD_UNAVAILABILITY_FAULT = 3;
 }
 
-// comfort.cabin.defrost_defog_status
 message DefrostDefogStatus {
   DefrostStatus status = 1;
 }
@@ -145,7 +117,6 @@ enum DefrostStatus {
   DEFROST_OFF = 4;
 }
 
-// comfort.cabin.pet_mode_status
 message PetModeStatus {
   optional PetModeState status = 1; // PET_MODE_OFF (0) is reported when sent
   optional PetModeTemperatureStatus temperature_status = 2;
@@ -172,7 +143,6 @@ enum PetModeTemperatureStatus {
   PET_MODE_TEMPERATURE_FAULTY = 3;
 }
 
-// comfort.cabin.seat_conditioning_status
 message SeatConditioningStatus {
   message Surface {
     CabinSurface id = 1;

@@ -1,32 +1,15 @@
-// ota.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.ota;
 
 
-// ota.deployment.state -- one deployment per software category.
 message DeploymentState {
   repeated Deployment deployment = 1;
 
   message Deployment {
     SoftwareCategory software_category = 1;
-    Version version = 2; // installed version
-    // 3 deployment_id -- undeclared.
-    ProgressWrapper progress_wrapper = 4; // the available OTA
+    Version version = 2;
+    ProgressWrapper progress_wrapper = 4;
   }
 
   enum SoftwareCategory {
@@ -38,19 +21,16 @@ message DeploymentState {
 
   message Version {
     optional string version_string = 1; // year.week.number
-    // 2 software_version_id -- undeclared.
-    optional uint64 version_year = 3;   // app: int32
-    optional uint64 version_build = 4;  // week; app: int32
-    optional uint64 version_number = 5; // app: int32
+    optional uint64 version_year = 3;
+    optional uint64 version_build = 4;  // week
+    optional uint64 version_number = 5;
     optional string build_id = 6; // 8-char git hash
   }
 
   // The available OTA. Always present; deployment_id is absent at rest.
   message ProgressWrapper {
-    // 1 deployment_id (UUID; only while an update is in flight) -- undeclared.
-    Version target_version = 2; // version being installed
-    optional int32 ota_type = 3; // enum type unknown
-    // 4 deployment_context {int32 download_policy} -- undeclared.
+    Version target_version = 2;
+    optional int32 ota_type = 3;
     Progress progress = 5;
     int64 install_time = 6; // epoch seconds
     optional int32 install_tod = 7; // install time of day, minutes after midnight
@@ -70,10 +50,9 @@ message DeploymentState {
 
   message Progress {
     OtaPhase phase = 1;
-    CurrentStatus current_status = 2; // the last install's result
+    CurrentStatus current_status = 2;
     Progress100 download_progress = 3;
     Progress100 install_progress = 4;
-    // 5 pending_reasons (ten bools: what is blocking an install) -- undeclared.
     // Seconds; counts down during INSTALL_COUNTDOWN, a static default otherwise.
     int32 time_remaining = 6;
     bool install_ready = 7;
@@ -81,8 +60,7 @@ message DeploymentState {
     int32 install_duration = 9; // minutes
 
     message Progress100 {
-      // 1 started_at {int64 seconds, int32 nanos} -- undeclared.
-      optional uint64 progress_percent = 2; // 0-100; app: int32
+      optional uint64 progress_percent = 2; // 0-100
     }
   }
 
@@ -112,25 +90,19 @@ message DeploymentState {
   }
 }
 
-// ota.user_schedule.ota_config -- install schedules: a one-time scheduled
-// install and the recurring auto-install. Entries may be resent without
-// their ids.
 message OtaConfig {
   repeated Schedule schedule = 1;
-  // 2 updated_at {int64 seconds, int32 nanos} -- undeclared.
 
   // Upstream models 3 and 4 as a oneof. They are plain fields here because a
   // oneof keeps only the last member sent, and the decoder reports both.
   message Schedule {
-    // 1 id (UUID) -- undeclared.
     bool enabled = 2;
-    RepeatsDaily repeats_daily = 3;         // auto-install
-    SingleOccurrence single_occurrence = 4; // scheduled install
+    RepeatsDaily repeats_daily = 3;
+    SingleOccurrence single_occurrence = 4;
   }
 
   message RepeatsDaily {
-    uint64 starts_at = 1; // minutes after local midnight; app: int32
-    // 2 location {string name} -- undeclared.
+    uint64 starts_at = 1; // minutes after local midnight
   }
 
   message SingleOccurrence {
@@ -142,9 +114,7 @@ message OtaConfig {
   }
 }
 
-// ota.ota_state.vehicle_ota_state -- sent when OTA settings change.
 message VehicleOtaState {
-  // 1 name ("VehicleOTAState") -- undeclared.
   // The pending scheduled install; absent once cancelled or installed.
   ScheduledInstall scheduled_install = 2;
 

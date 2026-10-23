@@ -4,23 +4,7 @@ The wire protocol is the one documented and verified on a 2026 R1S by
 walthowd/rivian-gen2-key-poc (MIT), whose message layouts were confirmed
 byte-for-byte against an over-the-air capture of the official Android app. The
 message builders and the reply check below are ported from that project's
-`protocol.py`. See docs/development/GEN2_BLE_PROTOCOL.md for the full write-up,
-and GEN2_BLE_DELTA.md for the earlier static-analysis attempt it supersedes.
-
-    phone   -> Q  auth#1  Envelope{Signed{[Auth{phone_id, pNonce}], seq 1}}
-    vehicle -> R  reply   Envelope{Signed{[Auth{vas_vehicle_id, vNonce}]}}
-    phone   -> Q  auth#2  Envelope{Signed{[Auth{}], [ClientInfo{model}], seq 2}}
-    phone   -> T  subscribe; the vehicle answers ATT 0x05 (insufficient
-                  authentication), the central runs LE Secure Connections
-                  "Just Works" bonding, and the retried subscribe succeeds.
-
-Every frame is protobuf, each signed with
-
-    HMAC-SHA256(key, MessageList || seq(u32 LE) || sender_id(16) || pNonce || vNonce?)
-
-under the same HKDF-SHA256(ECDH) key `utils.get_secret_key` derives for Gen 1
-and for cloud commands. Nothing answers auth#2: once the link is bonded the
-vehicle marks the key paired and reports it to the cloud on its own.
+`protocol.py`.
 """
 
 from __future__ import annotations
@@ -36,7 +20,17 @@ import secrets
 import struct
 from uuid import UUID
 
+from bleak import BleakClient, BLEDevice
+from bleak.exc import BleakError
+
 from . import ble_trace
+from .ble import (
+    CONNECT_TIMEOUT,
+    GEN2_ENCRYPTED_DATA_OUT_UUID as T_UUID,
+    GEN2_PLAIN_DATA_IN_UUID as Q_UUID,
+    GEN2_PLAIN_DATA_OUT_UUID as R_UUID,
+    create_notification_handler,
+)
 from .proto.vehicle_operation import (
     encode_length_delimited as _f_len,
     encode_varint as _varint,
@@ -45,53 +39,22 @@ from .utils import get_secret_key
 
 _LOGGER = logging.getLogger(__name__)
 
-try:
-    from bleak import BleakClient, BLEDevice  # type: ignore
-except ImportError:
-    _LOGGER.error("Please install 'rivian-python-client[ble]' to use BLE features.")
-    raise
-
-
-# Re-exported from ble.py, which needs them at module scope to tell a Gen 2
-# vehicle from a Gen 1 one, so there is one copy. The import is cycle-free:
-# ble.py imports this module only lazily, inside pair_phone()'s Gen 2 branch.
-# The PoC's names are Q/R/S/T; S (encrypted phone -> vehicle) carries local
-# commands and passive entry, which pairing never touches.
-from .ble import (
-    CONNECT_TIMEOUT,
-    GEN2_ENCRYPTED_DATA_OUT_UUID as T_UUID,
-    GEN2_PLAIN_DATA_IN_UUID as Q_UUID,
-    GEN2_PLAIN_DATA_OUT_UUID as R_UUID,
-    create_notification_handler,
-)
-
-# The vehicle answers auth#1 within a second or two; the PoC waits 8s.
 REPLY_TIMEOUT = 10.0
 # Bonding is a few seconds of SMP, plus however long the platform takes to
 # accept it. The PoC allows 45s on macOS, where a user must click Connect.
 BOND_TIMEOUT = 45.0
 
-# Sent in auth#2's ClientInfo. A phone sends its lowercase device model; the
-# vehicle accepts any string.
 DEFAULT_MODEL = b"home assistant"
 
 HMAC_SHA256 = 1
 
 
 class AuthState(IntEnum):
-    """How far one pairing attempt got. Recorded in the diagnostics trace."""
-
     INIT = 0
-    AUTH1_SENT = 1  # auth#1 written to Q, waiting for the reply on R
-    VEHICLE_VERIFIED = 2  # reply's vehicle id and HMAC checked out
-    AUTH2_SENT = 3  # auth#2 written; next is the T subscribe that bonds
-    BONDED = 4  # T subscribe succeeded on the encrypted link
-
-
-# ── protobuf encoding ────────────────────────────────────────────────
-# Seven small message types, all known by field number only, so hand-encoding
-# them is less machinery than a .proto plus the regen/pin discipline that
-# PARALLAX_SCHEMAS.md applies to generated modules.
+    AUTH1_SENT = 1
+    VEHICLE_VERIFIED = 2
+    AUTH2_SENT = 3
+    BONDED = 4
 
 
 def _f_var(field: int, value: int) -> bytes:
@@ -99,7 +62,6 @@ def _f_var(field: int, value: int) -> bytes:
 
 
 def parse_fields(data: bytes) -> dict[int, list[int | bytes]]:
-    """Decode one protobuf message level into {field: [values]}. Bounded and strict."""
     fields: dict[int, list[int | bytes]] = {}
     offset = 0
 
@@ -153,7 +115,6 @@ def _mac(secret_key: bytes, message_list: bytes, seq: int, sender_id: bytes, *no
 def _signed(
     message_list: bytes, seq: int, mac: bytes, excludes_vehicle_nonce: bool = False
 ) -> bytes:
-    """Envelope{2: Signed{1: list, 2: seq, [4: no vNonce], 5: Signature{1, 2: mac}}}."""
     signature = _f_var(1, HMAC_SHA256) + _f_len(2, mac)
     body = _f_len(1, message_list) + _f_var(2, seq)
     if excludes_vehicle_nonce:
@@ -161,11 +122,7 @@ def _signed(
     return _f_len(2, body + _f_len(5, signature))
 
 
-# ── messages ─────────────────────────────────────────────────────────
-
-
 def build_auth1(secret_key: bytes, phone_id: bytes, phone_nonce: bytes) -> bytes:
-    """Auth#1: transaction 1, Credentials{phone_id, pNonce}; MAC has no vNonce yet."""
     if len(phone_id) != 16 or len(phone_nonce) != 16:
         raise ValueError("phone_id and phone_nonce must be 16 bytes")
     credentials = _f_len(1, phone_id) + _f_len(2, phone_nonce)
@@ -182,7 +139,6 @@ def build_auth2(
     vehicle_nonce: bytes,
     model: bytes = DEFAULT_MODEL,
 ) -> bytes:
-    """Auth#2: transaction 3 = empty Credentials, transaction 5 = ClientInfo{model}."""
     empty_auth = _f_var(1, 3) + _f_len(5, _f_len(1, b""))
     client = _f_var(1, 5) + _f_len(9, _f_len(1, _f_len(2, model)))
     message_list = _f_len(1, empty_auth) + _f_len(1, client)
@@ -193,11 +149,6 @@ def build_auth2(
 def verify_auth1_reply(
     reply: bytes, secret_key: bytes, vehicle_id: bytes, phone_nonce: bytes
 ) -> bytes:
-    """Check the vehicle's reply on R and return its 16-byte vNonce.
-
-    The vehicle signs as sender `vas_vehicle_id`, over both nonces, so a reply
-    replayed from an earlier session fails. Raises ValueError on any mismatch.
-    """
     signed = parse_fields(_one(parse_fields(reply), 2, b""))
     message_list = _one(signed, 1, b"")
     messages = parse_fields(message_list).get(1, [])
@@ -242,7 +193,7 @@ async def _subscribe_encrypted(client: BleakClient, handler) -> None:
     try:
         await client.start_notify(T_UUID, handler)
         return
-    except Exception as ex:  # noqa: BLE001  # backend-specific error types
+    except BleakError as ex:
         _LOGGER.debug("Gen 2: T subscribe before bonding: %s", type(ex).__name__)
     if platform.system() != "Darwin":
         # Some backends keep the refused subscription's callback registered
@@ -269,53 +220,30 @@ async def pair_phone_gen2(
     private_key: str,
     vehicle_id: str | None = None,
 ) -> bool:
-    """Pair a phone key with a Gen 2 vehicle that is showing "Set up" for it.
-
-    Args:
-        device: the vehicle, found by its advertised `vas_vehicle_id` service UUID
-        phone_id: `vasPhoneId` from enrollment (16-byte UUID)
-        vas_vehicle_id: the vehicle's `vasVehicleId` (16-byte UUID)
-        vehicle_public_key: the vehicle's P-256 public key (130 hex chars)
-        private_key: the phone key's private key (base64-encoded PEM)
-        vehicle_id: Rivian vehicle id, used only to key the diagnostics trace
-
-    Returns:
-        True once the encrypted T subscribe succeeds. The vehicle then reports
-        the key as paired to the cloud by itself; the caller confirms that.
-    """
     _LOGGER.debug("Starting Gen 2 (PRE_CCC) pairing with %s", device)
     state = AuthState.INIT
     trace = ble_trace.get_trace(vehicle_id) if vehicle_id is not None else None
 
     def _trace(record) -> None:
-        """Best-effort trace recording -- must never break pairing."""
         if trace is None:
             return
         try:
             record()
-        except Exception:  # tracing is diagnostics only
+        except Exception:
             _LOGGER.debug("Gen 2: trace recording failed", exc_info=True)
 
-    # Not through _trace(): button.py reads this back to decide whether to raise
-    # the Gen 2 repairs card, so it is control flow, not diagnostics.
     if trace is not None:
         trace.generation = 2
 
     try:
-        # NEVER log the derived key, the private key or the exception message
-        # here: HA debug logs get pasted into public GitHub issues verbatim, and
-        # a dependency's error string could carry key material. Class only.
         secret_key = get_secret_key(private_key, vehicle_public_key)
         phone = UUID(phone_id).bytes
         vehicle = UUID(vas_vehicle_id).bytes
-    except Exception as ex:  # noqa: BLE001
+    except (ValueError, TypeError) as ex:
         _trace(lambda: trace.record_attempt_outcome("key_derivation_failed"))
         _LOGGER.error("Gen 2: failed to derive the shared key (%s)", type(ex).__name__)
         return False
 
-    # Before any frame: the trace masks these identifiers inside every frame
-    # it records from here on (auth#1 carries the phone id, the reply the VAS
-    # vehicle id, both in the clear).
     _trace(
         lambda: trace.record_identifiers(
             phone_id=phone_id, vas_vehicle_id=vas_vehicle_id, address=device.address
@@ -328,7 +256,6 @@ async def pair_phone_gen2(
         _trace(lambda: trace.record_state(new_state.name))
 
     def _on_t(_, data: bytearray) -> None:
-        # Post-pairing T traffic is undocumented; length only.
         _LOGGER.debug("Gen 2: T notification (%d bytes)", len(data))
 
     try:
@@ -338,8 +265,6 @@ async def pair_phone_gen2(
             if mtu is not None:
                 _trace(lambda: trace.record_mtu(mtu))
 
-            # Discovered here, not in detect_vehicle_generation: a Gen 2 vehicle
-            # found by its advert skips detection (button.py forces gen 2).
             chars = {
                 char.uuid.upper()
                 for service in client.services
@@ -382,7 +307,6 @@ async def pair_phone_gen2(
                     reply, secret_key, vehicle, phone_nonce
                 )
             except ValueError as ex:
-                # Fail closed: never send auth#2 or bond with an unverified peer.
                 _trace(lambda: trace.record_attempt_outcome("bad_reply"))
                 _LOGGER.error("Gen 2: rejected the vehicle's reply: %s", ex)
                 return False
@@ -409,7 +333,7 @@ async def pair_phone_gen2(
             _trace(lambda: trace.record_attempt_outcome("bonded"))
             _LOGGER.debug("Gen 2: bonded with %s", device)
             return True
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         _trace(lambda: trace.record_attempt_outcome("exception"))
         _LOGGER.exception("Gen 2 pairing failed at state %s", state.name)
         return False

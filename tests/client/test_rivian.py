@@ -10,7 +10,8 @@ import aiohttp
 from aresponses import ResponsesMockServer
 import pytest
 
-from custom_components.rivian.rivian_client import Rivian
+from custom_components.rivian.rivian_client import Rivian, utils
+from custom_components.rivian.rivian_client.const import VehicleCommand
 from custom_components.rivian.rivian_client.exceptions import (
     RivianApiException,
     RivianApiRateLimitError,
@@ -50,6 +51,14 @@ async def test_csrf_token_request(aresponses: ResponsesMockServer) -> None:
         await rivian.close()
 
 
+def test_the_session_tokens_are_readable() -> None:
+    rivian = Rivian(access_token="a", refresh_token="r", user_session_token="u")
+    assert rivian.access_token == "a"
+    assert rivian.refresh_token == "r"
+    assert rivian.user_session_token == "u"
+    assert rivian.otp_needed is False
+
+
 async def test_authentication(aresponses: ResponsesMockServer) -> None:
     """Test authentication."""
     aresponses.add(
@@ -63,9 +72,9 @@ async def test_authentication(aresponses: ResponsesMockServer) -> None:
         Rivian(csrf_token="token", app_session_token="token") as rivian,
     ):
         await rivian.authenticate("username", "password")
-        assert rivian._access_token == "valid_access_token"
-        assert rivian._refresh_token == "valid_refresh_token"
-        assert rivian._user_session_token == "valid_user_session_token"
+        assert rivian.access_token == "valid_access_token"
+        assert rivian.refresh_token == "valid_refresh_token"
+        assert rivian.user_session_token == "valid_user_session_token"
 
 
 async def test_invalid_authentication(aresponses: ResponsesMockServer) -> None:
@@ -97,13 +106,13 @@ async def test_authentication_with_otp(aresponses: ResponsesMockServer) -> None:
     async with aiohttp.ClientSession():
         rivian = Rivian(csrf_token="token", app_session_token="token")
         await rivian.authenticate("username", "password")
-        assert rivian._otp_needed
+        assert rivian.otp_needed
         assert rivian._otp_token == "token"
 
         await rivian.validate_otp("username", "code")
-        assert rivian._access_token == "token"
-        assert rivian._refresh_token == "token"
-        assert rivian._user_session_token == "token"
+        assert rivian.access_token == "token"
+        assert rivian.refresh_token == "token"
+        assert rivian.user_session_token == "token"
         await rivian.close()
 
 
@@ -337,6 +346,80 @@ async def test_graphql_errors(aresponses: ResponsesMockServer) -> None:
         rivian = Rivian()
         with pytest.raises(RivianInvalidOTP):
             await rivian.authenticate("", "")
+        await rivian.close()
+
+
+@pytest.mark.parametrize(
+    ("body", "content_type"),
+    [
+        ("<html>502 Bad Gateway</html>", "text/html"),
+        ("{not json", "application/json"),
+        ("", "application/json"),
+        ("[]", "application/json"),
+    ],
+)
+async def test_a_body_that_is_not_json_raises_the_client_exception(
+    aresponses: ResponsesMockServer, body: str, content_type: str
+) -> None:
+    """Callers catch RivianApiException alone, so a gateway error page or a
+    truncated body must not escape as aiohttp's or json's own error."""
+    aresponses.add(
+        "rivian.com",
+        "/api/gql/gateway/graphql",
+        "POST",
+        response=aresponses.Response(text=body, content_type=content_type),
+    )
+    async with aiohttp.ClientSession():
+        rivian = Rivian()
+        with pytest.raises(RivianApiException):
+            await rivian.get_vehicle_command_state("command_id")
+        await rivian.close()
+
+
+@pytest.mark.parametrize(
+    ("method", "expected"),
+    [
+        ("send_vehicle_command", None),
+        ("enroll_phone", False),
+        ("disenroll_phone", None),
+    ],
+)
+async def test_a_null_data_block_is_a_failed_mutation(
+    aresponses: ResponsesMockServer, method: str, expected: bool | None
+) -> None:
+    """GraphQL answers `"data": null` alongside errors it does not code; with
+    the errors gone it must read as a failure, not an AttributeError."""
+    aresponses.add(
+        "rivian.com",
+        "/api/gql/gateway/graphql",
+        "POST",
+        response={"data": None},
+    )
+    public_key, private_key = utils.generate_key_pair()
+    vehicle_key, _ = utils.generate_key_pair()
+    kwargs: dict[str, Any] = {
+        "send_vehicle_command": {
+            "command": VehicleCommand.WAKE_VEHICLE,
+            "vehicle_id": "vehicle-123",
+            "phone_id": "phone-123",
+            "identity_id": "identity-123",
+            "vehicle_key": vehicle_key,
+            "private_key": private_key,
+        },
+        "enroll_phone": {
+            "user_id": "user-123",
+            "vehicle_id": "vehicle-123",
+            "device_type": "phone",
+            "device_name": "HA",
+            "public_key": public_key,
+        },
+        "disenroll_phone": {"identity_id": "identity-123"},
+    }[method]
+    async with aiohttp.ClientSession():
+        rivian = Rivian(
+            csrf_token="token", app_session_token="token", user_session_token="token"
+        )
+        assert await getattr(rivian, method)(**kwargs) == expected
         await rivian.close()
 
 

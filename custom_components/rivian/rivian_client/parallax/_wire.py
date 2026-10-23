@@ -1,16 +1,3 @@
-"""The hand-rolled protobuf wire walker. A debugging tool; no decoder uses it.
-
-Until s49 every decoder was built on this. They now parse with the generated
-classes in `proto/`, and `tests/client/test_parallax_no_walker.py` keeps it that
-way. The walker stays for what a schema cannot do: showing what is inside a
-frame nobody has written a schema for yet. `scripts/capture_rvm_frames.py`
-prints unknown topics with it.
-
-It is lenient where a real parser is not -- it returns whatever it read before
-a truncated or malformed field -- which is the right behaviour for a tool that
-exists to look at bytes of unknown shape.
-"""
-
 from __future__ import annotations
 
 import struct
@@ -20,7 +7,6 @@ from .core import _LOGGER
 
 
 def _decode_varint(data: bytes, offset: int) -> tuple[int, int]:
-    """Decode a protobuf varint, return (value, new_offset)."""
     result = 0
     shift = 0
     while offset < len(data):
@@ -34,7 +20,6 @@ def _decode_varint(data: bytes, offset: int) -> tuple[int, int]:
 
 
 def _decode_protobuf_fields(data: bytes) -> list[tuple[int, int, Any]]:
-    """Decode raw protobuf bytes into a list of (field_number, wire_type, value) tuples."""
     fields = []
     i = 0
     while i < len(data):
@@ -43,17 +28,17 @@ def _decode_protobuf_fields(data: bytes) -> list[tuple[int, int, Any]]:
         wire_type = tag & 0x07
         value: Any
 
-        if wire_type == 0:  # Varint
+        if wire_type == 0:
             value, i = _decode_varint(data, i)
             fields.append((field_num, wire_type, value))
-        elif wire_type == 1:  # 64-bit float
+        elif wire_type == 1:
             if i + 8 <= len(data):
                 value = struct.unpack("<d", data[i : i + 8])[0]
                 i += 8
                 fields.append((field_num, wire_type, value))
             else:
                 break
-        elif wire_type == 2:  # Length-delimited
+        elif wire_type == 2:
             length, i = _decode_varint(data, i)
             if i + length <= len(data):
                 value = data[i : i + length]
@@ -61,7 +46,7 @@ def _decode_protobuf_fields(data: bytes) -> list[tuple[int, int, Any]]:
                 fields.append((field_num, wire_type, value))
             else:
                 break
-        elif wire_type == 5:  # 32-bit float
+        elif wire_type == 5:
             if i + 4 <= len(data):
                 value = struct.unpack("<f", data[i : i + 4])[0]
                 i += 4

@@ -1,5 +1,3 @@
-"""Support for Rivian climate entities."""
-
 from __future__ import annotations
 
 from typing import Any, Final
@@ -31,7 +29,6 @@ DEFROST_DEFOG = "Defrost/Defog"
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the climate entity."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, dict[str, Any]] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -45,8 +42,6 @@ async def async_setup_entry(
 
 
 class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
-    """Representation of a Rivian climate entity."""
-
     entity_description: RivianClimateEntityDescription
 
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL, HVACMode.HEAT]
@@ -66,17 +61,14 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
 
     @property
     def current_temperature(self) -> float | None:
-        """Return the current temperature."""
         return self._get_value("cabinClimateInteriorTemperature")
 
     @property
     def target_temperature(self) -> float | None:
-        """Return the temperature we try to reach."""
         return self._get_value("cabinClimateDriverTemperature")
 
     @property
     def hvac_mode(self) -> HVACMode | None:
-        """Return hvac operation mode."""
         if self.preset_mode == DEFROST_DEFOG:
             return HVACMode.HEAT
         if self._get_value("cabinPreconditioningType") != "NONE":
@@ -85,13 +77,11 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
 
     @property
     def preset_mode(self) -> str | None:
-        """Return the current preset mode."""
         if self._get_value("defrostDefogStatus") != "Off":
             return DEFROST_DEFOG
         return {0: "LO", 63.5: "HI"}.get(self.target_temperature)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Set new target hvac mode."""
         if hvac_mode == HVACMode.HEAT:
             return await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 1}
@@ -103,7 +93,6 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
         )
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        """Set new preset mode."""
         if preset_mode == DEFROST_DEFOG:
             return await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 1}
@@ -113,16 +102,13 @@ class RivianClimateEntity(RivianVehicleControlEntity, ClimateEntity):
         )
 
     async def async_set_temperature(self, **kwargs) -> None:
-        """Set new target temperature."""
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
         if self.preset_mode == DEFROST_DEFOG:
-            # need to turn off defrost/defog before we can adjust
             await self._execute_command(
                 command=VehicleCommand.CABIN_HVAC_DEFROST_DEFOG, params={"level": 0}
             )
         if self.hvac_mode == HVACMode.OFF:
-            # must turn on preconditioning to adjust temperature
             await self._execute_command(
                 command=VehicleCommand.VEHICLE_CABIN_PRECONDITION_ENABLE
             )

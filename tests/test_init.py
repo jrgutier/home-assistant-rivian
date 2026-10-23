@@ -1010,3 +1010,58 @@ class TestVocabularyMatchesTheVehicle:
 
         assert "SNA".lower() in INVALID_SENSOR_STATES
         assert all(entry == entry.lower() for entry in INVALID_SENSOR_STATES)
+
+
+class TestServiceDeviceLookup:
+    """set_charging_schedule finds the vehicle by coordinator membership,
+    not by guessing which identifier is long enough to be a vehicle id.
+    """
+
+    async def _call(
+        self, hass: HomeAssistant, vehicle_id: str, device_vehicle_id: str | None = None
+    ) -> AsyncMock:
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        from custom_components.rivian import async_setup_services
+        from homeassistant.helpers import device_registry as dr
+
+        entry = MockConfigEntry(domain=DOMAIN, entry_id="lookup_entry")
+        entry.add_to_hass(hass)
+        coordinator = MagicMock()
+        coordinator.send_parallax_command = AsyncMock(return_value="ok")
+        hass.data[DOMAIN] = {
+            entry.entry_id: {
+                ATTR_COORDINATOR: {ATTR_VEHICLE: {vehicle_id: coordinator}}
+            }
+        }
+        device = dr.async_get(hass).async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={
+                (DOMAIN, "7FCTGAAL0NN000001"),
+                (DOMAIN, device_vehicle_id or vehicle_id),
+            },
+        )
+        await async_setup_services(hass, entry)
+        await hass.services.async_call(
+            DOMAIN,
+            "set_charging_schedule",
+            {"device_id": device.id, "start_time": "22:00", "end_time": "06:00"},
+            blocking=True,
+        )
+        return coordinator.send_parallax_command
+
+    async def test_a_short_vehicle_id_resolves(self, hass: HomeAssistant) -> None:
+        send = await self._call(hass, "01-2345678")
+        send.assert_awaited_once()
+
+    async def test_a_long_vehicle_id_still_resolves(self, hass: HomeAssistant) -> None:
+        send = await self._call(hass, "01-234567890123456789")
+        send.assert_awaited_once()
+
+    async def test_a_device_without_a_coordinator_is_rejected(
+        self, hass: HomeAssistant
+    ) -> None:
+        from homeassistant.exceptions import ServiceValidationError
+
+        with pytest.raises(ServiceValidationError, match="Could not find a vehicle"):
+            await self._call(hass, "01-2345678", device_vehicle_id="01-other")

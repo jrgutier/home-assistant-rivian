@@ -57,7 +57,7 @@ lives in `COVERS[None]` with `option_code="TON-P01"`.
 in this set — they have `feature is None` and `option_code is None` and are
 out of scope here (`MODEL_SPECIFIC_ENTITIES.md` covers why).
 
-`sensor.py:179` and `binary_sensor.py:114` both filter on the same
+`sensor.py:150` and `binary_sensor.py:80` both filter on the same
 `INVALID_SENSOR_STATES` set, so "usable" means the same thing on both
 platforms for every field below.
 
@@ -179,22 +179,22 @@ them). Whatever the union rule decides for these three, it is deciding it on
 zero observations, not on a negative finding — this evidence cannot tell
 whether the server ever populates them, on any model.
 
-## Finding 5a — the instrument itself hides flicker (masking at `coordinator.py:1633-1664`)
+## Finding 5a — the instrument itself hides flicker (masking at `coordinator.py:1125-1136`)
 
 Before reading the flat-history observation below at face value, it matters
 that the diagnostics dump is not a raw wire capture — it is the coordinator's
 *masked* state, and the masking is asymmetric by design.
-`VehicleCoordinator._build_vehicle_info_dict` (`coordinator.py:1633-1664`)
+`VehicleCoordinator._build_vehicle_info_dict` (`coordinator.py:1125-1136`)
 folds each update into `self.data`: when an incoming value is one of
 `INVALID_SENSOR_STATES` **and** the field already has a previous entry, the
 whole previous `{"value": ..., "history": ...}` object is substituted in
-unchanged (`coordinator.py:1637-1638`) — the invalid reading is not recorded
+unchanged (`coordinator.py:1127-1128`) — the invalid reading is not recorded
 anywhere, not in `value`, not in `history`. Only a valid reading ever
-extends `history` (`coordinator.py:1662`). The one documented exception is
+extends `history` (`coordinator.py:1134`). The one documented exception is
 the very first update for a field with no prior entry, which is published
-as-is, invalid values included (`coordinator.py:1618-1629`) — that is how a
+as-is, invalid values included (`coordinator.py:1115-1119`) — that is how a
 literal `SNA` was once observed on both rear seat heating sensors at a fresh
-start (comment at `coordinator.py:1623`).
+start.
 
 The consequence for this evidence: **once a field has produced one valid
 reading, ever, every later invalid reading on that field becomes

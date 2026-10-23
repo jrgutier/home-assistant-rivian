@@ -1,25 +1,3 @@
-"""The sendVehicleOperation envelope, as plain classes over the generated message.
-
-The classes here are attribute holders with the interface the rest of the client
-has always used -- keyword construction, `to_dict()`, `SerializeToString()`,
-fields that may be assigned after construction. Until s49 each one also built its
-own bytes by hand. Now `SerializeToString()` fills in the generated
-`VehicleOperationRequest` from `parallax/proto/vehicle_operation.proto` and lets
-protobuf write the bytes.
-
-The bytes did not change, and
-tests/client/fixtures/parallax_golden/send_path.json holds them to that. Two
-things the hand-rolled encoder did are reproduced deliberately, because a
-generated message does neither by default:
-
-* It emitted every SUBMESSAGE, even an empty one: a request with a zero
-  timestamp still carries `2a 00`. A generated message omits a submessage that
-  was never touched, so each `_message()` below copies its children in
-  explicitly, which marks them present.
-* `Timestamp.from_datetime` computes nanos in floating point. google.protobuf's
-  own `FromDatetime` is exact and gives a different last digit for some moments.
-"""
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -34,7 +12,6 @@ _Request = vehicle_operation_pb2.VehicleOperationRequest
 
 
 def encode_varint(value: int) -> bytes:
-    """Encode a non-negative integer as a protobuf varint."""
     result = bytearray()
     while value > 0x7F:
         result.append((value & 0x7F) | 0x80)
@@ -44,49 +21,33 @@ def encode_varint(value: int) -> bytes:
 
 
 def encode_length_delimited(field_number: int, value: bytes) -> bytes:
-    """Encode a length-delimited field by hand.
-
-    Nothing on the send path calls this. It is here for m2v.py's data-channel
-    payload, which has no generated message, and for tests that build a frame
-    byte by byte, so that a decoder test does not depend on an encoder to prove
-    the decoder decodes.
-    """
     return encode_varint(field_number << 3 | 2) + encode_varint(len(value)) + value
 
 
-# The name tests/client/test_fork_rvm_decoders.py imports.
 _encode_length_delimited = encode_length_delimited
 
 
 class _Message(ABC):
-    """`SerializeToString` for a class that can build its generated message."""
-
     @abstractmethod
     def _message(self) -> Message:
-        """Build the generated message from this object's current attributes."""
+        pass
 
     def SerializeToString(self) -> bytes:
-        """Serialize to protobuf wire format."""
         return self._message().SerializeToString()
 
 
 class Timestamp(_Message):
-    """Seconds and nanoseconds since the epoch; neither is emitted when zero."""
-
     def __init__(self, seconds: int = 0, nanos: int = 0) -> None:
-        """Initialize a Timestamp."""
         self.seconds = seconds
         self.nanos = nanos
 
     @classmethod
     def from_datetime(cls, moment: datetime) -> Timestamp:
-        """Build from an aware datetime."""
         epoch = moment.timestamp()
         seconds = int(epoch)
         return cls(seconds=seconds, nanos=int((epoch - seconds) * 1_000_000_000))
 
     def ToDatetime(self) -> datetime:
-        """Return the moment as an aware UTC datetime."""
         return datetime.fromtimestamp(self.seconds + self.nanos / 1_000_000_000, tz=UTC)
 
     def _message(self) -> _Request.Timestamp:
@@ -94,20 +55,11 @@ class Timestamp(_Message):
 
 
 class PhoneInfo(_Message):
-    """Phone information for vehicle operation request.
-
-    Attributes:
-        version: Protocol version (always 1)
-        phone_id: 16-byte phone identifier (uuid.UUID(vasPhoneId).bytes)
-    """
-
     def __init__(self, version: int = 1, phone_id: bytes = b""):
-        """Initialize PhoneInfo message."""
         self.version = version
         self.phone_id = phone_id
 
     def to_dict(self) -> dict:
-        """Convert message to dictionary."""
         return {
             "version": self.version,
             "phone_id": self.phone_id.hex(),
@@ -118,20 +70,11 @@ class PhoneInfo(_Message):
 
 
 class Metadata(_Message):
-    """Request metadata for vehicle operation.
-
-    Attributes:
-        phone_info: Phone information
-        request_id: UUID string for this request
-    """
-
     def __init__(self, phone_info: PhoneInfo | None = None, request_id: str = ""):
-        """Initialize Metadata message."""
         self.phone_info = phone_info or PhoneInfo()
         self.request_id = request_id
 
     def to_dict(self) -> dict:
-        """Convert message to dictionary."""
         return {
             "phone_info": self.phone_info.to_dict(),
             "request_id": self.request_id,
@@ -145,16 +88,6 @@ class Metadata(_Message):
 
 
 class Operation(_Message):
-    """Operation details for vehicle operation request.
-
-    Attributes:
-        rvm_type: RVM type string (e.g., "comfort.cabin.climate_hold_setting")
-        operation_type: Operation type (1 = SET, 0 = GET?)
-        operation_id: 16-byte UUID for this operation
-        payload: Serialized protobuf payload (RVM-specific)
-        timestamp: Operation timestamp
-    """
-
     def __init__(
         self,
         rvm_type: str = "",
@@ -163,7 +96,6 @@ class Operation(_Message):
         payload: bytes = b"",
         timestamp: Timestamp | None = None,
     ):
-        """Initialize Operation message."""
         self.rvm_type = rvm_type
         self.operation_type = operation_type
         self.operation_id = operation_id or uuid.uuid4().bytes
@@ -173,7 +105,6 @@ class Operation(_Message):
         self.timestamp = timestamp
 
     def to_dict(self) -> dict:
-        """Convert message to dictionary."""
         return {
             "rvm_type": self.rvm_type,
             "operation_type": self.operation_type,
@@ -195,24 +126,15 @@ class Operation(_Message):
 
 
 class VehicleOperationRequest(_Message):
-    """Vehicle operation request wrapper for sendVehicleOperation mutation.
-
-    Attributes:
-        metadata: Request metadata with phone info and request ID
-        operation: Operation details with RVM type and payload
-    """
-
     def __init__(
         self,
         metadata: Metadata | None = None,
         operation: Operation | None = None,
     ):
-        """Initialize VehicleOperationRequest message."""
         self.metadata = metadata or Metadata()
         self.operation = operation or Operation()
 
     def to_dict(self) -> dict:
-        """Convert message to dictionary."""
         return {
             "metadata": self.metadata.to_dict(),
             "operation": self.operation.to_dict(),

@@ -11,6 +11,7 @@ import pytest
 
 from custom_components.rivian.const import DEFAULT_CHARGING_SCHEDULE
 from custom_components.rivian.coordinator import ChargingCoordinator, VehicleCoordinator
+from custom_components.rivian.rivian_client.exceptions import RivianApiException
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -22,7 +23,7 @@ def _api(schedules=None, raises=False):
         return_value={"data": {"getVehicle": {"chargingSchedules": schedules or []}}}
     )
     if raises:
-        api.get_charging_schedules = AsyncMock(side_effect=RuntimeError("boom"))
+        api.get_charging_schedules = AsyncMock(side_effect=RivianApiException("boom"))
     else:
         api.get_charging_schedules = AsyncMock(return_value=response)
     api.set_charging_schedules = AsyncMock()
@@ -107,7 +108,7 @@ class TestChargingScheduleUpdate:
         self, vehicle_coordinator
     ) -> None:
         api = _api([{"startTime": 60}])
-        api.set_charging_schedules = AsyncMock(side_effect=RuntimeError("boom"))
+        api.set_charging_schedules = AsyncMock(side_effect=RivianApiException("boom"))
         coord = vehicle_coordinator(api)
         await coord.update_charging_schedule_data({"amperage": 24})
         assert coord.charging_schedule["amperage"] == 24

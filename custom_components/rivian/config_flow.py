@@ -1,5 +1,3 @@
-"""Rivian (Unofficial)"""
-
 from __future__ import annotations
 
 import logging
@@ -47,6 +45,7 @@ from .coordinator import UserCoordinator
 from .helpers import get_rivian_api_from_entry
 from .rivian_client import Rivian
 from .rivian_client.exceptions import (
+    RivianApiException,
     RivianPhoneLimitReachedError,
     RivianUnauthenticated,
 )
@@ -81,7 +80,6 @@ OPTIONS_SCHEMA = vol.Schema(
 async def validate_vehicle_control(
     handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
 ) -> dict[str, Any]:
-    """Validate vehicle control."""
     hass = handler.parent_handler.hass
     entry = handler.parent_handler.config_entry
     api = get_rivian_api_from_entry(hass, entry)
@@ -123,7 +121,6 @@ async def validate_vehicle_control(
     for vehicle_id, vehicle in vehicles.items():
         vehicle_name = vehicle["name"]
 
-        # check if phone needs to be enrolled
         if vehicle_id in control_vehicles and vehicle_id not in vehicle_identity:
             success = False
             try:
@@ -143,7 +140,7 @@ async def validate_vehicle_control(
                 )
                 await api.close()
                 raise SchemaFlowError("phone_limit") from err
-            except Exception as ex:  # noqa: BLE001
+            except RivianApiException as ex:
                 _LOGGER.error("Unable to enable control for %s: %s", vehicle_name, ex)
             if not success:
                 user_input[CONF_VEHICLE_CONTROL] = [
@@ -152,15 +149,13 @@ async def validate_vehicle_control(
                     if vehicle != control_vehicles[vehicle_id]
                 ]
 
-        # check if phone needs to be disenrolled
         elif vehicle_id not in control_vehicles and vehicle_id in vehicle_identity:
             try:
                 identity_id = vehicle_identity[vehicle_id]
                 if not await api.disenroll_phone(identity_id=identity_id):
                     _LOGGER.warning("Unable to disable control for %s", vehicle_name)
-            except Exception as ex:  # noqa: BLE001
+            except RivianApiException as ex:
                 _LOGGER.error("Unable to disable control for %s: %s", vehicle_name, ex)
-            # should we do something else if unable to disenroll?
 
     await api.close()
     return user_input
@@ -176,16 +171,10 @@ OPTIONS_FLOW = {
 def _get_schema_credential_fields(
     user_input: dict[str, Any] | None, default_dict: dict[str, Any]
 ) -> vol.Schema:
-    """Get a schema using the default_dict as a backup."""
-    # The annotations, not the behaviour: the None branch below has always been
-    # correct and the sole caller (_show_credential_fields) has always been able to
-    # pass None. The signature said otherwise, and `_get_default` claimed to return
-    # None while returning the default value, which made every call site look wrong.
     if user_input is None:
         user_input = {}
 
     def _get_default(key: str, fallback_default: Any = None) -> Any:
-        """Get default value for key."""
         return user_input.get(key, default_dict.get(key, fallback_default))
 
     return vol.Schema(
@@ -197,12 +186,9 @@ def _get_schema_credential_fields(
 
 
 class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
-    """Config flow for Rivian"""
-
     VERSION = 1
 
     def __init__(self):
-        """Initialize."""
         self._rivian: Rivian | None = None
         self._data = {}
         self._errors = {}
@@ -213,7 +199,6 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
 
     @property
     def rivian(self) -> Rivian:
-        """Return the Rivian API client."""
         if not self._rivian:
             self._rivian = Rivian(session=async_get_clientsession(self.hass))
         return self._rivian
@@ -221,14 +206,11 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> SchemaOptionsFlowHandler:
-        """Get the options flow for this handler."""
         return SchemaOptionsFlowHandler(config_entry, OPTIONS_FLOW)
 
-    # pylint: disable=protected-access
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the flow."""
         if user_input is None:
             return await self._show_credential_fields()
 
@@ -245,7 +227,7 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
                     reason = error["extensions"]["reason"]
                     msg = f"{error['message']}: {reason}"
                     show_otp = reason == "INVALID_OTP_TOKEN"
-                except Exception:  # noqa: BLE001
+                except (IndexError, KeyError, TypeError):
                     msg = str(err)
                 _LOGGER.error(msg)
                 self._errors["base"] = msg
@@ -253,10 +235,10 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
                     return await self._show_otp_field()
                 return await self._show_credential_fields(user_input)
 
-            if self.rivian._access_token:
-                self._access_token = self.rivian._access_token
-                self._refresh_token = self.rivian._refresh_token
-                self._user_session_token = self.rivian._user_session_token
+            if self.rivian.access_token:
+                self._access_token = self.rivian.access_token
+                self._refresh_token = self.rivian.refresh_token
+                self._user_session_token = self.rivian.user_session_token
                 return await self._async_create_entry()
 
             self._errors["base"] = "communication"
@@ -272,27 +254,22 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
             self._errors["base"] = "invalid_auth"
             return await self._show_credential_fields(user_input)
 
-        if self.rivian._otp_needed:
+        if self.rivian.otp_needed:
             return await self._show_otp_field()
 
-        self._access_token = self.rivian._access_token
-        self._refresh_token = self.rivian._refresh_token
-        self._user_session_token = self.rivian._user_session_token
+        self._access_token = self.rivian.access_token
+        self._refresh_token = self.rivian.refresh_token
+        self._user_session_token = self.rivian.user_session_token
         return await self._async_create_entry()
 
     async def async_step_reauth(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Perform reauth upon an API authentication error."""
-        # Guarded, not just annotated. The signature admits None and `dict.update(None)`
-        # raises TypeError, so an entry-less reauth would abort the flow with a stack
-        # trace instead of re-prompting for credentials.
         if user_input:
             self._data.update(user_input)
         return await self._show_credential_fields(user_input)
 
     async def _async_create_entry(self) -> FlowResult:
-        """Create the config entry."""
         await self.rivian.close()
         config_data = {
             CONF_USERNAME: self._data[CONF_USERNAME],
@@ -314,7 +291,6 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
     async def _show_credential_fields(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Show the configuration form to add credentials."""
         return self.async_show_form(
             step_id="user",
             data_schema=_get_schema_credential_fields(user_input, self._data),
@@ -322,7 +298,6 @@ class RivianFlowHandler(ConfigFlow, domain=DOMAIN):
         )
 
     async def _show_otp_field(self) -> FlowResult:
-        """Show the configuration form to verify otp."""
         return self.async_show_form(
             step_id="user", data_schema=STEP_OTP_DATA_SCHEMA, errors=self._errors
         )

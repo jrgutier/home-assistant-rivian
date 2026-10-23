@@ -1,5 +1,3 @@
-"""Rivian (Unofficial)"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -21,6 +19,7 @@ from .const import ATTR_COORDINATOR, ATTR_VEHICLE, DOMAIN
 from .coordinator import VehicleCoordinator
 from .entity import RivianVehicleEntity
 from .rivian_client import VehicleCommand
+from .rivian_client.exceptions import RivianApiException
 
 INSTALLING_STATUS = ("Install_Countdown", "Awaiting_Install", "Installing")
 READY_FOR_INSTALL = ("Ready_To_Install", "Scheduled_To_Install")
@@ -36,7 +35,6 @@ UPDATE_DESCRIPTION = UpdateEntityDescription(
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the update entities."""
     data: dict[str, Any] = hass.data[DOMAIN][entry.entry_id]
     vehicles: dict[str, Any] = data[ATTR_VEHICLE]
     coordinators: dict[str, VehicleCoordinator] = data[ATTR_COORDINATOR][ATTR_VEHICLE]
@@ -49,8 +47,6 @@ async def async_setup_entry(
 
 
 class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
-    """Rivian Update Entity."""
-
     _attr_supported_features = Feature.PROGRESS | Feature.RELEASE_NOTES
 
     _rivian_software_url: str
@@ -62,7 +58,6 @@ class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
         description: EntityDescription,
         vehicle: dict[str, Any],
     ) -> None:
-        """Construct a Rivian vehicle update entity."""
         super().__init__(coordinator, config_entry, description, vehicle)
         self.can_install = vehicle.get("phone_identity_id") is not None
         self._update_version_info()
@@ -103,14 +98,12 @@ class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
 
     @property
     def in_progress(self) -> bool | int:
-        """Update installation progress."""
         if self._get_value("otaStatus") in INSTALLING_STATUS:
             return self._get_value("otaInstallProgress")
         return False
 
     @property
     def supported_features(self) -> Feature:
-        """Flag supported features."""
         if self.can_install and self._get_value("otaStatus") in READY_FOR_INSTALL:
             return self._attr_supported_features | Feature.INSTALL
         return self._attr_supported_features
@@ -118,7 +111,6 @@ class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
     async def async_install(
         self, version: str | None, backup: bool, **kwargs: Any
     ) -> None:
-        """Install an update."""
         if not self.can_install:
             raise HomeAssistantError("Vehicle control is not enabled.")
         if (status := self._get_value("otaStatus")) not in READY_FOR_INSTALL:
@@ -130,15 +122,13 @@ class RivianUpdateEntity(RivianVehicleEntity, UpdateEntity):
         )
 
     async def async_release_notes(self) -> str | None:
-        """Return Rivian release notes."""
         try:
             url = await self.coordinator.get_ota_release_notes_url()
-        except Exception:  # noqa: BLE001
+        except (RivianApiException, KeyError, TypeError):
             url = self._rivian_software_url
         return f"[Read release announcement]({url})"
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
         self._update_version_info()
         super()._handle_coordinator_update()

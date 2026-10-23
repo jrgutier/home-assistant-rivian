@@ -1,5 +1,3 @@
-"""Decoders for `holiday_celebration.car_costume.*` topics."""
-
 from __future__ import annotations
 
 from typing import Any, Final
@@ -7,11 +5,6 @@ from typing import Any, Final
 from .core import RVMDecoder, _fields
 from .proto import holiday_celebration_pb2
 
-# Holiday / drive-auth enum vocabularies, transcribed from the 3.17.0 app's
-# protobuf-lite field-info descriptors (defpackage/{vg2,sg2,q97}.java:
-# `e.x(DEFAULT_INSTANCE, ...)`) and the enum classes they reference
-# (hg2/re5/me5/ycc/pe5/p97). 0 is UNSPECIFIED/SNA everywhere and is dropped
-# rather than surfaced, per the enum rule.
 _COSTUME_AVAILABILITY_MAP: Final[dict[int, str]] = {
     1: "available",
     2: "controllable",
@@ -50,15 +43,6 @@ _COSTUME_EFFECT_TRIGGER_MAP: Final[dict[int, str]] = {
 def decode_car_costume_state(
     m: holiday_celebration_pb2.CarCostumeState,
 ) -> dict[str, Any]:
-    """Decode holiday_celebration.car_costume.state -> `vg2`.
-
-    Field map from the protobuf descriptor, NOT the DTO's field order (which the
-    captured frame disproves -- its field 6 is activeCostumeEffect, not the DTO's
-    trailing `timestamp`):
-        1 carCostumeAvailability (enum hg2)  2 costumeTheme (enum re5)
-        3 motionTriggerDetected (bool)       4 costumeStartTime (Timestamp, skipped)
-        6 activeCostumeEffect (enum me5)
-    """
     result: dict[str, Any] = {}
     if m.car_costume_availability in _COSTUME_AVAILABILITY_MAP:
         result["carCostumeAvailability"] = _COSTUME_AVAILABILITY_MAP[
@@ -80,17 +64,6 @@ def decode_car_costume_state(
 def decode_car_costume_settings(
     m: holiday_celebration_pb2.CarCostumeSettings,
 ) -> dict[str, Any]:
-    """Decode holiday_celebration.car_costume.settings -> `sg2`.
-
-    Field map from the protobuf descriptor:
-        1 celebrationSoundVolume (uint32)   2 interiorMusicEnabled (bool)
-        3 interiorMusicType (uint32)        4 motionExteriorLightSoundEffect (enum,
-                                              no vocabulary transcribed -> skipped)
-        6 interiorLightShowEnabled (bool)   7 interiorOverheadLightsEnabled (bool)
-        9 lightsColor (enum ycc)           11 costumeEffect (enum me5)
-       12 effectTrigger (enum pe5)
-    An unmapped enum value is dropped.
-    """
     result = _fields(
         m,
         {

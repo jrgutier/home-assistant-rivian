@@ -1,28 +1,10 @@
-// security.* Parallax payloads.
-//
-// Layout and names started from bretterer/rivian-python-client PR 205
-// (commit 91b41cf). Every message one of this integration's decoders reads has
-// been corrected to what that decoder reads; docs/development/PARALLAX_SCHEMAS.md
-// lists each change and the three rules behind them:
-//
-//   optional   a field the decoder reports only when it was sent
-//   uint64     an integer the decoder passes through unchanged (the app's
-//              narrower type is in the comment)
-//   undeclared a length-delimited field no decoder reads; a wrong guess at its
-//              type would fail the parse of the whole message
-//
-// Generated code: scripts/regen_proto.sh. Do not edit *_pb2.py.
-
 syntax = "proto3";
 
 package rivian_ha.parallax.security;
 
 
-// security.access.passive_entry -- unmapped.
 message PassiveEntry {}
 
-// security.access.btm
-// Fields 7-10 (error counters) aren't modeled.
 message Btm {
   optional HardwareFailure ff = 1;
   optional HardwareFailure ic = 2;
@@ -30,7 +12,6 @@ message Btm {
   optional HardwareFailure rf = 4;
   optional HardwareFailure rfd = 5;
   optional HardwareFailure oc = 6;
-  // Error counters.
   int32 ffr_error = 7;
   int32 rfr_error = 8;
   int32 ffl_error = 9;
@@ -42,7 +23,6 @@ enum HardwareFailure {
   HARDWARE_FAILURE_SET = 1;
 }
 
-// security.access.immobilizer_state
 message ImmobilizerState {
   optional ImmobilizerStatus status = 1;
 }
@@ -53,7 +33,6 @@ enum ImmobilizerStatus {
   IMMOBILIZER_AUTHORIZED_TO_DRIVE = 2;
 }
 
-// security.access.passive_entry_debug
 message PassiveEntryDebug {
   optional PassiveEntryFailReason reason = 1;
   LockFailNotification send_lock_fail_notification = 2;
@@ -82,7 +61,6 @@ enum PassiveEntryFailReason {
   PASSIVE_ENTRY_SLEPT_IMMEDIATE = 13;
 }
 
-// security.access.vas_fault
 message VasFault {
   optional SecureElementFaulted secure_element = 1;
   optional AccessCanFaulted access_can = 2;
@@ -104,10 +82,9 @@ enum AccessCanFaulted {
   ACCESS_CAN_FAILURE = 2;
 }
 
-// security.alarm.state
 message AlarmState {
   optional AlarmSound sound_alarm = 1;
-  optional uint64 consecutive_alarm_disabled_notification = 2; // app: bool
+  optional uint64 consecutive_alarm_disabled_notification = 2;
 }
 
 enum AlarmSound {
@@ -117,7 +94,6 @@ enum AlarmSound {
   ALARM_SOUND_SIGNAL_NOT_AVAILABLE = 3;
 }
 
-// security.video_monitoring.state
 message VideoMonitoringState {
   optional VideoMonitoringStatus status = 1;
   optional VideoMode mode = 2;

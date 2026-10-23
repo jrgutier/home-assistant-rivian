@@ -23,6 +23,7 @@ from typing import Self
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
+from bleak.exc import BleakError
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -227,7 +228,7 @@ class _FakeVehicle:
             self.t_attempts += 1
             if not self.bonded:
                 self.bonded = self.darwin
-                raise RuntimeError("ATT error 0x05: insufficient authentication")
+                raise BleakError("ATT error 0x05: insufficient authentication")
         self.handlers[uuid] = handler
 
     async def write_gatt_char(self, uuid, data, response=False) -> None:
@@ -377,3 +378,21 @@ class TestKeyMaterialNeverReachesLogs:
         assert result is False
         assert secret not in buf.getvalue()
         assert "ValueError" in buf.getvalue()
+
+
+async def test_key_derivation_failure_logs_only_the_exception_class(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    client = _FakeVehicle()
+    leak = "deadbeef-key-material"
+    with (
+        caplog.at_level(logging.DEBUG, logger=ble_gen2.__name__),
+        patch.object(ble_gen2, "get_secret_key", side_effect=ValueError(leak)),
+        patch.object(ble_gen2, "BleakClient", lambda device, timeout=None: client),
+    ):
+        assert await ble_gen2.pair_phone_gen2(*ARGS) is False
+
+    assert "ValueError" in caplog.text
+    assert leak not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records)
+    assert client.written == []

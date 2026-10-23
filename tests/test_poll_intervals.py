@@ -173,10 +173,12 @@ async def test_the_vehicle_coordinator_cadence_is_untouched(
     from custom_components.rivian.coordinator import (
         ChargingCoordinator,
         DriverKeyCoordinator,
+        SupportedFeaturesCoordinator,
         VehicleCoordinator,
     )
 
     assert RivianDataUpdateCoordinator._update_interval_seconds == 30
+    assert SupportedFeaturesCoordinator._update_interval_seconds == 900
     assert VehicleCoordinator._update_interval_seconds == 15 * 60
     assert DriverKeyCoordinator._update_interval_seconds == 15 * 60
     assert ChargingCoordinator._update_interval_seconds == 0
