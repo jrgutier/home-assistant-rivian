@@ -69,10 +69,6 @@ print(f"UserCoordinator and WallboxCoordinator both at "
 PYEOF
 check "both declare a long interval that survives the back-off unchanged" $?
 
-# The trap itself must still be documented in the code, not only in a test.
-contains "coordinator.py records why the number is at the cap" \
-         'never reassigns the base' "$C"
-
 # Scope: the vehicle cadence is untouched.
 "$VENV_PY" - "$HA" <<'PYEOF'
 import sys

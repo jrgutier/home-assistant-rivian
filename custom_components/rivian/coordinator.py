@@ -60,8 +60,6 @@ COMMAND_STATE_STRING_TERMINAL: Final[frozenset[str]] = frozenset(
 COMMAND_STATE_WINDOW = 60
 COMMAND_STATE_CAPACITY = 32
 
-# KeyError and TypeError are a phone key missing from the entry or the account,
-# ValueError a stored key that no longer decodes.
 SEND_COMMAND_ERRORS: Final = (RivianApiException, KeyError, TypeError, ValueError)
 
 

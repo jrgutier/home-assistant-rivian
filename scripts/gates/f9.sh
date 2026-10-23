@@ -119,9 +119,9 @@ fi
 # Pin the ceiling. Two things changed here originally, both from owner ruling 27;
 # a third change re-keyed the pin from 30 s to 60/120 s (see RE-KEYED below).
 #
-# WHAT THE CEILING ACTUALLY BOUNDS. The timeout: argument's docstring block in
-# entity.py says the timeout waits for "the first well-formed frame", and the
-# loop returns on the first non-empty get_command_state. So the ceiling bounds
+# WHAT THE CEILING ACTUALLY BOUNDS. The timeout waits for
+# "the first well-formed frame": entity.py's _execute_command loop returns on
+# the first non-empty get_command_state (TestFirstFrameReturns pins it). So the ceiling bounds
 # FIRST-FRAME arrival and bites only at zero frames. The previous premise -- that
 # it should move on a terminal-latency measurement -- was a leftover from ruling
 # 15's blocking wait, which ruling 22 superseded and nobody re-derived. A gate
@@ -390,12 +390,8 @@ contains "read-through is keyed on _last_command_id and" \
   "_last_command_id and" "$E"
 try "the dead _current_command_id and (live form is absent" \
   bash -c "! grep -qF '_current_command_id and (live' '$E'"
-n_clear=$( { grep -cF '_current_command_id = None' "$E" || true; } | tr -d ' ')
-if [ "${n_clear:-0}" -eq 1 ]; then
-  ok "_current_command_id = None appears exactly once (the finally-clear is neither removed nor duplicated)"
-else
-  bad "_current_command_id = None appears ${n_clear:-0} times, expected 1"
-fi
+try "_current_command_id is gone (s62 deleted it: written, never read)" \
+  bash -c "! grep -qF '_current_command_id' '$E'"
 
 # --- 17. M1: refresh is not gated on terminality ----------------------------
 n_refresh=$( { grep -cF 'async_update_listeners' "$C" || true; } | tr -d ' ')
