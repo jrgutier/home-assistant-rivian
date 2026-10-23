@@ -166,7 +166,7 @@ TO_REDACT = {
     #     advertisement's service_uuids, so it is resolvable by anyone near
     #     the vehicle, unlike the internal `vehicleId` above.
     #   - "address": the Rivian Phone Key's BLE MAC (bleak's
-    #     `service_info.address`, button.py:207; same key name in
+    #     `service_info.address`, button.py:211; same key name in
     #     ble_trace.py's identifiers dict) -- sniffable at short range and
     #     only 48 bits, so it would be trivially enumerable if it ever
     #     reached a bundle unhashed. NOTE this key name is not BLE-specific:

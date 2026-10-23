@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import logging
 import time
 from typing import Any, Final, Generic, TypeVar
@@ -259,7 +259,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
             )
             return False
 
-        idle = (datetime.now(timezone.utc) - self._last_update_time).total_seconds()
+        idle = (datetime.now(UTC) - self._last_update_time).total_seconds()
         if idle <= self._watchdog_timeout:
             return False
 
@@ -331,7 +331,7 @@ class RivianDataUpdateCoordinator(DataUpdateCoordinator[T], ABC, Generic[T]):
         if not self._subscription_start_time:
             return 0
         return (
-            (now or datetime.now(timezone.utc)) - self._subscription_start_time
+            (now or datetime.now(UTC)) - self._subscription_start_time
         ).total_seconds() / 60
 
     def _log_resubscribe(self) -> None:
@@ -559,7 +559,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
             await self._unsubscribe()
             self._subscription_count += 1
-            self._subscription_start_time = datetime.now(timezone.utc)
+            self._subscription_start_time = datetime.now(UTC)
 
             _LOGGER.debug(
                 "Creating charging subscription #%d for vehicle %s. WebSocket monitor state: %s",
@@ -573,7 +573,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 callback=self._process_new_data,
             )
             # Reset watchdog timer on resubscription
-            self._last_update_time = datetime.now(timezone.utc)
+            self._last_update_time = datetime.now(UTC)
 
             _LOGGER.debug(
                 "Charging subscription #%d created for vehicle %s",
@@ -583,7 +583,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
             try:
                 await asyncio.wait_for(self._initial.wait(), 5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Subscription established but no initial data received
                 # This is normal when vehicle is not charging
                 _LOGGER.debug("No initial charging data received (likely not charging)")
@@ -624,7 +624,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         if not clean:
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         new_data = self._source_data["parallax"]
 
         # If a verified startTime arrives from graph data that differs from existing,
@@ -666,7 +666,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     def _process_new_data(self, data: dict[str, Any]) -> None:
         """Process new charging data from subscription."""
         # Debug: Track time between updates
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self._last_update_time:
             time_since_last = (now - self._last_update_time).total_seconds()
             if time_since_last > 60:  # Log if gap > 1 minute
@@ -695,7 +695,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                 self._error_count = 0
                 self._initial.set()
                 # Update watchdog timestamp even for empty session
-                self._last_update_time = datetime.now(timezone.utc)
+                self._last_update_time = datetime.now(UTC)
                 return
             # If it's a non-empty list, take the first item
             charging_data = charging_data[0]
@@ -710,7 +710,7 @@ class ChargingCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._initial.set()
 
         # Update watchdog timestamp
-        self._last_update_time = datetime.now(timezone.utc)
+        self._last_update_time = datetime.now(UTC)
 
     def _process_charging_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Process charging session data into expected format.
@@ -1025,9 +1025,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         """
         if not self._tpms_last_update_time:
             return False
-        idle = (
-            datetime.now(timezone.utc) - self._tpms_last_update_time
-        ).total_seconds()
+        idle = (datetime.now(UTC) - self._tpms_last_update_time).total_seconds()
         if idle <= self._tpms_watchdog_timeout:
             return False
         _LOGGER.warning(
@@ -1063,7 +1061,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
                     callback=self._process_tire_pressure_data,
                 )
             )
-            self._tpms_last_update_time = datetime.now(timezone.utc)
+            self._tpms_last_update_time = datetime.now(UTC)
         except RivianApiException:
             _LOGGER.exception(failure_log, self.vehicle_id)
             self._unsub_tire_pressure = None
@@ -1223,7 +1221,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             self._log_resubscribe()
             await self._unsubscribe()
             self._subscription_count += 1
-            self._subscription_start_time = datetime.now(timezone.utc)
+            self._subscription_start_time = datetime.now(UTC)
 
             _LOGGER.debug(
                 "Creating vehicle subscription #%d for vehicle %s. WebSocket monitor state: %s",
@@ -1288,7 +1286,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
 
             # Reset watchdog timer on resubscription
-            self._last_update_time = datetime.now(timezone.utc)
+            self._last_update_time = datetime.now(UTC)
 
             _LOGGER.debug(
                 "Vehicle subscription #%d created for vehicle %s",
@@ -1298,7 +1296,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
 
             try:
                 await asyncio.wait_for(self._initial.wait(), INITIAL_UPDATE_TIMEOUT)
-            except asyncio.TimeoutError as err:
+            except TimeoutError as err:
                 raise UpdateFailed(
                     "Timed out waiting for initial vehicle data after "
                     f"{INITIAL_UPDATE_TIMEOUT}s"
@@ -1442,7 +1440,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
     def _process_new_data(self, data: dict[str, Any]) -> None:
         """Process new data."""
         # Debug: Track time between updates
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self._last_update_time:
             time_since_last = (now - self._last_update_time).total_seconds()
             if time_since_last > 60:  # Log if gap > 1 minute
@@ -1460,7 +1458,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         self._initial.set()
 
         # Update watchdog timestamp
-        self._last_update_time = datetime.now(timezone.utc)
+        self._last_update_time = datetime.now(UTC)
 
     def _apply_vehicle_frame(self, vijson: dict[str, Any]) -> dict[str, Any]:
         """Build and publish the merged vehicle_info dict from a raw
@@ -1485,9 +1483,9 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         A sibling of _process_new_data on its own subscription (see
         subscribe_for_tire_pressure_updates()'s docstring): merges through the
         same _apply_vehicle_frame/_build_vehicle_info_dict path so the 12
-        tyre-pressure names land in _subscription_keys (coordinator.py:1574,
+        tyre-pressure names land in _subscription_keys (coordinator.py:1572,
         provenance -- not liveness), which is what keeps Parallax from
-        overwriting gateway-delivered tyre pressures (:1388).
+        overwriting gateway-delivered tyre pressures (:1386).
 
         Deliberately does NOT touch _last_update_time, _initial or
         _error_count -- those belong to the main vehicleState stream. Letting
@@ -1504,7 +1502,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
             )
             return
         self._apply_vehicle_frame(pdata.get(self.key, {}))
-        self._tpms_last_update_time = datetime.now(timezone.utc)
+        self._tpms_last_update_time = datetime.now(UTC)
         self._tpms_frames_seen += 1
 
     def _note_unusable(self, key: str, value: Any) -> None:
@@ -1559,7 +1557,7 @@ class VehicleCoordinator(RivianDataUpdateCoordinator[dict[str, Any]]):
         # Structured fields (gnssLocation, gnssError) have no top-level "value"
         # and claim on the strength of the outer dict alone. gnssLocation MUST
         # stay claimed or _process_parallax_data's unconditional branch
-        # (coordinator.py:1390) starts overwriting real GPS with Parallax's.
+        # (coordinator.py:1388) starts overwriting real GPS with Parallax's.
         usable: set[str] = set()
         unusable: set[str] = set()
         for k, v in items.items():
@@ -2077,7 +2075,7 @@ class VehicleImageCoordinator(RivianDataUpdateCoordinator[list[dict[str, Any]]])
         response = await self.api.get_vehicle_images(
             resolution="@3x", vehicle_version=self.version
         )
-        self._last_updated = datetime.now(timezone.utc)
+        self._last_updated = datetime.now(UTC)
         # The key extraction that used to live here is the base class's job now,
         # and calling .get on the response was the same bug in miniature.
         return response

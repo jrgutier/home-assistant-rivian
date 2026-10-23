@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from .core import _TIMESTAMP_FORMAT, RVMDecoder, _name
@@ -102,7 +102,7 @@ def decode_charging_graph_global(
     result: dict[str, Any] = {}
 
     if "start_ms" in first_seg:
-        st = datetime.fromtimestamp(first_seg["start_ms"] / 1000, timezone.utc)
+        st = datetime.fromtimestamp(first_seg["start_ms"] / 1000, UTC)
         result["startTime"] = st.strftime(_TIMESTAMP_FORMAT)
 
     result["timeElapsed"] = sum(

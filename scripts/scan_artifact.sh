@@ -38,10 +38,12 @@ unexpected=$(
   find "$WORK" -type f \
     ! -name '*.py' ! -name '*.json' ! -name '*.js' ! -name '*.graphql' \
     ! -name '*.proto' ! -name '*.yaml' ! -name 'py.typed' \
+    ! -path '*/brand/*.png' \
     -printf '%P\n' 2>/dev/null || \
   find "$WORK" -type f \
     ! -name '*.py' ! -name '*.json' ! -name '*.js' ! -name '*.graphql' \
     ! -name '*.proto' ! -name '*.yaml' ! -name 'py.typed' \
+    ! -path '*/brand/*.png' \
     | sed "s|^$WORK/||"
 )
 if [ -z "$unexpected" ]; then

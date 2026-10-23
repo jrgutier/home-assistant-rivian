@@ -119,7 +119,9 @@ the branch boundary agrees with it.
 **Releases are cut by hand, and so are version bumps.** Bump `manifest.json` *and* `const.py`'s
 `VERSION` in a normal PR, then run the **Pre-Release Build** workflow manually
 (`workflow_dispatch`). It tags exactly what the manifest says and refuses to re-cut an existing
-tag.
+tag. A stable `X.Y.Z` goes through **Release Build** (`stable-release.yaml`) instead, which
+publishes a full release marked Latest and refuses any version with a suffix. GitHub's "Latest"
+badge only ever points at a non-pre-release, so betas alone never move it.
 
 This replaces a CI-owned bump (`chore: bump version [skip ci]`) that fired on every push to
 master. Protecting `master` broke it: the bot's push was rejected with `GH006` and swallowed by
@@ -254,7 +256,7 @@ Vehicle commands require a one-time Bluetooth pairing:
 2. Integration generates a cryptographic key pair
 3. User initiates pairing in-vehicle and clicks "Pair" button entity in HA
 4. After pairing, commands are sent via cloud (no Bluetooth required after pairing)
-5. Gen2 (2025) vehicles not currently supported due to BLE hardware changes
+5. Gen2 (2025+) vehicles use a different handshake (protobuf over Q/R, bond on T), verified by walthowd/rivian-gen2-key-poc and ported in `ble_gen2.py`; see docs/development/GEN2_BLE_PROTOCOL.md. Local BlueZ cannot see a Gen2 vehicle's services
 
 ### Data Flow
 

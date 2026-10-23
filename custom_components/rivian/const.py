@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
@@ -29,7 +29,7 @@ from .data_classes import (
 
 NAME = "Rivian (Unofficial)"
 DOMAIN = "rivian"
-VERSION = "1.6.0-beta19"
+VERSION = "1.6.1"
 ISSUE_URL = "https://github.com/bretterer/home-assistant-rivian/issues"
 
 # Attributes
@@ -200,7 +200,7 @@ def _epoch_seconds_to_utc(value: Any) -> datetime | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     try:
-        return datetime.fromtimestamp(value, tz=timezone.utc)
+        return datetime.fromtimestamp(value, tz=UTC)
     except (OSError, OverflowError, ValueError):
         return None
 

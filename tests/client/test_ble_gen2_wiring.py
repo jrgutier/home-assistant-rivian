@@ -8,10 +8,9 @@ inside a `try/except` that logged at DEBUG and continued. The result: pairing
 worked, the whole suite passed, and the trace recorded NOTHING -- silently, and
 in production, forever.
 
-That matters more than a normal wiring bug. Nobody involved owns a Gen 2
-vehicle, so a beta tester's trace is the only evidence that will ever settle the
-UNPROVEN parts of this protocol (chiefly which characteristic carries the
-handshake). A silently inert trace does not degrade diagnostics; it removes the
+That matters more than a normal wiring bug. No maintainer has paired a Gen 2
+vehicle from Home Assistant, so a beta tester's trace is the only evidence of
+where an attempt stops on HA's Bluetooth stack. A silently inert trace does not degrade diagnostics; it removes the
 entire feedback channel while every signal says the change is healthy.
 
 The unit tests in `test_ble_gen2.py` cannot catch this: they call
@@ -110,14 +109,13 @@ class TestTraceIsolationBetweenVehicles:
 
 
 class TestGattDiscoveryIsCaptured:
-    """The GATT dump is the single highest-value unknown in the delta report.
+    """The GATT dump a tester's bundle carries.
 
     `detect_vehicle_generation` already enumerates every service and
     characteristic to tell a Gen 2 vehicle from a Gen 1 one, and before this
-    change it threw that list away. It is what settles whether the four Gen 2
-    UUIDs this integration writes to and reads from are even the right ones --
-    GEN2_BLE_DELTA.md's UNPROVEN items 1, 2 and 5, none of which any amount of
-    local testing can close.
+    change it threw that list away. An empty list is the signature of the BlueZ
+    Service Changed failure (GEN2_BLE_PROTOCOL.md), which no local test can
+    reproduce.
 
     Without this pin the capture can be deleted and the whole suite stays green,
     which would silently remove the most valuable thing a tester's bundle
@@ -151,10 +149,9 @@ class TestGattDiscoveryIsCaptured:
         rendered = trace.as_dict()
         recorded = {s["uuid"] for s in rendered["services"]}
         assert recorded == {u.upper() for u in uuids}
-        # Properties too: "which characteristic is writable" is half the answer
-        # to the write-target question (UNPROVEN item 1).
+        # Properties too: which characteristics are writable or notifiable.
         assert all("properties" in s for s in rendered["services"])
-        # MTU distinguishes fragmentation from a wrong characteristic.
+        # MTU: a 90-byte auth#1 fragments on a default-MTU link.
         assert rendered["mtu"] == 185
 
     async def test_no_capture_without_a_vehicle_id(self) -> None:

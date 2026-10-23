@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -79,7 +79,7 @@ def _tire_pressure_diagnostics(coor: VehicleCoordinator) -> dict[str, Any]:
     return {
         "subscribed": getattr(coor, "_unsub_tire_pressure", None) is not None,
         "last_frame_age": (
-            (datetime.now(timezone.utc) - last).total_seconds() if last else None
+            (datetime.now(UTC) - last).total_seconds() if last else None
         ),
         "frames_seen": getattr(coor, "_tpms_frames_seen", 0),
     }
@@ -231,8 +231,8 @@ async def async_get_config_entry_diagnostics(
     # "connected but receiving nothing" is a real and non-obvious state, which
     # is why `subscribed` is reported separately from the data itself.
     # This comment previously justified that with "the gateway allows one active
-    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:858 runs a
-    # single monitor multiplexing rivian.py:147 `_subscriptions`, and
+    # subscription per user session". FALSIFIED 2026-08-20: rivian.py:857 runs a
+    # single monitor multiplexing rivian.py:146 `_subscriptions`, and
     # subscribe_for_vehicle_updates, subscribe_for_parallax_messages and
     # subscribe_for_cloud_connection in coordinator.py open three concurrent on
     # one u-sess every day. The diagnostic is still worth reporting; the reason
@@ -251,8 +251,7 @@ async def async_get_config_entry_diagnostics(
     data = {
         "parallax": parallax,
         # Gen 2 BLE pairing trace (beta): what a tester's pairing attempt
-        # actually did on the wire, for the UNPROVEN unknowns in
-        # GEN2_BLE_DELTA.md that only a real capture can settle. Filtered to
+        # actually did on the wire, and where it stopped. Filtered to
         # this entry's own vehicle_ids -- all_traces_as_dict() reads from a
         # module-level dict that is not scoped to any one config entry, so
         # an unfiltered dump would leak another account's vehicle trace

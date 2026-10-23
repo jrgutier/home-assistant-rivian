@@ -1,11 +1,10 @@
 """Per-vehicle BLE frame trace for Gen 2 pairing diagnostics.
 
-Gen 2 (PRE_CCC) pairing is implemented from static analysis of the Android app
-(docs/development/GEN2_BLE_DELTA.md). Several things that analysis could NOT
-prove -- most importantly which characteristic actually carries the
-handshake, and whether the plain or the encrypted channel returns the vehicle
-nonce -- are only settleable from a capture against a real Gen 2 vehicle,
-which no maintainer has.
+Gen 2 (PRE_CCC) pairing follows the protocol walthowd/rivian-gen2-key-poc
+verified on a real vehicle (docs/development/GEN2_BLE_PROTOCOL.md). What is
+still untested is this integration's side of it: Home Assistant's Bluetooth
+stack, its proxies, and a key enrolled as device type "HA" rather than
+"phone". A trace shows how far an attempt got and where it stopped.
 
 These traces are what a beta tester sends back. They are surfaced through
 diagnostics.py, which is admin-only and redacted. Nothing here leaves the
@@ -14,7 +13,7 @@ itself handles diagnostics.
 
 ONE TRACE PER VEHICLE, NOT A MODULE SINGLETON. A multi-vehicle account builds
 one pair button PER VEHICLE (button.py:126-132), each guarded by its own
-PER-ENTITY `self._pairing` (button.py:168) -- not one guard for the whole
+PER-ENTITY `self._pairing` (button.py:171) -- not one guard for the whole
 integration. Two vehicles on the same account can therefore pair
 concurrently. A single global trace would interleave both pairings' frames
 into one stream, and either one's `reset()` would wipe the other's evidence
@@ -40,9 +39,10 @@ That is the disclosure risk that actually matters here.
 Ephemeral frame bytes -- the nonces and their MACs -- are recorded as plain
 hex by `record_frame()`. They are single-use, dead the moment the connection
 drops, and recovering the HMAC key from a (nonce, MAC) pair means breaking
-HMAC-SHA256. Masking them would cost the entire diagnostic value of the
-trace, because reconstructing an unproven frame layout is the only reason it
-exists, and would buy no protection worth having.
+HMAC-SHA256. Masking them would cost most of the trace's diagnostic value
+and buy no protection worth having. The Gen 2 frames do carry the phone id and
+VAS vehicle id in the clear, so `record_frame()` zeroes every identifier
+`record_identifiers()` registered. Register them before the first frame.
 
 THE SALT INVARIANT. `_SALT` is generated fresh per process and is never
 included in `as_dict()` / `all_traces_as_dict()`. That is what makes the
@@ -55,9 +55,11 @@ property. Don't.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from hashlib import blake2s
 import secrets
 from typing import Any
+from uuid import UUID
 
 # Regenerated every process start. Correlates identifiers within one report;
 # never lets two reports -- or a report and the salt itself -- be linked. See
@@ -91,6 +93,9 @@ class BleTrace:
         self.mtu: int | None = None
         self.bonding: dict[str, str] | None = None
         self.state: str | None = None
+        # Raw byte forms of the registered identifiers, zeroed out of every
+        # frame. Never serialized, like _SALT.
+        self._masked: set[bytes] = set()
 
     def reset(self) -> None:
         """Clear the trace. Call ONLY when the pairing button is pressed again --
@@ -105,6 +110,7 @@ class BleTrace:
         self.mtu = None
         self.bonding = None
         self.state = None
+        self._masked.clear()
 
     def start_attempt(self) -> int:
         """Mark the start of one retry-loop attempt; return its 1-based index.
@@ -112,7 +118,7 @@ class BleTrace:
         Frames recorded by `record_frame()` after this call are tagged with
         this attempt number until the next call. Marking the boundary
         explicitly -- rather than trying to infer it from frame content --
-        is what lets a maintainer read "attempt 1 died after the pNonce
+        is what lets a maintainer read "attempt 1 died after the auth#1
         write" instead of one undifferentiated stream of frames from
         however many retries the loop made.
         """
@@ -122,8 +128,8 @@ class BleTrace:
         return len(self.attempts)
 
     def record_attempt_outcome(self, outcome: str) -> None:
-        """Record how the current attempt ended, e.g. "timeout", "bad_vnonce_mac",
-        "authenticated". A no-op if `start_attempt()` was never called.
+        """Record how the current attempt ended, e.g. "timeout", "bad_reply",
+        "bonded". A no-op if `start_attempt()` was never called.
         """
         if self.attempts:
             self.attempts[-1]["outcome"] = outcome
@@ -152,6 +158,9 @@ class BleTrace:
         # exists to preserve: correlation within a bundle ("the same phone
         # paired both vehicles"). The suffix lets both properties hold at
         # once -- raw values still get caught by name, hashed ones survive.
+        for value in (phone_id, vas_vehicle_id):
+            with suppress(ValueError, TypeError):
+                self._masked.add(UUID(value).bytes)
         if phone_id is not None:
             self.identifiers["phone_id_fp"] = fingerprint(phone_id)
         if vas_vehicle_id is not None:
@@ -162,33 +171,26 @@ class BleTrace:
     def record_services(self, services: list[dict[str, Any]]) -> None:
         """Record the vehicle's advertised GATT characteristics.
 
-        UUIDs and properties only, never characteristic values. This is the
-        single highest-value unknown in the delta report: it settles whether
-        the four Gen 2 UUIDs this integration uses are the right ones at
-        all.
+        UUIDs and properties only, never characteristic values. A vehicle
+        that exposes none is the BlueZ Service Changed failure.
         """
         self.services = services
 
     def record_bonding(self, path: str, outcome: str) -> None:
         """Record which bonding path ran and how it ended.
 
-        UNPROVEN (plan §3.5): there is zero APK evidence for Gen 2 bonding, so a
+        Gen 2 bonds when the encrypted T characteristic is subscribed, so a
         tester report has to distinguish "never bonded" from "bonded and still
-        rejected" -- otherwise the two failures look identical in the bundle and
-        neither can be ruled out. `path` is "pair" (client.pair() was called) or
-        "darwin-passive" (the already-open encrypted subscription is relied on
-        instead, because re-subscribing is rejected as a duplicate by some bleak
-        backends). A log line is not enough: the tester attaches the diagnostics
-        download, not their log buffer.
+        rejected". `path` is "subscribe-t". A log line is not enough: the tester
+        attaches the diagnostics download, not their log buffer.
         """
         self.bonding = {"path": path, "outcome": outcome}
 
     def record_mtu(self, mtu: int) -> None:
         """Record the negotiated ATT MTU for this connection.
 
-        Part of discriminating "wrong characteristic" from "MTU truncated
-        the frame" -- both would otherwise look like the same silent
-        failure (see the plan's Pre-mortem 1).
+        auth#1 is 90 bytes, so a link stuck at the 23-byte default MTU
+        fragments it; this tells that apart from a silent vehicle.
         """
         self.mtu = mtu
 
@@ -200,17 +202,21 @@ class BleTrace:
         `direction` is caller-defined (e.g. "write", "notify", "subscribe")
         and, paired with `characteristic`, is what tells a write from a
         subscription -- no separate field is needed for that. See the
-        module docstring on masking: `data` is recorded as plain hex.
+        module docstring on masking: `data` is recorded as plain hex, with
+        registered identifiers zeroed.
         """
         if len(self.frames) >= MAX_FRAMES:
             return
+        data = bytes(data)
+        for identifier in self._masked:
+            data = data.replace(identifier, bytes(len(identifier)))
         self.frames.append(
             {
                 "attempt": len(self.attempts) or None,
                 "direction": direction,
                 "characteristic": characteristic.upper(),
                 "length": len(data),
-                "hex": bytes(data).hex(),
+                "hex": data.hex(),
                 "note": note,
             }
         )

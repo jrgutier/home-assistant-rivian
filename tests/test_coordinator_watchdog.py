@@ -1,7 +1,7 @@
 """Tests for coordinator watchdog functionality."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -129,9 +129,9 @@ class TestVehicleCoordinatorWatchdog:
             }
         }
 
-        before_time = datetime.now(timezone.utc)
+        before_time = datetime.now(UTC)
         mock_vehicle_coordinator._process_new_data(update_data)
-        after_time = datetime.now(timezone.utc)
+        after_time = datetime.now(UTC)
 
         # Timestamp should be updated
         assert mock_vehicle_coordinator._last_update_time is not None
@@ -193,7 +193,7 @@ class TestVehicleCoordinatorWatchdog:
         # Set initial state
         mock_vehicle_coordinator.data = {"powerState": {"value": "go"}}
         mock_vehicle_coordinator._unsub_handler = AsyncMock()
-        mock_vehicle_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_vehicle_coordinator._subscription_start_time = datetime.now(UTC)
         mock_vehicle_coordinator._subscription_count = 1
 
         # Mock the API's WebSocket monitor
@@ -243,7 +243,7 @@ class TestVehicleCoordinatorWatchdog:
         # Set initial state
         mock_vehicle_coordinator.data = {"powerState": {"value": "go"}}
         mock_vehicle_coordinator._unsub_handler = AsyncMock()
-        mock_vehicle_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_vehicle_coordinator._subscription_start_time = datetime.now(UTC)
         mock_vehicle_coordinator._subscription_count = 1
         mock_vehicle_coordinator.api._ws_monitor = MagicMock()
         mock_vehicle_coordinator.api._ws_monitor.connected = True
@@ -284,7 +284,7 @@ class TestVehicleCoordinatorWatchdog:
         # Set initial state
         mock_vehicle_coordinator.data = {"powerState": {"value": "go"}}
         mock_vehicle_coordinator._unsub_handler = AsyncMock()
-        mock_vehicle_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_vehicle_coordinator._subscription_start_time = datetime.now(UTC)
         mock_vehicle_coordinator._subscription_count = 1
         mock_vehicle_coordinator.api._ws_monitor = MagicMock()
         mock_vehicle_coordinator.api._ws_monitor.connected = True
@@ -362,9 +362,9 @@ class TestChargingCoordinatorWatchdog:
             }
         }
 
-        before_time = datetime.now(timezone.utc)
+        before_time = datetime.now(UTC)
         mock_charging_coordinator._process_new_data(update_data)
-        after_time = datetime.now(timezone.utc)
+        after_time = datetime.now(UTC)
 
         # Timestamp should be updated
         assert mock_charging_coordinator._last_update_time is not None
@@ -379,9 +379,9 @@ class TestChargingCoordinatorWatchdog:
         # Process empty charging session
         update_data = {"payload": {"data": {"chargingSession": []}}}
 
-        before_time = datetime.now(timezone.utc)
+        before_time = datetime.now(UTC)
         mock_charging_coordinator._process_new_data(update_data)
-        after_time = datetime.now(timezone.utc)
+        after_time = datetime.now(UTC)
 
         # Timestamp should still be updated
         assert mock_charging_coordinator._last_update_time is not None
@@ -415,7 +415,7 @@ class TestChargingCoordinatorWatchdog:
         # Set initial state
         mock_charging_coordinator.data = {}
         mock_charging_coordinator._unsub_handler = AsyncMock()
-        mock_charging_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_charging_coordinator._subscription_start_time = datetime.now(UTC)
         mock_charging_coordinator._subscription_count = 1
 
         # Mock the API's WebSocket monitor
@@ -461,7 +461,7 @@ class TestChargingCoordinatorWatchdog:
         # Set initial state
         mock_charging_coordinator.data = {}
         mock_charging_coordinator._unsub_handler = AsyncMock()
-        mock_charging_coordinator._subscription_start_time = datetime.now(timezone.utc)
+        mock_charging_coordinator._subscription_start_time = datetime.now(UTC)
         mock_charging_coordinator._subscription_count = 1
         mock_charging_coordinator.api._ws_monitor = MagicMock()
         mock_charging_coordinator.api._ws_monitor.connected = True

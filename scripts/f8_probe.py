@@ -215,7 +215,7 @@ async def attempt(client, vid, props, label, wait=25, tpms=False):
         return (False, False, {})
     try:
         await asyncio.wait_for(ev.wait(), timeout=wait)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pass
     delivered = {
         k: (v.get("value") if isinstance(v, dict) else v) for k, v in got.items()

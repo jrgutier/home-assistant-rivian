@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import asyncio as async_timeout
 import base64
 from collections.abc import Awaitable, Callable, Set as AbstractSet
@@ -914,7 +913,7 @@ class Rivian:
                     json=body,
                     headers=headers,
                 )
-        except asyncio.TimeoutError as exception:
+        except TimeoutError as exception:
             raise RivianApiException(
                 "Timeout occurred while connecting to Rivian API."
             ) from exception

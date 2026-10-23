@@ -14,6 +14,7 @@ A round-trip test is not available here -- there is no write-side decoder -- so
 golden bytes are the whole safety net.
 """
 
+from datetime import UTC
 import json
 import pathlib
 
@@ -99,11 +100,11 @@ class TestHandRolledTimestamp:
         )
 
     def test_round_trips_through_to_datetime(self) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from custom_components.rivian.rivian_client.proto.vehicle_operation import (
             Timestamp,
         )
 
-        moment = datetime(2026, 8, 18, 12, 0, 0, tzinfo=timezone.utc)
+        moment = datetime(2026, 8, 18, 12, 0, 0, tzinfo=UTC)
         assert Timestamp.from_datetime(moment).ToDatetime() == moment

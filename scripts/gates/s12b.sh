@@ -66,7 +66,7 @@ done
 # An absence is always satisfiable by deleting; these run the real thing.
 ZIP="$(mktemp -d)/rivian.zip"
 if (cd "$HA/custom_components/rivian" && zip -q -r "$ZIP" ./ \
-      -i '*.py' '*.json' '*.js' '*.graphql' '*.proto' '*.yaml' 'py.typed'); then
+      -i '*.py' '*.json' '*.js' '*.graphql' '*.proto' '*.yaml' 'py.typed' 'brand/*.png'); then
   try "built artifact passes the secret/content scan" \
       bash "$HA/scripts/scan_artifact.sh" "$ZIP"
 else
