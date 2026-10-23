@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 import subprocess
@@ -68,7 +68,7 @@ def _ssh(cmd: str) -> str:
 
 
 def _utc() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def newest_row_age() -> float | None:
@@ -188,7 +188,7 @@ async def arm_3a(client, vid) -> dict:
     )
     try:
         await asyncio.wait_for(ev.wait(), timeout=30)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pass
     t_close = time.time()
     closed = _utc()
@@ -250,7 +250,7 @@ async def arm_3b(client, vid) -> dict:
         }
     try:
         await asyncio.wait_for(ev.wait(), timeout=45)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pass
     t_close = time.time()
     closed = _utc()

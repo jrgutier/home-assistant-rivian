@@ -34,7 +34,7 @@ domains in the same file are left untouched.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 import os
 from pathlib import Path
@@ -96,7 +96,7 @@ def build_entry(env: dict[str, str], entry_id: str) -> dict:
             + "\nNames only are shown; no values are ever printed."
         )
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     vehicle_control = [
         v.strip() for v in env[VEHICLE_CONTROL_KEY].split(",") if v.strip()
     ]

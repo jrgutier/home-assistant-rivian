@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import asyncio as async_timeout
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import inspect
 from json import loads
 import logging
@@ -142,7 +142,7 @@ class WebSocketMonitor:
         try:
             async with async_timeout.timeout(self._account.request_timeout):
                 await self.connection_ack.wait()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.error("A timeout occurred while attempting to resubscribe")
             return
         for _id, (_, payload) in self._subscriptions.items():
@@ -172,7 +172,7 @@ class WebSocketMonitor:
                     else:
                         self._log_message(msg)
                     break
-                self._last_received = datetime.now(timezone.utc)
+                self._last_received = datetime.now(UTC)
                 if msg.type == WSMsgType.TEXT:
                     data = loads(msg.data)
                     if (data_type := data.get("type")) == "connection_ack":
@@ -189,7 +189,7 @@ class WebSocketMonitor:
                 elif msg.type == WSMsgType.ERROR:
                     self._log_message(msg, True)
                     continue
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await self._resubscribe_all()
         self._connection_ack.clear()
         self._log_message("web socket stopped")
@@ -220,7 +220,7 @@ class WebSocketMonitor:
                 try:
                     async with async_timeout.timeout(self._account.request_timeout):
                         await self._connection_ack.wait()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if self._disconnect:
                         break
                     await asyncio.sleep(backoff_delay(attempt))

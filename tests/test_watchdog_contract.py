@@ -13,7 +13,7 @@ A tick is a separate method precisely so it can be driven without waiting out th
 whole session).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -42,13 +42,13 @@ def coordinator(request, hass: HomeAssistant, mock_config_entry: ConfigEntry):
 
 
 def _stale(coordinator) -> None:
-    coordinator._last_update_time = datetime.now(timezone.utc) - timedelta(
+    coordinator._last_update_time = datetime.now(UTC) - timedelta(
         seconds=coordinator._watchdog_timeout + 60
     )
 
 
 def _fresh(coordinator) -> None:
-    coordinator._last_update_time = datetime.now(timezone.utc)
+    coordinator._last_update_time = datetime.now(UTC)
 
 
 class TestTheSharedContract:

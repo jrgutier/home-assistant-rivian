@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from .core import _TIMESTAMP_FORMAT, RVMDecoder, _fields
@@ -74,7 +74,7 @@ def decode_gnss(m: dynamics_pb2.Gnss) -> dict[str, Any]:
     """
     result: dict[str, Any] = {}
     if m.HasField("latitude") and m.HasField("longitude"):
-        now_iso = datetime.now(timezone.utc).strftime(_TIMESTAMP_FORMAT)
+        now_iso = datetime.now(UTC).strftime(_TIMESTAMP_FORMAT)
         result["gnssLocation"] = {
             "latitude": round(m.latitude, 6),
             "longitude": round(m.longitude, 6),

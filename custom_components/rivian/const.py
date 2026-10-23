@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
@@ -200,7 +200,7 @@ def _epoch_seconds_to_utc(value: Any) -> datetime | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     try:
-        return datetime.fromtimestamp(value, tz=timezone.utc)
+        return datetime.fromtimestamp(value, tz=UTC)
     except (OSError, OverflowError, ValueError):
         return None
 
