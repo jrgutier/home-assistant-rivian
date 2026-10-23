@@ -119,7 +119,9 @@ the branch boundary agrees with it.
 **Releases are cut by hand, and so are version bumps.** Bump `manifest.json` *and* `const.py`'s
 `VERSION` in a normal PR, then run the **Pre-Release Build** workflow manually
 (`workflow_dispatch`). It tags exactly what the manifest says and refuses to re-cut an existing
-tag.
+tag. A stable `X.Y.Z` goes through **Release Build** (`stable-release.yaml`) instead, which
+publishes a full release marked Latest and refuses any version with a suffix. GitHub's "Latest"
+badge only ever points at a non-pre-release, so betas alone never move it.
 
 This replaces a CI-owned bump (`chore: bump version [skip ci]`) that fired on every push to
 master. Protecting `master` broke it: the bot's push was rejected with `GH006` and swallowed by
