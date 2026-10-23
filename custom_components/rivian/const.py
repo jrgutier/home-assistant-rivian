@@ -30,7 +30,7 @@ from .data_classes import (
 NAME = "Rivian (Unofficial)"
 DOMAIN = "rivian"
 VERSION = "1.6.1"
-ISSUE_URL = "https://github.com/bretterer/home-assistant-rivian/issues"
+ISSUE_URL = "https://github.com/jrgutier/home-assistant-rivian/issues"
 
 # Attributes
 ATTR_API = "api"
