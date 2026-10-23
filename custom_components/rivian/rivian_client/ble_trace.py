@@ -1,11 +1,10 @@
 """Per-vehicle BLE frame trace for Gen 2 pairing diagnostics.
 
-Gen 2 (PRE_CCC) pairing is implemented from static analysis of the Android app
-(docs/development/GEN2_BLE_DELTA.md). Several things that analysis could NOT
-prove -- most importantly which characteristic actually carries the
-handshake, and whether the plain or the encrypted channel returns the vehicle
-nonce -- are only settleable from a capture against a real Gen 2 vehicle,
-which no maintainer has.
+Gen 2 (PRE_CCC) pairing follows the protocol walthowd/rivian-gen2-key-poc
+verified on a real vehicle (docs/development/GEN2_BLE_PROTOCOL.md). What is
+still untested is this integration's side of it: Home Assistant's Bluetooth
+stack, its proxies, and a key enrolled as device type "HA" rather than
+"phone". A trace shows how far an attempt got and where it stopped.
 
 These traces are what a beta tester sends back. They are surfaced through
 diagnostics.py, which is admin-only and redacted. Nothing here leaves the
@@ -40,9 +39,9 @@ That is the disclosure risk that actually matters here.
 Ephemeral frame bytes -- the nonces and their MACs -- are recorded as plain
 hex by `record_frame()`. They are single-use, dead the moment the connection
 drops, and recovering the HMAC key from a (nonce, MAC) pair means breaking
-HMAC-SHA256. Masking them would cost the entire diagnostic value of the
-trace, because reconstructing an unproven frame layout is the only reason it
-exists, and would buy no protection worth having.
+HMAC-SHA256. Masking them would cost most of the trace's diagnostic value
+and buy no protection worth having. The Gen 2 frames do carry the phone id and
+VAS vehicle id in the clear; ble_gen2 zeroes those before recording a frame.
 
 THE SALT INVARIANT. `_SALT` is generated fresh per process and is never
 included in `as_dict()` / `all_traces_as_dict()`. That is what makes the
@@ -122,8 +121,8 @@ class BleTrace:
         return len(self.attempts)
 
     def record_attempt_outcome(self, outcome: str) -> None:
-        """Record how the current attempt ended, e.g. "timeout", "bad_vnonce_mac",
-        "authenticated". A no-op if `start_attempt()` was never called.
+        """Record how the current attempt ended, e.g. "timeout", "bad_reply",
+        "bonded". A no-op if `start_attempt()` was never called.
         """
         if self.attempts:
             self.attempts[-1]["outcome"] = outcome
@@ -172,14 +171,10 @@ class BleTrace:
     def record_bonding(self, path: str, outcome: str) -> None:
         """Record which bonding path ran and how it ended.
 
-        UNPROVEN (plan §3.5): there is zero APK evidence for Gen 2 bonding, so a
+        Gen 2 bonds when the encrypted T characteristic is subscribed, so a
         tester report has to distinguish "never bonded" from "bonded and still
-        rejected" -- otherwise the two failures look identical in the bundle and
-        neither can be ruled out. `path` is "pair" (client.pair() was called) or
-        "darwin-passive" (the already-open encrypted subscription is relied on
-        instead, because re-subscribing is rejected as a duplicate by some bleak
-        backends). A log line is not enough: the tester attaches the diagnostics
-        download, not their log buffer.
+        rejected". `path` is "subscribe-t". A log line is not enough: the tester
+        attaches the diagnostics download, not their log buffer.
         """
         self.bonding = {"path": path, "outcome": outcome}
 

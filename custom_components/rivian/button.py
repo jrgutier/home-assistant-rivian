@@ -200,30 +200,40 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
         )
 
         rivian_phone_keys = set()
+        vas_uuid = str(UUID(vehicle["vas_id"]))
 
         def _process_more_advertisements(
             service_info: BluetoothServiceInfoBleak,
         ) -> bool:
             if service_info.address in rivian_phone_keys:
                 return False
+            # Gen 1 advertises the local name "Rivian Phone Key". Gen 2 has no
+            # local name at all: it advertises its vasVehicleId as a 128-bit
+            # service UUID, behind a rotating private address, so matching by
+            # name alone never finds one.
+            if (
+                service_info.name != rivian_ble.DEVICE_LOCAL_NAME
+                and vas_uuid not in service_info.service_uuids
+            ):
+                return False
             _LOGGER.debug("Found %s (RSSI: %s)", service_info.device, service_info.rssi)
             rivian_phone_keys.add(service_info.address)
             return True
 
         async def _find_phone_key() -> tuple[BLEDevice, bool] | None:
-            _LOGGER.debug("Searching for %s", rivian_ble.DEVICE_LOCAL_NAME)
+            _LOGGER.debug(
+                "Searching for the vehicle (%s or its VAS service UUID)",
+                rivian_ble.DEVICE_LOCAL_NAME,
+            )
             try:
                 service_info = await bluetooth.async_process_advertisements(
                     self.hass,
                     _process_more_advertisements,
-                    {"local_name": rivian_ble.DEVICE_LOCAL_NAME, "connectable": True},
+                    {"connectable": True},
                     BluetoothScanningMode.ACTIVE,
                     30,
                 )
-                return (
-                    service_info.device,
-                    str(UUID(vehicle["vas_id"])) in service_info.service_uuids,
-                )
+                return (service_info.device, vas_uuid in service_info.service_uuids)
             except Exception as ex:  # noqa: BLE001
                 _LOGGER.error(
                     "%s not found%s",

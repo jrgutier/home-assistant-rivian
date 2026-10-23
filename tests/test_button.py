@@ -490,6 +490,35 @@ class TestPairingSequence:
             await entity.async_press()
         assert entity._pairing is False
 
+    async def test_the_scan_matches_gen1_by_name_and_gen2_by_vas_uuid(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """A Gen 2 vehicle advertises no local name, only its vasVehicleId as a
+        service UUID. A scan filtered on "Rivian Phone Key" never finds one."""
+        entity, _ = self._entity(hass, mock_config_entry)
+        scan = AsyncMock(side_effect=TimeoutError)
+        with patch(
+            "homeassistant.components.bluetooth.async_process_advertisements", scan
+        ):
+            await entity.async_press()
+
+        callback, matcher = scan.await_args.args[1:3]
+        assert matcher == {"connectable": True}
+
+        def adv(address, name, uuids):
+            info = MagicMock()
+            info.address, info.name, info.service_uuids = address, name, uuids
+            return info
+
+        vas = "11111111-2222-3333-4444-555555555555"
+        assert callback(adv("01", "Rivian Phone Key", [])) is True  # Gen 1
+        assert callback(adv("02", "02", [vas])) is True  # Gen 2: unnamed, by UUID
+        assert callback(adv("03", "Headphones", [])) is False
+        assert (
+            callback(adv("04", "04", ["0000fff5-0000-1000-8000-00805f9b34fb"])) is False
+        )
+        assert callback(adv("02", "02", [vas])) is False  # already tried
+
     async def test_a_successful_pair_that_the_api_confirms_disables_the_button(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:

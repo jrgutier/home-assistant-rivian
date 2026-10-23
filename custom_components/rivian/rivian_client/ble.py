@@ -141,7 +141,20 @@ async def detect_vehicle_generation(
                 _LOGGER.info("Detected Gen 1 (LEGACY) vehicle")
                 return 1
 
-            _LOGGER.warning("Unknown vehicle generation - no matching characteristics")
+            if not char_uuids:
+                # A Gen 2 vehicle refuses the Service Changed subscription BlueZ
+                # makes on every connection; BlueZ then drops its whole GATT
+                # client while still reporting services resolved, so bleak sees
+                # an empty device (docs/development/GEN2_BLE_PROTOCOL.md).
+                _LOGGER.warning(
+                    "The vehicle exposed no GATT services. On a local BlueZ "
+                    "adapter this is a known Gen 2 incompatibility; see "
+                    "GEN2_BLE_PROTOCOL.md for pairing this key from a Mac"
+                )
+            else:
+                _LOGGER.warning(
+                    "Unknown vehicle generation - no matching characteristics"
+                )
             return 0
 
     except Exception as ex:

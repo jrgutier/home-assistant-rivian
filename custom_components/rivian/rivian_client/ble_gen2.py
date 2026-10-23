@@ -1,24 +1,40 @@
-"""Rivian Gen 2 (PRE_CCC) BLE pairing handler.
+"""Rivian Gen 2 (PRE_CCC) BLE phone-key pairing.
 
-Wire format and crypto are anchored to `docs/development/GEN2_BLE_DELTA.md`, a
-read-only static analysis of the Android app. The Gen 2 VAS protocol is NOT
-Protocol Buffers -- it is fixed-size little-endian framing -- and the key
-derivation is the same HKDF-over-ECDH that `utils.get_secret_key` already
-implements correctly for the Gen 1 path. An earlier version of this module
-reimplemented both from scratch and got both wrong: it modelled a Protocol
-Buffers wire format that does not exist, and it skipped the HKDF step, so
-every HMAC was computed under the wrong key regardless of framing.
+The wire protocol is the one documented and verified on a 2026 R1S by
+walthowd/rivian-gen2-key-poc (MIT), whose message layouts were confirmed
+byte-for-byte against an over-the-air capture of the official Android app. The
+message builders and the reply check below are ported from that project's
+`protocol.py`. See docs/development/GEN2_BLE_PROTOCOL.md for the full write-up,
+and GEN2_BLE_DELTA.md for the earlier static-analysis attempt it supersedes.
+
+    phone   -> Q  auth#1  Envelope{Signed{[Auth{phone_id, pNonce}], seq 1}}
+    vehicle -> R  reply   Envelope{Signed{[Auth{vas_vehicle_id, vNonce}]}}
+    phone   -> Q  auth#2  Envelope{Signed{[Auth{}], [ClientInfo{model}], seq 2}}
+    phone   -> T  subscribe; the vehicle answers ATT 0x05 (insufficient
+                  authentication), the central runs LE Secure Connections
+                  "Just Works" bonding, and the retried subscribe succeeds.
+
+Every frame is protobuf, each signed with
+
+    HMAC-SHA256(key, MessageList || seq(u32 LE) || sender_id(16) || pNonce || vNonce?)
+
+under the same HKDF-SHA256(ECDH) key `utils.get_secret_key` derives for Gen 1
+and for cloud commands. Nothing answers auth#2: once the link is bonded the
+vehicle marks the key paired and reports it to the cloud on its own.
 """
 
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from enum import IntEnum
 import hashlib
 import hmac
 import logging
 import platform
 import secrets
+import struct
+from uuid import UUID
 
 from . import ble_trace
 from .utils import get_secret_key
@@ -32,168 +48,239 @@ except ImportError:
     raise
 
 
-# Gen 2 (PRE_CCC) BLE characteristic UUIDs, re-exported from ble.py rather than
-# restated. `detect_vehicle_generation` already needs them at module scope there
-# to tell a Gen 2 vehicle from a Gen 1 one, so ble.py is the single source of
-# truth and these are aliases.
-#
-# This matters more than ordinary de-duplication: these four UUIDs are the
-# module's own top UNPROVEN item (GEN2_BLE_DELTA.md items 1/2 -- the APK write
-# target at C11162i.java:1173 resolves through unresolved uuid6/uuid7). The first
-# tester GATT dump is expected to confirm or CORRECT one of them, and a second
-# copy would let that correction land in one place and not the other, silently
-# restoring the wrong-channel failure this rewrite exists to fix.
-#
-# Import direction is deliberate and cycle-free: ble.py imports this module only
-# lazily, inside pair_phone()'s Gen 2 branch, never at module load.
-# There is no ENCRYPTED_DATA_IN alias, and none in ble.py either: nothing writes
-# to that characteristic. This module writes only to PLAIN_DATA_IN and reads from
-# both OUT channels, and detect_vehicle_generation fingerprints a Gen 2 vehicle
-# from PLAIN_DATA_IN + ENCRYPTED_DATA_OUT. The constant was dead in both files
-# the moment it was declared and has been removed from both.
+# Re-exported from ble.py, which needs them at module scope to tell a Gen 2
+# vehicle from a Gen 1 one, so there is one copy. The import is cycle-free:
+# ble.py imports this module only lazily, inside pair_phone()'s Gen 2 branch.
+# The PoC's names are Q/R/S/T; S (encrypted phone -> vehicle) carries local
+# commands and passive entry, which pairing never touches.
 from .ble import (
     CONNECT_TIMEOUT,
-    GEN2_ENCRYPTED_DATA_OUT_UUID as ENCRYPTED_DATA_OUT_UUID,
-    GEN2_PLAIN_DATA_IN_UUID as PLAIN_DATA_IN_UUID,
-    GEN2_PLAIN_DATA_OUT_UUID as PLAIN_DATA_OUT_UUID,
+    GEN2_ENCRYPTED_DATA_OUT_UUID as T_UUID,
+    GEN2_PLAIN_DATA_IN_UUID as Q_UUID,
+    GEN2_PLAIN_DATA_OUT_UUID as R_UUID,
 )
 
-AUTH_TIMEOUT = 60.0
+# The vehicle answers auth#1 within a second or two; the PoC waits 8s.
+REPLY_TIMEOUT = 10.0
+# Bonding is a few seconds of SMP, plus however long the platform takes to
+# accept it. The PoC allows 45s on macOS, where a user must click Connect.
+BOND_TIMEOUT = 45.0
 
-# Channel name -> the OUT characteristic it was subscribed on. Both channels are
-# opened because which one answers is UNPROVEN (GEN2_BLE_DELTA.md item 2), and
-# every frame recorded into the trace has to say which one it arrived on -- that
-# is the evidence that settles it.
-_OUT_UUIDS = {"plain": PLAIN_DATA_OUT_UUID, "encrypted": ENCRYPTED_DATA_OUT_UUID}
+# Sent in auth#2's ClientInfo. A phone sends its lowercase device model; the
+# vehicle accepts any string.
+DEFAULT_MODEL = b"home assistant"
 
-# pNonce/vNonce(16) || HMAC-SHA256(32). Both directions of the handshake use this
-# length -- AbstractC10624g.java:1160-1169 (outbound), AbstractC10629c.java:262
-# (inbound, "the pairing response is 48 bytes: vNonce(16) || HMAC(32)").
-AUTH_FRAME_LEN = 48
+HMAC_SHA256 = 1
 
 
 class AuthState(IntEnum):
-    """Gen 2 authentication state machine.
+    """How far one pairing attempt got. Recorded in the diagnostics trace."""
 
-    All four members are APK-accurate (EnumC11122B.java:12-15), but the pairing
-    path never enters SIGNED_PARAMS_SENT -- see `pair_phone_gen2`. UNPROVEN: that
-    rests on a log string (C11162i.java:1322, "authentication is completed"), not
-    decoded state transitions, so it is kept in the enum rather than removed.
+    INIT = 0
+    AUTH1_SENT = 1  # auth#1 written to Q, waiting for the reply on R
+    VEHICLE_VERIFIED = 2  # reply's vehicle id and HMAC checked out
+    AUTH2_SENT = 3  # auth#2 written; next is the T subscribe that bonds
+    BONDED = 4  # T subscribe succeeded on the encrypted link
+
+
+# ── protobuf encoding ────────────────────────────────────────────────
+# Seven small message types, all known by field number only, so hand-encoding
+# them is less machinery than a .proto plus the regen/pin discipline that
+# PARALLAX_SCHEMAS.md applies to generated modules.
+
+
+def _varint(value: int) -> bytes:
+    out = bytearray()
+    while value > 0x7F:
+        out.append((value & 0x7F) | 0x80)
+        value >>= 7
+    out.append(value)
+    return bytes(out)
+
+
+def _f_len(field: int, payload: bytes) -> bytes:
+    return _varint((field << 3) | 2) + _varint(len(payload)) + payload
+
+
+def _f_var(field: int, value: int) -> bytes:
+    return _varint(field << 3) + _varint(value)
+
+
+def parse_fields(data: bytes) -> dict[int, list[int | bytes]]:
+    """Decode one protobuf message level into {field: [values]}. Bounded and strict."""
+    fields: dict[int, list[int | bytes]] = {}
+    offset = 0
+
+    def varint() -> int:
+        nonlocal offset
+        value = 0
+        for shift in range(0, 70, 7):
+            if offset >= len(data):
+                raise ValueError("truncated protobuf varint")
+            byte = data[offset]
+            offset += 1
+            if shift == 63 and byte > 1:
+                raise ValueError("protobuf varint overflow")
+            value |= (byte & 0x7F) << shift
+            if not byte & 0x80:
+                return value
+        raise ValueError("protobuf varint overflow")
+
+    while offset < len(data):
+        tag = varint()
+        field, wire = tag >> 3, tag & 7
+        if not 0 < field < (1 << 29):
+            raise ValueError("invalid protobuf field number")
+        value: int | bytes
+        if wire == 0:
+            value = varint()
+        elif wire in (1, 2, 5):
+            length = varint() if wire == 2 else (8 if wire == 1 else 4)
+            if offset + length > len(data):
+                raise ValueError("truncated protobuf field")
+            value = data[offset : offset + length]
+            offset += length
+        else:
+            raise ValueError(f"unsupported protobuf wire type {wire}")
+        fields.setdefault(field, []).append(value)
+    return fields
+
+
+def _one(fields: dict[int, list], field: int, default=None):
+    values = fields.get(field, [])
+    if len(values) > 1:
+        raise ValueError(f"repeated singular field {field}")
+    return values[0] if values else default
+
+
+def _mac(secret_key: bytes, message_list: bytes, seq: int, sender_id: bytes, *nonces):
+    data = message_list + struct.pack("<I", seq) + sender_id + b"".join(nonces)
+    return hmac.new(secret_key, data, hashlib.sha256).digest()
+
+
+def _signed(
+    message_list: bytes, seq: int, mac: bytes, excludes_vehicle_nonce: bool = False
+) -> bytes:
+    """Envelope{2: Signed{1: list, 2: seq, [4: no vNonce], 5: Signature{1, 2: mac}}}."""
+    signature = _f_var(1, HMAC_SHA256) + _f_len(2, mac)
+    body = _f_len(1, message_list) + _f_var(2, seq)
+    if excludes_vehicle_nonce:
+        body += _f_var(4, 1)
+    return _f_len(2, body + _f_len(5, signature))
+
+
+# ── messages ─────────────────────────────────────────────────────────
+
+
+def build_auth1(
+    secret_key: bytes, phone_id: bytes, phone_nonce: bytes, seq: int = 1
+) -> bytes:
+    """Auth#1: transaction 1, Credentials{phone_id, pNonce}; MAC has no vNonce yet."""
+    if len(phone_id) != 16 or len(phone_nonce) != 16:
+        raise ValueError("phone_id and phone_nonce must be 16 bytes")
+    credentials = _f_len(1, phone_id) + _f_len(2, phone_nonce)
+    message = _f_var(1, 1) + _f_len(5, _f_len(1, credentials))
+    message_list = _f_len(1, message)
+    mac = _mac(secret_key, message_list, seq, phone_id, phone_nonce)
+    return _signed(message_list, seq, mac, excludes_vehicle_nonce=True)
+
+
+def build_auth2(
+    secret_key: bytes,
+    phone_id: bytes,
+    phone_nonce: bytes,
+    vehicle_nonce: bytes,
+    model: bytes = DEFAULT_MODEL,
+    seq: int = 2,
+) -> bytes:
+    """Auth#2: transaction 3 = empty Credentials, transaction 5 = ClientInfo{model}."""
+    empty_auth = _f_var(1, 3) + _f_len(5, _f_len(1, b""))
+    client_info = _f_len(1, _f_len(2, model)) if model else _f_len(1, b"")
+    client = _f_var(1, 5) + _f_len(9, client_info)
+    message_list = _f_len(1, empty_auth) + _f_len(1, client)
+    mac = _mac(secret_key, message_list, seq, phone_id, phone_nonce, vehicle_nonce)
+    return _signed(message_list, seq, mac)
+
+
+def verify_auth1_reply(
+    reply: bytes, secret_key: bytes, vehicle_id: bytes, phone_nonce: bytes
+) -> bytes:
+    """Check the vehicle's reply on R and return its 16-byte vNonce.
+
+    The vehicle signs as sender `vas_vehicle_id`, over both nonces, so a reply
+    replayed from an earlier session fails. Raises ValueError on any mismatch.
     """
+    signed = parse_fields(_one(parse_fields(reply), 2, b""))
+    message_list = _one(signed, 1, b"")
+    messages = parse_fields(message_list).get(1, [])
+    if not messages:
+        raise ValueError("reply carries no message")
+    auth = parse_fields(_one(parse_fields(messages[0]), 5, b""))
+    credentials = parse_fields(_one(auth, 1, b""))
+    received_id = _one(credentials, 1, b"")
+    vehicle_nonce = _one(credentials, 2, b"")
+    if received_id and received_id != vehicle_id:
+        raise ValueError("vehicle id mismatch (a different vehicle answered)")
+    if not isinstance(vehicle_nonce, bytes) or len(vehicle_nonce) != 16:
+        raise ValueError("vehicle nonce must be 16 bytes")
+    seq = _one(signed, 2, 0)
+    if not isinstance(seq, int) or not 0 <= seq <= 0xFFFFFFFF:
+        raise ValueError("invalid vehicle sequence number")
+    signature = parse_fields(_one(signed, 5, b""))
+    mac = _one(signature, 2, b"")
+    if _one(signature, 1) != HMAC_SHA256 or len(mac) != 32:
+        raise ValueError("missing or unsupported signature")
+    if _one(signed, 3, 0) or _one(signed, 4, 0):
+        raise ValueError("vehicle signature omits a session nonce")
+    expected = _mac(
+        secret_key, message_list, seq, vehicle_id, phone_nonce, vehicle_nonce
+    )
+    if not hmac.compare_digest(mac, expected):
+        raise ValueError("vehicle HMAC verification failed")
+    return vehicle_nonce
 
-    INIT = 0  # Initial state
-    PID_PNONCE_SENT = 1  # AUTH_PNONCE sent, waiting for AUTH_VNONCE
-    SIGNED_PARAMS_SENT = 2  # UNPROVEN: never entered by this implementation
-    AUTHENTICATED = 3  # vNonce HMAC verified
 
+def _mask(frame: bytes, *identifiers: bytes) -> bytes:
+    """Zero the stable identifiers inside a frame before it goes into the trace.
 
-class BleNotificationResponse:
-    """BLE notification response helper for Gen 2.
-
-    Keeps every frame received, not just the first: a frame arriving after
-    authentication is evidence the SIGNED_PARAMS_SENT state is real (see
-    `pair_phone_gen2`), not something to discard silently.
+    auth#1 carries the phone id and the reply carries the VAS vehicle id in the
+    clear. ble_trace keeps frames as hex because nonces and MACs are single use;
+    these two are not, so they are blanked in place (the layout is unchanged).
     """
-
-    def __init__(self) -> None:
-        """Initialize the BLE notification response helper."""
-        self.frames: list[bytes] = []
-        self.event = asyncio.Event()
-
-    def notification_handler(self, _, notification_data: bytearray) -> None:
-        """Notification handler."""
-        self.frames.append(bytes(notification_data))
-        self.event.set()
-
-    @property
-    def data(self) -> bytes | None:
-        """The first frame received, if any."""
-        return self.frames[0] if self.frames else None
+    for identifier in identifiers:
+        frame = frame.replace(identifier, bytes(len(identifier)))
+    return frame
 
 
-async def create_notification_handler(
-    client: BleakClient, char_specifier: str
-) -> BleNotificationResponse:
-    """Create a notification handler."""
-    response = BleNotificationResponse()
-    await client.start_notify(char_specifier, response.notification_handler)
-    return response
+async def _subscribe_encrypted(client: BleakClient, handler) -> None:
+    """Subscribe to T, bonding first if the vehicle demands it.
 
-
-async def _wait_for_first_frame(
-    handlers: dict[str, BleNotificationResponse], timeout: float
-) -> tuple[str, bytes] | None:
-    """Wait for whichever subscribed channel answers first.
-
-    UNPROVEN (GEN2_BLE_DELTA.md item 2): whether the AUTH_VNONCE response arrives
-    on PLAIN_DATA_OUT or ENCRYPTED_DATA_OUT is undecided from the APK. Subscribing
-    to both and recording which one actually fires is the required mitigation
-    (plan Pre-mortem 1) -- returns None on timeout.
+    The first subscribe is expected to fail with ATT 0x05. CoreBluetooth (and
+    phones) bond on their own and retry; elsewhere bleak needs an explicit
+    pair(). The vehicle requires the central to distribute its IRK and to
+    accept Just Works -- a BlueZ adapter without privacy enabled, or with an
+    agent that insists on MITM, is refused (see GEN2_BLE_PROTOCOL.md).
     """
-    waiters = {
-        name: asyncio.ensure_future(h.event.wait()) for name, h in handlers.items()
-    }
     try:
-        done, _ = await asyncio.wait(
-            waiters.values(), timeout=timeout, return_when=asyncio.FIRST_COMPLETED
-        )
-        for name, task in waiters.items():
-            if task in done:
-                handler = handlers[name]
-                assert handler.data is not None
-                return name, handler.data
-        return None
-    finally:
-        for task in waiters.values():
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*waiters.values(), return_exceptions=True)
-
-
-def build_auth_pnonce_frame(secret_key: bytes, phone_nonce: bytes) -> bytes:
-    """Build the AUTH_PNONCE frame sent to the vehicle.
-
-    Wire format: pNonce(16) || HMAC-SHA256(key, pNonce)(32) = 48 bytes.
-    Anchor: AbstractC10624g.java:1160-1169. Note what is absent: no CSN, phoneId,
-    or vehicleId -- those fields exist on the source object but this branch never
-    serializes them (the constructor passes CSN -1, a sentinel, not a value).
-    """
-    if len(phone_nonce) != 16:
-        raise ValueError(f"phone_nonce must be 16 bytes, got {len(phone_nonce)}")
-    mac = hmac.new(secret_key, phone_nonce, hashlib.sha256).digest()
-    return phone_nonce + mac
-
-
-def parse_auth_vnonce_frame(frame: bytes) -> tuple[bytes, bytes]:
-    """Split the AUTH_VNONCE response into (vehicle_nonce, mac).
-
-    Wire format: vNonce(16) || HMAC-SHA256(32), split at byte 16.
-    Anchor: AbstractC10629c.java:262 (`C11135O`, the AUTH_VNONCE case).
-    """
-    if len(frame) != AUTH_FRAME_LEN:
-        raise ValueError(
-            f"AUTH_VNONCE frame must be {AUTH_FRAME_LEN} bytes, got {len(frame)}"
-        )
-    return frame[:16], frame[16:]
-
-
-def verify_vnonce(
-    secret_key: bytes, phone_nonce: bytes, vehicle_nonce: bytes, mac: bytes
-) -> bool:
-    """Verify the vehicle's AUTH_VNONCE response HMAC.
-
-    Anchor: C11162i.java:1302-1314 -- HMAC-SHA256(key, pNonce || vNonce), compared
-    against the vehicle-supplied MAC with `Arrays.equals`. Note `m7360r()`
-    (AbstractC15367g.java:322-329) is a decompiler-visible no-op --
-    `ByteBuffer.order()` does not affect `.array()` -- so no byte reversal is
-    applied anywhere in this module; endianness only matters for the
-    `ACTIVE_COMMAND`/`PASSIVE_ENTRY` CSN field, which this module does not build
-    (see `pair_phone_gen2`).
-    """
-    expected = hmac.new(
-        secret_key, phone_nonce + vehicle_nonce, hashlib.sha256
-    ).digest()
-    return hmac.compare_digest(mac, expected)
+        await client.start_notify(T_UUID, handler)
+        return
+    except Exception as ex:  # noqa: BLE001  # backend-specific error types
+        _LOGGER.debug("Gen 2: T subscribe before bonding: %s", type(ex).__name__)
+    if platform.system() != "Darwin":
+        # Some backends keep the failed subscription's callback registered and
+        # then refuse the retry as a duplicate.
+        with suppress(Exception):
+            await client.stop_notify(T_UUID)
+        await client.pair()
+    deadline = asyncio.get_running_loop().time() + BOND_TIMEOUT
+    while True:
+        try:
+            await client.start_notify(T_UUID, handler)
+            return
+        except Exception:
+            if not client.is_connected or asyncio.get_running_loop().time() > deadline:
+                raise
+            await asyncio.sleep(2)
 
 
 async def pair_phone_gen2(
@@ -204,40 +291,22 @@ async def pair_phone_gen2(
     private_key: str,
     vehicle_id: str | None = None,
 ) -> bool:
-    """Pair a phone locally via Gen 2 (PRE_CCC) BLE protocol.
-
-    The pairing exchange is a single request/response pair, not the invented
-    3-round-trip flow an earlier version of this module implemented:
-
-        phone   -> AUTH_PNONCE:  pNonce(16) || HMAC-SHA256(key, pNonce)(32)
-        vehicle -> AUTH_VNONCE:  vNonce(16) || HMAC-SHA256(key, pNonce||vNonce)(32)
-
-    `phone_id` and `vas_vehicle_id` are accepted for call-signature parity with
-    `_pair_phone_gen1` (`ble.py`), which routes to this function with the same
-    arguments. The APK's AUTH_PNONCE frame does not carry either field
-    (GEN2_BLE_DELTA.md delta #5), so neither is placed on the wire here. Full
-    vehicle-ID validation (delta #9) is a separate, unresolved question this
-    rewrite does not attempt -- see GEN2_BLE_DELTA.md, delta #9.
+    """Pair a phone key with a Gen 2 vehicle that is showing "Set up" for it.
 
     Args:
-        device: BLE device to connect to
-        phone_id: Phone UUID from enrollment (unused on the wire, see above)
-        vas_vehicle_id: VAS vehicle ID (unused on the wire, see above)
-        vehicle_public_key: Vehicle's EC public key (130 hex chars, "04" prefix)
-        private_key: Phone's EC private key (base64-encoded PEM)
-        vehicle_id: HA/Rivian internal vehicle id, used ONLY to key the BLE
-            diagnostic trace (rivian_client.ble_trace.get_trace). Optional,
-            trailing, and defaults to None so every existing positional call
-            is unaffected. When omitted, every
-            trace call below is a no-op -- see `_trace()`.
+        device: the vehicle, found by its advertised `vas_vehicle_id` service UUID
+        phone_id: `vasPhoneId` from enrollment (16-byte UUID)
+        vas_vehicle_id: the vehicle's `vasVehicleId` (16-byte UUID)
+        vehicle_public_key: the vehicle's P-256 public key (130 hex chars)
+        private_key: the phone key's private key (base64-encoded PEM)
+        vehicle_id: Rivian vehicle id, used only to key the diagnostics trace
 
     Returns:
-        True if pairing succeeded, False otherwise. Never returns True after a
-        failed vNonce verification -- there is no fallthrough to bonding.
+        True once the encrypted T subscribe succeeds. The vehicle then reports
+        the key as paired to the cloud by itself; the caller confirms that.
     """
     _LOGGER.debug("Starting Gen 2 (PRE_CCC) pairing with %s", device)
     state = AuthState.INIT
-
     trace = ble_trace.get_trace(vehicle_id) if vehicle_id is not None else None
 
     def _trace(record) -> None:
@@ -249,42 +318,31 @@ async def pair_phone_gen2(
         except Exception:  # tracing is diagnostics only
             _LOGGER.debug("Gen 2: trace recording failed", exc_info=True)
 
-    # Set as early as possible, and deliberately NOT through _trace(): button.py
-    # reads this back to gate the Gen-2-only pairing-failure repairs card, which
-    # makes it control-flow data, not diagnostics. _trace() swallows exceptions
-    # by design ("tracing is diagnostics only") -- routing a value that decides
-    # whether a real user sees a repairs card through a path built to fail
-    # silently is the same shape as the ContextVar that made the trace inert
-    # while tests stayed green. A plain attribute write cannot meaningfully
-    # throw, so the None-check is the only guard it needs.
+    # Not through _trace(): button.py reads this back to decide whether to raise
+    # the Gen 2 repairs card, so it is control flow, not diagnostics.
     if trace is not None:
         trace.generation = 2
 
     try:
-        # Root-cause fix (GEN2_BLE_DELTA.md delta #1): this is the same
-        # HKDF-SHA256(ECDH(...), salt=None, info=b"") the Gen 1 path already uses
-        # (utils.py:93-99). The prior Gen 2 code reimplemented ECDH from scratch,
-        # returned the raw shared secret without the HKDF step, and passed a
-        # base64-encoded PEM to a loader that expected raw PEM bytes;
-        # get_secret_key fixes all three at once.
-        #
-        # NEVER log `secret_key` (or any intermediate ECDH/HKDF value) at any
-        # level, including DEBUG -- HA debug logs get pasted into public GitHub
-        # issues verbatim.
+        # NEVER log the derived key, the private key or the exception message
+        # here: HA debug logs get pasted into public GitHub issues verbatim, and
+        # a dependency's error string could carry key material. Class only.
         secret_key = get_secret_key(private_key, vehicle_public_key)
-    except Exception as ex:  # noqa: BLE001  # ruff waives BLE001 for blind catches logged via .exception(); this one deliberately does NOT use .exception() -- see below. Any failure here is invalid/malformed key material and the caller treats it like any other failed pairing attempt.
+        phone = UUID(phone_id).bytes
+        vehicle = UUID(vas_vehicle_id).bytes
+    except Exception as ex:  # noqa: BLE001
         _trace(lambda: trace.record_attempt_outcome("key_derivation_failed"))
-        # The error CLASS only -- never `.exception()` or `%s` on the exception
-        # itself. This handler wraps the one call that touches the private key
-        # and the derived secret, and re-emitting an exception's message would
-        # make plan §3.7a ("never log key material at any level") depend on the
-        # error-string hygiene of `cryptography` and `binascii` rather than on
-        # anything in this repo -- a dependency bump could reintroduce the leak
-        # silently. HA debug logs are pasted verbatim into public GitHub issues,
-        # and this integration explicitly asks beta testers to do that.
-        # Pinned by tests/client/test_ble_gen2.py::TestKeyMaterialNeverReachesLogs.
         _LOGGER.error("Gen 2: failed to derive the shared key (%s)", type(ex).__name__)
         return False
+
+    def _record(direction: str, characteristic: str, frame: bytes, note=None) -> None:
+        masked = _mask(frame, phone, vehicle)
+        _trace(lambda: trace.record_frame(direction, characteristic, masked, note))
+
+    def _set_state(new_state: AuthState) -> None:
+        nonlocal state
+        state = new_state
+        _trace(lambda: trace.record_state(new_state.name))
 
     try:
         async with BleakClient(device, timeout=CONNECT_TIMEOUT) as client:
@@ -296,176 +354,66 @@ async def pair_phone_gen2(
                     address=device.address,
                 )
             )
+            mtu = getattr(client, "mtu_size", None)
+            if mtu is not None:
+                _trace(lambda: trace.record_mtu(mtu))
 
-            # UNPROVEN (GEN2_BLE_DELTA.md item 2, Pre-mortem 1): dual-subscribe so
-            # a tester report can tell us which channel actually answers.
-            # Subscribed concurrently: each start_notify() is an independent
-            # GATT CCCD-write round trip (tens to low-hundreds of ms), and
-            # neither depends on the other. Which channel actually answers is
-            # UNPROVEN, which is why both are opened at all.
-            plain_handler, encrypted_handler = await asyncio.gather(
-                create_notification_handler(client, PLAIN_DATA_OUT_UUID),
-                create_notification_handler(client, ENCRYPTED_DATA_OUT_UUID),
-            )
-            handlers = {"plain": plain_handler, "encrypted": encrypted_handler}
+            replies: asyncio.Queue[bytes] = asyncio.Queue()
+
+            def _on_r(_, data: bytearray) -> None:
+                replies.put_nowait(bytes(data))
+
+            def _on_t(_, data: bytearray) -> None:
+                # Post-pairing T traffic is undocumented; length only.
+                _LOGGER.debug("Gen 2: T notification (%d bytes)", len(data))
+
+            await client.start_notify(R_UUID, _on_r)
 
             phone_nonce = secrets.token_bytes(16)
-            frame = build_auth_pnonce_frame(secret_key, phone_nonce)
-
-            # UNPROVEN (GEN2_BLE_DELTA.md item 1, called out there as "the top
-            # remaining unknown"): C11162i.java:1173 writes via unresolved
-            # uuid6/uuid7. PLAIN_DATA_IN is inherited from the pre-rewrite code,
-            # not decoded from the APK.
-            _LOGGER.debug("Gen 2: sending AUTH_PNONCE (%d bytes)", len(frame))
-            _trace(lambda: trace.record_frame("write", PLAIN_DATA_IN_UUID, frame))
-            await client.write_gatt_char(PLAIN_DATA_IN_UUID, frame)
-            state = AuthState.PID_PNONCE_SENT
-            _trace(lambda: trace.record_state(state.name))
-
-            def _unconsumed(skip_first_of: str | None = None):
-                """Every (channel, frame) the handshake did not act on."""
-                for chan, handler in handlers.items():
-                    frames = handler.frames
-                    if chan == skip_first_of:
-                        frames = frames[1:]
-                    for extra in frames:
-                        yield chan, extra
-
-            def _record_unconsumed(note: str, skip_first_of: str | None = None) -> None:
-                """Record every frame the handshake did not act on.
-
-                `_wait_for_first_frame` takes only frames[0] of whichever channel
-                answers first. On the failure paths that is a problem, not a
-                detail: if a vehicle delivers the 48-byte AUTH_VNONCE as MTU
-                fragments (20+20+8), frame[0] is a short 20-byte frame, parsing
-                raises, and the remaining bytes are dropped -- so the bundle
-                shows "malformed" with nothing to distinguish FRAGMENTATION from
-                a WRONG CHARACTERISTIC or a genuinely malformed reply. Those are
-                three different bugs with three different fixes, and MTU
-                fragmentation is UNPROVEN item 3. Recording the leftovers is what
-                makes them tellable apart from a single tester report.
-                """
-                for chan, extra in _unconsumed(skip_first_of):
-                    _trace(
-                        lambda c=chan, d=extra: trace.record_frame(
-                            "notify", _OUT_UUIDS[c], d, note=f"channel={c} {note}"
-                        )
-                    )
-
-            result = await _wait_for_first_frame(handlers, AUTH_TIMEOUT)
-            if result is None:
-                _trace(lambda: trace.record_attempt_outcome("timeout"))
-                # Anything that DID arrive but was not a usable first frame --
-                # e.g. a reply on a channel we mis-guessed, or fragments that
-                # never completed. Silence here and bytes-on-the-wire here are
-                # different diagnoses.
-                _record_unconsumed("unconsumed (timeout)")
-                _LOGGER.error("Gen 2: timeout waiting for AUTH_VNONCE")
-                return False
-            channel, response = result
-            _LOGGER.debug("Gen 2: AUTH_VNONCE answered on the %s channel", channel)
-            characteristic = _OUT_UUIDS[channel]
-            _trace(
-                lambda: trace.record_frame(
-                    "notify", characteristic, response, note=f"channel={channel}"
-                )
-            )
+            auth1 = build_auth1(secret_key, phone, phone_nonce)
+            _record("write", Q_UUID, auth1, "auth#1")
+            await client.write_gatt_char(Q_UUID, auth1, response=True)
+            _set_state(AuthState.AUTH1_SENT)
 
             try:
-                vehicle_nonce, mac = parse_auth_vnonce_frame(response)
+                reply = await asyncio.wait_for(replies.get(), REPLY_TIMEOUT)
+            except TimeoutError:
+                _trace(lambda: trace.record_attempt_outcome("timeout"))
+                _LOGGER.error(
+                    "Gen 2: no reply to auth#1. Is the vehicle showing Set up "
+                    "for this key, under the right driver?"
+                )
+                return False
+            _record("notify", R_UUID, reply, "auth#1 reply")
+
+            try:
+                vehicle_nonce = verify_auth1_reply(
+                    reply, secret_key, vehicle, phone_nonce
+                )
             except ValueError as ex:
-                _trace(lambda: trace.record_attempt_outcome("malformed_vnonce_frame"))
-                # The frame we DID consume is already recorded above; these are
-                # the ones after it. If they concatenate with it to 48 bytes,
-                # the answer is fragmentation, not a malformed vehicle.
-                _record_unconsumed(
-                    "unconsumed (after malformed)", skip_first_of=channel
-                )
-                _LOGGER.error("Gen 2: malformed AUTH_VNONCE response: %s", ex)
+                # Fail closed: never send auth#2 or bond with an unverified peer.
+                _trace(lambda: trace.record_attempt_outcome("bad_reply"))
+                _LOGGER.error("Gen 2: rejected the vehicle's reply: %s", ex)
                 return False
+            _set_state(AuthState.VEHICLE_VERIFIED)
 
-            if not verify_vnonce(secret_key, phone_nonce, vehicle_nonce, mac):
-                # Fail closed. Never falls through to bonding below.
-                _trace(lambda: trace.record_attempt_outcome("bad_vnonce_mac"))
-                # The consumed frame is already recorded; these are the rest.
-                # A mirrored wrong-MAC reply on the other channel would say the
-                # failure is not specific to the channel we answered on.
-                _record_unconsumed("unconsumed (after bad MAC)", skip_first_of=channel)
-                _LOGGER.error("Gen 2: vNonce HMAC verification failed")
-                return False
+            auth2 = build_auth2(secret_key, phone, phone_nonce, vehicle_nonce)
+            _record("write", Q_UUID, auth2, "auth#2")
+            await client.write_gatt_char(Q_UUID, auth2, response=True)
+            _set_state(AuthState.AUTH2_SENT)
 
-            state = AuthState.AUTHENTICATED
-            _trace(lambda: trace.record_state(state.name))
-            _LOGGER.debug("Gen 2: authentication successful")
-
-            # UNPROVEN (plan §3.4): SIGNED_PARAMS_SENT is never entered above --
-            # the pairing exchange is the single request/response pair this
-            # function implements. That inference rests on a log string
-            # (C11162i.java:1322), not decoded transitions, so anything the
-            # vehicle sends after this point is logged rather than discarded --
-            # if this assumption is wrong, a WARNING here is what disproves it.
-            # UNPROVEN (plan §3.5): zero APK evidence for Gen 2 bonding at all;
-            # this mirrors Gen 1's platform split (ble.py:284) as a default,
-            # not a decoded requirement.
-            _LOGGER.debug("Gen 2: attempting to trigger bonding")
-            if platform.system() == "Darwin":
-                # Gen 1 has no explicit bonding API on macOS, so it subscribes to
-                # a protected characteristic to trigger bonding manually
-                # (ble.py:287). Gen 2 has no APK-confirmed equivalent
-                # characteristic; the ENCRYPTED_DATA_OUT subscription established
-                # above is reused as that trigger rather than re-subscribing,
-                # which some bleak backends reject as a duplicate.
-                _LOGGER.debug(
-                    "Gen 2: relying on the encrypted-channel subscription to "
-                    "trigger bonding (Darwin)"
-                )
-                _trace(lambda: trace.record_bonding("darwin-passive", "ok"))
-            else:
-                try:
-                    await client.pair()
-                except Exception as ex:
-                    # Bound to a plain local BEFORE the lambda: Python unbinds
-                    # `ex` when the except block exits, so a lambda closing over
-                    # it directly is a NameError waiting for a refactor to move
-                    # the call one line later.
-                    reason = type(ex).__name__
-                    _trace(lambda: trace.record_bonding("pair", f"error:{reason}"))
-                    raise
-                _trace(lambda: trace.record_bonding("pair", "ok"))
-
-            # Scanned AFTER bonding, deliberately: taking this snapshot before
-            # client.pair() would miss anything the vehicle sends DURING it, and
-            # a frame arriving there is precisely the evidence that would
-            # disprove the §3.4 assumption below.
-            #
-            # UNPROVEN (plan §3.4): SIGNED_PARAMS_SENT is never entered above --
-            # the pairing exchange is the single request/response pair this
-            # function implements. That inference rests on a log string
-            # (C11162i.java:1322), not decoded transitions, so anything the
-            # vehicle sends after authentication is recorded in the TRACE as
-            # well as logged. The log is volatile; the trace is what the tester
-            # actually attaches, and this is the one artifact that could
-            # disprove the assumption.
-            # skip_first_of=channel, NOT frames[1:] on both: only the channel
-            # that ANSWERED had its frames[0] consumed. Skipping the other
-            # channel's first frame discards a frame nothing has seen -- and
-            # GEN2_BLE_DELTA.md's UNPROVEN item 2 hypothesises the encrypted
-            # channel may carry only post-auth traffic, which makes that exact
-            # frame the evidence most likely to disprove §3.4.
-            for name, extra in _unconsumed(skip_first_of=channel):
-                _LOGGER.warning(
-                    "Gen 2: unexpected frame on the %s channel after "
-                    "authentication (%d bytes) -- SIGNED_PARAMS_SENT may be "
-                    "real after all",
-                    name,
-                    len(extra),
-                )
-            _record_unconsumed("post-auth (unexpected)", skip_first_of=channel)
-
-            _trace(lambda: trace.record_attempt_outcome("authenticated"))
-            _LOGGER.debug("Gen 2: successfully paired with %s", device)
+            try:
+                await _subscribe_encrypted(client, _on_t)
+            except Exception as ex:
+                reason = type(ex).__name__
+                _trace(lambda: trace.record_bonding("subscribe-t", f"error:{reason}"))
+                raise
+            _trace(lambda: trace.record_bonding("subscribe-t", "ok"))
+            _set_state(AuthState.BONDED)
+            _trace(lambda: trace.record_attempt_outcome("bonded"))
+            _LOGGER.debug("Gen 2: bonded with %s", device)
             return True
-    except Exception:  # pylint: disable=broad-except  # BLE pairing state machine; changing exception semantics here is out of scope for a transport merge
+    except Exception:  # pylint: disable=broad-except
         _trace(lambda: trace.record_state(state.name))
         _trace(lambda: trace.record_attempt_outcome("exception"))
         _LOGGER.exception("Gen 2 pairing failed at state %s", state.name)

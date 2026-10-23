@@ -58,7 +58,7 @@ The configuration flow is as follows:
 
 In addition to viewing vehicle data, it is also possible to issue certain vehicle commands remotely via Home Assistant as you would in the Rivian mobile app.
 
-**Note:** Gen2 (2025) models are not curently supported for Remote Vehicle Control due to changes in their bluetooth hardware that have not been implemented yet. They are not able to particpate in the secure pairing process required.
+**Note:** Gen2 (2025+) pairing now follows the protocol verified by [rivian-gen2-key-poc](https://github.com/walthowd/rivian-gen2-key-poc), but is untested from Home Assistant. A local Linux (BlueZ) adapter is known not to work with Gen2 vehicles; a Bluetooth proxy may. If pairing fails, you can pair Home Assistant's key from a Mac instead: see [Gen 2 pairing](docs/development/GEN2_BLE_PROTOCOL.md#workaround-that-does-not-need-has-bluetooth).
 
 To enable this feature, you need to have:
 
