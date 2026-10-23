@@ -41,7 +41,8 @@ hex by `record_frame()`. They are single-use, dead the moment the connection
 drops, and recovering the HMAC key from a (nonce, MAC) pair means breaking
 HMAC-SHA256. Masking them would cost most of the trace's diagnostic value
 and buy no protection worth having. The Gen 2 frames do carry the phone id and
-VAS vehicle id in the clear; ble_gen2 zeroes those before recording a frame.
+VAS vehicle id in the clear, so `record_frame()` zeroes every identifier
+`record_identifiers()` registered. Register them before the first frame.
 
 THE SALT INVARIANT. `_SALT` is generated fresh per process and is never
 included in `as_dict()` / `all_traces_as_dict()`. That is what makes the
@@ -54,9 +55,11 @@ property. Don't.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from hashlib import blake2s
 import secrets
 from typing import Any
+from uuid import UUID
 
 # Regenerated every process start. Correlates identifiers within one report;
 # never lets two reports -- or a report and the salt itself -- be linked. See
@@ -90,6 +93,9 @@ class BleTrace:
         self.mtu: int | None = None
         self.bonding: dict[str, str] | None = None
         self.state: str | None = None
+        # Raw byte forms of the registered identifiers, zeroed out of every
+        # frame. Never serialized, like _SALT.
+        self._masked: set[bytes] = set()
 
     def reset(self) -> None:
         """Clear the trace. Call ONLY when the pairing button is pressed again --
@@ -104,6 +110,7 @@ class BleTrace:
         self.mtu = None
         self.bonding = None
         self.state = None
+        self._masked.clear()
 
     def start_attempt(self) -> int:
         """Mark the start of one retry-loop attempt; return its 1-based index.
@@ -111,7 +118,7 @@ class BleTrace:
         Frames recorded by `record_frame()` after this call are tagged with
         this attempt number until the next call. Marking the boundary
         explicitly -- rather than trying to infer it from frame content --
-        is what lets a maintainer read "attempt 1 died after the pNonce
+        is what lets a maintainer read "attempt 1 died after the auth#1
         write" instead of one undifferentiated stream of frames from
         however many retries the loop made.
         """
@@ -151,6 +158,9 @@ class BleTrace:
         # exists to preserve: correlation within a bundle ("the same phone
         # paired both vehicles"). The suffix lets both properties hold at
         # once -- raw values still get caught by name, hashed ones survive.
+        for value in (phone_id, vas_vehicle_id):
+            with suppress(ValueError, TypeError):
+                self._masked.add(UUID(value).bytes)
         if phone_id is not None:
             self.identifiers["phone_id_fp"] = fingerprint(phone_id)
         if vas_vehicle_id is not None:
@@ -161,10 +171,8 @@ class BleTrace:
     def record_services(self, services: list[dict[str, Any]]) -> None:
         """Record the vehicle's advertised GATT characteristics.
 
-        UUIDs and properties only, never characteristic values. This is the
-        single highest-value unknown in the delta report: it settles whether
-        the four Gen 2 UUIDs this integration uses are the right ones at
-        all.
+        UUIDs and properties only, never characteristic values. A vehicle
+        that exposes none is the BlueZ Service Changed failure.
         """
         self.services = services
 
@@ -181,9 +189,8 @@ class BleTrace:
     def record_mtu(self, mtu: int) -> None:
         """Record the negotiated ATT MTU for this connection.
 
-        Part of discriminating "wrong characteristic" from "MTU truncated
-        the frame" -- both would otherwise look like the same silent
-        failure (see the plan's Pre-mortem 1).
+        auth#1 is 90 bytes, so a link stuck at the 23-byte default MTU
+        fragments it; this tells that apart from a silent vehicle.
         """
         self.mtu = mtu
 
@@ -195,17 +202,21 @@ class BleTrace:
         `direction` is caller-defined (e.g. "write", "notify", "subscribe")
         and, paired with `characteristic`, is what tells a write from a
         subscription -- no separate field is needed for that. See the
-        module docstring on masking: `data` is recorded as plain hex.
+        module docstring on masking: `data` is recorded as plain hex, with
+        registered identifiers zeroed.
         """
         if len(self.frames) >= MAX_FRAMES:
             return
+        data = bytes(data)
+        for identifier in self._masked:
+            data = data.replace(identifier, bytes(len(identifier)))
         self.frames.append(
             {
                 "attempt": len(self.attempts) or None,
                 "direction": direction,
                 "characteristic": characteristic.upper(),
                 "length": len(data),
-                "hex": bytes(data).hex(),
+                "hex": data.hex(),
                 "note": note,
             }
         )

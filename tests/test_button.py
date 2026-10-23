@@ -519,6 +519,34 @@ class TestPairingSequence:
         )
         assert callback(adv("02", "02", [vas])) is False  # already tried
 
+    @pytest.mark.parametrize(
+        ("name", "expected"), [("Rivian Phone Key", None), ("AA:BB", 2)]
+    )
+    async def test_a_gen2_advert_skips_generation_detection(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, name, expected
+    ) -> None:
+        """An unnamed advert carrying the VAS UUID is Gen 2 already; detecting
+        it would cost a second connection that BlueZ cannot even use."""
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        coordinator.drivers_coordinator.get_device_details = MagicMock(
+            return_value={"isPaired": True}
+        )
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.name = name
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+        pair = AsyncMock(return_value=True)
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch("custom_components.rivian.rivian_client.ble.pair_phone", pair),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            await entity.async_press()
+        assert pair.await_args.kwargs["force_generation"] == expected
+
     async def test_a_successful_pair_that_the_api_confirms_disables_the_button(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
@@ -578,9 +606,9 @@ class TestPairingSequence:
     ) -> None:
         """A Gen 2 pairing failure must surface a repairs card.
 
-        No maintainer owns a Gen 2 vehicle, so a tester's diagnostics download is
-        the only evidence that will ever settle the UNPROVEN parts of the
-        protocol. If the card does not appear, the failure is silent and the
+        No maintainer has paired a Gen 2 vehicle from Home Assistant, so a
+        tester's diagnostics download is the only evidence of where an attempt
+        stops. If the card does not appear, the failure is silent and the
         feedback channel does not exist -- the integration simply looks broken.
         """
         entity, coordinator = self._entity(hass, mock_config_entry)

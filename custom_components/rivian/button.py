@@ -207,20 +207,17 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
         ) -> bool:
             if service_info.address in rivian_phone_keys:
                 return False
-            # Gen 1 advertises the local name "Rivian Phone Key". Gen 2 has no
-            # local name at all: it advertises its vasVehicleId as a 128-bit
-            # service UUID, behind a rotating private address, so matching by
-            # name alone never finds one.
-            if (
-                service_info.name != rivian_ble.DEVICE_LOCAL_NAME
-                and vas_uuid not in service_info.service_uuids
+            # Matched in Python, not by HA's matcher: a Gen 2 vehicle has no
+            # local name, and a matcher cannot say "this name OR this UUID".
+            if not rivian_ble.advertisement_generation(
+                service_info.name, service_info.service_uuids, vas_uuid
             ):
                 return False
             _LOGGER.debug("Found %s (RSSI: %s)", service_info.device, service_info.rssi)
             rivian_phone_keys.add(service_info.address)
             return True
 
-        async def _find_phone_key() -> tuple[BLEDevice, bool] | None:
+        async def _find_phone_key() -> tuple[BLEDevice, bool, int | None] | None:
             _LOGGER.debug(
                 "Searching for the vehicle (%s or its VAS service UUID)",
                 rivian_ble.DEVICE_LOCAL_NAME,
@@ -233,7 +230,13 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                     BluetoothScanningMode.ACTIVE,
                     30,
                 )
-                return (service_info.device, vas_uuid in service_info.service_uuids)
+                return (
+                    service_info.device,
+                    vas_uuid in service_info.service_uuids,
+                    rivian_ble.advertisement_generation(
+                        service_info.name, service_info.service_uuids, vas_uuid
+                    ),
+                )
             except Exception as ex:  # noqa: BLE001
                 _LOGGER.error(
                     "%s not found%s",
@@ -265,6 +268,9 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 vehicle["vas_id"],
                 vehicle["public_key"],
                 self._config_entry.options.get("private_key"),
+                # Gen 2 is known from the advert, so skip detection's extra
+                # connection -- which on BlueZ sees no services and fails.
+                force_generation=2 if search_result[2] == 2 else None,
                 vehicle_id=self.coordinator.vehicle_id,
             ):
                 _LOGGER.debug("Querying API to validate vehicle pairing was successful")

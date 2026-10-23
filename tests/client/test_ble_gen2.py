@@ -44,8 +44,8 @@ PNONCE = bytes(range(100, 116))
 VNONCE = bytes(range(200, 216))
 
 
-def _hmac(*parts: bytes) -> bytes:
-    return hmac.new(SECRET, b"".join(parts), hashlib.sha256).digest()
+def _hmac(*parts: bytes, key: bytes = SECRET) -> bytes:
+    return hmac.new(key, b"".join(parts), hashlib.sha256).digest()
 
 
 def vehicle_reply(
@@ -61,15 +61,14 @@ def vehicle_reply(
     auth = b"\x0a" + bytes([len(credentials)]) + credentials
     message = b"\x2a" + bytes([len(auth)]) + auth
     message_list = b"\x0a" + bytes([len(message)]) + message
-    mac = hmac.new(
-        key,
-        message_list
-        + struct.pack("<I", seq)
-        + vehicle
-        + (b"" if flags[0] else phone_nonce)
-        + (b"" if flags[1] else VNONCE),
-        hashlib.sha256,
-    ).digest()
+    mac = _hmac(
+        message_list,
+        struct.pack("<I", seq),
+        vehicle,
+        b"" if flags[0] else phone_nonce,
+        b"" if flags[1] else VNONCE,
+        key=key,
+    )
     signed = b"\x0a" + bytes([len(message_list)]) + message_list + bytes([0x10, seq])
     signed += (b"\x18\x01" if flags[0] else b"") + (b"\x20\x01" if flags[1] else b"")
     signed += b"\x2a\x24\x08\x01\x12\x20" + mac
@@ -191,7 +190,7 @@ class _FakeVehicle:
 
     A write of auth#1 to Q is answered on R with `reply(phone_nonce)`; the phone
     nonce is cut out of the frame at its fixed captured offset, not parsed with
-    the code under test. The first T subscribe fails as the real vehicle's does
+    the code under test. A T subscribe fails as the real vehicle's does
     (ATT 0x05) until `pair()` has been called, unless `bond_fails`.
     """
 
@@ -204,7 +203,6 @@ class _FakeVehicle:
         self.handlers: dict[str, object] = {}
         self.written: list[tuple[str, bytes]] = []
         self.pair = AsyncMock(side_effect=self._pair)
-        self.stop_notify = AsyncMock()
 
     async def _pair(self) -> None:
         self.bonded = not self.bond_fails

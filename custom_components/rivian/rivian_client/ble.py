@@ -43,6 +43,23 @@ CONNECT_TIMEOUT = 10.0
 NOTIFICATION_TIMEOUT = 3.0
 
 
+def advertisement_generation(
+    name: str | None, service_uuids: list[str], vas_uuid: str
+) -> int | None:
+    """Tell a Rivian phone-key advertisement's generation from the advert alone.
+
+    Gen 1 advertises the local name "Rivian Phone Key". Gen 2 has no local name
+    at all: it advertises its vasVehicleId as a 128-bit service UUID, behind a
+    rotating private address. Returns None for anything else. `vas_uuid` is the
+    lowercase dashed form, as Home Assistant reports service UUIDs.
+    """
+    if name == DEVICE_LOCAL_NAME:
+        return 1
+    if vas_uuid in service_uuids:
+        return 2
+    return None
+
+
 class BleNotificationResponse:
     """BLE notification response helper."""
 
@@ -111,10 +128,7 @@ async def detect_vehicle_generation(
                         )
 
             if vehicle_id is not None:
-                # UUIDs and properties only, never characteristic values --
-                # this is the single highest-value unknown from the delta
-                # report: it settles whether the four Gen 2 UUIDs this
-                # integration guesses at are even the right ones.
+                # UUIDs and properties only, never characteristic values.
                 trace = ble_trace.get_trace(vehicle_id)
                 trace.record_services(discovered)
                 mtu = getattr(client, "mtu_size", None)

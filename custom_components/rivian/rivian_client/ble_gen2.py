@@ -26,7 +26,6 @@ vehicle marks the key paired and reports it to the cloud on its own.
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 from enum import IntEnum
 import hashlib
 import hmac
@@ -37,6 +36,10 @@ import struct
 from uuid import UUID
 
 from . import ble_trace
+from .proto.vehicle_operation import (
+    encode_length_delimited as _f_len,
+    encode_varint as _varint,
+)
 from .utils import get_secret_key
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,6 +61,7 @@ from .ble import (
     GEN2_ENCRYPTED_DATA_OUT_UUID as T_UUID,
     GEN2_PLAIN_DATA_IN_UUID as Q_UUID,
     GEN2_PLAIN_DATA_OUT_UUID as R_UUID,
+    create_notification_handler,
 )
 
 # The vehicle answers auth#1 within a second or two; the PoC waits 8s.
@@ -87,19 +91,6 @@ class AuthState(IntEnum):
 # Seven small message types, all known by field number only, so hand-encoding
 # them is less machinery than a .proto plus the regen/pin discipline that
 # PARALLAX_SCHEMAS.md applies to generated modules.
-
-
-def _varint(value: int) -> bytes:
-    out = bytearray()
-    while value > 0x7F:
-        out.append((value & 0x7F) | 0x80)
-        value >>= 7
-    out.append(value)
-    return bytes(out)
-
-
-def _f_len(field: int, payload: bytes) -> bytes:
-    return _varint((field << 3) | 2) + _varint(len(payload)) + payload
 
 
 def _f_var(field: int, value: int) -> bytes:
@@ -172,17 +163,15 @@ def _signed(
 # ── messages ─────────────────────────────────────────────────────────
 
 
-def build_auth1(
-    secret_key: bytes, phone_id: bytes, phone_nonce: bytes, seq: int = 1
-) -> bytes:
+def build_auth1(secret_key: bytes, phone_id: bytes, phone_nonce: bytes) -> bytes:
     """Auth#1: transaction 1, Credentials{phone_id, pNonce}; MAC has no vNonce yet."""
     if len(phone_id) != 16 or len(phone_nonce) != 16:
         raise ValueError("phone_id and phone_nonce must be 16 bytes")
     credentials = _f_len(1, phone_id) + _f_len(2, phone_nonce)
     message = _f_var(1, 1) + _f_len(5, _f_len(1, credentials))
     message_list = _f_len(1, message)
-    mac = _mac(secret_key, message_list, seq, phone_id, phone_nonce)
-    return _signed(message_list, seq, mac, excludes_vehicle_nonce=True)
+    mac = _mac(secret_key, message_list, 1, phone_id, phone_nonce)
+    return _signed(message_list, 1, mac, excludes_vehicle_nonce=True)
 
 
 def build_auth2(
@@ -191,15 +180,13 @@ def build_auth2(
     phone_nonce: bytes,
     vehicle_nonce: bytes,
     model: bytes = DEFAULT_MODEL,
-    seq: int = 2,
 ) -> bytes:
     """Auth#2: transaction 3 = empty Credentials, transaction 5 = ClientInfo{model}."""
     empty_auth = _f_var(1, 3) + _f_len(5, _f_len(1, b""))
-    client_info = _f_len(1, _f_len(2, model)) if model else _f_len(1, b"")
-    client = _f_var(1, 5) + _f_len(9, client_info)
+    client = _f_var(1, 5) + _f_len(9, _f_len(1, _f_len(2, model)))
     message_list = _f_len(1, empty_auth) + _f_len(1, client)
-    mac = _mac(secret_key, message_list, seq, phone_id, phone_nonce, vehicle_nonce)
-    return _signed(message_list, seq, mac)
+    mac = _mac(secret_key, message_list, 2, phone_id, phone_nonce, vehicle_nonce)
+    return _signed(message_list, 2, mac)
 
 
 def verify_auth1_reply(
@@ -240,37 +227,18 @@ def verify_auth1_reply(
     return vehicle_nonce
 
 
-def _mask(frame: bytes, *identifiers: bytes) -> bytes:
-    """Zero the stable identifiers inside a frame before it goes into the trace.
-
-    auth#1 carries the phone id and the reply carries the VAS vehicle id in the
-    clear. ble_trace keeps frames as hex because nonces and MACs are single use;
-    these two are not, so they are blanked in place (the layout is unchanged).
-    """
-    for identifier in identifiers:
-        frame = frame.replace(identifier, bytes(len(identifier)))
-    return frame
-
-
 async def _subscribe_encrypted(client: BleakClient, handler) -> None:
-    """Subscribe to T, bonding first if the vehicle demands it.
+    """Subscribe to T, which bonds the link.
 
-    The first subscribe is expected to fail with ATT 0x05. CoreBluetooth (and
-    phones) bond on their own and retry; elsewhere bleak needs an explicit
-    pair(). The vehicle requires the central to distribute its IRK and to
-    accept Just Works -- a BlueZ adapter without privacy enabled, or with an
-    agent that insists on MITM, is refused (see GEN2_BLE_PROTOCOL.md).
+    The vehicle refuses an unencrypted T subscribe with ATT 0x05. CoreBluetooth
+    (like a phone) bonds on that refusal by itself, so on macOS the subscribe is
+    simply retried until the user has accepted the pairing; elsewhere bleak
+    bonds only when asked, so pair() comes first. The vehicle requires the
+    central to distribute its IRK and to accept Just Works -- a BlueZ adapter
+    without privacy enabled, or with an agent that insists on MITM, is refused
+    (see GEN2_BLE_PROTOCOL.md).
     """
-    try:
-        await client.start_notify(T_UUID, handler)
-        return
-    except Exception as ex:  # noqa: BLE001  # backend-specific error types
-        _LOGGER.debug("Gen 2: T subscribe before bonding: %s", type(ex).__name__)
     if platform.system() != "Darwin":
-        # Some backends keep the failed subscription's callback registered and
-        # then refuse the retry as a duplicate.
-        with suppress(Exception):
-            await client.stop_notify(T_UUID)
         await client.pair()
     deadline = asyncio.get_running_loop().time() + BOND_TIMEOUT
     while True:
@@ -335,48 +303,41 @@ async def pair_phone_gen2(
         _LOGGER.error("Gen 2: failed to derive the shared key (%s)", type(ex).__name__)
         return False
 
-    def _record(direction: str, characteristic: str, frame: bytes, note=None) -> None:
-        masked = _mask(frame, phone, vehicle)
-        _trace(lambda: trace.record_frame(direction, characteristic, masked, note))
+    # Before any frame: the trace masks these identifiers inside every frame
+    # it records from here on (auth#1 carries the phone id, the reply the VAS
+    # vehicle id, both in the clear).
+    _trace(
+        lambda: trace.record_identifiers(
+            phone_id=phone_id, vas_vehicle_id=vas_vehicle_id, address=device.address
+        )
+    )
 
     def _set_state(new_state: AuthState) -> None:
         nonlocal state
         state = new_state
         _trace(lambda: trace.record_state(new_state.name))
 
+    def _on_t(_, data: bytearray) -> None:
+        # Post-pairing T traffic is undocumented; length only.
+        _LOGGER.debug("Gen 2: T notification (%d bytes)", len(data))
+
     try:
         async with BleakClient(device, timeout=CONNECT_TIMEOUT) as client:
             _LOGGER.debug("Gen 2: connected to %s", device)
-            _trace(
-                lambda: trace.record_identifiers(
-                    phone_id=phone_id,
-                    vas_vehicle_id=vas_vehicle_id,
-                    address=device.address,
-                )
-            )
             mtu = getattr(client, "mtu_size", None)
             if mtu is not None:
                 _trace(lambda: trace.record_mtu(mtu))
 
-            replies: asyncio.Queue[bytes] = asyncio.Queue()
-
-            def _on_r(_, data: bytearray) -> None:
-                replies.put_nowait(bytes(data))
-
-            def _on_t(_, data: bytearray) -> None:
-                # Post-pairing T traffic is undocumented; length only.
-                _LOGGER.debug("Gen 2: T notification (%d bytes)", len(data))
-
-            await client.start_notify(R_UUID, _on_r)
+            reply_handler = await create_notification_handler(client, R_UUID)
 
             phone_nonce = secrets.token_bytes(16)
             auth1 = build_auth1(secret_key, phone, phone_nonce)
-            _record("write", Q_UUID, auth1, "auth#1")
+            _trace(lambda: trace.record_frame("write", Q_UUID, auth1, "auth#1"))
             await client.write_gatt_char(Q_UUID, auth1, response=True)
             _set_state(AuthState.AUTH1_SENT)
 
             try:
-                reply = await asyncio.wait_for(replies.get(), REPLY_TIMEOUT)
+                await reply_handler.wait(REPLY_TIMEOUT)
             except TimeoutError:
                 _trace(lambda: trace.record_attempt_outcome("timeout"))
                 _LOGGER.error(
@@ -384,7 +345,8 @@ async def pair_phone_gen2(
                     "for this key, under the right driver?"
                 )
                 return False
-            _record("notify", R_UUID, reply, "auth#1 reply")
+            reply = bytes(reply_handler.data or b"")
+            _trace(lambda: trace.record_frame("notify", R_UUID, reply, "auth#1 reply"))
 
             try:
                 vehicle_nonce = verify_auth1_reply(
@@ -398,7 +360,7 @@ async def pair_phone_gen2(
             _set_state(AuthState.VEHICLE_VERIFIED)
 
             auth2 = build_auth2(secret_key, phone, phone_nonce, vehicle_nonce)
-            _record("write", Q_UUID, auth2, "auth#2")
+            _trace(lambda: trace.record_frame("write", Q_UUID, auth2, "auth#2"))
             await client.write_gatt_char(Q_UUID, auth2, response=True)
             _set_state(AuthState.AUTH2_SENT)
 
@@ -414,7 +376,6 @@ async def pair_phone_gen2(
             _LOGGER.debug("Gen 2: bonded with %s", device)
             return True
     except Exception:  # pylint: disable=broad-except
-        _trace(lambda: trace.record_state(state.name))
         _trace(lambda: trace.record_attempt_outcome("exception"))
         _LOGGER.exception("Gen 2 pairing failed at state %s", state.name)
         return False
