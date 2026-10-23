@@ -162,6 +162,9 @@ class RivianButtonEntity(RivianVehicleControlEntity, ButtonEntity):
             )
 
 
+GEN2_MAX_ATTEMPTS = 3
+
+
 class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
     """Representation of a Rivian pair phone button entity."""
 
@@ -294,7 +297,12 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 )
                 self._pairing = False
                 return
-            if search_result[1]:
+            # Gen 2 gets a few tries: its private address rotates, and HA can
+            # hand back a cached advert from an address the vehicle has dropped.
+            # The scan callback never offers a tried address again.
+            if search_result[1] and (
+                search_result[2] != 2 or len(trace.attempts) >= GEN2_MAX_ATTEMPTS
+            ):
                 # we found the appropriate key but pairing didn't work, so no need to continue
                 break
 

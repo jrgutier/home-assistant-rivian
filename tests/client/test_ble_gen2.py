@@ -191,13 +191,27 @@ class _FakeVehicle:
     A write of auth#1 to Q is answered on R with `reply(phone_nonce)`; the phone
     nonce is cut out of the frame at its fixed captured offset, not parsed with
     the code under test. A T subscribe fails as the real vehicle's does
-    (ATT 0x05) until `pair()` has been called, unless `bond_fails`.
+    (ATT 0x05) until `pair()` has been called, unless `bond_fails`; one before
+    auth#2 is a protocol violation and fails the test. On macOS the OS bonds by
+    itself on the first refusal (`darwin`).
     """
 
-    def __init__(self, reply=vehicle_reply, bond_fails: bool = False) -> None:
+    def __init__(
+        self,
+        reply=vehicle_reply,
+        bond_fails: bool = False,
+        darwin: bool = False,
+        uuids=(ble_gen2.Q_UUID, ble_gen2.R_UUID, ble_gen2.T_UUID),
+    ) -> None:
         self.reply = reply
         self.bond_fails = bond_fails
+        self.darwin = darwin
         self.bonded = False
+        self.t_attempts = 0
+        self.services = [
+            MagicMock(characteristics=[MagicMock(uuid=u.lower()) for u in uuids])
+        ]
+        self.stop_notify = AsyncMock()
         self.is_connected = True
         self.mtu_size = 185
         self.handlers: dict[str, object] = {}
@@ -208,11 +222,16 @@ class _FakeVehicle:
         self.bonded = not self.bond_fails
 
     async def start_notify(self, uuid, handler) -> None:
-        if uuid == ble_gen2.T_UUID and not self.bonded:
-            raise RuntimeError("ATT error 0x05: insufficient authentication")
+        if uuid == ble_gen2.T_UUID:
+            assert len(self.written) == 2, "T subscribed before auth#2"
+            self.t_attempts += 1
+            if not self.bonded:
+                self.bonded = self.darwin
+                raise RuntimeError("ATT error 0x05: insufficient authentication")
         self.handlers[uuid] = handler
 
     async def write_gatt_char(self, uuid, data, response=False) -> None:
+        assert response is True, "the PoC writes Q with response"
         self.written.append((uuid, bytes(data)))
         if len(self.written) == 1 and self.reply is not None:
             # Envelope(2) + Signed(2) + list(2) + msg hdr(2+4) + id hdr(2) + id(16) + nonce hdr(2)
@@ -233,9 +252,14 @@ async def _pair(client: _FakeVehicle, vehicle_id: str | None = None) -> bool:
     with (
         patch.object(ble_gen2, "get_secret_key", return_value=SECRET),
         patch.object(ble_gen2, "BleakClient", lambda device, timeout=None: client),
-        patch.object(ble_gen2.platform, "system", return_value="Linux"),
+        patch.object(
+            ble_gen2.platform,
+            "system",
+            return_value="Darwin" if client.darwin else "Linux",
+        ),
         patch.object(ble_gen2, "REPLY_TIMEOUT", 0.05),
         patch.object(ble_gen2, "BOND_TIMEOUT", 0.0),
+        patch.object(ble_gen2.asyncio, "sleep", AsyncMock()),
     ):
         return await ble_gen2.pair_phone_gen2(*ARGS, vehicle_id)
 
@@ -252,6 +276,23 @@ class TestPairPhoneGen2:
         assert len(auth2) == 62 + len(ble_gen2.DEFAULT_MODEL)
         client.pair.assert_awaited_once()
         assert ble_gen2.T_UUID in client.handlers
+        # The verified order: T refused first (ATT 0x05), then bond, then retry.
+        assert client.t_attempts == 2
+
+    async def test_on_macos_the_refused_subscribe_bonds_without_pair(self) -> None:
+        client = _FakeVehicle(darwin=True)
+        assert await _pair(client) is True
+        client.pair.assert_not_awaited()
+        assert client.t_attempts == 2
+
+    async def test_missing_phone_key_characteristics_fail_before_any_write(
+        self,
+    ) -> None:
+        """What a local BlueZ adapter sees: no services. Fail with a reason,
+        not a generic "characteristic not found" from deep in bleak."""
+        client = _FakeVehicle(uuids=())
+        assert await _pair(client) is False
+        assert client.written == []
 
     async def test_auth2_mac_covers_the_vehicle_nonce_it_was_given(self) -> None:
         client = _FakeVehicle()

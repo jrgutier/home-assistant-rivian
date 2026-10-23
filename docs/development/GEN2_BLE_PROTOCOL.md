@@ -3,8 +3,10 @@
 Source: [walthowd/rivian-gen2-key-poc](https://github.com/walthowd/rivian-gen2-key-poc)
 (MIT), tested on a 2026 R1S, with message layouts confirmed byte-for-byte against an
 over-the-air capture of the official Android app pairing. `ble_gen2.py` ports its
-`protocol.py`; `tests/client/test_ble_gen2.py` pins the captured sizes, and the builders
-were cross-checked byte-identical to the PoC's over 2,000 random inputs.
+`protocol.py`; `tests/client/test_ble_gen2.py` pins the captured sizes and hand-built
+frames. During the port the builders were also compared against the PoC's own
+`protocol.py` over 2,000 random inputs and matched byte for byte (a one-off check, not
+a test in this repo, since the PoC is not a dependency).
 
 This supersedes the static-analysis attempt in [GEN2_BLE_DELTA.md](GEN2_BLE_DELTA.md).
 See [the scorecard](#scorecard-what-the-apk-analysis-got-right-and-wrong) at the end.
@@ -85,6 +87,11 @@ NoInputNoOutput / Bonding+SC without MITM, so the result is LE Secure Connection
 Once encrypted, the T subscribe succeeds and the vehicle reports the key as paired to the
 cloud by itself. No extra cloud call.
 
+`ble_gen2._subscribe_encrypted` keeps that order: subscribe T, and on the refusal call
+bleak's `pair()` (except on macOS, which bonds by itself) before retrying. A stale bond
+from an earlier pairing makes BlueZ skip `pair()`; remove it (`bluetoothctl remove
+<address>`) and try again.
+
 ## What this means for Home Assistant
 
 `ble_gen2.pair_phone_gen2` runs exactly that sequence. Whether HA can complete it depends on
@@ -92,13 +99,14 @@ the Bluetooth path, and none of these has been tested on a vehicle yet:
 
 - **Local BlueZ adapter (HAOS, most installs): expected to fail.** The vehicle answers BlueZ's
   Service Changed CCCD write with ATT `0x03`; BlueZ then abandons its GATT client while still
-  reporting services resolved, so bleak sees no services and `detect_vehicle_generation`
-  returns 0 (it now logs why). Even past that, BlueZ only distributes an IRK with adapter
+  reporting services resolved, so bleak sees no services. `pair_phone_gen2` checks for
+  Q/R/T after connecting and fails with an error naming this cause, and the diagnostics
+  trace records the empty characteristic list. Even past that, BlueZ only distributes an IRK with adapter
   privacy on and adds MITM unless the agent is NoInputNoOutput. A small BlueZ change (ignore
   that refusal) would remove the first obstacle.
 - **ESPHome Bluetooth proxy: unknown.** It has its own GATT client, so the Service Changed
-  quirk may not apply, and `pair()` is supported. Whether its SMP settings meet the two
-  conditions above is untested.
+  quirk may not apply, and bleak-esphome implements `pair()`. Whether the proxy
+  distributes an IRK and accepts Just Works is unknown.
 - **macOS: works** (that is the PoC's primary platform), but HA does not run there.
 
 ### Workaround that does not need HA's Bluetooth

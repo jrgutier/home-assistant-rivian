@@ -13,7 +13,7 @@ itself handles diagnostics.
 
 ONE TRACE PER VEHICLE, NOT A MODULE SINGLETON. A multi-vehicle account builds
 one pair button PER VEHICLE (button.py:126-132), each guarded by its own
-PER-ENTITY `self._pairing` (button.py:168) -- not one guard for the whole
+PER-ENTITY `self._pairing` (button.py:171) -- not one guard for the whole
 integration. Two vehicles on the same account can therefore pair
 concurrently. A single global trace would interleave both pairings' frames
 into one stream, and either one's `reset()` would wipe the other's evidence

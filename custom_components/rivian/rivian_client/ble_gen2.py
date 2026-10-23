@@ -26,6 +26,7 @@ vehicle marks the key paired and reports it to the cloud on its own.
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from enum import IntEnum
 import hashlib
 import hmac
@@ -228,17 +229,26 @@ def verify_auth1_reply(
 
 
 async def _subscribe_encrypted(client: BleakClient, handler) -> None:
-    """Subscribe to T, which bonds the link.
+    """Subscribe to T, which bonds the link -- in the order the PoC verified.
 
-    The vehicle refuses an unencrypted T subscribe with ATT 0x05. CoreBluetooth
-    (like a phone) bonds on that refusal by itself, so on macOS the subscribe is
-    simply retried until the user has accepted the pairing; elsewhere bleak
-    bonds only when asked, so pair() comes first. The vehicle requires the
-    central to distribute its IRK and to accept Just Works -- a BlueZ adapter
-    without privacy enabled, or with an agent that insists on MITM, is refused
-    (see GEN2_BLE_PROTOCOL.md).
+    The vehicle refuses the first, unencrypted T subscribe with ATT 0x05.
+    CoreBluetooth (like a phone) bonds on that refusal by itself, so on macOS
+    the subscribe is simply retried until the user has accepted the pairing;
+    elsewhere bleak bonds only when asked, so pair() follows the refusal. The
+    vehicle requires the central to distribute its IRK and to accept Just
+    Works -- a BlueZ adapter without privacy enabled, or with an agent that
+    insists on MITM, is refused (see GEN2_BLE_PROTOCOL.md).
     """
+    try:
+        await client.start_notify(T_UUID, handler)
+        return
+    except Exception as ex:  # noqa: BLE001  # backend-specific error types
+        _LOGGER.debug("Gen 2: T subscribe before bonding: %s", type(ex).__name__)
     if platform.system() != "Darwin":
+        # Some backends keep the refused subscription's callback registered
+        # and would reject the retry as a duplicate.
+        with suppress(Exception):
+            await client.stop_notify(T_UUID)
         await client.pair()
     deadline = asyncio.get_running_loop().time() + BOND_TIMEOUT
     while True:
@@ -328,6 +338,25 @@ async def pair_phone_gen2(
             if mtu is not None:
                 _trace(lambda: trace.record_mtu(mtu))
 
+            # Discovered here, not in detect_vehicle_generation: a Gen 2 vehicle
+            # found by its advert skips detection (button.py forces gen 2).
+            chars = {
+                char.uuid.upper()
+                for service in client.services
+                for char in service.characteristics
+            }
+            _trace(lambda: trace.record_services([{"uuid": u} for u in sorted(chars)]))
+            if not {Q_UUID, R_UUID, T_UUID} <= chars:
+                _trace(lambda: trace.record_attempt_outcome("no_gatt_services"))
+                _LOGGER.error(
+                    "Gen 2: the vehicle's phone-key characteristics are missing "
+                    "(%d characteristics seen). Either Set up timed out, or this "
+                    "is a local BlueZ adapter, which cannot see a Gen 2 "
+                    "vehicle's services; see GEN2_BLE_PROTOCOL.md",
+                    len(chars),
+                )
+                return False
+
             reply_handler = await create_notification_handler(client, R_UUID)
 
             phone_nonce = secrets.token_bytes(16)
@@ -369,6 +398,11 @@ async def pair_phone_gen2(
             except Exception as ex:
                 reason = type(ex).__name__
                 _trace(lambda: trace.record_bonding("subscribe-t", f"error:{reason}"))
+                _LOGGER.error(
+                    "Gen 2: bonding failed. If this adapter paired with the "
+                    "vehicle before, remove that stale bond (e.g. "
+                    "`bluetoothctl remove <address>`) and try again"
+                )
                 raise
             _trace(lambda: trace.record_bonding("subscribe-t", "ok"))
             _set_state(AuthState.BONDED)

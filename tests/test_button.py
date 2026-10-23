@@ -547,6 +547,36 @@ class TestPairingSequence:
             await entity.async_press()
         assert pair.await_args.kwargs["force_generation"] == expected
 
+    async def test_a_gen2_failure_keeps_scanning_for_a_fresh_address(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Gen 2 rotates its private address, and HA can replay a cached advert
+        from an address the vehicle has dropped. One failed connect must not end
+        the press the way it does for Gen 1."""
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        coordinator.drivers_coordinator.get_device_details = MagicMock(
+            return_value={"isPaired": True}
+        )
+
+        def advert(address):
+            info = MagicMock()
+            info.address, info.name = address, address
+            info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+            return info
+
+        pair = AsyncMock(side_effect=[False, True])
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(side_effect=[advert("stale"), advert("fresh")]),
+            ),
+            patch("custom_components.rivian.rivian_client.ble.pair_phone", pair),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            await entity.async_press()
+        assert pair.await_count == 2
+        assert entity._available is False
+
     async def test_a_successful_pair_that_the_api_confirms_disables_the_button(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
@@ -722,9 +752,11 @@ class TestPairingSequence:
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
         """When the advertised service UUID matches this vehicle, a failed pair is
-        final -- retrying would scan forever against the correct, unwilling key."""
+        final for Gen 1 -- retrying would scan forever against the correct,
+        unwilling key. (Gen 2 gets GEN2_MAX_ATTEMPTS; see the test above.)"""
         entity, _ = self._entity(hass, mock_config_entry)
         service_info = MagicMock()
+        service_info.name = "Rivian Phone Key"
         service_info.address = "AA:BB"
         service_info.device = MagicMock()
         service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
