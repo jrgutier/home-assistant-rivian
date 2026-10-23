@@ -5,13 +5,13 @@
     "bluetooth_adapters"
   ],
   "codeowners": [
-    "@bretterer"
+    "@jrgutier"
   ],
   "config_flow": true,
-  "documentation": "https://github.com/bretterer/home-assistant-rivian",
+  "documentation": "https://github.com/jrgutier/home-assistant-rivian",
   "integration_type": "hub",
   "iot_class": "cloud_push",
-  "issue_tracker": "https://github.com/bretterer/home-assistant-rivian/issues",
+  "issue_tracker": "https://github.com/jrgutier/home-assistant-rivian/issues",
   "loggers": [
     "custom_components.rivian"
   ],
