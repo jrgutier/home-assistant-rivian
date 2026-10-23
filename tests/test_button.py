@@ -490,6 +490,93 @@ class TestPairingSequence:
             await entity.async_press()
         assert entity._pairing is False
 
+    async def test_the_scan_matches_gen1_by_name_and_gen2_by_vas_uuid(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """A Gen 2 vehicle advertises no local name, only its vasVehicleId as a
+        service UUID. A scan filtered on "Rivian Phone Key" never finds one."""
+        entity, _ = self._entity(hass, mock_config_entry)
+        scan = AsyncMock(side_effect=TimeoutError)
+        with patch(
+            "homeassistant.components.bluetooth.async_process_advertisements", scan
+        ):
+            await entity.async_press()
+
+        callback, matcher = scan.await_args.args[1:3]
+        assert matcher == {"connectable": True}
+
+        def adv(address, name, uuids):
+            info = MagicMock()
+            info.address, info.name, info.service_uuids = address, name, uuids
+            return info
+
+        vas = "11111111-2222-3333-4444-555555555555"
+        assert callback(adv("01", "Rivian Phone Key", [])) is True  # Gen 1
+        assert callback(adv("02", "02", [vas])) is True  # Gen 2: unnamed, by UUID
+        assert callback(adv("03", "Headphones", [])) is False
+        assert (
+            callback(adv("04", "04", ["0000fff5-0000-1000-8000-00805f9b34fb"])) is False
+        )
+        assert callback(adv("02", "02", [vas])) is False  # already tried
+
+    @pytest.mark.parametrize(
+        ("name", "expected"), [("Rivian Phone Key", None), ("AA:BB", 2)]
+    )
+    async def test_a_gen2_advert_skips_generation_detection(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry, name, expected
+    ) -> None:
+        """An unnamed advert carrying the VAS UUID is Gen 2 already; detecting
+        it would cost a second connection that BlueZ cannot even use."""
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        coordinator.drivers_coordinator.get_device_details = MagicMock(
+            return_value={"isPaired": True}
+        )
+        service_info = MagicMock()
+        service_info.address = "AA:BB"
+        service_info.name = name
+        service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+        pair = AsyncMock(return_value=True)
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(return_value=service_info),
+            ),
+            patch("custom_components.rivian.rivian_client.ble.pair_phone", pair),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            await entity.async_press()
+        assert pair.await_args.kwargs["force_generation"] == expected
+
+    async def test_a_gen2_failure_keeps_scanning_for_a_fresh_address(
+        self, hass: HomeAssistant, mock_config_entry: ConfigEntry
+    ) -> None:
+        """Gen 2 rotates its private address, and HA can replay a cached advert
+        from an address the vehicle has dropped. One failed connect must not end
+        the press the way it does for Gen 1."""
+        entity, coordinator = self._entity(hass, mock_config_entry)
+        coordinator.drivers_coordinator.get_device_details = MagicMock(
+            return_value={"isPaired": True}
+        )
+
+        def advert(address):
+            info = MagicMock()
+            info.address, info.name = address, address
+            info.service_uuids = ["11111111-2222-3333-4444-555555555555"]
+            return info
+
+        pair = AsyncMock(side_effect=[False, True])
+        with (
+            patch(
+                "homeassistant.components.bluetooth.async_process_advertisements",
+                AsyncMock(side_effect=[advert("stale"), advert("fresh")]),
+            ),
+            patch("custom_components.rivian.rivian_client.ble.pair_phone", pair),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            await entity.async_press()
+        assert pair.await_count == 2
+        assert entity._available is False
+
     async def test_a_successful_pair_that_the_api_confirms_disables_the_button(
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
@@ -549,9 +636,9 @@ class TestPairingSequence:
     ) -> None:
         """A Gen 2 pairing failure must surface a repairs card.
 
-        No maintainer owns a Gen 2 vehicle, so a tester's diagnostics download is
-        the only evidence that will ever settle the UNPROVEN parts of the
-        protocol. If the card does not appear, the failure is silent and the
+        No maintainer has paired a Gen 2 vehicle from Home Assistant, so a
+        tester's diagnostics download is the only evidence of where an attempt
+        stops. If the card does not appear, the failure is silent and the
         feedback channel does not exist -- the integration simply looks broken.
         """
         entity, coordinator = self._entity(hass, mock_config_entry)
@@ -665,9 +752,11 @@ class TestPairingSequence:
         self, hass: HomeAssistant, mock_config_entry: ConfigEntry
     ) -> None:
         """When the advertised service UUID matches this vehicle, a failed pair is
-        final -- retrying would scan forever against the correct, unwilling key."""
+        final for Gen 1 -- retrying would scan forever against the correct,
+        unwilling key. (Gen 2 gets GEN2_MAX_ATTEMPTS; see the test above.)"""
         entity, _ = self._entity(hass, mock_config_entry)
         service_info = MagicMock()
+        service_info.name = "Rivian Phone Key"
         service_info.address = "AA:BB"
         service_info.device = MagicMock()
         service_info.service_uuids = ["11111111-2222-3333-4444-555555555555"]

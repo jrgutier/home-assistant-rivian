@@ -162,6 +162,9 @@ class RivianButtonEntity(RivianVehicleControlEntity, ButtonEntity):
             )
 
 
+GEN2_MAX_ATTEMPTS = 3
+
+
 class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
     """Representation of a Rivian pair phone button entity."""
 
@@ -200,29 +203,42 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
         )
 
         rivian_phone_keys = set()
+        vas_uuid = str(UUID(vehicle["vas_id"]))
 
         def _process_more_advertisements(
             service_info: BluetoothServiceInfoBleak,
         ) -> bool:
             if service_info.address in rivian_phone_keys:
                 return False
+            # Matched in Python, not by HA's matcher: a Gen 2 vehicle has no
+            # local name, and a matcher cannot say "this name OR this UUID".
+            if not rivian_ble.advertisement_generation(
+                service_info.name, service_info.service_uuids, vas_uuid
+            ):
+                return False
             _LOGGER.debug("Found %s (RSSI: %s)", service_info.device, service_info.rssi)
             rivian_phone_keys.add(service_info.address)
             return True
 
-        async def _find_phone_key() -> tuple[BLEDevice, bool] | None:
-            _LOGGER.debug("Searching for %s", rivian_ble.DEVICE_LOCAL_NAME)
+        async def _find_phone_key() -> tuple[BLEDevice, bool, int | None] | None:
+            _LOGGER.debug(
+                "Searching for the vehicle (%s or its VAS service UUID)",
+                rivian_ble.DEVICE_LOCAL_NAME,
+            )
             try:
                 service_info = await bluetooth.async_process_advertisements(
                     self.hass,
                     _process_more_advertisements,
-                    {"local_name": rivian_ble.DEVICE_LOCAL_NAME, "connectable": True},
+                    {"connectable": True},
                     BluetoothScanningMode.ACTIVE,
                     30,
                 )
                 return (
                     service_info.device,
-                    str(UUID(vehicle["vas_id"])) in service_info.service_uuids,
+                    vas_uuid in service_info.service_uuids,
+                    rivian_ble.advertisement_generation(
+                        service_info.name, service_info.service_uuids, vas_uuid
+                    ),
                 )
             except Exception as ex:  # noqa: BLE001
                 _LOGGER.error(
@@ -255,6 +271,9 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 vehicle["vas_id"],
                 vehicle["public_key"],
                 self._config_entry.options.get("private_key"),
+                # Gen 2 is known from the advert, so skip detection's extra
+                # connection -- which on BlueZ sees no services and fails.
+                force_generation=2 if search_result[2] == 2 else None,
                 vehicle_id=self.coordinator.vehicle_id,
             ):
                 _LOGGER.debug("Querying API to validate vehicle pairing was successful")
@@ -278,7 +297,12 @@ class RivianPairPhoneButtonEntity(RivianVehicleControlEntity, ButtonEntity):
                 )
                 self._pairing = False
                 return
-            if search_result[1]:
+            # Gen 2 gets a few tries: its private address rotates, and HA can
+            # hand back a cached advert from an address the vehicle has dropped.
+            # The scan callback never offers a tried address again.
+            if search_result[1] and (
+                search_result[2] != 2 or len(trace.attempts) >= GEN2_MAX_ATTEMPTS
+            ):
                 # we found the appropriate key but pairing didn't work, so no need to continue
                 break
 

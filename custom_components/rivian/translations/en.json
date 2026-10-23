@@ -843,7 +843,7 @@
     },
     "gen2_pairing_failed": {
       "title": "Gen 2 phone-key pairing failed (beta feedback needed)",
-      "description": "Bluetooth phone-key pairing failed on a Gen 2 (2025+) Rivian vehicle. Gen 2 support is still in beta and pairing may not work yet on your vehicle -- your report is what helps us fix it. Please: 1) Go to Settings > Devices & Services > Rivian, open the integration, and use \"Download diagnostics\" to save a redacted diagnostics file. 2) Click \"Learn more\" below to open a pre-filled beta feedback issue on GitHub. 3) Review the diagnostics file yourself before attaching it -- the issue is public and permanent -- then attach it and describe what happened."
+      "description": "Bluetooth phone-key pairing failed on a Gen 2 (2025+) Rivian vehicle. Gen 2 support is still in beta. A local Linux Bluetooth adapter (BlueZ) is known not to work with Gen 2 vehicles; a Bluetooth proxy may, and you can also pair this key from a Mac (see the integration README). Your report is what helps us fix it. Please: 1) Go to Settings > Devices & Services > Rivian, open the integration, and use \"Download diagnostics\" to save a redacted diagnostics file. 2) Click \"Learn more\" below to open a pre-filled beta feedback issue on GitHub. 3) Review the diagnostics file yourself before attaching it -- the issue is public and permanent -- then attach it and describe what happened."
     }
   }
 }

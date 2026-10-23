@@ -1,5 +1,9 @@
 # Gen 2 (PRE_CCC) BLE pairing — APK ground truth vs. this repo
 
+> **Superseded.** The wire format below is wrong: the Gen 2 handshake *is* protobuf. The
+> protocol verified on a real vehicle is in [GEN2_BLE_PROTOCOL.md](GEN2_BLE_PROTOCOL.md),
+> which ends with a scorecard of what this analysis got right and wrong. Kept as a record.
+
 Read-only analysis. Component 1 (`apk-ground-truth`) of
 `.omc/specs/deep-interview-gen2-ble-control-chain.md`. **No code was changed.**
 

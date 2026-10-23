@@ -23,7 +23,7 @@ generated message does neither by default:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import uuid
 
 from google.protobuf.message import Message
@@ -87,9 +87,7 @@ class Timestamp(_Message):
 
     def ToDatetime(self) -> datetime:
         """Return the moment as an aware UTC datetime."""
-        return datetime.fromtimestamp(
-            self.seconds + self.nanos / 1_000_000_000, tz=timezone.utc
-        )
+        return datetime.fromtimestamp(self.seconds + self.nanos / 1_000_000_000, tz=UTC)
 
     def _message(self) -> _Request.Timestamp:
         return _Request.Timestamp(seconds=self.seconds, nanos=self.nanos)
@@ -171,7 +169,7 @@ class Operation(_Message):
         self.operation_id = operation_id or uuid.uuid4().bytes
         self.payload = payload
         if timestamp is None:
-            timestamp = Timestamp.from_datetime(datetime.now(timezone.utc))
+            timestamp = Timestamp.from_datetime(datetime.now(UTC))
         self.timestamp = timestamp
 
     def to_dict(self) -> dict:

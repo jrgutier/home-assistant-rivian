@@ -254,7 +254,7 @@ Vehicle commands require a one-time Bluetooth pairing:
 2. Integration generates a cryptographic key pair
 3. User initiates pairing in-vehicle and clicks "Pair" button entity in HA
 4. After pairing, commands are sent via cloud (no Bluetooth required after pairing)
-5. Gen2 (2025) vehicles not currently supported due to BLE hardware changes
+5. Gen2 (2025+) vehicles use a different handshake (protobuf over Q/R, bond on T), verified by walthowd/rivian-gen2-key-poc and ported in `ble_gen2.py`; see docs/development/GEN2_BLE_PROTOCOL.md. Local BlueZ cannot see a Gen2 vehicle's services
 
 ### Data Flow
 

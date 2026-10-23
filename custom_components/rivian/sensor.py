@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import logging
 from typing import Any, Final
 
@@ -323,11 +323,11 @@ CHARGING_SENSORS: Final[tuple[RivianSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.TIMESTAMP,
         value_lambda=lambda val: (
             (
-                datetime.fromtimestamp(val / 1000, tz=timezone.utc)
+                datetime.fromtimestamp(val / 1000, tz=UTC)
                 if isinstance(val, int)
                 # RIVIAN_TIMESTAMP_FORMAT ends in %z, so this IS tz-aware; ruff
                 # cannot see through the module-level constant.
-                else datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)  # noqa: DTZ007
+                else datetime.strptime(val, RIVIAN_TIMESTAMP_FORMAT)
             )
             if val
             else val
