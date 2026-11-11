@@ -14,7 +14,8 @@
       "mcp__hass-mcp__system_overview",
       "mcp__hass-mcp__search_entities_tool",
       "mcp__hass-mcp__get_error_log",
-      "mcp__hass-mcp__list_entities"
+      "mcp__hass-mcp__list_entities",
+      "mcp__claude-code-remote__add_repo"
     ],
     "deny": [],
     "ask": []
